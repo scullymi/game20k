@@ -190,13 +190,24 @@
       </list>
       <button label="Save settings" action="save"/>
     </menu>
-    <!-- game20k: display only. The Pico answers these three buttons itself
-         (menu.c catches the actions), they do NOT go to the core. The OSD is 64
-         pixels high and holds exactly four entries, no room for a line that is
-         always visible, so it is shown on request. -->
+    <!-- game20k: the mode goes to the core like any value and the core ignores
+         'H'. The Pico follows it (sys_set_val): softcore applies at once, hardcore
+         resets a running game first, as RetroAchievements asks. Hardcore is the
+         default, as RetroAchievements recommends. The account button is answered
+         by the Pico itself, see Status below. -->
+    <menu label="RetroAchievements">
+      <list label="Mode:" id="H" default="1">
+        <listentry label="Softcore" value="0"/>
+        <listentry label="Hardcore" value="1"/>
+      </list>
+      <button label="Account" action="rainfo"/>
+    </menu>
+    <!-- game20k: display only. The Pico answers these buttons itself (menu.c
+         catches the actions), they do NOT go to the core. The OSD is 64 pixels
+         high and holds exactly four entries, no room for a line that is always
+         visible, so it is shown on request. -->
     <menu label="Status">
       <button label="Network" action="netinfo"/>
-      <button label="Achievements" action="rainfo"/>
       <button label="Version" action="verinfo"/>
     </menu>
     <button label="Reset" action="reset_hide"/>
