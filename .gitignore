@@ -1,0 +1,56 @@
+# ---------------------------------------------------------------------------------------
+# What must NOT get in matters more than what is missing. Two kinds:
+#   1. ROM data in any form: the source, a generated VHDL table, a compiled simulation.
+#      The source alone being excluded is not enough, what is generated from it must be
+#      excluded too.
+#   2. Credentials and built firmware.
+# ---------------------------------------------------------------------------------------
+
+# --- ROM data, never in the repository ---
+# the folder itself is in the repository (with its README), its contents are not
+roms/*
+!roms/README.md
+# ... also when it ends up outside roms/
+*.rom
+galaga*.zip
+namco*.zip
+# generated tables and their compiled form: make_galaga_rom.sh and build.tcl write into gen/
+**/proms/*.vhd
+**/work/
+**/gen/
+**/frames/
+
+# --- credentials ---
+# They live in sdcard/config.ini, excluded below. Nothing here uses .env files, this line is
+# a precaution in case one ever appears.
+*.env
+
+# --- Gowin build output ---
+impl/
+*.fs
+*.bin
+*.bit
+*.log
+
+# --- Pico build output ---
+build/
+build_*/
+# A built firmware carries BTstack with its non-commercial clause: redistribution only with
+# the licence notice. Build output anyway, not versioned.
+*.uf2
+*.elf
+
+# --- third-party repositories under external/ ---
+# FPGA-Companion, pico-sdk and tinyusb are git submodules and therefore tracked. The SDK
+# caches picotool there (picotool-src), that stays untracked.
+external/*
+!external/FPGA-Companion
+!external/pico-sdk
+!external/tinyusb
+
+# --- macOS ---
+.DS_Store
+
+# --- example card: the generated file carries secrets ---
+sdcard/config.ini
+sdcard/galaga.ini

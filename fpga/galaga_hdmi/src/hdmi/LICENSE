@@ -1,0 +1,28 @@
+The ten files in this folder come from https://github.com/hdl-util/hdmi by Sameer Puri,
+commit 08936f65be09abac338cd8c13beee289af7e7e59, which is dual-licensed MIT OR Apache-2.0
+(its LICENSE-MIT and LICENSE-APACHE). They are used here under the MIT License, whose
+text follows unchanged from its LICENSE-MIT. Seven files are identical to that commit.
+hdmi.sv and tmds_channel.sv carry changes marked "game20k:", serializer.sv is the version
+from NESTang (https://github.com/nand2mario/nestang), which adds the line `define GW_IDE.
+
+MIT License
+
+Copyright (c) 2019 Sameer Puri
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

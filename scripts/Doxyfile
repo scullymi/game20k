@@ -1,0 +1,33 @@
+# Doxygen for our own sources in the FPGA-Companion fork (the RetroAchievements part).
+# Run it through scripts/doxygen_fork.sh, which sets FORK and OUT.
+#
+# Only the settings that differ from Doxygen's defaults. The comment style of the fork's
+# RA sources: file heads with @file/@brief, @brief at the declarations
+# in the .h files, /**< */ at members and at the constants on top of the .c files,
+# plain comments in function bodies. So static functions stay out and missing
+# @param/@return is no warning.
+
+PROJECT_NAME           = "game20k companion"
+PROJECT_BRIEF          = "RetroAchievements on the FPGA-Companion fork"
+OUTPUT_DIRECTORY       = $(OUT)
+
+# our files only: ra_* and game20k_* (new ones are picked up by name)
+INPUT                  = $(FORK)/src $(FORK)/src/rp2040
+FILE_PATTERNS          = ra_*.c ra_*.h game20k_*.h
+RECURSIVE              = NO
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_STATIC         = NO
+SOURCE_BROWSER         = YES
+FULL_PATH_NAMES        = NO
+
+# every public declaration must carry a comment
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_LOGFILE           = $(OUT)/warnings.txt
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO

@@ -1,0 +1,78 @@
+; ------------------------------------------------------------
+; config.ini  --  settings of the FPGA Companion
+; Belongs in the ROOT DIRECTORY of the SD card, as /config.ini
+;
+; scripts/make_sdcard.sh creates sdcard/config.ini from this
+; template on its first run. Fill in your values there by
+; hand, then run the script once more.
+;
+; LINE LENGTH: the firmware reads with a 64-byte buffer
+; (inifile.c, f_gets). A line may have at most 62 characters.
+; A longer line is dropped. Only when a ; sits within the
+; first 62 characters does the part before it count. The
+; machine shows nothing. Its debug log prints the start of
+; the line in plain text, even a long WiFi password.
+; scripts/make_sdcard.sh checks this beforehand.
+;
+; Everything after a semicolon is a comment.
+; ------------------------------------------------------------
+
+[WIFI]
+SSID=YOUR_WIFI_NAME
+PASS=YOUR_WIFI_PASSWORD
+
+[NTP]
+; Time zone as an hour offset from UTC. 1 = CET, 2 = CEST.
+; The clock in the game core uses it, and so do the file
+; timestamps on the card. The certificate check for the
+; RetroAchievements server runs in UTC and does not need it.
+TIMEZONE=1
+; Time servers. NUMERIC IPs only, names like pool.ntp.org are
+; NOT resolved. Separate several with commas.
+; Without this line the Companion asks DHCP for a server
+; (option 42). If the router offers none, the debug log says
+; "SNTP server 0 is 0.0.0.0", the clock stays at 1970 and
+; RetroAchievements waits for it forever, because the
+; certificates are checked against the clock.
+; 162.159.200.123 = Cloudflare, 216.239.35.0 = Google.
+; Both are anycast, the addresses stay stable long term.
+IP=162.159.200.123,216.239.35.0
+
+[NETWORK]
+; MODE=dhcp is the default and needs nothing else.
+; For a fixed address: MODE=manual plus IP, MASK and GW.
+MODE=dhcp
+; IP=192.168.1.50
+; MASK=255.255.255.0
+; GW=192.168.1.1
+
+[RA]
+; RetroAchievements. USER is your account name. No special
+; account is needed, only a confirmed e-mail address.
+;
+; TOKEN is the CONNECT TOKEN, 16 characters, NOT your password
+; and NOT the web API key from the account settings.
+; Fetch it once, see the repository's README.md, Build, step 3.
+; From then on it stands in for the password.
+;
+; Whoever gets hold of this card can unlock in your name.
+; FAT32 has no permissions. Before lending the machine out,
+; delete these two lines, or the whole file.
+; The token can be revoked with the button
+; "Sign Out of All Emulators" in the account settings.
+; If this section is missing or the two lines below stay
+; commented out, the machine does not log in anywhere and
+; simply plays. That is exactly right for a lent machine.
+; To log in, remove the ; at the start of each line and
+; replace the placeholders.
+;USER=YOUR_RA_NAME
+;TOKEN=YOUR_CONNECT_TOKEN
+
+[MENU]
+; Button on the arcade stick that opens the OSD, counted from
+; 0. The input test in the menu (Controller, "Input test: On")
+; labels the same buttons from 1, B1..B4 and 5..12. Press the
+; button, read its label in the test and enter that number
+; minus one, B1 becomes 0 and 5 becomes 4. Without this line
+; no stick button opens the OSD.
+; GAMEPAD_TRIGGER=0

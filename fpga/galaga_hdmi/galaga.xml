@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Galaga (game20k) configuration for the FPGA Companion -->
+<config name="Galaga" version="0">
+  <actions>
+    <!-- game20k: deliberately WITHOUT commands. The Pico answers these three
+         buttons itself (menu.c catches them by name) and does not pass them on
+         to the core. They must be listed all the same: config_get_action()
+         resolves an unknown name to NULL, and the button then does nothing. -->
+    <action name="netinfo"/>
+    <action name="rainfo"/>
+    <action name="verinfo"/>
+    <action name="init">
+      <load file="galaga.ini"/>
+      <set id="R" value="1"/>
+    </action>
+    <action name="ready">
+      <set id="R" value="0"/>
+    </action>
+    <action name="save">
+      <save file="galaga.ini"/>
+    </action>
+    <action name="reset">
+      <set id="R" value="1"/>
+      <delay ms="10"/>
+      <set id="R" value="0"/>
+    </action>
+    <action name="reset_hide">
+      <link action="reset"/>
+      <hide/>
+    </action>
+  </actions>
+
+  <menu label="Galaga">
+    <menu label="DIP switches">
+      <list label="Lives:" id="L" default="2" action="reset">
+        <listentry label="2" value="0"/>
+        <listentry label="3" value="2"/>
+        <listentry label="4" value="1"/>
+        <listentry label="5" value="3"/>
+      </list>
+      <list label="Bonus:" id="B" default="2" action="reset">
+        <listentry label="None" value="0"/>
+        <listentry label="30K 100K+" value="1"/>
+        <listentry label="20K 70K+" value="2"/>
+        <listentry label="20K 60K" value="3"/>
+        <listentry label="20K 60K+" value="4"/>
+        <listentry label="30K 120K+" value="5"/>
+        <listentry label="20K 80K+" value="6"/>
+        <listentry label="30K 80K" value="7"/>
+      </list>
+      <list label="Coinage:" id="C" default="7" action="reset">
+        <listentry label="Free play" value="0"/>
+        <listentry label="1C/3P" value="1"/>
+        <listentry label="2C/3P" value="2"/>
+        <listentry label="1C/2P" value="3"/>
+        <listentry label="4C/1P" value="4"/>
+        <listentry label="3C/1P" value="5"/>
+        <listentry label="2C/1P" value="6"/>
+        <listentry label="1C/1P" value="7"/>
+      </list>
+      <list label="Difficulty:" id="F" default="0" action="reset">
+        <listentry label="Medium" value="0"/>
+        <listentry label="Hard" value="1"/>
+        <listentry label="Hardest" value="2"/>
+        <listentry label="Easy" value="3"/>
+      </list>
+      <list label="Demo sound:" id="M" default="1" action="reset">
+        <listentry label="Off" value="0"/>
+        <listentry label="On" value="1"/>
+      </list>
+    </menu>
+    <menu label="Controller">
+      <list label="Fire:" id="A" default="0">
+        <listentry label="Any" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <list label="Coin:" id="N" default="9">
+        <listentry label="None" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <list label="Start 1P:" id="P" default="10">
+        <listentry label="None" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <list label="Start 2P:" id="Q" default="0">
+        <listentry label="None" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <list label="Vol -:" id="D" default="0">
+        <listentry label="None" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <list label="Vol +:" id="U" default="0">
+        <listentry label="None" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <list label="Input test:" id="T" default="0">
+        <listentry label="Off" value="0"/>
+        <listentry label="On" value="1"/>
+      </list>
+    </menu>
+    <menu label="Settings">
+      <image label="ROM set" index="0" ext="rom" default="galaga.rom"
+             none_str="&lt;none&gt;" action="reset_hide"/>
+      <list label="Volume:" id="V" default="6">
+        <listentry label="Off" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7 (max)" value="7"/>
+      </list>
+      <list label="Scanlines:" id="S" default="0">
+        <listentry label="Off" value="0"/>
+        <listentry label="25%" value="1"/>
+        <listentry label="50%" value="2"/>
+        <listentry label="75%" value="3"/>
+      </list>
+      <list label="Screen:" id="G" default="0">
+        <listentry label="Landscape 3x" value="0"/>
+        <listentry label="Upright 2x" value="1"/>
+      </list>
+      <button label="Save settings" action="save"/>
+    </menu>
+    <!-- game20k: display only. The Pico answers these three buttons itself
+         (menu.c catches the actions), they do NOT go to the core. The OSD is 64
+         pixels high and holds exactly four entries, no room for a line that is
+         always visible, so it is shown on request. -->
+    <menu label="Status">
+      <button label="Network" action="netinfo"/>
+      <button label="Achievements" action="rainfo"/>
+      <button label="Version" action="verinfo"/>
+    </menu>
+    <button label="Reset" action="reset_hide"/>
+  </menu>
+</config>

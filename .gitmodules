@@ -1,0 +1,14 @@
+[submodule "external/FPGA-Companion"]
+	path = external/FPGA-Companion
+	url = https://github.com/scullymi/FPGA-Companion.git
+	branch = game20k
+	ignore = untracked
+[submodule "external/pico-sdk"]
+	path = external/pico-sdk
+	url = https://github.com/raspberrypi/pico-sdk.git
+	ignore = untracked
+[submodule "external/tinyusb"]
+	path = external/tinyusb
+	url = https://github.com/scullymi/tinyusb.git
+	branch = game20k
+	ignore = untracked
