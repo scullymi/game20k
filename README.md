@@ -77,9 +77,9 @@ What this builds on:
 - **Pico W.** It has not been tested with the RetroAchievements firmware, yet
   `scripts/build_companion.sh` builds for it by default. Plan: make the Pico 2 W the default,
   then test the Pico W or drop it from the docs.
-- **No prebuilt files.** Everyone builds the bitstream and the firmware. Plan: a NOTICE file for
-  BTstack and cyw43-driver so that a firmware image can be published. A bitstream follows once
-  the licence questions are settled, see [THIRD-PARTY.md](THIRD-PARTY.md#not-distributed).
+- **No prebuilt bitstream.** Everyone builds the bitstream. The firmware image comes with each
+  release. Plan: publish a bitstream once the licence questions are settled, see
+  [THIRD-PARTY.md](THIRD-PARTY.md#not-distributed).
 
 ## Hardware
 
@@ -234,6 +234,10 @@ writing the flash, power the board off and on.
 
 ### 5. Firmware: build and flash
 
+Each release on the GitHub release page carries the image `game20k-<version>-pico2w.uf2` with
+its `NOTICE.txt`, for the Pico 2 W only. Take it instead of building, then continue with
+BOOTSEL below. To build:
+
 ```sh
 scripts/build_companion.sh pico2 native
 ```
@@ -338,7 +342,8 @@ fpga/galaga_hdmi/src/rtl_dar/, rtl_T80/, misc/, hdmi/   third-party HDL, a READM
 external/                the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/                    your ROM zips, excluded from version control, only its README is tracked
 sdcard/                  what goes on the SD card, with the template for config.ini
-scripts/                 build, flash, prepare ROMs and the card, Doxygen pages of the fork's RA sources
+scripts/                 build, flash, prepare ROMs and the card, firmware release with NOTICE, Doxygen pages of the fork's RA sources
+licenses/                licence text the firmware NOTICE needs and no submodule carries (newlib)
 docs/                    hardware and wiring
 ```
 
@@ -356,8 +361,9 @@ bitstream byte for byte, carries no header. The wiring drawing `docs/wiring_pico
 export and CC BY-SA 3.0 like Fritzing's breadboard graphics in it. Not ours: the ten HDMI files (MIT OR
 Apache-2.0, the notice in `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, a derivative of NESTang,
 both copyright notices in its header) and, kept with their original headers, the T80 core
-(BSD-style), Dar's Galaga core and Till Harbaum's MiSTeryNano and Nanomig files. What that means,
-and why no prebuilt bitstream or `.uf2` is distributed, is in [THIRD-PARTY.md](THIRD-PARTY.md).
+(BSD-style), Dar's Galaga core and Till Harbaum's MiSTeryNano and Nanomig files.
+[THIRD-PARTY.md](THIRD-PARTY.md) explains what that means, why no prebuilt bitstream is
+distributed and what the NOTICE of the firmware image covers.
 The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) live
 in the fork under Apache-2.0 like the Companion.
 

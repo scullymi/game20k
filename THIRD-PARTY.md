@@ -74,6 +74,9 @@ fork. None of them is in the repository.
 | mbedTLS | Apache-2.0 OR GPL-2.0-or-later | used under Apache-2.0, which is compatible with GPL-3.0 |
 | u8g2 | BSD-2-Clause | submodule of the fork |
 | FatFs | BSD-like | vendored in the fork |
+| puff | Zlib | vendored in the fork, Mark Adler's inflate routine |
+| printf of the Pico SDK | MIT | `pico_printf`, by Marco Paland |
+| newlib | several free licences | C library of the Arm GNU Toolchain, text in `licenses/` |
 | cyw43-driver | non-commercial, `LICENSE.RP` permits use and redistribution only together with Raspberry Pi silicon | covered for the Pico W |
 | BTstack | non-commercial, `pico_btstack/LICENSE.RP` grants Pico W purchasers use and distribution with Pico W products | covered for the Pico W, built in while Bluetooth is enabled |
 
@@ -87,10 +90,26 @@ fork. None of them is in the repository.
   redistributing a synthesized file with ROMs, and this bitstream holds none, which is how
   the MiSTer and MiST ports publish theirs. Until the licence questions below are settled,
   none is published here.
-- **Firmware images (`.uf2`).** BTstack and cyw43-driver allow binary redistribution only with
-  their licence notices and only for use with Raspberry Pi silicon (`LICENSE.RP` of each). A
-  NOTICE file with all notices would be needed first. Until then everyone builds the firmware
-  themselves.
+
+## Firmware image
+
+Each release carries `game20k-<version>-pico2w.uf2` for the Raspberry Pi Pico 2 W, built by
+`scripts/make_firmware_release.sh` from the tagged sources, with `NOTICE.txt` next to it.
+`scripts/firmware_notice.py` writes that NOTICE from the linker map: every object file in the
+image has to belong to a listed component, and the NOTICE carries each component's licence text,
+the copyright lines of the linked source files and the commit it was built from. A linked file
+that no component claims stops the release, so a new library cannot get in without its notice.
+
+Two components restrict where the image may be used. cyw43-driver, with the firmware of the
+radio chip, is licensed under `LICENSE.RP` for use and redistribution only together with
+Raspberry Pi semiconductor devices. BTstack is licensed by Raspberry Pi to purchasers of a Pico W
+or Pico 2 W for use with those boards and products built on them. The image is published as
+part of this project, which is built on the Pico 2 W, and only for it. The NOTICE says so at the
+top.
+
+The C library newlib comes with the Arm GNU Toolchain, which does not ship its licence text.
+`licenses/newlib-4.4.0-COPYING.NEWLIB` carries it, taken from the newlib 4.4.0 release, and the
+script checks that the toolchain in use links that version.
 
 ## Notes
 
