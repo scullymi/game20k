@@ -287,8 +287,15 @@ The numbers are the ones the input test shows on the buttons (menu, `Controller`
 On`). Everything can be changed under `Controller` and kept with `Save settings` under
 `Settings`, otherwise it lasts until power off.
 
-`Status` shows the network, the RetroAchievements account and, under `Version`, the firmware
-version, the same values the firmware reports to RetroAchievements.
+`RetroAchievements` holds the mode and the account. `Mode` switches between hardcore, the
+default, and softcore. Softcore applies at once. Switching to hardcore resets a running game
+first, as RetroAchievements requires, and the banner names the mode at each game start. In
+hardcore, FTP cannot change the `ra_*` files and `config.ini`. `Account` shows the login, the
+unlocks and what still waits for the server. Without a connection the achievements still count,
+their unlocks wait on the card and go out once the server is reached.
+
+`Status` shows the network and, under `Version`, the firmware version, the same one the firmware
+reports to RetroAchievements.
 
 A stick button can open the menu as well: `GAMEPAD_TRIGGER` under `[MENU]` in `config.ini`, see
 [sdcard/config.ini.example](sdcard/config.ini.example). That setting counts the buttons from 0,
