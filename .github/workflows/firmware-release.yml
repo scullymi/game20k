@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# Builds the firmware image for the Pico 2 W with its NOTICE, through
+# scripts/make_firmware_release.sh, on a clean Linux machine from the sources in this repository.
+#
+# On a pushed tag v<version>: a draft release with the zip, the text from
+# docs/releases/<version>.md and the SHA-256 sums, plus a build provenance attestation. The draft
+# is published by hand on the release page.
+# By hand (Actions tab, "Run workflow", or gh workflow run firmware-release.yml): a trial build of
+# the chosen branch, the zip kept as an artifact of the run, no release.
+name: Firmware release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write      # create the draft release
+  id-token: write      # sign the provenance attestation
+  attestations: write  # store it
+
+jobs:
+  firmware:
+    runs-on: ubuntu-24.04
+    env:
+      TOOLCHAIN: arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi
+      # published by Arm next to the archive as <archive>.sha256asc
+      TOOLCHAIN_SHA256: 62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823
+    steps:
+      # full history and tags for git describe, and the submodules with their own submodules;
+      # a full clone of the fork also gives origin/game20k, which build_companion.sh checks
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      # the same toolchain release as on the development machine, checked against Arm's sum
+      - name: Arm GNU Toolchain 14.2.rel1
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/$TOOLCHAIN.tar.xz" \
+            "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/$TOOLCHAIN.tar.xz"
+          echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/$TOOLCHAIN.tar.xz" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/$TOOLCHAIN.tar.xz" -C "$RUNNER_TEMP"
+          echo "PICO_TOOLCHAIN_PATH=$RUNNER_TEMP/$TOOLCHAIN" >> "$GITHUB_ENV"
+
+      # a tag builds a release, anything else a trial build (DEV=1: no tag needed)
+      - name: Build and pack
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            scripts/make_firmware_release.sh
+          else
+            DEV=1 scripts/make_firmware_release.sh
+          fi
+
+      - name: Keep the zip of this run
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Build provenance
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/*/*.uf2
+
+      - name: Draft release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="docs/releases/$VERSION.md"
+          [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
+          {
+            cat "$NOTES"
+            echo
+            echo "## SHA-256"
+            echo
+            echo '```'
+            ( cd dist && sha256sum ./*.zip ./*/*.uf2 | sed 's|  \./|  |' )
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
+            --title "game20k $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
