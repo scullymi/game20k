@@ -7,9 +7,9 @@
 # On a pushed tag v<version>: a draft release with the zip, the text from
 # docs/releases/<version>.md and the SHA-256 sums, plus a build provenance attestation. The draft
 # is published by hand on the release page.
-# By hand (Actions tab, "Run workflow", or gh workflow run firmware-release.yml): a trial build of
+# By hand (Actions tab, "Run workflow", or gh workflow run pico2w-firmware.yml): a trial build of
 # the chosen branch, the zip kept as an artifact of the run, no release.
-name: Firmware release
+name: Pico 2 W firmware
 
 on:
   push:
@@ -55,11 +55,13 @@ jobs:
             DEV=1 scripts/make_firmware_release.sh
           fi
 
+      # the zip as it is, not zipped again: the artifact takes its name,
+      # game20k-<version>-pico2w.zip
       - name: Keep the zip of this run
         uses: actions/upload-artifact@v7
         with:
-          name: firmware
           path: dist/*.zip
+          archive: false
           if-no-files-found: error
 
       - name: Build provenance
