@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXT = os.path.join(ROOT, "external")
 COMPANION = os.path.join(EXT, "FPGA-Companion")
 SDK = os.path.join(EXT, "pico-sdk")
-NEWLIB_VERSION = "4.4.0"  # the version of licenses/newlib-<version>-COPYING.NEWLIB
+NEWLIB_VERSION = "4.4.0"  # the version of docs/licenses/newlib-<version>-COPYING.NEWLIB
 
 # Each component: the name in the NOTICE, its place there ("order") and a short licence label
 # for the contents, where its source lives (repository, and the submodule checkout whose commit
@@ -231,7 +231,7 @@ COMPONENTS = [
         "checkout": None,
         "match": r"/arm-none-eabi/lib/.*/lib(g|c|c_nano|m|nosys)\.a\(",
         "licence": "several free licences, one per source file, collected in COPYING.NEWLIB",
-        "texts": ["licenses/newlib-%s-COPYING.NEWLIB" % NEWLIB_VERSION],
+        "texts": ["docs/licenses/newlib-%s-COPYING.NEWLIB" % NEWLIB_VERSION],
         "note": "The image contains memory allocation, string, conversion and time functions "
                 "of newlib %s." % NEWLIB_VERSION,
     },
@@ -393,7 +393,7 @@ def main():
     if any(claimed[i] for i, c in enumerate(COMPONENTS) if c["name"].startswith("newlib")):
         tc = newlib_version_of(objs)
         if tc != NEWLIB_VERSION:
-            die("the toolchain links newlib %s, licenses/ holds the text of %s"
+            die("the toolchain links newlib %s, docs/licenses/ holds the text of %s"
                 % (tc, NEWLIB_VERSION))
 
     present = sorted((i for i in range(len(COMPONENTS)) if claimed[i]),

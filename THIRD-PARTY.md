@@ -76,7 +76,7 @@ fork. None of them is in the repository.
 | FatFs | BSD-like | vendored in the fork |
 | puff | Zlib | vendored in the fork, Mark Adler's inflate routine |
 | printf of the Pico SDK | MIT | `pico_printf`, by Marco Paland |
-| newlib | several free licences | C library of the Arm GNU Toolchain, text in `licenses/` |
+| newlib | several free licences | C library of the Arm GNU Toolchain, text in `docs/licenses/` |
 | cyw43-driver | non-commercial, `LICENSE.RP` permits use and redistribution only together with Raspberry Pi silicon | covered for the Pico W |
 | BTstack | non-commercial, `pico_btstack/LICENSE.RP` grants Pico W purchasers use and distribution with Pico W products | covered for the Pico W, built in while Bluetooth is enabled |
 
@@ -108,7 +108,7 @@ part of this project, which is built on the Pico 2 W, and only for it. The NOTIC
 top.
 
 The C library newlib comes with the Arm GNU Toolchain, which does not ship its licence text.
-`licenses/newlib-4.4.0-COPYING.NEWLIB` carries it, taken from the newlib 4.4.0 release, and the
+`docs/licenses/newlib-4.4.0-COPYING.NEWLIB` carries it, taken from the newlib 4.4.0 release, and the
 script checks that the toolchain in use links that version.
 
 ## Notes

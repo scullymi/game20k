@@ -350,8 +350,8 @@ external/                the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/                    your ROM zips, excluded from version control, only its README is tracked
 sdcard/                  what goes on the SD card, with the template for config.ini
 scripts/                 build, flash, prepare ROMs and the card, firmware release with NOTICE, Doxygen pages of the fork's RA sources
-licenses/                licence text the firmware NOTICE needs and no submodule carries (newlib)
-docs/                    hardware and wiring
+docs/                    hardware and wiring, in docs/licenses/ the licence text the firmware NOTICE
+                         needs and no submodule carries (newlib)
 ```
 
 The two boards are connected by five SPI lines with six target channels: system, input, OSD,
