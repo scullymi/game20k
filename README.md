@@ -62,9 +62,9 @@ What this builds on:
   and change the SD card, including `config.ini` with the WiFi key and the RetroAchievements
   token. Telnet on port 23 shows the debug log to anyone on the network. Plan: make FTP and
   telnet switchable in `config.ini`, and check whether FTP can take an optional password.
-- **Secrets in the debug log.** A `config.ini` line over 62 characters is dropped, and the debug
-  log prints its start in plain text, a long WiFi password included. Plan: log only the key
-  name and accept longer lines.
+- **Secrets in the debug log.** A `config.ini` line over 62 characters is dropped, and so is a
+  last line without a line break. The debug log prints its start in plain text, a long WiFi
+  password included. Plan: log only the key name and accept longer lines.
 - **Heap on the Pico.** The FreeRTOS heap is nearly full. A second FTP connection finds no memory
   for its task, and new firmware features need more heap first. Plan: give FreeRTOS more of the
   RP2350's RAM and turn on the stack overflow check.
@@ -356,6 +356,12 @@ docs/                    hardware and wiring, in docs/licenses/ the licence text
 
 The two boards are connected by five SPI lines with six target channels: system, input, OSD,
 SD card, audio (reserved by the Companion, unused) and **channel 5, the RAM mirror**.
+
+## Privacy
+
+game20k runs no servers and collects nothing. With a RetroAchievements account, the device talks
+to retroachievements.org. [PRIVACY.md](PRIVACY.md) lists what it sends and stores, and the local
+risks of FTP and telnet.
 
 ## Licence
 
