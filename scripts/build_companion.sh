@@ -57,6 +57,12 @@ grep -q 'XFER_RESULT_SUCCESS == result' "$ROOT/external/tinyusb/src/class/hid/hi
   || { echo "external/tinyusb is not the fork's branch game20k (hid_host.c lacks the changed line), see .gitmodules"; exit 1; }
 [ -f "$ROOT/external/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB/src/pio_usb.c" ] \
   || { echo "external/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB is empty, run: git submodule update --init --recursive"; exit 1; }
+# Two contracts between this repository and the firmware, compared without boards by the same
+# script the CI runs: the RAM mirror layout of the core against main.c (otherwise the firmware
+# refuses the core with "core too old" or reads garbage), and the known ROM digests of
+# make_galaga_rom.sh against ra_patch.c.
+python3 "$ROOT/scripts/check_contracts.py" --root "$ROOT" --fork "$REPO" \
+  || { echo "a contract between core, firmware and scripts is broken, see above"; exit 1; }
 VERSION=$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
 echo "building fork commit $(git -C "$REPO" log -1 --format='%h %s') as game20k version ${VERSION:-unknown}"
 # local edits in the checkout go into the build, say so

@@ -7,7 +7,8 @@
 # The tool's reports are HTML with a few thousand lines. This prints only the numbers
 # this project uses as acceptance criteria: utilisation, Fmax per clock and the number of
 # violated endpoints. The timing part lives in fpga_report.py, which documents the
-# tables it expects.
+# tables it expects and gives the verdict: every clock reaches its required frequency, and
+# the synthesis log has no EX3638 or EX3988. The exit code is 1 when that fails.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 P="${1:-galaga_hdmi}"
@@ -26,5 +27,5 @@ grep -E "^ +(Logic|Register|CLS|I/O Port|BSRAM|DSP|PLL|rPLL|PRIMARY|LW|GCLK_PIN|
   | sed 's/ *| */  /g;s/^ *//' || echo "  (no utilisation table found)"
 grep -E "Logic Register as FF|I/O Register as FF" "$D/$P.rpt.txt" | sed 's/ *| */  /g;s/^ *//' || true
 echo "--- Timing ---"
-[ -f "$D/${P}_tr_content.html" ] || { echo "  (no timing report ${P}_tr_content.html)"; exit 0; }
-python3 "$ROOT/scripts/fpga_report.py" "$D/${P}_tr_content.html" || true
+[ -f "$D/${P}_tr_content.html" ] || { echo "  (no timing report ${P}_tr_content.html)"; exit 1; }
+exec python3 "$ROOT/scripts/fpga_report.py" "$D/${P}_tr_content.html" "$ROOT/fpga/$P/impl/gwsynthesis/$P.log"

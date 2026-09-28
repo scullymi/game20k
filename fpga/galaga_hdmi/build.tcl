@@ -56,7 +56,7 @@ add_file src/mcu/rom_loader.sv
 add_file src/input_test_bar.sv
 add_file src/ra_overlay.sv
 
-if {[info exists ::env(ROMVIEW)] || [info exists ::env(SDRAMTEST)] || [info exists ::env(FBTEST)] || [info exists ::env(FBSHOW)] || [info exists ::env(FBROT)] || [info exists ::env(RAMDIAG)]} {
+if {[info exists ::env(ROMVIEW)] || [info exists ::env(SDRAMTEST)] || [info exists ::env(FBTEST)] || [info exists ::env(FBSHOW)] || [info exists ::env(FBROT)] || [info exists ::env(RAMDIAG)] || [info exists ::env(NOTESTBAR)]} {
     # Generate the top level with the parameters set. The search strings include the
     # alignment of the equals signs. They must match src/galaga_hdmi_top.sv
     # verbatim.
@@ -85,10 +85,23 @@ if {[info exists ::env(ROMVIEW)] || [info exists ::env(SDRAMTEST)] || [info exis
     }
     # The input test bar deliberately STAYS IN the measurement build: what gets measured
     # should be a netlist as close as possible to the normal build. Measured, it fits this
-    # way (BSRAM 42/46, CLS 82 percent). Only if it does not fit: NOTESTBAR=1.
+    # way (BSRAM 42/46, CLS 82 percent). Only if it does not fit: NOTESTBAR=1. It also works
+    # on its own, for the game without the test bar.
     if {[info exists ::env(NOTESTBAR)]} {
         lappend map "parameter bit TESTBAR   = 1" "parameter bit TESTBAR   = 0"
     }
+    # string map skips a search string that is not there without a word, and the build
+    # would then carry the default. Each one must occur exactly once.
+    foreach {from to} $map {
+        set n 0
+        for {set i [string first $from $src]} {$i >= 0} {set i [string first $from $src [expr {$i + 1}]]} {
+            incr n
+        }
+        if {$n != 1} {
+            error "src/galaga_hdmi_top.sv: \"$from\" found $n times, expected once"
+        }
+    }
+    puts "build.tcl: [expr {[llength $map] / 2}] of [expr {[llength $map] / 2}] parameter substitutions matched"
     file mkdir gen
     set fout [open gen/galaga_hdmi_top_gen.sv w]
     puts $fout [string map $map $src]; close $fout
