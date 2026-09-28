@@ -12,3 +12,6 @@
 	url = https://github.com/scullymi/tinyusb.git
 	branch = game20k
 	ignore = untracked
+[submodule "external/unity"]
+	path = external/unity
+	url = https://github.com/ThrowTheSwitch/Unity.git

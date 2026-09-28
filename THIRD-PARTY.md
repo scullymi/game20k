@@ -60,6 +60,12 @@ under their authors' terms.
 
 `git submodule status --recursive` lists the commits in use.
 
+## Submodule for the tests
+
+| Component | Where | Author | Licence | Our changes |
+|---|---|---|---|---|
+| [Unity](https://github.com/ThrowTheSwitch/Unity) | submodule `external/unity`, tag v2.7.0 | Mike Karlesky, Mark VanderVoord, Greg Williams | MIT | none. Only the host tests in `tests/host` use it, it is not part of the firmware or a release |
+
 ## Firmware dependencies
 
 Pulled in as submodules of the Pico SDK, or as submodules and vendored sources of the Companion

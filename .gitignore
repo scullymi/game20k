@@ -20,6 +20,22 @@ namco*.zip
 **/gen/
 **/frames/
 
+# --- RetroAchievements data and ROM names, never in the repository ---
+# Sets and code notes belong to RetroAchievements, the card files of the client carry the
+# account's state, the other names are ROM sets. scripts/checks.sh refuses a staged or pushed
+# file that matches this list, git add -f included.
+gg1_*
+prom-*
+*.zip
+*.7z
+ra_patch.json
+ra_patch.mac
+ra_unlocked.txt
+ra_pending.txt
+ra_parked.txt
+patch_[0-9]*.json
+codenotes*.json
+
 # --- credentials ---
 # They live in sdcard/config.ini, excluded below. Nothing here uses .env files, this line is
 # a precaution in case one ever appears.
@@ -44,15 +60,19 @@ build_*/
 dist/
 
 # --- third-party repositories under external/ ---
-# FPGA-Companion, pico-sdk and tinyusb are git submodules and therefore tracked. The SDK
+# FPGA-Companion, pico-sdk, tinyusb and unity are git submodules and therefore tracked. The SDK
 # caches picotool there (picotool-src), that stays untracked.
 external/*
 !external/FPGA-Companion
 !external/pico-sdk
 !external/tinyusb
+!external/unity
 
 # --- macOS ---
 .DS_Store
+
+# --- Python caches ---
+__pycache__/
 
 # --- example card: the generated file carries secrets ---
 sdcard/config.ini
