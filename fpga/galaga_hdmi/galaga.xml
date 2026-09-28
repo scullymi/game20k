@@ -2,13 +2,14 @@
 <!-- Galaga (game20k) configuration for the FPGA Companion -->
 <config name="Galaga" version="0">
   <actions>
-    <!-- game20k: deliberately WITHOUT commands. The Pico answers these three
+    <!-- game20k: deliberately WITHOUT commands. The Pico answers these four
          buttons itself (menu.c catches them by name) and does not pass them on
          to the core. They must be listed all the same: config_get_action()
          resolves an unknown name to NULL, and the button then does nothing. -->
     <action name="netinfo"/>
     <action name="rainfo"/>
     <action name="verinfo"/>
+    <action name="ralist"/>
     <action name="init">
       <load file="galaga.ini"/>
       <set id="R" value="1"/>
@@ -193,13 +194,14 @@
     <!-- game20k: the mode goes to the core like any value and the core ignores
          'H'. The Pico follows it (sys_set_val): softcore applies at once, hardcore
          resets a running game first, as RetroAchievements asks. Hardcore is the
-         default, as RetroAchievements recommends. The account button is answered
-         by the Pico itself, see Status below. -->
+         default, as RetroAchievements recommends. The Pico answers the two buttons
+         itself: the list of achievements and the account, see Status below. -->
     <menu label="RetroAchievements">
       <list label="Mode:" id="H" default="1">
         <listentry label="Softcore" value="0"/>
         <listentry label="Hardcore" value="1"/>
       </list>
+      <button label="Achievements" action="ralist"/>
       <button label="Account" action="rainfo"/>
     </menu>
     <!-- game20k: display only. The Pico answers these buttons itself (menu.c

@@ -192,12 +192,12 @@ module ram_diag #(
         v3_a <= {bad_verdict, bad_cnt};         // row 3
         for (int k = 0; k < 16; k = k + 1) h_a[k] <= hist_l[k];
         // Six yes/no fields instead of reading bits off a photo:
-        //  0 frames running   1 byte count right (6672)   2 duration under 15 ms
+        //  0 frames running   1 byte count right (RAM_MIRROR_BYTES)   2 duration under 15 ms
         //  3 never a bad verdict   4 mirror windows clean   5 all 17 loaded
         st_a <= {|frames,
-                 // Measured on the device: exactly 6672. mcu_start marks the first payload
-                 // byte after the target id, the counter is zeroed there, and the 6672
-                 // bytes of the block count it up. Any deviation is a lost byte.
+                 // Measured on the device: exactly the block size. mcu_start marks the first
+                 // payload byte after the target id, the counter is zeroed there, and the
+                 // RAM_MIRROR_BYTES bytes of the block count it up. Any deviation is a lost byte.
                  (spi_count == RAM_MIRROR_BYTES),
                  // Measured about 6200 to 7100 us, not the computed 2055: the Pico is
                  // interrupted during the block (USB polling, interrupts), the line then

@@ -75,9 +75,14 @@ module galaga_hdmi_top #(
     clkdiv5  div (.hclkin(clk_x5), .resetn(pll_lock), .clkout(clk_pixel));
 
     // ---------------- Reset ----------------
+    // rst_no counts the ends of core resets, whatever caused them: S1, R from the
+    // Companion, a ROM load, a lost PLL lock. The RAM mirror carries it (header byte 8),
+    // and the Pico starts the achievements over when it changes: also after S1, which
+    // the Pico does not see otherwise.
     logic [1:0] s1_s = 0;
     logic [7:0] rst_cnt = 0;
     logic       reset = 1;
+    logic [7:0] rst_no = 0;
     always_ff @(posedge clk_core) begin
         s1_s <= {s1_s[0], s1};
         if (!pll_lock || s1_s[1] || system_reset[0] || !rom_loaded) begin
@@ -85,9 +90,16 @@ module galaga_hdmi_top #(
             reset   <= 1'b1;
         end else if (rst_cnt != 8'hFF)
             rst_cnt <= rst_cnt + 8'd1;
-        else
-            reset <= 1'b0;
+        else if (reset) begin
+            reset  <= 1'b0;
+            rst_no <= rst_no + 8'd1;   // the core leaves reset: a new game
+        end
     end
+
+    //! Header byte 9 of the RAM mirror: one bit per diagnostic parameter, 0 in a release
+    //! build. The Pico allows no hardcore on a core built for measurements. TESTBAR is
+    //! left out, it only adds a display aid.
+    localparam logic [7:0] BUILD_FLAGS = {1'b0, RAMDIAG, FBROT, FBSHOW, FBTEST, SDRAMCL3, SDRAMTEST, ROMVIEW};
 
     logic video_reset;
     assign video_reset = reset;
@@ -116,6 +128,8 @@ module galaga_hdmi_top #(
     logic [7:0]  ram_txt_data;
     logic        ram_banner;  // show the banner
     logic        ram_bgold, ram_bnew;   // text gold (hardcore), mark green (new)
+    logic [7:0]  ram_flags;   // header byte 5 from the Pico, bit 0: a challenge is on
+    logic [7:0]  dip_a_core, dip_b_core;   // DIP switches as the core sees them, see the latch below
     logic [7:0]  snap_byte, snap_fifo_q;
     logic [15:0] snap_frame;
     logic [15:0] snap_catchup_peak;   // peak fill level of the catch-up queue
@@ -160,8 +174,8 @@ module galaga_hdmi_top #(
         .rom_wr_addr  (rom_wr_addr),
         .rom_wr_data  (rom_wr_data),
         .rom_wr_en    (rom_wr_en),
-        .dip_a        ({1'b1, 1'b1, 1'b1, 1'b1, ~system_demosound, 1'b1, system_difficulty}),  // bit 3 = 0: demo sounds on (MAME galaga.cpp)
-        .dip_b        ({system_lives, system_bonus, system_coinage}),
+        .dip_a        (dip_a_core),   // latched while in reset, see below
+        .dip_b        (dip_b_core),
         .b_test       (1'b1),
         .b_svce       (1'b1),
         .coin         (joy_coin),
@@ -255,10 +269,18 @@ module galaga_hdmi_top #(
     // Interrupt bit 5: a new RAM mirror snapshot is ready. Set when the harvest ends,
     // cleared by the Pico's acknowledge; setting wins if both come in the same clock.
     logic       harv_d = 1'b0, snap_int = 1'b0;
+    logic [7:0] snap_rst_no = 8'd0;   // reset count as of the last snapshot, header byte 8
     always_ff @(posedge clk_core) begin
         harv_d <= snap_harv;
         if (int_ack[5]) snap_int <= 1'b0;
-        if (harv_d && !snap_harv) snap_int <= 1'b1;
+        if (harv_d && !snap_harv) begin
+            snap_int    <= 1'b1;
+            // Taken when the harvest ENDS. In reset no harvest starts or ends (vcnt and
+            // the slot counter stand still), so a snapshot finished before a reset keeps
+            // the old count and one finished after it carries the new one, even if the
+            // reset cut into it.
+            snap_rst_no <= rst_no;
+        end
     end
     logic [7:0] sdc_data_out;
     logic [1:0] mcu_leds;
@@ -302,6 +324,18 @@ module galaga_hdmi_top #(
         .system_voldn_btn(system_voldn_btn), .system_volup_btn(system_volup_btn),
         .system_screen(system_screen)
     );
+
+    // DIP switches reach the core only while it is in reset. sysctrl takes a new value at
+    // once and the menu resets right after it, so the value goes in during that reset. A
+    // menu of one's own (a config.xml on the card) without that reset can no longer change
+    // lives, bonus, coinage or difficulty in a running game: the change waits for the next
+    // reset, which the Pico sees in the reset count. Bit 3 of dip_a = 0: demo sounds on
+    // (MAME galaga.cpp).
+    always_ff @(posedge clk_core)
+        if (reset) begin
+            dip_a_core <= {1'b1, 1'b1, 1'b1, 1'b1, ~system_demosound, 1'b1, system_difficulty};
+            dip_b_core <= {system_lives, system_bonus, system_coinage};
+        end
 
     hid hid (
         .clk(clk_core), .reset(!pll_lock),
@@ -595,6 +629,7 @@ module galaga_hdmi_top #(
     logic [7:0] txt_data_p;
     logic       banner_p0, banner_p;
     logic       gold_p, new_p;
+    logic       chal_p0, chal_p;      // a challenge is on, header byte 5 bit 0
     always_ff @(posedge clk_pixel) begin
         txt_we_s   <= {txt_we_s[1:0], ram_txt_we};
         txt_addr_p <= ram_txt_addr;
@@ -603,6 +638,8 @@ module galaga_hdmi_top #(
         banner_p   <= banner_p0;
         gold_p     <= ram_bgold;
         new_p      <= ram_bnew;
+        chal_p0    <= ram_flags[0] & ~reset;   // no challenge in a game that is being reset
+        chal_p     <= chal_p0;
     end
     logic txt_we_p;
     assign txt_we_p = txt_we_s[1] & ~txt_we_s[2];
@@ -613,6 +650,7 @@ module galaga_hdmi_top #(
         .clk(clk_pixel), .cx(cx), .cy(cy), .rotate(rot90),
         .txt_we(txt_we_p), .txt_addr(txt_addr_p), .txt_data(txt_data_p),
         .banner_on(banner_p), .banner_gold(gold_p), .banner_new(new_p),
+        .challenge_on(chal_p),
         .on(ra_on), .color(ra_col)
     );
     logic [23:0] rgb_ra;
@@ -875,6 +913,7 @@ module galaga_hdmi_top #(
         .pico_rc(ram_rc),        .pico_us(ram_us),   .pico_last(ram_last),
         .txt_we(ram_txt_we), .txt_addr(ram_txt_addr), .txt_data(ram_txt_data),
         .banner_on(ram_banner), .banner_gold(ram_bgold), .banner_new(ram_bnew),
+        .ra_flags(ram_flags), .rst_no(snap_rst_no), .build_flags(BUILD_FLAGS),
         .undr_pos(),   // not shown: row 2 of ram_diag carries the fill level of the
                        // catch-up queue and the achievement number instead
         .frame_no(snap_frame), .harv_busy(snap_harv), .run(snap_run), .underrun(),

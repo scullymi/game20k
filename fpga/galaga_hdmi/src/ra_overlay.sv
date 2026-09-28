@@ -3,9 +3,13 @@
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a
                        // silent 1-bit net.
 //! @file ra_overlay.sv
-//! @brief RetroAchievements overlays (game20k): unlock banner below the game picture.
+//! @brief RetroAchievements overlays (game20k): unlock banner and challenge marker below the game picture.
 //!
-//! A banner below the game picture when an achievement unlock has been reached.
+//! A banner below the game picture when an achievement unlock has been reached, and a
+//! gold marker at its end while a challenge is on: an achievement whose conditions all
+//! hold except the one that fires it, e.g. a stage without losing a ship.
+//! RetroAchievements asks that this shows during play. The marker is a frame with a dot
+//! in its middle, the same in both screen modes, so it needs no rotated glyph.
 //!
 //! COLOURS, as on the RetroAchievements site:
 //!   gold  = hardcore      white = softcore only
@@ -51,6 +55,7 @@ module ra_overlay (
     input  wire         banner_on,    //!< show banner
     input  wire         banner_gold,  //!< 1 = hardcore (gold text), 0 = softcore (white)
     input  wire         banner_new,   //!< 1 = new, is sent (green mark), 0 = already had (grey)
+    input  wire         challenge_on, //!< a challenge is on: the gold marker shows, with or without banner
     output logic        on,
     output logic [23:0] color
 );
@@ -79,9 +84,30 @@ module ra_overlay (
     // Stage 1: position. tx runs along the text (0..383), ty across it (0..13),
     // whichever way the text lies. Outside the banner both are meaningless, the
     // output is gated by in_banner.
-    logic       in_banner1, in_mark1;
+    logic       in_banner1, in_mark1, chal1;
     logic [8:0] tx1;
     logic [3:0] ty1;
+    // The challenge marker: 12x12 pixels, a one-pixel frame and a 4x4 dot in the middle.
+    // Portrait: 8 px after the end of the text field. Landscape: the text runs from the
+    // frame bottom up, so its end is at the top: 8 px above the text field.
+    logic [10:0] mx;
+    logic [9:0]  my;
+    logic        in_chal;
+    always_comb begin
+        if (rotate) begin
+            in_chal = (cxa >= RX + 1) && (cxa < RX + 13) && (cy >= RY - 20) && (cy < RY - 8);
+            mx = cxa - (RX + 1);
+            my = cy - (RY - 20);
+        end else begin
+            in_chal = (cxa >= BX + 384 + 8) && (cxa < BX + 384 + 20) && (cy >= BY + 1) && (cy < BY + 13);
+            mx = cxa - (BX + 384 + 8);
+            my = cy - (BY + 1);
+        end
+    end
+    always_ff @(posedge clk)
+        chal1 <= challenge_on && in_chal &&
+                 (mx[3:0] == 4'd0 || mx[3:0] == 4'd11 || my[3:0] == 4'd0 || my[3:0] == 4'd11 ||
+                  (mx[3:0] >= 4'd4 && mx[3:0] < 4'd8 && my[3:0] >= 4'd4 && my[3:0] < 4'd8));
     always_ff @(posedge clk) begin
         if (rotate) begin
             in_banner1 <= banner_on && (cxa >= RX) && (cxa < RX + 14)
@@ -107,13 +133,14 @@ module ra_overlay (
     // pixel is 2x2 raster pixels, hence the bit slices.
     logic [7:0] char2;
     logic [2:0] col2, row2;
-    logic       in_banner2, in_mark2;
+    logic       in_banner2, in_mark2, chal2;
     always_ff @(posedge clk) begin
         char2      <= text[tx1[8:4]];
         col2       <= tx1[3:1];
         row2       <= ty1[3:1];
         in_banner2 <= in_banner1;
         in_mark2   <= in_mark1;
+        chal2      <= chal1;
     end
 
     logic [34:0] glyph_bits;
@@ -168,21 +195,23 @@ module ra_overlay (
     // significant bit.
     logic [4:0] row3;
     logic [2:0] col3;
-    logic       in_banner3, in_mark3;
+    logic       in_banner3, in_mark3, chal3;
     always_ff @(posedge clk) begin
         row3       <= (row2 > 3'd6) ? 5'd0 : glyph_bits[34 - 5*row2 -: 5];
         col3       <= col2;
         in_banner3 <= in_banner2;
         in_mark3   <= in_mark2;
+        chal3      <= chal2;
     end
 
     // Stage 4: pixel and colour.
     logic pixel;
     assign pixel = (col3 > 3'd4) ? 1'b0 : row3[3'd4 - col3];
     always_ff @(posedge clk) begin
-        on <= (pixel && in_banner3) || in_mark3;
-        if (in_mark3) color <= banner_new  ? 24'h00C000 : 24'h707070;
-        else          color <= banner_gold ? 24'hFFD000 : 24'hFFFFFF;
+        on <= (pixel && in_banner3) || in_mark3 || chal3;
+        if (chal3)         color <= 24'hFFD000;
+        else if (in_mark3) color <= banner_new  ? 24'h00C000 : 24'h707070;
+        else               color <= banner_gold ? 24'hFFD000 : 24'hFFFFFF;
     end
 endmodule
 

@@ -38,8 +38,10 @@ unzip -q -o -j "$ZIP" 'gg1_*' 'prom-*' -d "$TMP"
 if [ -f "$N54" ]; then
   unzip -q -o -j "$N54" '54xx.bin' -d "$TMP" 2>/dev/null || true
 fi
+N54_ZEROS=
 [ -f "$TMP/54xx.bin" ] || {
-  echo "WARNING: roms/namco54.zip is missing, the 54xx is filled with zeros and the" >&2
+  N54_ZEROS=1
+  echo "WARNING: roms/namco54.zip or its 54xx.bin is missing, the 54xx is filled with zeros and the" >&2
   echo "         explosion sounds stay silent. Everything else works." >&2
   dd if=/dev/zero of="$TMP/54xx.bin" bs=1024 count=1 2>/dev/null
 }
@@ -59,6 +61,39 @@ check 54xx.bin 1024
 for f in prom-1.1d prom-2.5c prom-3.1c prom-4.2n; do check "$f" 256; done
 check prom-5.5n 32
 
+# The content, chip by chip, against the SHA-1 that MAME lists for the set "galaga"
+# (src/mame/namco/galaga.cpp) and for the 54xx (src/mame/namco/namco54.cpp). A set of
+# the right sizes but another revision, or a patched one, stops here. The 54xx made of
+# zeros above is the one exception, it is known to be missing.
+# shasum comes with Perl, sha1sum and sha256sum with coreutils: whichever there is
+if command -v shasum >/dev/null 2>&1; then
+  sha1()   { shasum -a 1 "$1" | cut -d' ' -f1; }
+  sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
+elif command -v sha1sum >/dev/null 2>&1 && command -v sha256sum >/dev/null 2>&1; then
+  sha1()   { sha1sum "$1" | cut -d' ' -f1; }
+  sha256() { sha256sum "$1" | cut -d' ' -f1; }
+else
+  echo "neither shasum nor sha1sum/sha256sum found, cannot check the ROM set" >&2; exit 1
+fi
+verify() {
+  [ "$(sha1 "$1")" = "$2" ] || { echo "$1 differs from MAME's galaga set (SHA-1), wrong revision or modified?" >&2; exit 1; }
+}
+verify gg1_1b.3p ca7f5da42d4e76fd89bb0b35198a23c01462fbfe
+verify gg1_2b.3m ab202aa259c3d332ef13dfb8fc8580ce2a5a253d
+verify gg1_3.2m  481f443aea3ed3504ec2f3a6bfcf3cd47e2f8f81
+verify gg1_4b.2l ddb8b121903646c320939c7d13f4aa4ebb130378
+verify gg1_5b.3f e957a581463caac27bc37ca2e2a90f27e4f62b6f
+verify gg1_7b.2c 44c1a04fba3c7c826ff484185cb881b4b22e6657
+verify gg1_9.4l  62f1279a784ab2f8218c4137c7accda00e6a3490
+verify gg1_11.4d e697c180178cabd1d32483c5d8889a40633f7857
+verify gg1_10.4f c340ed8c25e0979629a9a1730edc762bd72d0cff
+verify prom-5.5n 1a6dea13b4af155d9cb5b999a75d4f1eb9c71346
+verify prom-4.2n 0281de86c236c88739297ff712e0a4f5c8bf8ab9
+verify prom-3.1c cdd4bc1013f5c11984fdc4fd10e2d2e27120c1e5
+verify prom-1.1d 085ada18c498fdb18ecedef0ea8fe9217edb7b46
+verify prom-2.5c 0c4d0bee858b97632411c440bea6948a74759746
+[ -n "$N54_ZEROS" ] || verify 54xx.bin 01bdf984a49e8d0cc8761b2cc162fd6434d5afbe
+
 mkdir -p "$(dirname "$OUT")"
 cat gg1_1b.3p gg1_2b.3m gg1_3.2m gg1_4b.2l \
     gg1_5b.3f \
@@ -75,3 +110,10 @@ cat gg1_1b.3p gg1_2b.3m gg1_3.2m gg1_4b.2l \
 SZ=$(wc -c < "$OUT" | tr -d ' ')
 [ "$SZ" = "38944" ] || { echo "ERROR: $OUT has $SZ bytes, expected 38944" >&2; rm -f "$OUT"; exit 1; }
 echo "written: $OUT ($SZ bytes)"
+# The firmware allows hardcore only with one of these two files (ra_patch.c, ROM
+# digests): with the 54xx, or with its 1024 bytes as zeros.
+case "$(sha256 "$OUT")" in
+  aaf7a7256f8c4e97b31f053e688f24cbb34075a26ac71ff0847651ae93b2af47) echo "known ROM file, with the 54xx: hardcore possible" ;;
+  ec21e54daa09f78b2f58ab060f5cdfbd29d50b29816041c6cae3826cb2dabcd5) echo "known ROM file, without the 54xx: hardcore possible" ;;
+  *) echo "WARNING: unknown ROM file, the firmware will stay in softcore" >&2 ;;
+esac

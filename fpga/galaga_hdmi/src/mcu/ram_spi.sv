@@ -64,6 +64,11 @@ module ram_spi (
     output logic        banner_on,
     output logic        banner_gold,      //!< header byte 6 bit 6: hardcore, gold text
     output logic        banner_new,       //!< header byte 6 bit 5: new, green mark
+    //! Header byte 5 from the Pico, taken when two transfers in a row agree: bit 0 a
+    //! challenge is on (the marker next to the picture), the other bits are free.
+    output logic [7:0]  ra_flags,
+    input  wire  [7:0]  rst_no,           //!< header byte 8: resets of the core, as of the snapshot
+    input  wire  [7:0]  build_flags,      //!< header byte 9: diagnostic parameters, 0 in a release build
     output logic [15:0] undr_pos,         //!< diagnostic: payload byte number at first underrun
     output logic        fifo_pop,
     input  wire  [15:0] frame_no,        //!< frame number of the snapshot
@@ -88,6 +93,7 @@ module ram_spi (
     // shown is then the last piece, sometimes longer, sometimes shorter.
     logic [2:0]  ss_s;
     logic        harv_at_start;
+    logic [7:0]  ra_flags_prev;           // header byte 5 of the previous transfer
 
     // ---- The byte counter runs in the SPI clock ----
     // Counts the bits like mcu_spi.v and increments the byte counter at the byte end. The
@@ -113,18 +119,30 @@ module ram_spi (
     // changed during the transfer and the Pico discards it.
     logic [7:0] hdr;
     always_comb begin
-        case (k[2:0])
-            3'd0: hdr = 8'h52;            // 'R'
-            3'd1: hdr = 8'h41;            // 'A'
-            3'd2: hdr = 8'h43;            // 'C'
-            3'd3: hdr = 8'h48;            // 'H'
-            // Layout 2: 5120 payload bytes, then 1536 bytes of oracle log
-            3'd4: hdr = 8'h02;
-            3'd5: hdr = frame_no[7:0];
-            3'd6: hdr = frame_no[15:8];
+        case (k[3:0])
+            4'd0: hdr = 8'h52;            // 'R'
+            4'd1: hdr = 8'h41;            // 'A'
+            4'd2: hdr = 8'h43;            // 'C'
+            4'd3: hdr = 8'h48;            // 'H'
+            // Layout 3: header of 16 bytes, 5120 payload bytes, 1536 bytes of oracle log
+            4'd4: hdr = RAM_MIRROR_LAYOUT;
+            4'd5: hdr = frame_no[7:0];
+            4'd6: hdr = frame_no[15:8];
             // Header byte 7 says whether a harvest was running at the START: then an
             // underrun is to be expected, and the Pico can skip checking the snapshot.
-            default: hdr = {7'd0, harv_at_start};
+            4'd7: hdr = {7'd0, harv_at_start};
+            // Byte 8: the core's resets, S1 on the Nano included, taken when the harvest
+            // ended. The Pico uses it only when byte 7 is 0, and then no harvest can end
+            // during the transfer, so the value holds still like the frame number.
+            4'd8: hdr = rst_no;
+            // Byte 9: which diagnostic parameters this core was built with, 0 in a release
+            // build. The Pico allows no hardcore on a diagnostic core.
+            4'd9: hdr = build_flags;
+            // Bytes 10 and 11: the complements of 8 and 9. The checksum covers only the
+            // body, the Pico uses 8 and 9 only when their complements match.
+            4'd10: hdr = ~rst_no;
+            4'd11: hdr = ~build_flags;
+            default: hdr = 8'h00;         // 12 to 15 reserved
         endcase
     end
     logic [7:0] ftr;
@@ -177,6 +195,7 @@ module ram_spi (
             pico_rc <= 16'd0; pico_us <= 16'd0; pico_last <= 8'd0;
             txt_we <= 1'b0; txt_addr <= 5'd0; txt_data <= 8'd0;
             banner_on <= 1'b0; banner_gold <= 1'b0; banner_new <= 1'b0;
+            ra_flags <= 8'd0; ra_flags_prev <= 8'd0;
         end else begin
             // microsecond tick
             if (us_div == 5'd18) begin
@@ -216,6 +235,14 @@ module ram_spi (
                     else if (cnt == 16'd2) pico_us[7:0]  <= data_in;
                     else if (cnt == 16'd3) pico_us[15:8] <= data_in;
                     else if (cnt == 16'd4) pico_last     <= data_in;
+                    // Byte 5, the flags: taken only when two transfers in a row send the
+                    // same value. The back channel can deliver a wrong byte now and then
+                    // (see the verdict above), and a marker that flashes for one frame
+                    // would be seen.
+                    else if (cnt == 16'd5) begin
+                        ra_flags_prev <= data_in;
+                        if (data_in == ra_flags_prev) ra_flags <= data_in;
+                    end
                     else if (cnt == 16'd6) begin
                         txt_addr    <= data_in[4:0];
                         banner_new  <= data_in[5];
@@ -231,11 +258,11 @@ module ram_spi (
             end
 
             // rising edge of chip select: the transfer is over.
-            // Only what got past the header is measured. The Pico first reads the eight
-            // header bytes alone and aborts if byte 7 reports that a harvest is running
-            // right now (the shadow would then be half new, half old). Those probes are
-            // intended operation and not measurements: if they were counted, the display
-            // would constantly show 8 instead of 6672.
+            // Only what got past the header is measured. The Pico first reads the header
+            // bytes alone and aborts if byte 7 reports that a harvest is running right now
+            // (the shadow would then be half new, half old). Those probes are intended
+            // operation and not measurements: if they were counted, the display would
+            // constantly show the header length instead of RAM_MIRROR_BYTES.
             if (busy && ss_s[2] == 1'b0 && ss_s[1] == 1'b1) begin
                 busy     <= 1'b0;
                 // The underrun report comes ready-made from the FIFO and is only taken

@@ -9,16 +9,21 @@
 //! src/main.c of the FPGA-Companion fork, branch game20k). Both sides must agree byte
 //! for byte.
 package ram_mirror_pkg;
-    //! 'R' 'A' 'C' 'H', layout, frame no (2), harvest flag
-    localparam int RAM_MIRROR_HEAD  = 8;
+    //! Header byte 4. Layout 3 has a header of 16 bytes, layout 2 had 8. The firmware
+    //! checks it and refuses a core of another layout with a message.
+    localparam logic [7:0] RAM_MIRROR_LAYOUT = 8'h03;
+    //! 'R' 'A' 'C' 'H', layout, frame no (2), harvest flag, reset count, build flags,
+    //! their complements, four reserved bytes
+    localparam int RAM_MIRROR_HEAD  = 16;
     //! bgram + wram1..3, the game RAM
     localparam int RAM_MIRROR_DATA  = 5120;
     //! oracle log, 512 entries of 3 bytes
     localparam int RAM_MIRROR_LOG   = 1536;
     //! 6656, both from one FIFO
     localparam int RAM_MIRROR_BODY  = RAM_MIRROR_DATA + RAM_MIRROR_LOG;
-    //! 6664, offset of the footer
+    //! 6672, offset of the footer. Must stay a multiple of 8, ram_spi.sv decodes the
+    //! footer with k[2:0].
     localparam int RAM_MIRROR_FOOT  = RAM_MIRROR_HEAD + RAM_MIRROR_BODY;
-    //! 6672, footer: frame no (2), underrun, log overflow, checksum (2), log count (2)
+    //! 6680, footer: frame no (2), underrun, log overflow, checksum (2), log count (2)
     localparam int RAM_MIRROR_BYTES = RAM_MIRROR_FOOT + 8;
 endpackage
