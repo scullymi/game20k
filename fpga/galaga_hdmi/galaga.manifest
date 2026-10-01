@@ -4,14 +4,21 @@
 # the Companion streams from the SD card into the core. This is the only place the layout is
 # written down. Three things are made from it:
 #   scripts/make_rom.py         builds sdcard/galaga.rom from roms/, checking every chip
-#   build.tcl                   the section table of rom_loader (gen/rom_map_pkg.sv)
-#   scripts/check_contracts.py  compares the known digests with the firmware (ra_patch.c)
+#   build.tcl                   the section table of rom_loader, the board id and the mirror
+#                               size (gen/rom_map_pkg.sv)
+#   scripts/check_contracts.py  compares the known digests and labels, the board and the
+#                               mirror size with the firmware (ra_games.c)
 #
 # Format: one entry per line, words separated by blanks, # starts a comment.
 #   set <name>        MAME set name. The file on the card is <name>.rom, the settings <name>.ini
 #   title <text>      shown by the scripts
 #   zip <file>        the set in roms/, as a MAME merged set
 #   total <bytes>     size of the finished file, rom_loader accepts exactly this size
+#   board <id>        which board this core is to the firmware, 1..254: header byte 12 of
+#                     the RAM mirror (BOARD_ID). The games[] row of the set in ra_games.c of
+#                     the fork repeats it
+#   mirror <bytes>    game RAM bytes in the RAM mirror before the oracle log (MIRROR_DATA), a
+#                     multiple of 128 and at most 22528; header byte 14 = mirror / 128
 #   section <name> <offset> <bytes>
 #                     one ROM memory of the core. Sections follow each other in file order,
 #                     offsets on 256-byte boundaries, which is why the 32-byte PROM comes last.
@@ -22,12 +29,16 @@
 #                     zeros, with a warning.
 #   note <file> <text>  what is lost when an optional chip is missing
 #   known <SHA-256> <label>
-#                     a finished file the firmware accepts for hardcore (rom_known in ra_patch.c)
+#                     a finished file the firmware accepts for hardcore (roms_galaga in
+#                     ra_games.c, digest and label in this order). The label has at most 16
+#                     characters, the firmware shows it in its version dialog
 
 set     galaga
 title   Galaga (Namco Rev B)
 zip     galaga.zip
 total   38944
+board   1
+mirror  5120
 
 section cpu1        0x0000 16384
 chip    gg1_1b.3p   4096 ca7f5da42d4e76fd89bb0b35198a23c01462fbfe

@@ -6,7 +6,10 @@
 //! @brief SPI target channel 5: the RAM mirror on its way to the Pico (game20k)
 //!
 //! The Companion fetches one block per frame: header, game RAM, oracle log, footer. The
-//! sizes live in ram_mirror_pkg.sv (RAM_MIRROR_*); the firmware carries the same constants.
+//! sizes that are the same for every game live in ram_mirror_pkg.sv (RAM_MIRROR_*); the
+//! firmware carries the same constants. The game's RAM size and its board id are the
+//! parameters DATA and BOARD and go out in header bytes 12 to 15, each with its
+//! complement, so the firmware takes the length of the body from the header.
 //!
 //! Verdict and measurement
 //! -----------------------
@@ -32,7 +35,10 @@
 //! clock and this module drains at the SPI clock.
 //! -----------------------------------------------------------------------------------------
 
-module ram_spi (
+module ram_spi #(
+    parameter int         DATA  = 5120,   //!< game RAM bytes in the mirror, a multiple of RAM_MIRROR_PAGE (MIRROR_DATA of the game)
+    parameter logic [7:0] BOARD = 8'd0    //!< board id of the core, 1..254 (BOARD_ID of the game); 0 and 255 are no board
+)(
     input  wire         clk,              //!< clk_core
     input  wire         reset,
     //! SPI side, for the byte counter
@@ -77,12 +83,15 @@ module ram_spi (
     output logic        underrun,        //!< the FIFO was empty when a byte was needed
 
     //! Measurements for the display
-    output logic [15:0] last_count,       //!< bytes of the last transfer, expected RAM_MIRROR_BYTES
+    output logic [15:0] last_count,       //!< bytes of the last transfer, expected RAM_MIRROR_HEAD + DATA + RAM_MIRROR_LOG + RAM_MIRROR_TAIL
     output logic [15:0] last_us,          //!< duration of the last transfer in microseconds
     output logic [7:0]  pico_verdict,     //!< 0xA5 = pattern was fine
     output logic [15:0] transfers         //!< number of transfers, saturating
 );
     import ram_mirror_pkg::*;   // block sizes of the RAM mirror, see ram_mirror_pkg.sv
+    // Offset of the footer: header, the game's RAM, the oracle log. A multiple of 8 because
+    // DATA is a multiple of RAM_MIRROR_PAGE, so the footer decode with k[2:0] below holds.
+    localparam int FOOT = RAM_MIRROR_HEAD + DATA + RAM_MIRROR_LOG;
     logic [15:0] cnt;                     // byte within the running transfer
     logic [15:0] us_cnt;                  // microseconds of the running transfer
     logic [4:0]  us_div;                  // 18.5625 MHz / 18.5625 = 1 us (approx.: 19 clocks)
@@ -114,7 +123,8 @@ module ram_spi (
 // Payload byte number: -1 for the target id, -1 for the Pico's verdict byte
     wire [15:0] k = bcnt - 16'd2;
 
-    // Header, then the body (payload plus oracle log), then the footer; sizes in ram_mirror_pkg.
+    // Header, then the body (payload plus oracle log), then the footer; the fixed sizes in
+    // ram_mirror_pkg, the payload size is DATA.
     // Header and footer carry the same frame number: if they do not match, the snapshot
     // changed during the transfer and the Pico discards it.
     logic [7:0] hdr;
@@ -124,7 +134,8 @@ module ram_spi (
             4'd1: hdr = 8'h41;            // 'A'
             4'd2: hdr = 8'h43;            // 'C'
             4'd3: hdr = 8'h48;            // 'H'
-            // Layout 3: header of 16 bytes, 5120 payload bytes, 1536 bytes of oracle log
+            // Layout 4: header of 16 bytes with board id and payload size in bytes 12 to
+            // 15, DATA payload bytes, 1536 bytes of oracle log
             4'd4: hdr = RAM_MIRROR_LAYOUT;
             4'd5: hdr = frame_no[7:0];
             4'd6: hdr = frame_no[15:8];
@@ -142,7 +153,16 @@ module ram_spi (
             // body, the Pico uses 8 and 9 only when their complements match.
             4'd10: hdr = ~rst_no;
             4'd11: hdr = ~build_flags;
-            default: hdr = 8'h00;         // 12 to 15 reserved
+            // Bytes 12 to 15: which board this core is and how long its payload is, each
+            // with its complement like 8 to 11. The Pico takes both only when the
+            // complements match, so a stuck line (all 0 or all 1) is refused, and sizes
+            // its body read from byte 14: the payload in pages of RAM_MIRROR_PAGE bytes,
+            // 1 to RAM_MIRROR_DATA_MAX / RAM_MIRROR_PAGE.
+            4'd12: hdr = BOARD;
+            4'd13: hdr = ~BOARD;
+            4'd14: hdr = 8'(DATA / RAM_MIRROR_PAGE);
+            4'd15: hdr = ~8'(DATA / RAM_MIRROR_PAGE);
+            default: hdr = 8'h00;         // k[3:0] covers 0 to 15, kept for completeness
         endcase
     end
     logic [7:0] ftr;
@@ -156,7 +176,7 @@ module ram_spi (
             3'd2: ftr = {7'd0, fifo_undr};
             // Overflow of the oracle log: more writes during the harvest than the log holds.
             3'd3: ftr = {7'd0, log_ovf};
-            // Core-side checksum over the RAM_MIRROR_BODY bytes (payload plus oracle log).
+            // Core-side checksum over the DATA + RAM_MIRROR_LOG body bytes (payload plus oracle log).
             // It is final at least seven byte times before the footer, which is how far the
             // line delivery runs ahead before the FIFO throttles it, so it is stable here.
             3'd4: ftr = body_sum[7:0];
@@ -179,7 +199,7 @@ module ram_spi (
     end
 
     wire in_head = (k < RAM_MIRROR_HEAD);
-    wire in_body = (k >= RAM_MIRROR_HEAD) && (k < RAM_MIRROR_FOOT);
+    wire in_body = (k >= RAM_MIRROR_HEAD) && (k < FOOT);
     assign data_out = in_head ? hdr : in_body ? fifo_data : ftr;
 
     // At the byte end of the next payload byte advance one slot
@@ -262,7 +282,7 @@ module ram_spi (
             // bytes alone and aborts if byte 7 reports that a harvest is running right now
             // (the shadow would then be half new, half old). Those probes are intended
             // operation and not measurements: if they were counted, the display would
-            // constantly show the header length instead of RAM_MIRROR_BYTES.
+            // constantly show the header length instead of the block length.
             if (busy && ss_s[2] == 1'b0 && ss_s[1] == 1'b1) begin
                 busy     <= 1'b0;
                 // The underrun report comes ready-made from the FIFO and is only taken

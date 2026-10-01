@@ -7,7 +7,8 @@
 //!
 //! One top for every game. The game sits behind game_core (fpga/<core>/src/game_core.sv),
 //! its raster, name and test bar labels come from game_pkg (fpga/<core>/src/game_pkg.sv),
-//! its ROM layout from rom_map_pkg, which build.tcl generates from the game's manifest.
+//! its ROM layout, board id and RAM mirror size from rom_map_pkg, which build.tcl generates
+//! from the game's manifest.
 //! Video and audio go out over HDMI.
 //!
 //! Clocks: 27 MHz crystal and TWO PLLs. pll_hdmi produces clk_x5 (371.25 MHz) and clk_core
@@ -780,10 +781,13 @@ module game20k_top #(
 
     // Source switching of the FIFO. The core does not count its payload bytes itself, so the
     // top counts the pushed bytes: that is at the same time the point at which the oracle
-    // log takes over.
+    // log takes over, MIRROR_DATA from the manifest, the size the header announces to the
+    // Pico. A game whose RAM is smaller than MIRROR_DATA must pad with zeros up to it
+    // before the log starts (Pac-Man's 6165 bytes become 6272); Galaga delivers exactly
+    // MIRROR_DATA.
     logic [15:0] push_n = 0;
-    wire         log_phase = (push_n >= RAM_MIRROR_DATA);
-    wire         log_push  = log_phase && !snap_full && (push_n < RAM_MIRROR_BODY);
+    wire         log_phase = (push_n >= MIRROR_DATA);
+    wire         log_push  = log_phase && !snap_full && (push_n < MIRROR_DATA + RAM_MIRROR_LOG);
     wire         fifo_push = log_phase ? log_push : snap_push;
     wire [7:0]   fifo_wdat = log_phase ? log_byte : snap_byte;
     always_ff @(posedge clk_core) begin
@@ -825,7 +829,9 @@ module game20k_top #(
             snap_sum <= {snap_sum[14:0], snap_sum[15]} ^ {8'h00, fifo_wdat};
     end
 
-    ram_spi ram_spi_i (
+    // The game's RAM size and board id go out in the header; both from the manifest through
+    // rom_map_pkg, so the firmware reads the length of the block and which core it talks to.
+    ram_spi #(.DATA(MIRROR_DATA), .BOARD(BOARD_ID)) ram_spi_i (
         .clk(clk_core), .reset(!pll_lock),
         .spi_ss(spi_csn), .spi_clk(spi_sck),
         .strobe(mcu_ram_strobe), .start(mcu_start), .data_in(mcu_data_out),

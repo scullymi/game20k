@@ -5,16 +5,21 @@
 @brief Values that live in two places of game20k and must agree, compared without boards.
 
   mirror   the RAM mirror layout constants: ram_mirror_pkg.sv (core) against main.c (firmware)
-  rom-sha  SHA-256 of the known ROM files: the ROM manifests against rom_known in ra_patch.c
+  rom-sha  SHA-256 and label of the known ROM files: each ROM manifest against its table
+           roms_<set>[] in ra_games.c, in order
+  game     the games[] row of each set in ra_games.c: an id, the md5 of the set name as its
+           hash, the board of the manifest; and the manifest's mirror size within the
+           bounds of ram_mirror_pkg.sv
 
 Each contract prints how many values it compared ("N of N agree") and fails when it matched
 nothing: a check that found nothing to compare is blind, not green.
 
 Usage: scripts/check_contracts.py [--root DIR] [--fork DIR]
-Exit status 0 when both hold, 1 otherwise.
+Exit status 0 when all three hold, 1 otherwise.
 """
 import argparse
 import glob
+import hashlib
 import os
 import re
 import sys
@@ -26,7 +31,9 @@ import make_rom  # noqa: E402  the manifest reader, one parser for every user of
 # the files the contracts read, relative to the game20k root ("root") or the fork ("fork")
 F_PKG = ("root", "fpga/common/src/mcu/ram_mirror_pkg.sv")
 F_MAIN = ("fork", "src/main.c")
-F_RAPATCH = ("fork", "src/ra_patch.c")
+F_RAGAMES = ("fork", "src/ra_games.c")
+# one localparam per line in the package, "localparam <type> RAM_MIRROR_X = <expr>;"
+RE_PKG = r"\blocalparam\b[^;=]*?\b(RAM_MIRROR_\w+)\s*=\s*([^;]+);"
 
 
 class Violation(Exception):
@@ -52,6 +59,15 @@ class Tree:
             hint = " (git submodule update --init?)" if f[0] == "fork" else ""
             raise Violation("cannot read %s%s" % (self.path(f), hint))
         return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", " ", text, flags=re.S)) if code else text
+
+    def manifests(self):
+        """Every ROM manifest under fpga/, parsed, sorted by path. None is a violation."""
+        paths = sorted(glob.glob(os.path.join(self.base["root"], "fpga", "*", "*.manifest")))
+        need(paths, "no ROM manifest under %s/fpga" % self.base["root"])
+        try:
+            return [make_rom.read_manifest(p) for p in paths]
+        except make_rom.ManifestError as e:
+            raise Violation(str(e))
 
 
 def need(cond, msg):
@@ -82,7 +98,7 @@ def value(defs, name, depth=0):
 
 def contract_mirror(t):
     """RAM_MIRROR_* in the core package and in the firmware: same names, same values."""
-    core = dict(re.findall(r"\blocalparam\b[^;=]*?\b(RAM_MIRROR_\w+)\s*=\s*([^;]+);", t.read(F_PKG)))
+    core = dict(re.findall(RE_PKG, t.read(F_PKG)))
     fw = dict(re.findall(r"^[ \t]*#[ \t]*define[ \t]+(RAM_MIRROR_\w+)[ \t]+(.+?)[ \t]*$",
                          t.read(F_MAIN), re.M))
     need(core, "no RAM_MIRROR_* localparam in %s" % t.path(F_PKG))
@@ -96,28 +112,57 @@ def contract_mirror(t):
 
 
 def contract_rom_sha(t):
-    """The ROM digests the manifests announce are the ones the firmware accepts, in order."""
-    manifests = sorted(glob.glob(os.path.join(t.base["root"], "fpga", "*", "*.manifest")))
-    need(manifests, "no ROM manifest under %s/fpga" % t.base["root"])
-    try:
-        script = [sha for p in manifests for sha, _ in make_rom.read_manifest(p)["known"]]
-    except make_rom.ManifestError as e:
-        raise Violation(str(e))
-    m = re.search(r"\brom_known\s*\[\s*\]\s*\[\s*32\s*\]\s*=\s*\{(.*?)\}\s*;", t.read(F_RAPATCH), re.S)
-    need(m, "no rom_known[][32] table in %s" % t.path(F_RAPATCH))
-    fw = []
-    for row in re.findall(r"\{([^{}]*)\}", m.group(1)):
-        b = re.findall(r"0[xX]([0-9a-fA-F]{2})\b", row)
-        need(len(b) == 32, "a rom_known row in ra_patch.c has %d bytes, not 32" % len(b))
-        fw.append("".join(b).lower())
-    need(script, "no known ROM digest in the manifests")
-    need(fw, "rom_known in ra_patch.c is empty")
-    need(script == fw, "digests differ: manifests %s, ra_patch.c %s"
-         % ([s[:12] for s in script], [s[:12] for s in fw]))
-    return "%d of %d digests agree in order (manifests, ra_patch.c)" % (len(fw), len(fw))
+    """The ROM digests and labels a manifest announces are the rows of its table roms_<set>[]
+    in ra_games.c, in order: rows { { 32 bytes }, "label" }."""
+    src = t.read(F_RAGAMES)
+    n = 0
+    for m in t.manifests():
+        s = m["set"]
+        table = re.search(r"\broms_%s\s*\[\s*\]\s*=\s*\{(.*?)\}\s*;" % re.escape(s), src, re.S)
+        need(table, "no table roms_%s[] in %s" % (s, t.path(F_RAGAMES)))
+        fw = []
+        for row, label in re.findall(r"\{\s*\{([^{}]*)\}\s*,\s*\"([^\"]*)\"\s*\}", table.group(1)):
+            b = re.findall(r"0[xX]([0-9a-fA-F]{2})\b", row)
+            need(len(b) == 32, "a row of roms_%s has %d bytes, not 32" % (s, len(b)))
+            fw.append(("".join(b).lower(), label))
+        need(m["known"], "%s: no known line" % m["path"])
+        need(fw, "roms_%s in ra_games.c is empty" % s)
+        need(m["known"] == fw, "%s: manifest %s, ra_games.c %s" % (
+            s, [(d[:12], l) for d, l in m["known"]], [(d[:12], l) for d, l in fw]))
+        n += len(fw)
+    return "%d of %d digests agree per set (manifests, ra_games.c)" % (n, n)
 
 
-CONTRACTS = [("mirror", contract_mirror), ("rom-sha", contract_rom_sha)]
+def contract_game(t):
+    """Each manifest's set has one games[] row { "<set>", "<title>", <id>u, "<hash>", <board>, ...
+    in ra_games.c: an id, the md5 of the set name (the arcade rule) as its hash, the board
+    of the manifest. The manifest's mirror size is a multiple of the package's RAM_MIRROR_PAGE
+    up to its RAM_MIRROR_DATA_MAX: make_rom.read_manifest() refuses more from the same package
+    at build time, this is the cross-check against the parsed localparams."""
+    src = t.read(F_RAGAMES)
+    core = dict(re.findall(RE_PKG, t.read(F_PKG)))
+    for name in ("RAM_MIRROR_DATA_MAX", "RAM_MIRROR_PAGE"):
+        need(name in core, "no %s in %s" % (name, t.path(F_PKG)))
+    data_max, page = value(core, "RAM_MIRROR_DATA_MAX"), value(core, "RAM_MIRROR_PAGE")
+    n = 0
+    for m in t.manifests():
+        s = m["set"]
+        rows = re.findall(r"\{\s*\"%s\"\s*,\s*\"[^\"]*\"\s*,\s*(\d+)u?\s*,\s*\"([0-9a-f]{32})\"\s*,\s*(\d+)"
+                          % re.escape(s), src)
+        need(len(rows) == 1, "%d games[] rows for set %s in %s, not 1" % (len(rows), s, t.path(F_RAGAMES)))
+        gid, ghash, board = int(rows[0][0]), rows[0][1], int(rows[0][2])
+        want = hashlib.md5(s.encode()).hexdigest()
+        need(gid > 0, "%s: id 0 in ra_games.c" % s)
+        need(ghash == want, "%s: hash %s in ra_games.c, the md5 of the set name is %s" % (s, ghash, want))
+        need(board == m["board"], "%s: board %d in ra_games.c, %d in the manifest" % (s, board, m["board"]))
+        need(m["mirror"] % page == 0 and m["mirror"] <= data_max,
+             "%s: mirror %d is not a multiple of RAM_MIRROR_PAGE %d up to RAM_MIRROR_DATA_MAX %d"
+             % (s, m["mirror"], page, data_max))
+        n += 1
+    return "%d of %d games agree (manifests, ra_games.c)" % (n, n)
+
+
+CONTRACTS = [("mirror", contract_mirror), ("rom-sha", contract_rom_sha), ("game", contract_game)]
 
 
 def main():
