@@ -162,6 +162,8 @@ MIT notice, which names the changed files:
 |---|---|---|
 | [`rtl_dar/`](fpga/galaga_hdmi/src/rtl_dar/README.md) | Dar's Galaga core, via DECAfpga/Arcade_Galaga | ROMs from the SD card, DIP switches from the menu, RAM mirror for the achievements, Gowin fixes |
 | [`rtl_T80/`](fpga/galaga_hdmi/src/rtl_T80/README.md) | T80 Z80 core by Daniel Wallner | none |
+| [`rtl_pacman/`](fpga/pacman_hdmi/src/rtl_pacman/README.md) | MikeJ's Pac-Man core, via MiSTer-devel/Arcade-Pacman_MiSTer | ROMs from the SD card, RAM Gowin can place, taps for the RAM mirror, the second program bank left out |
+| [`rtl_T80/`](fpga/pacman_hdmi/src/rtl_T80/README.md) (Pac-Man) | T80 Z80 core Ver 300 with MikeJ's T80sed | none |
 | [`misc/`](fpga/common/src/misc/README.md) | MiSTeryNano and Nanomig by Till Harbaum | extra joystick byte, SPI target 5, rotated OSD, `sysctrl.v`, `sd_rw.v` retries `CMD24` |
 | [`hdmi/`](fpga/common/src/hdmi/LICENSE) | hdl-util/hdmi by Sameer Puri, at `08936f6` | audio and timing changes marked `game20k:` |
 
@@ -361,6 +363,8 @@ fpga/common/src/misc/, hdmi/   third-party HDL, a README in misc/, a LICENSE in 
 fpga/galaga_hdmi/        the game: Dar's core, its wrapper game_core.sv and game_pkg.sv, the menu,
                          the ROM manifest
 fpga/galaga_hdmi/src/rtl_dar/, rtl_T80/   third-party HDL, a README in each
+fpga/pacman_hdmi/        the second game: MikeJ's core with its RAM mirror, game_core.sv, game_pkg.sv,
+                         the menu, the ROM manifest, and sim/ with two nvc testbenches
 external/                the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/                    your ROM zips, excluded from version control, only its README is tracked
 sdcard/                  what goes on the SD card, with the template for config.ini

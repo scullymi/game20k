@@ -1,0 +1,318 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 scullymi
+`default_nettype none   // game20k: a typo in a signal name must be an error, not a
+                       // silent one-bit net.
+//! @file game_core.sv
+//! @brief Pac-Man behind the game interface of the platform top (game20k).
+//!
+//! The platform top (fpga/common/src/game20k_top.sv) knows only this module and game_pkg.
+//! Every game folder has a game_core with exactly these ports. Here it wraps MikeJ's Pac-Man
+//! core (src/rtl_pacman, MiSTer 648172de with our taps) and holds what is Pac-Man's alone:
+//! the pixel enable, the DIP switches, the joystick of an upright cabinet with a 4-way
+//! filter, the ROM decode, the video sample phase and the audio scale. The RAM mirror itself
+//! is a VHDL entity beside the core (src/rtl_pacman/pacman_mirror.vhd) so that nvc can
+//! simulate it; this file only wires it.
+//!
+//! The parameters ROMVIEW and RAMDIAG are accepted because the top passes them and ignored:
+//! there is no character ROM view and no ram_diag instance in this folder, the diag_*
+//! outputs are constant 0.
+module game_core #(
+    parameter bit ROMVIEW = 0,      //!< accepted for the top's sake, no effect here
+    parameter bit RAMDIAG = 0       //!< accepted for the top's sake, no effect here
+)(
+    input  wire         clk_core,       //!< 18.5625 MHz
+    input  wire         reset,          //!< core reset, held by the top until the ROM is loaded
+
+    //! ---- video in the core raster, blankn = 1 visible, vs active low ----
+    output logic [2:0]  video_r,
+    output logic [2:0]  video_g,
+    output logic [1:0]  video_b,
+    output logic        video_blankn,
+    output logic        video_vs,
+    output logic        video_hs,
+    //! ---- audio, two's complement, silence = 0 ----
+    output logic signed [15:0] audio,
+
+    //! ---- ROM write port from rom_loader, bit i of rom_wr_en = section i of the manifest ----
+    input  wire  [15:0] rom_wr_addr,
+    input  wire  [7:0]  rom_wr_data,
+    input  wire  [15:0] rom_wr_en,
+
+    //! ---- menu values from the Companion: one clock of cfg_we per value set ----
+    input  wire         cfg_we,
+    input  wire  [7:0]  cfg_id,
+    input  wire  [7:0]  cfg_val,
+
+    //! ---- controls. Directions {up, down, left, right}, buttons as the menu maps them ----
+    input  wire  [3:0]  p1_dir,
+    input  wire  [3:0]  p2_dir,
+    input  wire         p1_fire,
+    input  wire         p2_fire,
+    input  wire  [11:0] p1_btns,        //!< raw HID buttons 1..12, for games with more buttons
+    input  wire  [11:0] p2_btns,
+    input  wire         coin,
+    input  wire         start1,
+    input  wire         start2,
+    output logic [15:0] map_bits,       //!< the game signals, shown on the input test bar
+
+    //! ---- RAM mirror: the harvest delivers the mirror bytes, see rtl_pacman/pacman_mirror.vhd ----
+    input  wire         snap_run,
+    input  wire         snap_full,
+    output logic        snap_push,
+    output logic [7:0]  snap_byte,
+    output logic [15:0] snap_frame,
+    output logic        snap_harv,
+    //! ---- oracle: every write of the game into the mirrored RAM, flat mirror address ----
+    output logic        log_we,
+    output logic [15:0] log_addr,
+    output logic [7:0]  log_data,
+
+    //! ---- diagnostic bar of the RAMDIAG build, in the pixel clock; 0 otherwise ----
+    input  wire         clk_pixel,
+    input  wire  [10:0] cx,
+    input  wire  [9:0]  cy,
+    input  wire  [15:0] diag_spi_count,   //!< bytes of the last mirror transfer
+    input  wire  [15:0] diag_spi_us,      //!< its duration in microseconds
+    input  wire  [7:0]  diag_spi_verdict, //!< the Pico's verdict, 0xA5 = all good
+    input  wire  [15:0] diag_rc_us,       //!< rcheevos evaluation time per frame
+    input  wire  [15:0] diag_rc_lf,       //!< {loaded conditions, fired achievements}
+    input  wire  [7:0]  diag_last_ach,    //!< last fired achievement, 1-based
+    output logic        diag_on,
+    output logic [23:0] diag_color,
+    output logic [5:0]  diag_leds
+);
+    // ---------------- Clock enables ----------------
+    // The core steps on ENA_6, one clock in three: 6.1875 MHz pixel, 0.7 percent above the
+    // board's 6.144 MHz, 61.04 Hz frames as Galaga on the same clock. Not reset: the core's
+    // own counters are not reset either, the scaler locks onto the vsync edge. ENA_4 and
+    // ENA_1M79 only clocked the sound chips of other games, which are stubs here.
+    logic [1:0] ph = 2'd0;
+    always_ff @(posedge clk_core) ph <= (ph == 2'd2) ? 2'd0 : ph + 2'd1;
+    wire ena_6 = (ph == 2'd0);
+
+    // ---------------- DIP switches from the menu ----------------
+    // The ids are the ones menu.xml uses, the values are the raw DSW1 bits (MAME pacman.cpp):
+    // 1:0 coinage, 3:2 lives, 5:4 bonus, 6 difficulty (1 normal), 7 ghost names (1 normal).
+    // The defaults are the menu's defaults, they hold until the Companion sends the saved
+    // values at start-up: 0xC9, MAME's default, 3 lives and 1 coin per play as the
+    // RetroAchievements set expects.
+    logic [1:0] lives      = 2'd2;
+    logic [1:0] bonus      = 2'd0;
+    logic [1:0] coinage    = 2'd1;
+    logic       difficulty = 1'b1;
+    logic       ghost      = 1'b1;
+    always_ff @(posedge clk_core)
+        if (cfg_we) case (cfg_id)
+            "L": lives      <= cfg_val[1:0];
+            "B": bonus      <= cfg_val[1:0];
+            "C": coinage    <= cfg_val[1:0];
+            "F": difficulty <= cfg_val[0];
+            "K": ghost      <= cfg_val[0];
+            default: ;
+        endcase
+
+    // DIP switches reach the core only while it is in reset: every DIP list in menu.xml
+    // carries action="reset", and the top holds reset for at least 255 clocks. DSW2 is
+    // unused by Pac-Man, 0xFF is MiSTer's value.
+    logic [7:0] dipsw1;
+    always_ff @(posedge clk_core)
+        if (reset) dipsw1 <= {ghost, difficulty, bonus, lives, coinage};
+
+    // ---------------- Controls ----------------
+    // An upright cabinet: both players take turns on one stick, so both controllers feed the
+    // same direction bits, as MiSTer does. The stick is 8-way and the game reads 4-way, so a
+    // diagonal is resolved by the rule "the direction pressed most recently wins": a fresh
+    // second direction takes over, a held one stays, two at once from nothing pick the
+    // first in the order up, down, left, right. One clock of latency; p1_dir/p2_dir are
+    // clk_core registers of the top already.
+    wire [3:0] raw_dir = p1_dir | p2_dir;      // {up, down, left, right}
+    logic [3:0] raw_dir_d = 4'd0, dir4 = 4'd0;
+    wire [3:0] fresh = raw_dir & ~raw_dir_d;
+    function automatic bit onehot(input logic [3:0] x);
+        onehot = (x != 4'd0) && ((x & (x - 4'd1)) == 4'd0);
+    endfunction
+    always_ff @(posedge clk_core) begin
+        raw_dir_d <= raw_dir;
+        if (raw_dir == 4'd0)             dir4 <= 4'd0;
+        else if (onehot(raw_dir))        dir4 <= raw_dir;
+        else if (onehot(fresh))          dir4 <= fresh;        // diagonal: the newest direction
+        else if ((dir4 & raw_dir) != 0)  dir4 <= dir4;         // still pressed: keep it
+        else dir4 <= raw_dir[3] ? 4'b1000 : raw_dir[2] ? 4'b0100 : raw_dir[1] ? 4'b0010 : 4'b0001;
+    end
+
+    // The core's ports are active low, bit order 0 up, 1 left, 2 right, 3 down. Hardcore
+    // needs the rack test (in0 bit 4) and the service mode (in1 bit 4) off, so no fire
+    // button is wired; p1_fire, p2_fire, p1_btns and p2_btns stay unused. The P2 bits of
+    // in1 are unused with the cabinet bit at upright, fed for a later cocktail option.
+    wire [7:0] in0 = {1'b1, 1'b1, ~coin, 1'b1, ~dir4[2], ~dir4[0], ~dir4[1], ~dir4[3]};
+    wire [7:0] in1 = {1'b1, ~start2, ~start1, 1'b1, ~dir4[2], ~dir4[0], ~dir4[1], ~dir4[3]};
+
+    // The test bar shows the filtered direction, what the game sees: bit 0 up, 1 down,
+    // 2 left, 3 right, 4 coin, 5 start 1, 6 start 2, as MAP_LABELS of game_pkg names them.
+    assign map_bits = {9'd0, start2, start1, coin, dir4[0], dir4[1], dir4[2], dir4[3]};
+
+    // ---------------- ROM download ----------------
+    // rom_loader gives one clock of rom_wr_en[i] per byte of section i with the offset
+    // inside the section. The core's download decoder wants the MiSTer address space:
+    // program at 0x0000, graphics at 0x8000, the PROMs at 0xC000 + their MiSTer offset. The
+    // palette chip has 32 bytes of which the core decodes 16; bytes 16..31 land at 0xC310
+    // where nothing listens, as on MiSTer. The timing PROM (section 5) is in the file for the
+    // digest only, the core generates its timing itself. Bank 1 (0x4000..0x7FFF) is never
+    // written: G_HI_BANK is false in the core copy.
+    logic [15:0] dn_addr;
+    logic        dn_wr;
+    always_comb begin
+        if      (rom_wr_en[0]) dn_addr = {2'b00, rom_wr_addr[13:0]};              // u_program_rom0
+        else if (rom_wr_en[1]) dn_addr = {3'b100, rom_wr_addr[12:0]};             // char_rom_5ef
+        else if (rom_wr_en[2]) dn_addr = 16'hC300 | {11'd0, rom_wr_addr[4:0]};    // col_rom_7f
+        else if (rom_wr_en[3]) dn_addr = 16'hC100 | {8'd0, rom_wr_addr[7:0]};     // col_rom_4a
+        else if (rom_wr_en[4]) dn_addr = 16'hC000 | {8'd0, rom_wr_addr[7:0]};     // audio_rom_1m
+        else                   dn_addr = 16'h0000;
+        dn_wr = |rom_wr_en[4:0];
+    end
+
+    // ---------------- Core nets ----------------
+    logic [2:0]  core_r, core_g;
+    logic [1:0]  core_b;
+    logic        core_hs, core_vs, core_hb, core_vb;
+    logic [9:0]  audio_u10;        // unipolar, silence = 0, at most 900 (225 << 2)
+    logic [11:0] hs_address;       // the mirror's read port on the main RAM
+    logic [7:0]  hs_data_out;
+    logic [3:0]  mir_sxy_addr;
+    logic [7:0]  mir_sxy_data;
+    logic        mir_flip, mir_we_ram, mir_we_sxy, mir_we_flip, mir_frame_go;
+    logic [11:0] mir_wr_addr;
+    logic [7:0]  mir_wr_data;
+    logic [1:0]  blankn_q = 2'b00;
+
+    // ---------------- The core ----------------
+    // Every mod_* input is 0: this is Pac-Man, the other games' decoders and sound chips are
+    // swept. hs_access_read and hs_access_write must stay 0: any 1 silently drops all CPU
+    // RAM writes (pacman.vhd, u_rams). The high score port B is the mirror's read port.
+    // Fallback if Gowin does not bind the entity PACMAN from here: lowercase 'pacman core'
+    // or a VHDL shell, see src/rtl_pacman/README.md.
+    PACMAN core (
+        .O_VIDEO_R   (core_r),
+        .O_VIDEO_G   (core_g),
+        .O_VIDEO_B   (core_b),
+        .O_HSYNC     (core_hs),
+        .O_VSYNC     (core_vs),
+        .O_HBLANK    (core_hb),
+        .O_VBLANK    (core_vb),
+        .O_AUDIO     (audio_u10),
+        .in0         (in0),
+        .in1         (in1),
+        .dipsw1      (dipsw1),
+        .dipsw2      (8'hFF),
+        .mod_plus    (1'b0),
+        .mod_jmpst   (1'b0),
+        .mod_bird    (1'b0),
+        .mod_mrtnt   (1'b0),
+        .mod_ms      (1'b0),
+        .mod_woodp   (1'b0),
+        .mod_eeek    (1'b0),
+        .mod_glob    (1'b0),
+        .mod_alib    (1'b0),
+        .mod_ponp    (1'b0),
+        .mod_van     (1'b0),
+        .mod_dshop   (1'b0),
+        .mod_club    (1'b0),
+        .flip_screen (1'b0),
+        .h_offset    (3'd0),
+        .v_offset    (3'd0),
+        .dn_addr     (dn_addr),
+        .dn_data     (rom_wr_data),
+        .dn_wr       (dn_wr),
+        .pause       (1'b0),
+        .hs_address      (hs_address),
+        .hs_data_in      (8'h00),
+        .hs_data_out     (hs_data_out),
+        .hs_write_enable (1'b0),
+        .hs_access_read  (1'b0),
+        .hs_access_write (1'b0),
+        .mir_sxy_addr (mir_sxy_addr),
+        .mir_sxy_data (mir_sxy_data),
+        .mir_flip     (mir_flip),
+        .mir_we_ram   (mir_we_ram),
+        .mir_we_sxy   (mir_we_sxy),
+        .mir_we_flip  (mir_we_flip),
+        .mir_wr_addr  (mir_wr_addr),
+        .mir_wr_data  (mir_wr_data),
+        .mir_frame_go (mir_frame_go),
+        .RESET       (reset),
+        .CLK         (clk_core),
+        .ENA_6       (ena_6),
+        .ENA_4       (1'b0),
+        .ENA_1M79    (1'b0)
+    );
+
+    // ---------------- The RAM mirror ----------------
+    // Harvest, catch-up, delivery and the oracle addresses all live in the VHDL entity, so
+    // that the simulation covers every cycle argument; this file holds no mirror state.
+    pacman_mirror mirror (
+        .clk        (clk_core),
+        .ena_6      (ena_6),
+        .reset      (reset),
+        .frame_go   (mir_frame_go),
+        .ram_addr   (hs_address),
+        .ram_q      (hs_data_out),
+        .sxy_addr   (mir_sxy_addr),
+        .sxy_q      (mir_sxy_data),
+        .flip       (mir_flip),
+        .we_ram     (mir_we_ram),
+        .we_sxy     (mir_we_sxy),
+        .we_flip    (mir_we_flip),
+        .wr_addr    (mir_wr_addr),
+        .wr_data    (mir_wr_data),
+        .snap_run   (snap_run),
+        .snap_full  (snap_full),
+        .snap_push  (snap_push),
+        .snap_byte  (snap_byte),
+        .snap_frame (snap_frame),
+        .snap_harv  (snap_harv),
+        .log_we     (log_we),
+        .log_addr   (log_addr),
+        .log_data   (log_data)
+    );
+
+    // ---------------- Video ----------------
+    // All four core outputs are active high. blankn is 1 for exactly the 288 x 224 visible
+    // pixels and 0 for the whole vertical blank, which the scaler's ring buffer needs.
+    // Sample phase: the RGB register of the core (col_rom_7f) takes pixel n at the edge
+    // E+1+3n, E being the ENA_6 edge that ends O_HBLANK, and holds it for three clocks
+    // (measured in sim/tb_pacman.vhd, T8, sprites included). The scaler samples at the edge
+    // ending c0+2, c0 being the first clock in which it sees blankn high: BLANK_DLY = 0
+    // takes the middle clock of the three, BLANK_DLY = 1 the last one, which T8 checks on
+    // every sample of a frame. RGB is not delayed. The shift register is indexed directly,
+    // so no branch carries a negative index.
+    localparam int BLANK_DLY = 1;
+    wire blankn_live = ~(core_hb | core_vb);
+    always_ff @(posedge clk_core) blankn_q <= {blankn_q[0], blankn_live};
+    wire [2:0] blankn_sh = {blankn_q, blankn_live};   // [0] live, [1] one clock, [2] two clocks
+    assign video_blankn = blankn_sh[BLANK_DLY];
+    assign video_r  = core_r;
+    assign video_g  = core_g;
+    assign video_b  = core_b;
+    // O_VSYNC is an active high 8-line pulse 16 lines before the first visible line; the
+    // scaler wants it active low. O_HSYNC has no consumer.
+    assign video_vs = ~core_vs;
+    assign video_hs = ~core_hs;
+
+    // ---------------- Audio: 10 bit unipolar to 16 bit two's complement ----------------
+    // O_AUDIO is vol x wave << 2: unipolar, silence 0, at most 900. Times 32 gives at most
+    // 28800, no clipping logic, and silence stays 0 so the top's volume gain does not shift
+    // the idle level. Galaga needed x64 with clipping because its mean sits near 25/1023;
+    // Pac-Man's product is several times higher for the same fraction of scale. If the
+    // device says too quiet, Galaga's two lines are the fallback:
+    //   wire [16:0] aud_x64 = {1'b0, audio_u10, 6'b0};
+    //   assign audio = (aud_x64 > 17'd32767) ? 16'd32767 : aud_x64[15:0];
+    assign audio = {1'b0, audio_u10, 5'b0};
+
+    // ---------------- No diagnostics in this folder ----------------
+    assign diag_on    = 1'b0;
+    assign diag_color = 24'd0;
+    assign diag_leds  = 6'd0;
+endmodule
+
+`default_nettype wire   // required: Gowin compiles ALL files as one unit, the directive
+                        // would otherwise leak into the next file.

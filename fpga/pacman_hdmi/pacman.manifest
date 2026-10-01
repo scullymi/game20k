@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Pac-Man: which chips of the MAME set go where in pacman.rom, the one file
+# the Companion streams from the SD card into the core. This is the only place the layout is
+# written down. Three things are made from it:
+#   scripts/make_rom.py         builds sdcard/pacman.rom from roms/, checking every chip
+#   build.tcl                   the section table of rom_loader, the board id and the mirror
+#                               size (gen/rom_map_pkg.sv)
+#   scripts/check_contracts.py  compares the known digests and labels, the board and the
+#                               mirror size with the firmware (ra_games.c)
+#
+# Format: one entry per line, words separated by blanks, # starts a comment.
+#   set <name>        MAME set name. The file on the card is <name>.rom, the settings <name>.ini
+#   title <text>      shown by the scripts
+#   zip <file>        the set in roms/, as a MAME merged set
+#   total <bytes>     size of the finished file, rom_loader accepts exactly this size
+#   board <id>        which board this core is to the firmware, 1..254: header byte 12 of
+#                     the RAM mirror (BOARD_ID). The games[] row of the set in ra_games.c of
+#                     the fork repeats it
+#   mirror <bytes>    game RAM bytes in the RAM mirror before the oracle log (MIRROR_DATA), a
+#                     multiple of 128 and at most 22528; header byte 14 = mirror / 128
+#   section <name> <offset> <bytes>
+#                     one ROM memory of the core. Sections follow each other in file order,
+#                     in MAME chip order; offsets need not be aligned, the parser only checks
+#                     that they are gapless.
+#   chip <file> <bytes> <SHA-1> [zip=<file>] [optional]
+#                     one chip of the preceding section, in file order. SHA-1 as MAME lists it
+#                     for the set (src/mame/pacman/pacman.cpp).
+#                     zip= takes it from another zip in roms/. optional: a missing chip becomes
+#                     zeros, with a warning.
+#   note <file> <text>  what is lost when an optional chip is missing
+#   known <SHA-256> <label>
+#                     a finished file the firmware accepts for hardcore (roms_pacman in
+#                     ra_games.c, digest and label in this order). The label has at most 16
+#                     characters, the firmware shows it in its version dialog
+
+set     pacman
+title   Pac-Man (Midway)
+zip     pacman.zip
+total   25376
+board   2
+mirror  6272
+
+section program     0x0000 16384
+chip    pacman.6e   4096 e87e059c5be45753f7e9f33dff851f16d6751181
+chip    pacman.6f   4096 674d3a7f00d8be5e38b1fdc208ebef5a92d38329
+chip    pacman.6h   4096 8e47e8c2c4d6117d174cdac150392042d3e0a881
+chip    pacman.6j   4096 d4a70d56bb01d27d094d73db8667ffb00ca69cb9
+section gfx         0x4000 8192
+chip    pacman.5e   4096 06ef227747a440831c9a3a613b76693d52a2f0a9
+chip    pacman.5f   4096 4a937ac02216ea8c96477d4a15522070507fb599
+section palette_7f  0x6000 32
+chip    82s123.7f   32   8d0268dee78e47c712202b0ec4f1f51109b1f2a5
+section colour_4a   0x6020 256
+chip    82s126.4a   256  19097b5f60d1030f8b82d9f1d3a241f93e5c75d6
+section wave_1m     0x6120 256
+chip    82s126.1m   256  bbcec0570aeceb582ff8238a4bc8546a23430081
+# timing PROM: in the file for the digest, never written into the core (it generates its
+# own timing), so the wrapper decodes no target for section 5
+section timing_3m   0x6220 256
+chip    82s126.3m   256  0c4d0bee858b97632411c440bea6948a74759746
+
+known   b1deec6d4ab967bc0115bca37cad19bc2277c48237620a2e4a41932d8e5ab20e MAME pacman
