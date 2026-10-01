@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Puck Man, Namco's original of 1980, on the Pac-Man board: the same core,
+# layout and total as pacman.manifest (which explains the format), the program and the
+# graphics as twelve 2 KB chips in MAME's order (src/mame/pacman/pacman.cpp, set "puckman"),
+# the PROMs the same parts as Pac-Man's. RetroAchievements lists the set name "puckman" as
+# game 24933, "Pac-Man [Subset - Perfect Pac]", so this file plays that subset and
+# pacman.rom the main set.
+
+set     puckman
+title   Puck Man (Namco)
+zip     puckman.zip
+total   25376
+board   2
+mirror  6272
+
+section program     0x0000 16384
+chip    pm1_prg1.6e 2048 813cecf44bf5464b1aed64b36f5047e4c79ba176
+chip    pm1_prg2.6k 2048 b9ca52b63a49ddece768378d331deebbe34fe177
+chip    pm1_prg3.6f 2048 9b5ddaaa8b564654f97af193dbcc29f81f230a25
+chip    pm1_prg4.6m 2048 c2f00e1773c6864435f29c8b7f44f2ef85d227d3
+chip    pm1_prg5.6h 2048 afe72fdfec66c145b53ed865f98734686b26e921
+chip    pm1_prg6.6n 2048 08759833f7e0690b2ccae573c929e2a48e5bde7f
+chip    pm1_prg7.6j 2048 d249fa9cdde774d5fee7258147cd25fa3f4dc2b3
+chip    pm1_prg8.6p 2048 eb462de79f49b7aa8adb0cc6d31535b10550c0ce
+section gfx         0x4000 8192
+chip    pm1_chg1.5e 2048 6d4ccc27d6be185589e08aa9f18702b679e49a4a
+chip    pm1_chg2.5h 2048 79bb456be6c39c1ccd7d077fbe181523131fb300
+chip    pm1_chg3.5f 2048 be933e691df4dbe7d12123913c3b7b7b585b7a35
+chip    pm1_chg4.5j 2048 53771c573051db43e7185b1d188533056290a620
+section palette_7f  0x6000 32
+chip    pm1-1.7f    32   8d0268dee78e47c712202b0ec4f1f51109b1f2a5
+section colour_4a   0x6020 256
+chip    pm1-4.4a    256  19097b5f60d1030f8b82d9f1d3a241f93e5c75d6
+section wave_1m     0x6120 256
+chip    pm1-3.1m    256  bbcec0570aeceb582ff8238a4bc8546a23430081
+# timing PROM: in the file for the digest, never written into the core (it generates its
+# own timing), so the wrapper decodes no target for section 5
+section timing_3m   0x6220 256
+chip    pm1-2.3m    256  0c4d0bee858b97632411c440bea6948a74759746
+
+known   ad4a2c562aa8b87d8f1dffccf45bf9d213c045e1b237e5ec1121fdc880ef7387 MAME puckman
