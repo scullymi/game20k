@@ -41,9 +41,10 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
 
 - The DIP switches come in as ports `dip_a` and `dip_b`, so that the OSD menu can set them at
   run time. The multiplex index is `mux_addr(2 downto 0)` instead of `(3 downto 0)`.
-- The bit selection in the tile path is delayed by one clock (`hcnt_bg_d`): Gowin delivers the
-  data of the character ROM, clocked on the falling edge, one clock later than the original
-  expects. **This is Gowin specific and wrong on Altera or Xilinx.**
+- The character ROM `bg_graphics` reads on the rising edge of `clock_18` (upstream on
+  `clock_18n`), with one register stage, so its byte arrives one clock after the address. The
+  bit selection in the tile path therefore uses `hcnt` delayed by one clock (`hcnt_bg_d`).
+  **This is Gowin specific and wrong on Altera or Xilinx.**
 - The slot counter starts from reset in a defined phase, so the core runs reproducibly.
 - `gen_video.vhd` gets a reset input.
 - The RAMs are our own `entity work.g20k_spram`: synchronous, read-first, zero at start.
