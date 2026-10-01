@@ -2,7 +2,8 @@
 // Copyright (C) 2026 scullymi
 /** @file host_stubs.h
  *  @brief Every host stand-in in one header: debugf(), FreeRTOS, the pico-sdk clock, lwIP,
- *  and what the tests set and read in them.
+ *  and what the tests set and read in them. The stand-ins for the fork's own ra_mac, ra_state
+ *  and ra_patch calls keep their real headers, see host_stubs.c.
  *
  *  The Makefile passes this file with -include to the fork files, the stand-ins and the tests,
  *  and generates the headers the fork includes by name (FORWARD there), which only include
@@ -42,7 +43,9 @@ typedef void (*TaskFunction_t)(void *);
 #define pdMS_TO_TICKS(ms)    ((TickType_t)(ms))   /* configTICK_RATE_HZ 1000 */
 #define configMAX_PRIORITIES 32
 
+typedef struct { unsigned char opaque[80]; } StaticQueue_t;   /* the port's control block, never read here */
 QueueHandle_t xQueueCreate(UBaseType_t len, UBaseType_t size);
+QueueHandle_t xQueueCreateStatic(UBaseType_t len, UBaseType_t size, uint8_t *storage, StaticQueue_t *ctl);
 BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t wait);
 BaseType_t xQueueReceive(QueueHandle_t q, void *item, TickType_t wait);
 BaseType_t xQueueAddToSet(QueueSetMemberHandle_t member, QueueSetHandle_t set);
@@ -128,6 +131,7 @@ err_t httpc_get_file_dns(const char *server_name, u16_t port, const char *uri,
 unsigned host_sdc_depth(void);                           /**< sdc_lock() held right now, 0 or 1 */
 void host_sdc_set_image(int drive, const char *cwd, const char *name);   /**< NULL name: none */
 extern bool host_hardcore;                               /**< what ra_task_hardcore() returns */
+void host_set_game(const char *hash, unsigned id);      /**< what ra_game_hash() and ra_game_id() return, "" and 0 for no game */
 #define HOST_FTP_CTL 7                                   /**< the modelled control connection */
 void host_ftp_script(const char *input);    /**< bytes lwip_recv() hands out, then 0 (closed) */
 const char *host_ftp_transcript(void);      /**< what lwip_send() got since host_ftp_script() */

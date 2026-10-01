@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# Host tests of two pieces of the firmware, with Unity from the submodule external/unity:
-#   make -C tests/host          build and run both, exit status 1 when one fails
+# Host tests of three pieces of the firmware, with Unity from the submodule external/unity:
+#   make -C tests/host          build and run all, exit status 1 when one fails
 #   make -C tests/host SAN=0    without AddressSanitizer and UndefinedBehaviorSanitizer
 #   make -C tests/host V=1      print the compiler lines and every test line
 # The tested code and FatFs with its ffconf.h come straight from the fork. FreeRTOS, lwIP, the
@@ -50,9 +50,10 @@ STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c
-TESTS   := test_dechunk test_ftp_guard
+TESTS   := test_dechunk test_ftp_guard test_queue_lines
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
-# every test links all of these, test_ftp_guard includes ftpd.c itself (its functions are static)
+# every test links all of these, test_ftp_guard includes ftpd.c and test_queue_lines ra_queue.c
+# themselves (their functions are static)
 SHARED  := $(foreach s,$(LIB_SRC) $(OWN_SRC),$(call obj,$(s)))
 
 .PHONY: all check build clean

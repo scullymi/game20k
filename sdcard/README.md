@@ -2,8 +2,10 @@
 
 This file is also copied onto the card, for whoever holds the card later.
 
-The card goes into the slot of the Tang Nano 20K, not the Pico. FAT32, all files in the
-root directory, lowercase ASCII file names.
+The card goes into the slot of the Tang Nano 20K, not the Pico. FAT32, lowercase ASCII file
+names. What you put on it goes into the root directory. The machine writes galaga.ini and its
+queue files ra_pending.txt and ra_parked.txt into the root too, and keeps the per-game files
+in the folder ra.
 
 ## Files on the card
 
@@ -14,10 +16,13 @@ root directory, lowercase ASCII file names.
   without network and without unlocks. Contains secrets, see below.
 - galaga.ini: settings and the chosen ROM. The device writes it with "Save settings".
 - README.md: this file.
-- ra_patch.json, ra_patch.mac, ra_unlocked.txt, ra_pending.txt, ra_parked.txt: created by
-  the machine. The achievement set from the server (so it is there without network too)
-  with its tag, what the account has unlocked, what still has to be sent, and what was set
-  aside. Do not edit.
+- ra_pending.txt, ra_parked.txt: created by the machine. Unlocks that still have to be
+  sent, each line with the game it was earned under, and what was set aside. Do not edit.
+- ra/<id>/patch.json, patch.mac, unlocked.txt: created by the machine, one folder per game,
+  named by the game's id on RetroAchievements (Galaga: ra/12138). The achievement set from
+  the server (so it is there without network too), its tag, and what the account has
+  unlocked. Do not edit. Files of these names in the root come from an earlier firmware and
+  are moved into the folder at the next start.
 
 ## Preparing the card
 
@@ -32,8 +37,8 @@ than 62 characters, writes a galaga.ini that preselects the ROM, and warns if a 
 on the card. A galaga.ini already on the card is kept: it holds the settings saved on the
 device.
 
-Card types: SD, SDHC, SDXC. FAT32 is tested, exFAT is compiled in but untested. No subfolders
-are needed.
+Card types: SD, SDHC, SDXC. FAT32 is tested, exFAT is compiled in but untested. The only
+folder, ra, is made by the machine itself.
 
 ## First start
 

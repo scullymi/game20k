@@ -70,10 +70,10 @@ The files on the SD card are plain text.
 |---|---|---|
 | `config.ini` | WiFi name and key, RetroAchievements account name and token, network, time and menu settings | you delete it |
 | `galaga.ini` | Menu settings, including hardcore or softcore | you delete it |
-| `ra_pending.txt` | Unlocks waiting for the server: achievement ID, time, account name, mode, and a tag made with the device key. Sent lines stay, marked with `#`. | the device deletes it once all are sent or set aside |
+| `ra_pending.txt` | Unlocks waiting for the server: achievement ID, time, account name, mode, the game's hash, and a tag made with the device key. Sent lines stay, marked with `#`. | the device deletes it once all are sent or set aside |
 | `ra_parked.txt` | Unlocks that will not be sent, in the same format, for example those of another account | you delete it |
-| `ra_unlocked.txt` | Your account name, the game ID and your account's achievements per mode | you delete it. The device rewrites it when the server's lists change. |
-| `ra_patch.json`, `ra_patch.mac` | The achievement set with the names of its authors, and a tag over it. Nothing about you. | the device replaces them when the set changes |
+| `ra/<id>/unlocked.txt` | Your account name, the game ID and your account's achievements per mode, one folder per game, named by the game's ID on RetroAchievements (Galaga: `ra/12138/`) | you delete it. The device rewrites it when the server's lists change. |
+| `ra/<id>/patch.json`, `ra/<id>/patch.mac` | The achievement set with the names of its authors, and a tag over it. Nothing about you. | the device replaces them when the set changes |
 | Flash: device key | 32 random bytes made at the first start. With them the device tells its own card files from edited ones. The key never leaves the device and holds nothing about you. | you erase the flash |
 | Flash: Bluetooth pairings | Address and link key of each device that pairs, up to 16. The Pico is always discoverable and pairs without confirmation. | a 17th replaces the oldest, or you erase the flash |
 | Memory | Up to four hardcore leaderboard results and up to eight unlocks the card could not take | the server or the card has them, or power-off |
@@ -83,7 +83,8 @@ your account name, the WiFi name, network and time settings, your game progress,
 connected USB devices and nearby Bluetooth devices. The token and the WiFi key appear only as
 their length, with one exception under "Local risks".
 
-To remove your data from the SD card, delete `config.ini`, `galaga.ini` and all `ra_*` files.
+To remove your data from the SD card, delete `config.ini`, `galaga.ini`, all `ra_*` files and
+the folder `ra`.
 Deleted files can be recovered until they are overwritten, so wipe the card before you give it
 away. To make the token on it useless, use "Sign Out of All Emulators" in your RetroAchievements
 settings. A firmware update keeps the device key and the pairings. Erasing the Pico's flash
@@ -119,17 +120,18 @@ and they cannot be switched off.
 
 - **FTP without a password.** The FTP server on port 21 accepts any login and does not encrypt.
   Anyone on your network can read and change the files on the SD card, including `config.ini`
-  with your WiFi key and token. While hardcore is active, `config.ini` and the `ra_*` files
-  cannot be changed over FTP, but they can still be read.
+  with your WiFi key and token. While hardcore is active, `config.ini`, the `ra_*` files and
+  the folder `ra` cannot be changed over FTP, but they can still be read.
 - **Telnet without a password.** Anyone on your network can connect to port 23 and read the
   debug log from then on.
 - **Long lines in `config.ini`.** A line longer than 62 bytes, 61 with Windows line endings, can
   be skipped, and so can a last line without a line break. Up to 63 bytes of it then appear in
   plain text in the debug log on the serial port at start-up. That can be the WiFi key or the
   token.
-- **The SD card has no protection.** Whoever holds the card can read `config.ini`, and the
-  `ra_*` files show your account name and unlock times. Before you lend the device, remove
-  `config.ini`, and the `ra_*` files too if the borrower should not see your account name.
+- **The SD card has no protection.** Whoever holds the card can read `config.ini`, the `ra_*`
+  files show your account name and unlock times, and the folder `ra` your account name and
+  unlocks. Before you lend the device, remove `config.ini`, and the `ra_*` files and the folder
+  `ra` too if the borrower should not see your account name.
 
 Use the device only on a network you trust, and never forward any port from the internet to it.
 

@@ -189,9 +189,10 @@ wrong size **silently**, so the check happens here.
 ### 3. RetroAchievements, with or without an account
 
 The firmware needs nothing from RetroAchievements to build. At start it fetches the achievement
-set from the server and keeps it as `ra_patch.json` on the card, so it is there without a
-network at the next power-up. **Without an account:** nothing to do, the device does not log in
-anywhere and shows "no set loaded" under RetroAchievements, Account. Continue with step 4.
+set from the server and keeps it as `ra/<id>/patch.json` on the card (the game's id on
+RetroAchievements, Galaga: `ra/12138/`), so it is there without a network at the next
+power-up. **Without an account:** nothing to do, the device does not log in anywhere and shows
+"no set loaded" under RetroAchievements, Account. Continue with step 4.
 
 **With an account:**
 
@@ -299,9 +300,10 @@ On`). Everything can be changed under `Controller` and kept with `Save settings`
 default, and softcore. Softcore applies at once. Switching to hardcore resets a running game
 first, as RetroAchievements requires, and the banner names the mode at each game start. In
 hardcore the server's warning follows, "Unknown Emulator" until RetroAchievements approves this
-client. In hardcore, FTP cannot change the `ra_*` files and `config.ini`. `Account` shows the
-login, the unlocks and what still waits for the server. Without a connection the achievements
-still count, their unlocks wait on the card and go out once the server is reached.
+client. In hardcore, FTP cannot change the `ra_*` files, the folder `ra` and `config.ini`.
+`Account` shows the login, the unlocks and what still waits for the server. Without a
+connection the achievements still count, their unlocks wait on the card and go out once the
+server is reached.
 
 `Status` shows the network and, under `Version`, the firmware version, the same one the firmware
 reports to RetroAchievements.

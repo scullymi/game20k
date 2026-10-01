@@ -13,19 +13,20 @@
 #include "host_stubs.h"
 #include "ftpd.c"
 
-/** A file of the card's root the guard must protect in hardcore, with a size of its own. */
+/** A file of the card the guard must protect in hardcore, with a size of its own. */
 typedef struct {
   const char *name;
   unsigned    size;
 } root_file_t;
 
 static const root_file_t protected_files[] = {
-  { "config.ini",      101 },
-  { "ra_patch.json",   102 },
-  { "ra_patch.mac",    103 },
-  { "ra_pending.txt",  104 },
-  { "ra_parked.txt",   105 },
-  { "ra_unlocked.txt", 106 },
+  { "config.ini",          101 },
+  { "ra_patch.json",       102 },
+  { "ra_patch.mac",        103 },
+  { "ra_pending.txt",      104 },
+  { "ra_parked.txt",       105 },
+  { "ra_unlocked.txt",     106 },
+  { "ra/12138/patch.json", 107 },   // a per-game file below the folder ra
 };
 #define N_PROTECTED (sizeof(protected_files) / sizeof(protected_files[0]))
 
@@ -38,11 +39,13 @@ static void content_of(const char *name, unsigned size, char *out) {
   out[size] = 0;
 }
 
-/* A fresh card: the protected files in the root, a free file, a folder "sub"
-   holding a harmless config.ini of its own. */
+/* A fresh card: the protected files in the root and in ra/12138, a free file, a
+   folder "sub" holding a harmless config.ini of its own. */
 void setUp(void) {
   char buf[256];
   TEST_ASSERT_TRUE(host_card_new());
+  TEST_ASSERT_EQUAL(FR_OK, f_mkdir("/sd/ra"));
+  TEST_ASSERT_EQUAL(FR_OK, f_mkdir("/sd/ra/12138"));
   for(unsigned i = 0; i < N_PROTECTED; i++) {
     char path[64];
     snprintf(path, sizeof(path), "/sd/%s", protected_files[i].name);
@@ -106,11 +109,15 @@ static const guard_case_t guard_cases[] = {
   // other names in the root
   { "readme.txt", false },        { "config.in", false },        { "config.inix", false },
   { "config.ini2", false },       { "xconfig.ini", false },      { "config", false },
-  { "config.ini.bak", false },    { "configXini", false },       { "ra", false },
-  { "r_a", false },               { "rax", false },              { "_ra_x", false },
-  { " config.ini", false },       { "config.ini\x7f", false },   { "", false },
+  { "config.ini.bak", false },    { "configXini", false },       { "r_a", false },
+  { "rax", false },               { "_ra_x", false },            { " config.ini", false },
+  { "config.ini\x7f", false },    { "", false },
+  // the folder ra with the per-game files, alone or with anything below it
+  { "ra", true },                 { "RA", true },                { "ra.", true },
+  { "ra/", true },                { "ra/12138/patch.json", true }, { "RA/12138/unlocked.txt", true },
   // below the root, other files of the same names
   { "sub/config.ini", false },    { "sub/ra_x", false },         { "ra_dir/x", false },
+  { "rax/x", false },
 };
 #define N_GUARD (sizeof(guard_cases) / sizeof(guard_cases[0]))
 
@@ -348,7 +355,8 @@ static unsigned refusals(const char *t) {
 
 /* Every writing command against protected files, also by the paths FatFs maps onto
    them: a backslash ("\ra_x"), a trailing dot or space, a control byte, and RMD,
-   which removes files too. */
+   which removes files too. The folder ra as well: STOR, MKD and DELE below it, RMD
+   and RNFR of it, RNTO into it. */
 static const char write_attempts[] =
   "STOR config.ini\r\n"
   "STOR ra_patch.json\r\n"
@@ -358,17 +366,23 @@ static const char write_attempts[] =
   "STOR config.ini\t\r\n"
   "STOR /CONFIG.INI\r\n"
   "STOR sub/../ra_pending.txt\r\n"
+  "STOR ra/12138/patch.json\r\n"
   "DELE config.ini\r\n"
   "DELE RA_PATCH.MAC\r\n"
   "DELE ra_parked.txt.\r\n"
   "RMD config.ini\r\n"
+  "RMD ra\r\n"
   "XRMD ra_unlocked.txt\r\n"
   "MKD ra_new\r\n"
   "XMKD config.ini.\r\n"
   "RNFR readme.txt\r\nRNTO config.ini\r\n"
   "RNFR ra_patch.json\r\nRNTO stolen.json\r\n"
-  "RNFR readme.txt\r\nRNTO \\ra_x\r\n";
-#define WRITE_ATTEMPTS 18   /* commands above that must be refused */
+  "RNFR readme.txt\r\nRNTO \\ra_x\r\n"
+  "RNFR ra\r\nRNTO rb\r\n"
+  "MKD ra/x\r\n"
+  "DELE ra/12138/patch.json\r\n"
+  "RNFR readme.txt\r\nRNTO ra/x\r\n";
+#define WRITE_ATTEMPTS 24   /* commands above that must be refused */
 
 static void test_hardcore_refuses_every_writing_command(void) {
   const char *t = session_run(write_attempts);
@@ -376,6 +390,9 @@ static void test_hardcore_refuses_every_writing_command(void) {
   TEST_ASSERT_TRUE_MESSAGE(all_protected_unchanged(), "a protected file changed");
   TEST_ASSERT_FALSE(host_card_exists("/sd/ra_new"));
   TEST_ASSERT_FALSE(host_card_exists("/sd/stolen.json"));
+  TEST_ASSERT_FALSE(host_card_exists("/sd/rb"));
+  TEST_ASSERT_FALSE(host_card_exists("/sd/ra/x"));
+  TEST_ASSERT_TRUE(host_card_exists("/sd/ra/12138/patch.json"));
   TEST_ASSERT_TRUE(unchanged("readme.txt", 50));
 }
 
