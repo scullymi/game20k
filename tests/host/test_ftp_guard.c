@@ -420,6 +420,17 @@ static void test_hardcore_reads_and_writes_elsewhere(void) {
   TEST_ASSERT_EQUAL_UINT(0, refusals(t));
 }
 
+/* REST applies to the next transfer only, also when that one is refused: a fresh
+   STOR after a refused one must create its file from the start, not open an existing
+   one at the old offset (FA_OPEN_EXISTING fails for a new file, "550 Cannot create"). */
+static void test_refused_transfer_drops_rest(void) {
+  const char *t = session_run("REST 10\r\nSTOR config.ini\r\nSTOR sub/new.bin\r\n");
+  TEST_ASSERT_EQUAL_UINT_MESSAGE(1, refusals(t), t);
+  TEST_ASSERT_NOT_NULL_MESSAGE(strstr(t, "150 Opening data connection.\r\n425 No data connection."), t);
+  TEST_ASSERT_TRUE(host_card_exists("/sd/sub/new.bin"));
+  TEST_ASSERT_TRUE(unchanged("config.ini", 101));
+}
+
 /* A file mounted as a disk image cannot be deleted, in either mode. */
 static void test_mounted_image_is_kept(void) {
   char buf[64];
@@ -444,6 +455,7 @@ int main(void) {
   RUN_TEST(test_hardcore_refuses_every_writing_command);
   RUN_TEST(test_softcore_lets_them_through);
   RUN_TEST(test_hardcore_reads_and_writes_elsewhere);
+  RUN_TEST(test_refused_transfer_drops_rest);
   RUN_TEST(test_mounted_image_is_kept);
   return UNITY_END();
 }

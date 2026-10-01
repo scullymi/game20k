@@ -48,6 +48,7 @@ QueueHandle_t xQueueCreate(UBaseType_t len, UBaseType_t size);
 QueueHandle_t xQueueCreateStatic(UBaseType_t len, UBaseType_t size, uint8_t *storage, StaticQueue_t *ctl);
 BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t wait);
 BaseType_t xQueueReceive(QueueHandle_t q, void *item, TickType_t wait);
+UBaseType_t uxQueueMessagesWaiting(QueueHandle_t q);
 BaseType_t xQueueAddToSet(QueueSetMemberHandle_t member, QueueSetHandle_t set);
 QueueSetMemberHandle_t xQueueSelectFromSet(QueueSetHandle_t set, TickType_t wait);
 SemaphoreHandle_t xSemaphoreCreateBinary(void);

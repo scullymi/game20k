@@ -48,6 +48,7 @@ QueueHandle_t xQueueCreate(UBaseType_t len, UBaseType_t size) { host_fail("xQueu
 QueueHandle_t xQueueCreateStatic(UBaseType_t len, UBaseType_t size, uint8_t *storage, StaticQueue_t *ctl) { return (QueueHandle_t)ctl; }
 BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t wait) { host_fail("xQueueSend() is not modelled"); return pdFAIL; }
 BaseType_t xQueueReceive(QueueHandle_t q, void *item, TickType_t wait) { host_fail("xQueueReceive() is not modelled"); return pdFAIL; }
+UBaseType_t uxQueueMessagesWaiting(QueueHandle_t q) { (void)q; return 0; }
 BaseType_t xQueueAddToSet(QueueSetMemberHandle_t m, QueueSetHandle_t set) { host_fail("xQueueAddToSet() is not modelled"); return pdFAIL; }
 QueueSetMemberHandle_t xQueueSelectFromSet(QueueSetHandle_t set, TickType_t wait) { host_fail("xQueueSelectFromSet() is not modelled"); return NULL; }
 SemaphoreHandle_t xSemaphoreCreateBinary(void) { host_fail("xSemaphoreCreateBinary() is not modelled"); return NULL; }
@@ -167,7 +168,8 @@ bool ra_mac_check(const char *label, const void *data, size_t len, const char *h
 }
 // ra_state.c: the account has nothing unlocked. ra_patch.c: the game is what host_set_game()
 // set, by default none; the ROM in the core is the game's. ra_games.c: a table of one row,
-// Galaga, compared without case as the real lookup does.
+// Galaga, compared without case as the real lookup does. Weak, so test_games, which includes
+// the real ra_games.c, links that one.
 void ra_state_add(unsigned id, bool hardcore) {}
 bool ra_state_known(unsigned id) { return false; }
 bool ra_state_softcore_only(unsigned id) { return false; }
@@ -177,7 +179,7 @@ static unsigned host_id;
 void host_set_game(const char *hash, unsigned id) { snprintf(host_hash, sizeof(host_hash), "%s", hash ? hash : ""); host_id = id; }
 const char *ra_game_hash(void) { return host_hash; }
 unsigned ra_game_id(void) { return host_id; }
-const ra_game_t *ra_games_by_hash(const char *hex) {
+__attribute__((weak)) const ra_game_t *ra_games_by_hash(const char *hex) {
   for(unsigned i = 0; hex && i < sizeof(host_table) / sizeof(host_table[0]); i++)
     if(!strcasecmp(host_table[i].hash, hex)) return &host_table[i];
   return NULL;
