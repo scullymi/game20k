@@ -18,7 +18,7 @@ of the game RAM goes to the Pico frame by frame, where
 | | |
 |---|---|
 | Picture, sound, input, OSD menu | works |
-| ROMs from the SD card, bitstream free of game data | works |
+| ROMs from the SD card, no ROM image in the bitstream (one exception, Pac-Man's sound PROM 3M as a table in MikeJ's core, see [THIRD-PARTY.md](THIRD-PARTY.md#bitstreams)) | works |
 | Landscape (3x) or portrait (2x) through the SDRAM frame buffer, switchable in the menu, scanlines selectable | works |
 | RAM mirror to the Pico, consistent snapshots | works |
 | RetroAchievements: conditions evaluated on the Pico | works |
@@ -80,9 +80,10 @@ What this builds on:
 - **Pico W.** It has not been tested with the RetroAchievements firmware, yet
   `scripts/build_companion.sh` builds for it by default. Plan: make the Pico 2 W the default,
   then test the Pico W or drop it from the docs.
-- **No prebuilt bitstream.** Everyone builds the bitstream. The firmware image comes with each
-  release. Plan: publish a bitstream once the licence questions are settled, see
-  [THIRD-PARTY.md](THIRD-PARTY.md#not-distributed).
+- **Bitstreams in the release.** Up to 0.2.0 everyone builds the bitstream.
+  `scripts/make_bitstream_release.sh` builds them with their NOTICE for the next release, see
+  [THIRD-PARTY.md](THIRD-PARTY.md#bitstreams). Plan: read Gowin's current licence agreement
+  (behind a login on gowinsemi.com) before the first upload.
 
 ## Hardware
 
@@ -248,6 +249,9 @@ the one the FPGA loads at power-on, Pac-Man at 0x100000. The script writes Galag
 openFPGALoader, which has to be installed for it: `programmer_cli` cannot write another
 address. After writing the flash, power the board off and on.
 
+Releases after 0.2.0 carry both bitstreams as `game20k-<version>-tangnano20k.zip`, with the
+flash commands in its `FLASHING.txt`: take them instead of building, like the firmware.
+
 ### 5. Firmware: build and flash
 
 Each release on the GitHub release page carries the image `game20k-<version>-pico2w.uf2` with
@@ -396,16 +400,19 @@ risks of FTP and telnet.
 ## Licence
 
 **GPL-3.0-only** ([LICENSE](LICENSE)), Copyright (C) 2026 scullymi. Every own source file
-carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. One file
-mixes our code with code that carries no licence and has our copyright for our parts and no
-SPDX tag: `sysctrl.v` (from Till Harbaum's `sysctrl.v`). The menu `menu.xml`, which goes into the
+carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. Three files
+mix our changes with code that is not ours and carry our copyright for those changes but no
+SPDX tag: `sysctrl.v` (from Till Harbaum's `sysctrl.v`), `sd_rw.v` (GPL-3.0, WangXuan95's SD
+card reader via Nanomig) and `mcu/sector_dpram.v` (output of the Gowin IP generator via
+MiSTeryNano, with Gowin's header). The menu `menu.xml`, which goes into the
 bitstream byte for byte, carries no header. The wiring drawing `docs/wiring_pico.svg` is a Fritzing
 export and CC BY-SA 3.0 like Fritzing's breadboard graphics in it. Not ours: the ten HDMI files (MIT OR
 Apache-2.0, the notice in `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, a derivative of NESTang,
-both copyright notices in its header) and, kept with their original headers, the T80 core
-(BSD-style), Dar's Galaga core and Till Harbaum's MiSTeryNano and Nanomig files.
-[THIRD-PARTY.md](THIRD-PARTY.md) explains what that means, why no prebuilt bitstream is
-distributed and what the NOTICE of the firmware image covers.
+both copyright notices in its header) and, kept with their original headers, the T80 cores
+(BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, WangXuan95's SD card reader
+(GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files.
+[THIRD-PARTY.md](THIRD-PARTY.md) explains what that means, on what terms the bitstreams are
+published and what the NOTICE files of the firmware image and of the bitstreams cover.
 The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) live
 in the fork under Apache-2.0 like the Companion.
 
