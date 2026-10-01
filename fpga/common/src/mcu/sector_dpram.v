@@ -1,16 +1,24 @@
-// SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 scullymi
+//Copyright (C)2014-2023 Gowin Semiconductor Corporation.
+//All rights reserved.
+//File Title: IP file
+//Tool Version: V1.9.9
+//Part Number: GW2AR-LV18QN88C8/I7
+//Device: GW2AR-18
+//Device Version: C
+//Created Time: Tue Jan  2 16:32:52 2024
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a silent
                        // one-bit net.
 //! -----------------------------------------------------------------------------------------
 //! @file sector_dpram.v
-//! @brief Dual-port 512x8 block memory for one SD card sector (game20k).
+//! @brief Dual-port 512x8 block memory for one SD card sector.
 //!
 //! One side belongs to the SD card reader, the other to the Companion or the core.
 //!
-//! Why this file is hand-written: see the header of clkdiv5.v. The body is the wiring of
-//! the DPB primitive - addresses and data are padded to its fixed width, nothing more
-//! happens. There is only one way to write that.
+//! The module is output of the Gowin IP generator, the instantiation of the DPB primitive
+//! with its parameters, with Gowin's header above. It comes from MiSTeryNano at c8e4601,
+//! src/tang/nano20k/gowin_dpb/sector_dpram.v. game20k added the default_nettype line, wire
+//! in the port declarations and these comments, Copyright (C) 2026 scullymi. The file
+//! carries no SPDX tag because it is not ours alone, see THIRD-PARTY.md.
 //! -----------------------------------------------------------------------------------------
 
 module sector_dpram (douta, doutb, clka, ocea, cea, reseta, wrea, clkb, oceb, ceb, resetb, wreb, ada, dina, adb, dinb);
