@@ -24,8 +24,9 @@ of the game RAM goes to the Pico frame by frame, where
 | RetroAchievements: conditions evaluated on the Pico | works |
 | RetroAchievements: login, unlocks submitted over HTTPS (TLS 1.2), achievement set and account state fetched from the server, unlocks queued on the card while offline | works |
 | In game: text banner on an unlock, account state under Status in the menu | works |
+| RetroAchievements: session with Rich Presence, achievement list with progress in the menu, challenge marker, leaderboards | works |
 | WiFi after a cold start, clock from NTP | works |
-| Hardcore mode | pending, needs RetroAchievements' approval of this client, unlocks count as softcore until then |
+| Hardcore mode: the default, switched on only with a reset, FTP write protection, device key, known ROM only | works on the device. Until RetroAchievements approves this client, the server keeps its unlocks as softcore and no leaderboard entries, and the banner shows the server's warning |
 
 ## Planned
 
@@ -42,7 +43,8 @@ of the game RAM goes to the Pico frame by frame, where
 - **RetroAchievements for every game.** The firmware identifies the game by the name of its ROM
   file, as RetroAchievements does for arcade games, and keeps one achievement set per game on
   the card.
-- **Hardcore mode and leaderboards,** once RetroAchievements approves this client.
+- **Hardcore unlocks and leaderboard entries on RetroAchievements,** once it approves this client.
+  The device side is in place.
 
 What this builds on:
 
@@ -56,8 +58,9 @@ What this builds on:
 ## Open points
 
 - **Hardcore approval.** Unlocks count as softcore until RetroAchievements approves this client.
-  Plan: build Rich Presence, an achievement list in the menu and a hardcore setting that takes
-  effect only with a reset, then ask RetroAchievements for approval.
+  Rich Presence, the achievement list in the menu, the hardcore setting that takes effect only
+  with a reset, and the proof chain (device key, ROM digest, set tag, DIP switches taken over in
+  reset only) are in place. Plan: ask RetroAchievements for approval.
 - **FTP without a password.** The FTP server accepts any login, so anyone on the network can read
   and change the SD card, including `config.ini` with the WiFi key and the RetroAchievements
   token. Telnet on port 23 shows the debug log to anyone on the network. Plan: make FTP and
@@ -207,13 +210,15 @@ remove the `;` in front of those two lines.
 The token, once:
 
 ```sh
-curl -s https://retroachievements.org/dorequest.php \
+curl -s -A 'game20k/v0.2.0 (token request with curl)' https://retroachievements.org/dorequest.php \
   --data-urlencode 'r=login2' --data-urlencode 'u=YOURNAME' --data-urlencode 'p=YOURPASSWORD'
 ```
 
-Put the `Token` field of the reply into `[RA] TOKEN=`. A normal account with a confirmed e-mail
-address is enough. Unlocks count as softcore until RetroAchievements approves this client for
-hardcore.
+`-A` names game20k as the client. RetroAchievements refused a request with curl's own
+User-Agent (HTTP 403), and a client must never send another emulator's. Put the `Token` field
+of the reply into `[RA] TOKEN=`. A normal account with a confirmed e-mail address is enough.
+Until RetroAchievements approves this client for hardcore, unlocks count as softcore and
+leaderboard entries are not kept.
 
 > The card is FAT32 and has no permissions: token and WiFi key are on it in plain text. The
 > Companion's FTP server serves every file on the card, `config.ini` included, to anyone on the
@@ -290,9 +295,10 @@ On`). Everything can be changed under `Controller` and kept with `Save settings`
 `RetroAchievements` holds the mode and the account. `Mode` switches between hardcore, the
 default, and softcore. Softcore applies at once. Switching to hardcore resets a running game
 first, as RetroAchievements requires, and the banner names the mode at each game start. In
-hardcore, FTP cannot change the `ra_*` files and `config.ini`. `Account` shows the login, the
-unlocks and what still waits for the server. Without a connection the achievements still count,
-their unlocks wait on the card and go out once the server is reached.
+hardcore the server's warning follows, "Unknown Emulator" until RetroAchievements approves this
+client. In hardcore, FTP cannot change the `ra_*` files and `config.ini`. `Account` shows the
+login, the unlocks and what still waits for the server. Without a connection the achievements
+still count, their unlocks wait on the card and go out once the server is reached.
 
 `Status` shows the network and, under `Version`, the firmware version, the same one the firmware
 reports to RetroAchievements.
