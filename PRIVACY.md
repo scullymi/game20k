@@ -21,9 +21,8 @@ paste it.
 
 ## What the device sends, and to whom
 
-Without WiFi settings in `config.ini` and without a USB network adapter, the device has no
-network and contacts no server. Bluetooth is always on: devices nearby can see the name "MiSTle
-FPGA Companion" and the Pico's Bluetooth address.
+Without WiFi settings in `config.ini` the device has no network and contacts no server.
+Bluetooth is off in this firmware, the Pico is not visible to devices nearby.
 
 ### To RetroAchievements
 
@@ -75,12 +74,11 @@ The files on the SD card are plain text.
 | `ra/<id>/unlocked.txt` | Your account name, the game ID and your account's achievements per mode, one folder per game, named by the game's ID on RetroAchievements (Galaga: `ra/12138/`) | you delete it. The device rewrites it when the server's lists change. |
 | `ra/<id>/patch.json`, `ra/<id>/patch.mac` | The achievement set with the names of its authors, and a tag over it. Nothing about you. | the device replaces them when the set changes |
 | Flash: device key | 32 random bytes made at the first start. With them the device tells its own card files from edited ones. The key never leaves the device and holds nothing about you. | you erase the flash |
-| Flash: Bluetooth pairings | Address and link key of each device that pairs, up to 16. The Pico is always discoverable and pairs without confirmation. | a 17th replaces the oldest, or you erase the flash |
 | Memory | Up to four hardcore leaderboard results and up to eight unlocks the card could not take | the server or the card has them, or power-off |
 
 The debug log is not stored. It goes to the Pico's serial port and to telnet port 23. It shows
 your account name, the WiFi name, network and time settings, your game progress, and the
-connected USB devices and nearby Bluetooth devices. The token and the WiFi key appear only as
+connected USB devices. The token and the WiFi key appear only as
 their length, with one exception under "Local risks".
 
 To remove your data from the SD card, delete `config.ini`, `galaga.ini`, all `ra_*` files and

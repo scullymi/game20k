@@ -109,8 +109,7 @@ COMPONENTS = [
         "texts": ["external/FPGA-Companion/LICENSE"],
         "note": "Written by Till Harbaum, Stefan Voss and further contributors, the "
                 "RetroAchievements client (src/ra_*) Copyright (C) 2026 scullymi. "
-                "src/rp2040/bluetooth.c is based on "
-                "BTstack's examples spp_streamer_client.c and hid_host_demo.c, see BTstack below. "
+                "{bluetooth}"
                 "The image also holds the root certificate GTS Root R4 of Google Trust Services "
                 "as data (https://pki.goog/repository/).",
     },
@@ -402,6 +401,15 @@ def main():
     out = []
     title = "game20k firmware %s for the Raspberry Pi Pico 2 W" % version
     out += [title, "=" * len(title), ""]
+    # BTstack is in the image only in a build with Bluetooth, the Pico 2 W build of game20k has
+    # none: the header and the Companion's note name it only when the map has it
+    btstack = any(COMPONENTS[i]["name"] == "BTstack" for i in present)
+    rp_parts = "cyw43-driver and BTstack are" if btstack else "cyw43-driver is"
+    for comp in COMPONENTS:
+        if "{bluetooth}" in comp.get("note", ""):
+            comp["note"] = comp["note"].replace("{bluetooth}",
+                "src/rp2040/bluetooth.c is based on BTstack's examples spp_streamer_client.c and "
+                "hid_host_demo.c, see BTstack below. " if btstack else "")
     out += [
         "This file accompanies the firmware image game20k-%s-pico2w.uf2. The image is" % version,
         "FPGA-Companion from https://github.com/scullymi/FPGA-Companion (branch game20k), built by",
@@ -409,9 +417,9 @@ def main():
         "below, each part under its own licence. The source of every part is available from the",
         "repository named with it, at the commit given.",
         "",
-        "USE ONLY ON A RASPBERRY PI PICO 2 W. cyw43-driver and BTstack are licensed for use and",
+        "USE ONLY ON A RASPBERRY PI PICO 2 W. %s licensed for use and" % rp_parts,
         "redistribution only together with Raspberry Pi semiconductor devices and products, see",
-        "their sections.",
+        "their sections." if btstack else "its section.",
         "",
         "Contents",
         "",

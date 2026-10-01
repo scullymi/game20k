@@ -86,7 +86,7 @@ fork. None of them is in the repository.
 | printf of the Pico SDK | MIT | `pico_printf`, by Marco Paland |
 | newlib | several free licences | C library of the Arm GNU Toolchain, text in `docs/licenses/` |
 | cyw43-driver | non-commercial, `LICENSE.RP` permits use and redistribution only together with Raspberry Pi silicon | covered for the Pico W |
-| BTstack | non-commercial, `pico_btstack/LICENSE.RP` grants Pico W purchasers use and distribution with Pico W products | covered for the Pico W, built in while Bluetooth is enabled |
+| BTstack | non-commercial, `pico_btstack/LICENSE.RP` grants Pico W purchasers use and distribution with Pico W products | not in the Pico 2 W image of game20k, which has Bluetooth off, covered for the Pico W where a build enables it |
 
 ## Not distributed
 

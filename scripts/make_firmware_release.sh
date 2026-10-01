@@ -10,8 +10,8 @@
 # exactly the sources. DEV=1 skips these checks for a trial run, the files then carry the
 # version git describe gives, with -dirty or a commit.
 # The image is for the Pico 2 W with its own USB port as host (pico2 native), the variant that
-# has been tested with RetroAchievements. BTstack and cyw43-driver in it may be used and passed
-# on only with Raspberry Pi devices, the NOTICE says so at the top.
+# has been tested with RetroAchievements. cyw43-driver in it may be used and passed on only with
+# Raspberry Pi devices, the NOTICE says so at the top. The build has no Bluetooth, so no BTstack.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
