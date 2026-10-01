@@ -4,12 +4,12 @@
 --! @brief Inferred single-port RAM for Gowin with a synchronous, read-first output.
 --!
 --! Written for game20k in the style of g20k_dpram.vhd of the Pac-Man core. The Galaga core
---! uses it for its work, sprite, sound and shadow RAMs. The interface is the one of the
---! generic RAM the core was published with, so its instances change only in the entity name.
+--! uses it for its work, sprite, sound and shadow RAMs. Its instances set the generics
+--! dWidth and aWidth and connect clk, we, addr, d and q.
 --!
 --! The address is taken at the rising edge and the word appears right after it. In a write
---! cycle the output shows the word as it was before the write (read-first), the behaviour the
---! core was built and tested with. All words start at zero, as in the RAM it replaces.
+--! cycle the output shows the word as it was before the write (read-first), as the core
+--! expects. All words start at zero.
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;

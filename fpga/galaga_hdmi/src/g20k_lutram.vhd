@@ -32,6 +32,7 @@ architecture rtl of g20k_lutram is
   attribute syn_ramstyle : string;
   attribute syn_ramstyle of mem : signal is "distributed_ram";
 begin
+  -- write on the rising edge, as in g20k_spram
   p_write : process (clk)
   begin
     if rising_edge(clk) then
@@ -41,5 +42,6 @@ begin
     end if;
   end process p_write;
 
+  -- read without a clock: the word of the address as it is now
   q <= mem(to_integer(unsigned(addr)));
 end architecture rtl;
