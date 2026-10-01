@@ -18,6 +18,14 @@ begin
         counter <= 5'd0;
     else if (data_island_period)
         counter <= counter + 5'd1;
+    else
+        // game20k: start every island at 0. Upstream lets the counter run on, which holds only
+        // while every island is a whole number of packets. The sync input of hdmi.sv moves cx
+        // to SYNC_X once per core frame, and the first sync after configuration can land inside
+        // an island and cut it short. The counter then stayed shifted for good: every later
+        // packet had its header and BCH bits out of place, the sink dropped them all, and the
+        // picture stayed while the sound was gone until the next configuration.
+        counter <= 5'd0;
 end
 // BCH packets 0 to 3 are transferred two bits at a time, see Section 5.2.3.4 for further information.
 wire [5:0] counter_t2 = {counter, 1'b0};
