@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
-# Four scans of what leaves this machine, run by hand before a commit, from an optional
+# Five scans of what leaves this machine, run by hand before a commit, from an optional
 # pre-push hook and in the CI. No network access.
 #
 #   scripts/checks.sh --staged [--fork]               the index
@@ -17,6 +17,8 @@
 #   ra-conditions  RetroAchievements condition chains, conditions such as 0xH0010=5 joined
 #                  by "_": sets belong to RetroAchievements. tests/**/selftest_* is exempt.
 #   crlf           files whose line ends changed: a CRLF file stays CRLF
+#   tests          the host tests (make -C tests/host), game20k tree only: the CI runs them
+#                  too, but a push that fails there is already public
 # Each scan prints its sample size, a sample of 0 is a finding. Exit 1 on a finding, 2 on
 # usage errors.
 
@@ -133,6 +135,12 @@ eol() {
     "$T/b" "$T/a" >> "$T/eol"
 }
 
+check_tests() {
+  [ "$WHAT" = game20k ] && [ -f "$ROOT/tests/host/Makefile" ] || return 0
+  if OUT=$(make -C "$ROOT/tests/host" 2>&1); then say "tests: $(printf '%s\n' "$OUT" | grep -o 'host tests: .*' | tail -1)"
+  else printf '%s\n' "$OUT" | tail -12; finding "tests: the host tests failed (make -C tests/host)"; fi
+}
+
 check_crlf() {
   EOL_N=0; : > "$T/eol"
   # --ci compares with --base when given (the CI passes the commit before the push), so a
@@ -189,6 +197,7 @@ case $SAMPLE in *" 0 text lines"|*", 0 lines") finding "scan: no text to read ($
 check_secrets
 check_ra
 check_crlf
+check_tests
 if [ -s "$T/greperr" ]; then
   while IFS= read -r l; do finding "scan: $l, the scan result is not valid"; done < "$T/greperr"
 fi
