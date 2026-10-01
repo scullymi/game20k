@@ -318,8 +318,10 @@ module game20k_top #(
     // The Companion sets Z to 0xA5. The logic then pulls RECONFIG_N low for 1 ms and the
     // FPGA loads the bitstream at the jump address in the header of the running one: the
     // next core in fpga/common/slots.txt. The pin stays a configuration pin, the build has
-    // no -use_reconfign_as_gpio (gw_sh warns CT1122, expected). The Companion sees the
-    // new core as a cold boot and restarts. Power-on always loads slot 0.
+    // no -use_reconfign_as_gpio (gw_sh warns CT1122, expected). The Companion restarts
+    // once the core stops answering and waits for the new one at its start. It sends Z
+    // only with S1 and S2 released: they sit on MODE0 and MODE1, and one held while the
+    // FPGA reloads selects another way of loading. Power-on always loads slot 0.
     // Z has no menu entry. The value 0xA5 keeps a menu of one's own that uses Z for
     // something else from reloading the FPGA.
     localparam logic [14:0] RECONF_CLKS = 15'd18563;   // 1 ms at 18.5625 MHz
