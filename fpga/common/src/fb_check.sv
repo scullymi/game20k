@@ -15,6 +15,7 @@
 //! written, not that the right thing sits at the right place. The checksum rotates before
 //! adding, so it notices swapped words too.
 //!
+//! The numbers here are for the 288 x 224 raster of Galaga and Pac-Man, W x H in the code.
 //! Timing is comfortable: 16128 words at 6 clocks each are 1.49 ms, a frame lasts 16.4 ms.
 //! The reader works on the buffer just finished, the writer on the other one, i.e. on
 //! different banks, just as in the display path.
@@ -34,7 +35,10 @@
 //! fb_pack.sv.
 //! -----------------------------------------------------------------------------------------
 
-module fb_check (
+module fb_check #(
+    parameter int W = 288,               //!< visible width of the core raster
+    parameter int H = 224                //!< visible height of the core raster
+)(
     input  wire         clk_sdram,
     input  wire         sdram_ready,
 
@@ -64,7 +68,7 @@ module fb_check (
     output logic [23:0] bar_color,
     output logic [5:0]  leds
 );
-    localparam int WORDS = 16128;
+    localparam int WORDS = H * W / 4;   // 16128 for 288 x 224
 
     function automatic logic [31:0] chk(input logic [31:0] s, input logic [31:0] d);
         chk = {s[30:0], s[31]} + d;      // identical to fb_pack
@@ -126,12 +130,12 @@ module fb_check (
 
             if (busy) begin
                 // issue requests until all of them are out
-                if (!pend && ({r_y, r_xw} != {8'd224, 7'd0})) begin
+                if (!pend && ({r_y, r_xw} != {8'(H), 7'd0})) begin
                     rd_req <= ~rd_req;
                     pend   <= 1'b1;
                 end else if (pend && (rd_req == rd_ack)) begin
                     pend <= 1'b0;
-                    if (r_xw == 7'd71) begin
+                    if (r_xw == 7'(W / 4 - 1)) begin
                         r_xw <= 7'd0;
                         r_y  <= r_y + 8'd1;
                     end else

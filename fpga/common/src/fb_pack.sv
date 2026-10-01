@@ -13,9 +13,11 @@
 //!
 //! Raster tracking
 //! ---------------
-//! Identical to the raster tracking in galaga_scaler.sv so that both paths see the same pixels:
-//! three core clocks per pixel, sampled in phase 1. The bounds wr_x < 288 and wr_line < 224
+//! Identical to the raster tracking in arcade_scaler.sv so that both paths see the same pixels:
+//! three core clocks per pixel, sampled in phase 1. The bounds wr_x < W and wr_line < H
 //! are mandatory: a glitch must never write into the neighbouring buffer.
+//! The numbers below are for the 288 x 224 raster of Galaga and Pac-Man. W is a multiple
+//! of 4 up to 508, H up to 255.
 //!
 //! Address
 //! ----------------------
@@ -39,7 +41,10 @@
 //! and its overflow flag proves it in operation instead of on paper.
 //! -----------------------------------------------------------------------------------------
 
-module fb_pack (
+module fb_pack #(
+    parameter int W = 288,               //!< visible width of the core raster
+    parameter int H = 224                //!< visible height of the core raster
+)(
     //! ---- core side ----
     input  wire         clk_core,
     input  wire  [2:0]  r_in,
@@ -62,13 +67,13 @@ module fb_pack (
     output logic        wbuf,            //!< buffer currently being written
     output logic        frame_done,      //!< one clock when a frame has been written completely
     output logic [1:0]  done_bank,       //!< bank of the frame just finished
-    output logic [15:0] done_words,      //!< word count of that frame, should be 16128
+    output logic [15:0] done_words,      //!< word count of that frame, should be H * W / 4
     output logic [31:0] done_sum,        //!< checksum of that frame
     output logic [15:0] done_nz,         //!< words not equal to 0 in that frame
     output logic        err_overflow,    //!< FIFO overflowed (sticky)
     output logic        err_addr         //!< FIFO address did not match the counter (sticky)
 );
-    localparam int WORDS_PER_FRAME = 224 * 72;   // 16128
+    localparam int WORDS_PER_FRAME = H * W / 4;   // 16128 for 288 x 224
 
     // =========================================================================================
     // Core side: raster tracking and word packing
@@ -116,7 +121,7 @@ module fb_pack (
                 ph <= ph + 2'd1;
 
             // sample the pixel (phase 1, as in the scaler), only inside the frame
-            if (ph == 2'd1 && wr_x < 9'd288 && wr_line < 8'd224 && armed) begin
+            if (ph == 2'd1 && wr_x < 9'(W) && wr_line < 8'(H) && armed) begin
                 if (wr_x[1:0] == 2'd3) begin
                     // Fourth byte: the word is full. Order: the first pixel of the group of
                     // four sits in the lowest 8 bits.
@@ -264,7 +269,7 @@ module fb_pack (
                     // Without it a lost word would be invisible: the picture would merely be
                     // shifted, exactly what one then hunts for days in the read path.
                     if (started && e_word != {exp_y, exp_xw}) err_addr <= 1'b1;
-                    if (exp_xw == 7'd71) begin
+                    if (exp_xw == 7'(W / 4 - 1)) begin
                         exp_xw <= 7'd0;
                         exp_y  <= exp_y + 8'd1;
                     end else

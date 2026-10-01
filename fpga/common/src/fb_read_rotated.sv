@@ -13,6 +13,9 @@
 //! the same as in the proven unrotated fb_read_flat.sv; the only new part is WHAT is
 //! fetched and how it is stored.
 //!
+//! The numbers in this header are for the 288 x 224 raster of Galaga and Pac-Man, W x H in
+//! the code. W is a multiple of 4 up to 508, H up to 255.
+//!
 //! The mapping
 //! -----------
 //!   Source:  xc 0..287 (column), yc 0..223 (row)
@@ -50,6 +53,8 @@
 //! -----------------------------------------------------------------------------------------
 
 module fb_read_rotated #(
+    parameter int W  = 288,              //!< visible width of the core raster, source columns
+    parameter int H  = 224,              //!< visible height of the core raster, source rows
     parameter int X0 = 416,              //!< (1280 - 448) / 2
     parameter int Y0 = 72,               //!< (720 - 576) / 2
     parameter bit ROT_CCW = 0            //!< 1: counter-clockwise (if it is the wrong way round)
@@ -136,13 +141,13 @@ module fb_read_rotated #(
             end else if (act_y) begin
                 if (vph == 1'b1) begin
                     vph <= 1'b0;
-                    if (yo == 9'd287) act_y <= 1'b0;
+                    if (yo == 9'(W - 1)) act_y <= 1'b0;
                     else begin
                         yo <= yo + 9'd1;
                         // On entering a new group, request the one after next.
                         // (grp+2)[0] is the opposite of (grp+1)[0], i.e. the half that
                         // is being freed.
-                        if (yo[1:0] == 2'd3 && (grp + 7'd2) <= 7'd71) begin
+                        if (yo[1:0] == 2'd3 && (grp + 7'd2) <= 7'(W / 4 - 1)) begin
                             req_grp <= grp + 7'd2;
                             req_buf <= rbuf_p;
                             req_tgl <= ~req_tgl;
@@ -161,7 +166,7 @@ module fb_read_rotated #(
             if (hph == 1'b1) begin
                 hph <= 1'b0;
                 xo  <= xo + 8'd1;
-                if (xo == 8'd223) act_x <= 1'b0;
+                if (xo == 8'(H - 1)) act_x <= 1'b0;
             end else
                 hph <= 1'b1;
         end
@@ -199,12 +204,12 @@ module fb_read_rotated #(
     // source column 287-4k-j = 4*(71-k) + (3-j), i.e. the mirrored word column.
     // The BUFFER HALF stays s_grp[0], because the reader takes the half of the DISPLAYED
     // group and 71-k would have the opposite parity.
-    wire [6:0] s_word = ROT_CCW ? (7'd71 - s_grp) : s_grp;
+    wire [6:0] s_word = ROT_CCW ? (7'(W / 4 - 1) - s_grp) : s_grp;
     assign rd_addr = {5'b0, s_y, s_word, 2'b00};
     assign rd_bank = {1'b0, s_buf};
 
     // Store location: row y becomes xo = 223 - y, byte lane becomes j = lane.
-    wire [7:0] put_xo   = ROT_CCW ? g_y : (8'd223 - g_y);
+    wire [7:0] put_xo   = ROT_CCW ? g_y : (8'(H - 1) - g_y);
     wire [1:0] put_lane = ROT_CCW ? (2'd3 - g_lane) : g_lane;
 
     always_ff @(posedge clk_sdram) begin
@@ -234,7 +239,7 @@ module fb_read_rotated #(
             end
 
             if (busy && !restart) begin
-                if (!pend && s_y != 8'd224) begin
+                if (!pend && s_y != 8'(H)) begin
                     rd_req <= ~rd_req;
                     pend   <= 1'b1;
                 end else if (pend && (rd_req == rd_ack)) begin
@@ -262,7 +267,7 @@ module fb_read_rotated #(
                     if (g_lane == 2'd3) begin
                         g_lane <= 2'd0;
                         g_y    <= g_y + 8'd1;
-                        if (g_y == 8'd223) busy <= 1'b0;      // group complete
+                        if (g_y == 8'(H - 1)) busy <= 1'b0;      // group complete
                     end else
                         g_lane <= g_lane + 2'd1;
                 end else begin

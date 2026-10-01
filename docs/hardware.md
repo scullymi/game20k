@@ -74,12 +74,12 @@ primitives `rPLL`, `OSER10` and `ELVDS_OBUF` would need checking.
 
 | Area | File | Board specific part |
 |---|---|---|
-| Pin assignment | `fpga/galaga_hdmi/galaga_hdmi.cst` | all pin numbers are for the QN88 package |
-| Clocks | `fpga/galaga_hdmi/galaga_hdmi.sdc` | 27 MHz input, from it 371.25 / 74.25 / 18.5625 MHz and 64.8 MHz for the SDRAM |
-| PLL | `fpga/galaga_hdmi/src/pll_hdmi.v`, `pll_sdram.v` | primitive `rPLL`, family dependent |
-| HDMI serializer | `fpga/galaga_hdmi/src/hdmi/serializer.sv`, `galaga_hdmi_top.sv` | primitives `OSER10` (serializer) and `ELVDS_OBUF` (top level) |
-| SDRAM | `fpga/galaga_hdmi/src/sdram_fb.v` | the in-package SDRAM of the GW2AR |
-| SPI to the Companion | `fpga/galaga_hdmi/src/misc/mcu_spi.v` and the `.cst` | pins per the M0S Dock assignment |
+| Pin assignment | `fpga/common/board.cst` | all pin numbers are for the QN88 package |
+| Clocks | `fpga/common/board.sdc` | 27 MHz input, from it 371.25 / 74.25 / 18.5625 MHz and 64.8 MHz for the SDRAM |
+| PLL | `fpga/common/src/pll_hdmi.v`, `pll_sdram.v` | primitive `rPLL`, family dependent |
+| HDMI serializer | `fpga/common/src/hdmi/serializer.sv`, `game20k_top.sv` | primitives `OSER10` (serializer) and `ELVDS_OBUF` (top level) |
+| SDRAM | `fpga/common/src/sdram_fb.v` | the in-package SDRAM of the GW2AR |
+| SPI to the Companion | `fpga/common/src/misc/mcu_spi.v` and the `.cst` | pins per the M0S Dock assignment |
 | Clock edge fix | `fpga/galaga_hdmi/src/rtl_dar/galaga.vhd` | Gowin specific, wrong on Altera or Xilinx |
 
 **Monitor.** The HDMI output is not standard 720p60. The top level sets FRAME_W to 1584 and

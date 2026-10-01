@@ -17,8 +17,8 @@ D="$ROOT/fpga/$P/impl/pnr"
 echo "Report from $(date -r "$D/$P.rpt.txt" '+%Y-%m-%d %H:%M:%S')"
 # Warn when a source was touched after the report. An aborted build leaves the old
 # reports in place, and those get read as if they were current.
-NEWER=$(find "$ROOT/fpga/$P" \( -name '*.v' -o -name '*.sv' -o -name '*.vhd' -o -name '*.sdc' \
-        -o -name '*.cst' -o -name '*.tcl' \) -newer "$D/$P.rpt.txt" -not -path '*/impl/*' 2>/dev/null | head -3)
+NEWER=$(find "$ROOT/fpga/$P" "$ROOT/fpga/common" \( -name '*.v' -o -name '*.sv' -o -name '*.vhd' -o -name '*.sdc' \
+        -o -name '*.cst' -o -name '*.tcl' -o -name '*.manifest' -o -name '*.hex' \) -newer "$D/$P.rpt.txt" -not -path '*/impl/*' 2>/dev/null | head -3)
 [ -n "$NEWER" ] && { echo "WARNING: the report is OLDER than these files, so it is not from the last build:";
                      echo "$NEWER" | sed "s|$ROOT/||;s|^|  |"; }
 echo "--- Utilisation ---"

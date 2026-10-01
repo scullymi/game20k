@@ -19,15 +19,21 @@
 //!   1..8  white:   joystick byte bits 7..0 = buttons B4 B3 B2 B1, Up, Down, Left, Right
 //!   9..16 yellow:  extra byte bits 7..0 = HID buttons 12..5 (generic format)
 //!   17..24 cyan:   axis X bits 7..0, 25..32 magenta: axis Y bits 7..0
-//!   34..39 green:  game signals Left, Right, Fire, Coin, Start 1, Start 2
-module input_test_bar (
+//!   from 34 green: the game signals as the game core receives them, MAP_N of them, each
+//!                  labelled with two characters from MAP_LABELS (Galaga: L R F C S1 S2)
+module input_test_bar #(
+    parameter int MAP_N = 6,                  //!< number of game signals, 1..16
+    //! two characters per game signal, signal 0 in the lowest 16 bits. The font knows
+    //! 0-9, space, B C D F K L O R S U X Y.
+    parameter logic [16*16-1:0] MAP_LABELS = 256'({"S2", "S1", "C ", "F ", "R ", "L "})
+)(
     input  wire         clk,
     input  wire         enable,
     input  wire  [10:0] cx,
     input  wire  [9:0]  cy,
     input  wire         hid_seen,
     input  wire  [31:0] bits,      //!< {joystick, extra, ax, ay}
-    input  wire  [5:0]  mapped,    //!< {start2, start1, coin, fire, right, left}
+    input  wire  [15:0] mapped,    //!< game signals, field 34 + n shows bit n
     output logic        on,
     output logic [23:0] color
 );
@@ -48,6 +54,18 @@ module input_test_bar (
     assign row = cy[2:0];             // label from 12 = 8*1+4 -> row 4..7,0..3; corrected below
     assign col = xi[2:0];
     assign glyph = xi[3] ? label[4:0] : label[9:5];
+
+    // Character code of the 8x8 font below for an ASCII character, space for anything
+    // the font does not have.
+    function automatic logic [4:0] chr(input logic [7:0] c);
+        case (c)
+            8'h30, 8'h31, 8'h32, 8'h33, 8'h34, 8'h35, 8'h36, 8'h37, 8'h38, 8'h39: chr = 5'(c - 8'h30);
+            "B": chr = 5'd11;  "U": chr = 5'd12;  "D": chr = 5'd13;  "L": chr = 5'd14;
+            "R": chr = 5'd15;  "X": chr = 5'd16;  "Y": chr = 5'd17;  "O": chr = 5'd18;
+            "K": chr = 5'd19;  "F": chr = 5'd20;  "C": chr = 5'd21;  "S": chr = 5'd22;
+            default: chr = 5'd10;
+        endcase
+    endfunction
 
     always_comb begin
         case (idx)
@@ -85,13 +103,11 @@ module input_test_bar (
             6'd31: label = {5'd17, 5'd1};
             6'd32: label = {5'd17, 5'd0};
             6'd33: label = {5'd10, 5'd10};
-            6'd34: label = {5'd14, 5'd10};
-            6'd35: label = {5'd15, 5'd10};
-            6'd36: label = {5'd20, 5'd10};
-            6'd37: label = {5'd21, 5'd10};
-            6'd38: label = {5'd22, 5'd1};
-            6'd39: label = {5'd22, 5'd2};
-            default: label = {5'd10, 5'd10};
+            // from 34 the game signals, labelled as the game names them
+            default: label = (idx >= 6'd34 && idx < 6'(34 + MAP_N))
+                           ? {chr(MAP_LABELS[16 * (idx - 6'd34) + 8 +: 8]),
+                              chr(MAP_LABELS[16 * (idx - 6'd34) +: 8])}
+                           : {5'd10, 5'd10};
         endcase
     end
 
@@ -291,16 +307,17 @@ module input_test_bar (
     always_comb begin
         if (idx == 6'd0)        bit_on = hid_seen;
         else if (idx <= 6'd32)  bit_on = bits[6'd32 - idx];
-        else if (idx >= 6'd34)  bit_on = mapped[idx - 6'd34];
+        else if (idx >= 6'd34 && idx < 6'(34 + MAP_N)) bit_on = mapped[4'(idx - 6'd34)];
         else                    bit_on = 1'b0;
     end
 
-    // Stage 1 (registered): region, bit, glyph pixel
+    // Stage 1 (registered): region, bit, glyph pixel. The bar ends after the last game signal.
+    localparam logic [10:0] X_END = 11'(32 + 16 * (34 + MAP_N));
     logic       r_box, r_label, r_bit, r_pix;
     logic [5:0] r_idx;
     always_ff @(posedge clk) begin
-        r_box   <= enable && cx >= 11'd32 && cx < 11'd672 && idx != 6'd33 && in_box_rows && xi < 4'd12;
-        r_label <= enable && cx >= 11'd32 && cx < 11'd672 && idx != 6'd33 && in_label_rows;
+        r_box   <= enable && cx >= 11'd32 && cx < X_END && idx != 6'd33 && in_box_rows && xi < 4'd12;
+        r_label <= enable && cx >= 11'd32 && cx < X_END && idx != 6'd33 && in_label_rows;
         r_bit   <= bit_on;
         r_pix   <= font_row[3'd7 - col];
         r_idx   <= idx;

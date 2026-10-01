@@ -3,9 +3,11 @@
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a silent
                        // one-bit net.
 //! @file rom_loader.sv
-//! @brief Takes galaga.rom from the FPGA Companion and fills the eleven ROM memories of the core.
+//! @brief Takes the game's ROM file from the FPGA Companion and fills the ROM memories of the core.
 //!
-//! File layout: see scripts/make_galaga_rom.sh.
+//! File layout: the game's ROM manifest (fpga/<core>/<set>.manifest). scripts/make_rom.py
+//! builds the file from it and writes the section table of this module as gen/rom_map_pkg.sv,
+//! from which the top takes the parameters below. Both sides therefore read one source.
 //!
 //! Flow on the SD side (sd_card.v, SPI command 8):
 //!   - The Companion selects an image: rom_image_selection_strobe goes high for one clock,
@@ -19,7 +21,14 @@
 
 module rom_loader #(
     parameter int SLOT = 0,            //!< image slot this loader accepts
-    parameter int TOTAL = 38944        //!< expected file size in bytes
+    parameter int TOTAL = 38944,       //!< expected file size in bytes
+    parameter int SECTIONS = 11,       //!< ROM memories of the core, 1..16, one wr_en bit each
+    //! start of every section in the file, section 0 in the lowest 16 bits, in file order:
+    //! section i runs from OFFSETS[i] up to OFFSETS[i+1], the last one up to TOTAL. One slot
+    //! more than sections, so that the decoder's look at i+1 is never out of range.
+    parameter logic [17*16-1:0] OFFSETS = {16'h9800, 16'h9700, 16'h9600, 16'h9500, 16'h9400,
+                                           16'h9000, 16'h7000, 16'h6000, 16'h5000, 16'h4000,
+                                           16'h0000}
 )(
     input  wire         clk,
     input  wire         reset,
@@ -34,28 +43,13 @@ module rom_loader #(
     output logic        data_strobe,
 
     //! Write side to the ROM memories of the core
-    output logic [13:0] wr_addr,
+    output logic [15:0] wr_addr,      //!< offset inside the section
     output logic [7:0]  wr_data,
-    output logic [10:0] wr_en,        //!< 0 cpu1, 1 cpu2, 2 cpu3, 3 bg_graphx, 4 sp_graphx,
-                                      //!< 5 cs54xx, 6 bg_pal, 7 sp_pal, 8 snd_seq,
-                                      //!< 9 snd_samples, 10 rgb
+    output logic [15:0] wr_en,        //!< bit i: section i takes this byte, bits above SECTIONS stay 0
     output logic        loaded,       //!< file transferred completely
     output logic        busy,
     output logic [15:0] count         //!< bytes taken so far, for the display
 );
-    // section offsets, identical to scripts/make_galaga_rom.sh
-    localparam int O_CPU1 = 16'h0000;
-    localparam int O_CPU2 = 16'h4000;
-    localparam int O_CPU3 = 16'h5000;
-    localparam int O_BGGR = 16'h6000;
-    localparam int O_SPGR = 16'h7000;
-    localparam int O_54XX = 16'h9000;
-    localparam int O_BGPA = 16'h9400;
-    localparam int O_SPPA = 16'h9500;
-    localparam int O_SSEQ = 16'h9600;
-    localparam int O_SSAM = 16'h9700;
-    localparam int O_RGB  = 16'h9800;
-
     // Only slot SLOT and only the exact file size are accepted. A wrong size is reported by
     // the Companion as "Core has rejected image".
     assign accepted = sel_strobe && (sel_index == SLOT[2:0]) && (image_size == TOTAL);
@@ -65,27 +59,21 @@ module rom_loader #(
     assign busy  = active;
     assign count = cnt;
 
-    // Target decoder: memory and address are derived from the running byte counter.
-    // The address is ALWAYS formed as the difference to the section start. Merely masking
-    // off the lower bits only works when the offset is a multiple of the section size -
-    // for sp_graphx (0x7000, 8192 bytes) it is not, and the two halves ended up swapped
-    // in memory.
-    logic [10:0] en_c;
-    logic [13:0] addr_c;
+    // Target decoder: memory and address are derived from the running byte counter, the
+    // section is the last one whose start the counter has reached. The address is ALWAYS
+    // formed as the difference to the section start. Merely masking off the lower bits only
+    // works when the offset is a multiple of the section size, and for Galaga's sp_graphx
+    // (0x7000, 8192 bytes) it is not: the two halves ended up swapped in memory.
+    logic [15:0] en_c;
+    logic [15:0] addr_c;
     always_comb begin
-        en_c   = 11'd0;
-        addr_c = 14'd0;
-        if      (cnt < O_CPU2) begin en_c[0]  = 1'b1; addr_c = 14'(cnt - O_CPU1); end
-        else if (cnt < O_CPU3) begin en_c[1]  = 1'b1; addr_c = 14'(cnt - O_CPU2); end
-        else if (cnt < O_BGGR) begin en_c[2]  = 1'b1; addr_c = 14'(cnt - O_CPU3); end
-        else if (cnt < O_SPGR) begin en_c[3]  = 1'b1; addr_c = 14'(cnt - O_BGGR); end
-        else if (cnt < O_54XX) begin en_c[4]  = 1'b1; addr_c = 14'(cnt - O_SPGR); end
-        else if (cnt < O_BGPA) begin en_c[5]  = 1'b1; addr_c = 14'(cnt - O_54XX); end
-        else if (cnt < O_SPPA) begin en_c[6]  = 1'b1; addr_c = 14'(cnt - O_BGPA); end
-        else if (cnt < O_SSEQ) begin en_c[7]  = 1'b1; addr_c = 14'(cnt - O_SPPA); end
-        else if (cnt < O_SSAM) begin en_c[8]  = 1'b1; addr_c = 14'(cnt - O_SSEQ); end
-        else if (cnt < O_RGB)  begin en_c[9]  = 1'b1; addr_c = 14'(cnt - O_SSAM); end
-        else                   begin en_c[10] = 1'b1; addr_c = 14'(cnt - O_RGB);  end
+        en_c   = 16'd0;
+        addr_c = 16'd0;
+        for (int i = 0; i < SECTIONS; i++)
+            if (cnt >= OFFSETS[16*i +: 16] && (i == SECTIONS - 1 || cnt < OFFSETS[16*(i+1) +: 16])) begin
+                en_c[i] = 1'b1;
+                addr_c  = cnt - OFFSETS[16*i +: 16];
+            end
     end
 
     always_ff @(posedge clk) begin
@@ -93,10 +81,10 @@ module rom_loader #(
             cnt         <= 16'd0;
             active      <= 1'b0;
             loaded      <= 1'b0;
-            wr_en       <= 11'd0;
+            wr_en       <= 16'd0;
             data_strobe <= 1'b0;
         end else begin
-            wr_en       <= 11'd0;
+            wr_en       <= 16'd0;
             data_strobe <= 1'b0;
 
             // selection: accepting starts the transfer, size 0 is the deselect at the end

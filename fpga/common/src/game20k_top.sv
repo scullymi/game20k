@@ -2,11 +2,13 @@
 // Copyright (C) 2026 scullymi
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a
                        // silent one-bit net.
-//! @file galaga_hdmi_top.sv
-//! @brief Top level of the Galaga cabinet on the Tang Nano 20K: core, HDMI, SDRAM, Companion.
+//! @file game20k_top.sv
+//! @brief Top level of the arcade platform on the Tang Nano 20K: game, HDMI, SDRAM, Companion.
 //!
-//! Galaga arcade cabinet on the Tang Nano 20K. Game core in VHDL by Dar, video and audio
-//! over HDMI.
+//! One top for every game. The game sits behind game_core (fpga/<core>/src/game_core.sv),
+//! its raster, name and test bar labels come from game_pkg (fpga/<core>/src/game_pkg.sv),
+//! its ROM layout from rom_map_pkg, which build.tcl generates from the game's manifest.
+//! Video and audio go out over HDMI.
 //!
 //! Clocks: 27 MHz crystal and TWO PLLs. pll_hdmi produces clk_x5 (371.25 MHz) and clk_core
 //! (18.5625 MHz), clkdiv5 divides clk_x5 down to clk_pixel (74.25 MHz). pll_sdram provides
@@ -15,26 +17,26 @@
 //! Buttons: S1 = reset. S2 = OSD button, reported to the Companion. Coin and start come
 //! from the arcade stick via the Companion, not from S2.
 //!
-//! Video: landscape through galaga_scaler (3x), portrait through the SDRAM frame buffer
+//! Video: landscape through arcade_scaler (3x), portrait through the SDRAM frame buffer
 //! with fb_read_rotated (2x). Switched at run time from the menu, not at synthesis.
 //!
 //! Audio: embedded in the HDMI stream and, in addition, as sigma-delta on pwm_audio_l.
 //!
 //! SD card: attached to the FPGA (sd_card from Nanomig), operated by the Companion over
-//! SPI. galaga.rom reaches the core's ROM memories the same way.
+//! SPI. The game's ROM file reaches the core's ROM memories the same way.
 //!
 //! The build parameters below are DIAGNOSTIC builds only and are all 0 in the normal
 //! build. They are set through environment variables, see build.tcl. The production
 //! branch is g_fb_live.
-module galaga_hdmi_top #(
+module game20k_top #(
     parameter bit TESTBAR   = 1,   //!< synthesise the input test bar (1 BSRAM)
-    parameter bit ROMVIEW   = 0,   //!< 1: show the character ROM instead of the game (diagnostic)
+    parameter bit ROMVIEW   = 0,   //!< 1: a diagnostic view of the game's own (Galaga: the character ROM)
     parameter bit SDRAMTEST = 0,   //!< 1: SDRAM controller plus phase self test
     parameter bit SDRAMCL3  = 0,   //!< 1: CAS latency 3 instead of 2 (self test comparison run)
     parameter bit FBTEST    = 0,   //!< 1: write path plus cross-check (fb_check)
     parameter bit FBSHOW    = 0,   //!< 1: picture from the SDRAM, not rotated
     parameter bit FBROT     = 0,   //!< 1: picture from the SDRAM, ROTATED 2x
-    parameter bit RAMDIAG   = 0    //!< 1: measure writes to the game RAM (ram_diag)
+    parameter bit RAMDIAG   = 0    //!< 1: the game's RAM mirror result bar (Galaga: ram_diag)
 ) (
     input  wire        sys_clk,      //!< 27 MHz crystal
     input  wire        s1,           //!< reset (pressed = 1)
@@ -69,6 +71,22 @@ module galaga_hdmi_top #(
     output logic       spi_irqn
 );
     import ram_mirror_pkg::*;   // block sizes of the RAM mirror, see ram_mirror_pkg.sv
+    import game_pkg::*;         // raster, name and test bar labels of the game
+    import rom_map_pkg::*;      // ROM layout of the game, generated from its manifest
+
+    // ---------------- Picture geometry in the 720p raster, from the core raster W x H ----------------
+    // Landscape 3x through the scaler, the picture centred. Portrait 2x from the frame buffer,
+    // the picture turned, so its height is W. The banner (ra_overlay) sits 52 px below the
+    // picture: in portrait along the bottom edge, in landscape in the band right of it,
+    // rotated like the OSD. Galaga: landscape 208..1072 x 24..696, portrait 416..864 x 72..648.
+    localparam int X0_L = (1280 - 3 * W) / 2;
+    localparam int Y0_L = (720 - 3 * H) / 2;
+    localparam int X0_P = (1280 - 2 * H) / 2;
+    localparam int Y0_P = (720 - 2 * W) / 2;
+    localparam int BANNER_BX = (1280 - 384) / 2;
+    localparam int BANNER_BY = Y0_P + 2 * W + 52;
+    localparam int BANNER_RX = X0_L + 3 * W + 52;
+    localparam int BANNER_RY = (720 - 384) / 2;
     // ---------------- Clocks ----------------
     logic clk_x5, clk_pixel, clk_core, pll_lock;
     pll_hdmi pll (.clkin(sys_clk), .clkout(clk_x5), .clkoutd(clk_core), .lock(pll_lock));
@@ -101,22 +119,16 @@ module galaga_hdmi_top #(
     //! left out, it only adds a display aid.
     localparam logic [7:0] BUILD_FLAGS = {1'b0, RAMDIAG, FBROT, FBSHOW, FBTEST, SDRAMCL3, SDRAMTEST, ROMVIEW};
 
-    logic video_reset;
-    assign video_reset = reset;
-
     // ---------------- S2: OSD button, reported to the Companion ----------------
     logic [1:0]  s2_s = 0;
     always_ff @(posedge clk_core) s2_s <= {s2_s[0], s2};
 
-    // ---------------- Galaga core (VHDL, Dar) ----------------
+    // ---------------- The game ----------------
     logic [2:0] video_r, video_g;
     logic [1:0] video_b;
-    logic [7:0] dbg_bgdata;
-    logic [8:0] dbg_hcnt, dbg_vcnt;
-    logic [3:0] dbg_bgbits;
-    logic [3:0]  dbg_ram_we;     // taps of the game RAM writes, observation only
-    logic [10:0] dbg_ram_addr;
-    logic [7:0]  dbg_ram_data;
+    logic        log_we;         // the game's RAM writes, flat mirror address, observation only
+    logic [15:0] log_addr;
+    logic [7:0]  log_data;
     // RAM mirror: the snapshot on its way to the Pico
     logic        snap_run, snap_full, snap_push, snap_pop, snap_empty;
     logic        snap_undr;   // underrun flag of the FIFO, formed in the SPI clock
@@ -129,64 +141,37 @@ module galaga_hdmi_top #(
     logic        ram_banner;  // show the banner
     logic        ram_bgold, ram_bnew;   // text gold (hardcore), mark green (new)
     logic [7:0]  ram_flags;   // header byte 5 from the Pico, bit 0: a challenge is on
-    logic [7:0]  dip_a_core, dip_b_core;   // DIP switches as the core sees them, see the latch below
     logic [7:0]  snap_byte, snap_fifo_q;
     logic [15:0] snap_frame;
-    logic [15:0] snap_catchup_peak;   // peak fill level of the catch-up queue
     logic        snap_harv;
-    logic       video_blankn, video_hs, video_vs, video_csync, video_clk;
-    logic [9:0] audio;
+    logic        video_blankn, video_hs, video_vs;
+    logic signed [15:0] audio;   // two's complement, silence = 0
+    logic [15:0] map_bits;       // the game signals for the input test bar
+    logic        rd_on;          // result bar of the RAMDIAG build, from the game
+    logic [23:0] rd_col;
+    logic [5:0]  rd_led;
 
-    // Five taps of the core stay open: dbg_tile_num, dbg_tile_color, dbg_bgaddr, dbg_shadow
-    // and dbg_score exist for measurement builds (src/rtl_dar/galaga.vhd) and nothing in this
-    // file reads them. The empty parentheses say so on purpose.
-    galaga core (
-        .clock_18     (clk_core),
-        .reset        (reset),
-        .video_reset  (video_reset),
-        .dbg_tile_num  (),
-        .dbg_tile_color(),
-        .dbg_hcnt      (dbg_hcnt),
-        .dbg_vcnt      (dbg_vcnt),
-        .dbg_bgaddr    (),
-        .dbg_bgdata    (dbg_bgdata),
-        .dbg_bgbits    (dbg_bgbits),
-        .dbg_ram_we    (dbg_ram_we),
-        .dbg_ram_addr  (dbg_ram_addr),
-        .dbg_ram_data  (dbg_ram_data),
-        .dbg_score     (),
-        .dbg_shadow    (),
-        .snap_run      (snap_run),      .snap_full (snap_full),
-        .snap_byte     (snap_byte),     .snap_push (snap_push),
-        .snap_frame    (snap_frame),    .dbg_skip  (),
-        .dbg_nzmax     (snap_catchup_peak),
-        .dbg_harv      (snap_harv),
-        .video_r      (video_r),
-        .video_g      (video_g),
-        .video_b      (video_b),
-        .video_clk    (video_clk),
-        .video_csync  (video_csync),
-        .video_blankn (video_blankn),
-        .video_hs     (video_hs),
-        .video_vs     (video_vs),
-        .audio        (audio),
-        .rom_wr_clk   (clk_core),
-        .rom_wr_addr  (rom_wr_addr),
-        .rom_wr_data  (rom_wr_data),
-        .rom_wr_en    (rom_wr_en),
-        .dip_a        (dip_a_core),   // latched while in reset, see below
-        .dip_b        (dip_b_core),
-        .b_test       (1'b1),
-        .b_svce       (1'b1),
-        .coin         (joy_coin),
-        .start1       (joy_start1),
-        .left1        (joy_left),
-        .right1       (joy_right),
-        .fire1        (joy_fire),
-        .start2       (joy_start2),
-        .left2        (joy_left),
-        .right2       (joy_right),
-        .fire2        (joy_fire)
+    game_core #(.ROMVIEW(ROMVIEW), .RAMDIAG(RAMDIAG)) game (
+        .clk_core(clk_core), .reset(reset),
+        .video_r(video_r), .video_g(video_g), .video_b(video_b),
+        .video_blankn(video_blankn), .video_vs(video_vs), .video_hs(video_hs),
+        .audio(audio),
+        .rom_wr_addr(rom_wr_addr), .rom_wr_data(rom_wr_data), .rom_wr_en(rom_wr_en),
+        .cfg_we(cfg_we), .cfg_id(cfg_id), .cfg_val(cfg_val),
+        .p1_dir(joystick[0][3:0]), .p2_dir(joystick[1][3:0]),
+        .p1_fire(joy_fire), .p2_fire(joy_fire2),
+        .p1_btns(btns), .p2_btns(btns2),
+        .coin(joy_coin), .start1(joy_start1), .start2(joy_start2),
+        .map_bits(map_bits),
+        .snap_run(snap_run), .snap_full(snap_full),
+        .snap_push(snap_push), .snap_byte(snap_byte), .snap_frame(snap_frame),
+        .snap_harv(snap_harv),
+        .log_we(log_we), .log_addr(log_addr), .log_data(log_data),
+        .clk_pixel(clk_pixel), .cx(cx), .cy(cy),
+        .diag_spi_count(ram_last_count), .diag_spi_us(ram_last_us),
+        .diag_spi_verdict(ram_verdict), .diag_rc_us(ram_us), .diag_rc_lf(ram_rc),
+        .diag_last_ach(ram_last),
+        .diag_on(rd_on), .diag_color(rd_col), .diag_leds(rd_led)
     );
 
     // ---------------- SDRAM clock ----------------
@@ -218,9 +203,9 @@ module galaga_hdmi_top #(
     logic        rom_accepted, rom_data_strobe;
     logic        rom_loaded, rom_busy;
     logic [15:0] rom_count;
-    logic [13:0] rom_wr_addr;
+    logic [15:0] rom_wr_addr;
     logic [7:0]  rom_wr_data;
-    logic [10:0] rom_wr_en;
+    logic [15:0] rom_wr_en;
 
     sd_card #(
         .CLK_DIV(3'd0),
@@ -244,9 +229,10 @@ module galaga_hdmi_top #(
         .inbyte(8'h00), .outen(), .outaddr(), .outbyte()
     );
 
-    // Distributes the bytes of galaga.rom to the core's ROM memories. The file arrives
-    // from the SD card via the Companion, rom_loaded reports completion to the LEDs.
-    rom_loader #(.SLOT(0), .TOTAL(38944)) loader (
+    // Distributes the bytes of the game's ROM file to the core's ROM memories, as the
+    // manifest lays them out. The file arrives from the SD card via the Companion,
+    // rom_loaded reports completion to the LEDs.
+    rom_loader #(.SLOT(0), .TOTAL(ROM_TOTAL), .SECTIONS(ROM_SECTIONS), .OFFSETS(ROM_OFFSETS)) loader (
         .clk(clk_core), .reset(!pll_lock),
         .sel_strobe(rom_selection_strobe), .sel_index(rom_selected), .image_size(sd_img_size),
         .accepted(rom_accepted),
@@ -285,10 +271,10 @@ module galaga_hdmi_top #(
     logic [7:0] sdc_data_out;
     logic [1:0] mcu_leds;
     logic [23:0] mcu_color;
-    logic [1:0] system_reset, system_lives, system_difficulty, system_scanlines;
-    logic [2:0] system_bonus, system_coinage;
-    logic       system_demosound;
+    logic [1:0] system_reset, system_scanlines;
     logic [2:0] system_volume;
+    logic       cfg_we;             // one clock per value the Companion sets, for the game
+    logic [7:0] cfg_id, cfg_val;
     logic       system_inputtest;
     logic [1:0] system_screen;      // screen mode from the menu
     logic [3:0] system_fire_btn, system_coin_btn, system_start_btn, system_start2_btn, system_voldn_btn, system_volup_btn;
@@ -308,34 +294,21 @@ module galaga_hdmi_top #(
         .mcu_dout(mcu_data_out)
     );
 
-    sysctrl_galaga sysctrl (
+    sysctrl sysctrl (
         .clk(clk_core), .reset(!pll_lock),
         .data_in_strobe(mcu_sys_strobe), .data_in_start(mcu_start), .data_in(mcu_data_out), .data_out(sys_data_out),
         // interrupt bits: 1 = HID, 3 = SD card, 5 = RAM mirror snapshot ready
         .int_out_n(spi_irqn), .int_in({2'b00, snap_int, 1'b0, sdc_int, 1'b0, hid_int, 1'b0}), .int_ack(int_ack),
         .buttons({s2_s[1], s1_s[1]}),     // [0] = S1 reset, [1] = S2 OSD
         .leds(mcu_leds), .color(mcu_color),
-        .system_reset(system_reset), .system_lives(system_lives), .system_bonus(system_bonus),
-        .system_coinage(system_coinage), .system_difficulty(system_difficulty),
-        .system_demosound(system_demosound), .system_scanlines(system_scanlines),
+        .system_reset(system_reset), .system_scanlines(system_scanlines),
         .system_volume(system_volume), .system_inputtest(system_inputtest),
         .system_fire_btn(system_fire_btn), .system_coin_btn(system_coin_btn),
         .system_start_btn(system_start_btn), .system_start2_btn(system_start2_btn),
         .system_voldn_btn(system_voldn_btn), .system_volup_btn(system_volup_btn),
-        .system_screen(system_screen)
+        .system_screen(system_screen),
+        .cfg_we(cfg_we), .cfg_id(cfg_id), .cfg_val(cfg_val)
     );
-
-    // DIP switches reach the core only while it is in reset. sysctrl takes a new value at
-    // once and the menu resets right after it, so the value goes in during that reset. A
-    // menu of one's own (a config.xml on the card) without that reset can no longer change
-    // lives, bonus, coinage or difficulty in a running game: the change waits for the next
-    // reset, which the Pico sees in the reset count. Bit 3 of dip_a = 0: demo sounds on
-    // (MAME galaga.cpp).
-    always_ff @(posedge clk_core)
-        if (reset) begin
-            dip_a_core <= {1'b1, 1'b1, 1'b1, 1'b1, ~system_demosound, 1'b1, system_difficulty};
-            dip_b_core <= {system_lives, system_bonus, system_coinage};
-        end
 
     hid hid (
         .clk(clk_core), .reset(!pll_lock),
@@ -350,15 +323,17 @@ module galaga_hdmi_top #(
     // (DInput: 9 = Select, 10 = Start); for sticks from the Companion's SDL database bit2 is
     // Select and bit3 Start (= "button 7/8"). The mapping is therefore adjustable in the OSD
     // menu "Controller" (0 = none or all buttons, respectively).
-    logic [11:0] btns;
-    assign btns = {joystick_extra[0], joystick[0][7:4]};   // btns[n-1] = HID button n
+    logic [11:0] btns, btns2;
+    assign btns  = {joystick_extra[0], joystick[0][7:4]};   // btns[n-1] = HID button n
+    assign btns2 = {joystick_extra[1], joystick[1][7:4]};   // the second controller
     function automatic logic btn_sel(input logic [3:0] n, input logic [11:0] b);
         btn_sel = (n == 4'd0 || n > 4'd12) ? 1'b0 : b[n - 4'd1];
     endfunction
-    logic joy_left, joy_right, joy_fire, joy_coin, joy_start1, joy_start2, joy_voldn, joy_volup;
-    assign joy_right  = joystick[0][0];
-    assign joy_left   = joystick[0][1];
-    assign joy_fire   = (system_fire_btn == 4'd0) ? |btns : btn_sel(system_fire_btn, btns);
+    // Directions go to the game as they are, the buttons through the menu's mapping. The
+    // second controller uses the same mapping. Coin, start and volume come from the first.
+    logic joy_fire, joy_fire2, joy_coin, joy_start1, joy_start2, joy_voldn, joy_volup;
+    assign joy_fire   = (system_fire_btn == 4'd0) ? |btns  : btn_sel(system_fire_btn, btns);
+    assign joy_fire2  = (system_fire_btn == 4'd0) ? |btns2 : btn_sel(system_fire_btn, btns2);
     assign joy_coin   = btn_sel(system_coin_btn, btns);
     assign joy_start1 = btn_sel(system_start_btn, btns);
     assign joy_start2 = btn_sel(system_start2_btn, btns);
@@ -409,33 +384,11 @@ module galaga_hdmi_top #(
     wire screen_rot = (screen_p != 2'd0);
     assign rgb = (FBSHOW || FBROT || screen_rot) ? rgb_fb : rgb_scaler;
 
-    // ---------------- Diagnostic: show the character ROM directly ----------------
-    // Character c at column x/8, row line/8 (36 x 28 places); layout as in MAME galaga:
-    // 16 bytes per character, byte = (x%8 < 4 ? 8 : 0) + row,
-    // plane0 = bit (x%4), plane1 = bit 4+(x%4)
-    logic [1:0]  rv_pix;
-    logic [2:0]  rv_r, rv_g;
-    logic [1:0]  rv_b;
-    // upper half of the raster: ROM data of the core (bggraphx_do) with our own bit selection
-    // lower half of the raster: finished palette bits of the core (bgbits), 0/15 = off
-    logic [1:0] core_pix;
-    assign core_pix = {dbg_bgdata[4 + dbg_hcnt[1:0]], dbg_bgdata[dbg_hcnt[1:0]]};
-    assign rv_pix = (dbg_vcnt[7] == 1'b0) ? core_pix :
-                    (dbg_bgbits == 4'd0 || dbg_bgbits == 4'hF) ? 2'd0 : {dbg_bgbits[1] | dbg_bgbits[3], dbg_bgbits[0] | dbg_bgbits[2]};
-    always_comb begin
-        case (rv_pix)
-            2'd0: begin rv_r = 3'd0; rv_g = 3'd0; rv_b = 2'd0; end
-            2'd1: begin rv_r = 3'd7; rv_g = 3'd7; rv_b = 2'd3; end
-            2'd2: begin rv_r = 3'd7; rv_g = 3'd0; rv_b = 2'd0; end
-            default: begin rv_r = 3'd0; rv_g = 3'd7; rv_b = 2'd0; end
-        endcase
-    end
-
-    galaga_scaler #(.X0(208), .Y0(24)) scaler (
+    arcade_scaler #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L)) scaler (
         .clk_core (clk_core),
-        .r_in     (ROMVIEW ? rv_r : video_r),
-        .g_in     (ROMVIEW ? rv_g : video_g),
-        .b_in     (ROMVIEW ? rv_b : video_b),
+        .r_in     (video_r),
+        .g_in     (video_g),
+        .b_in     (video_b),
         .blankn   (video_blankn),
         .vs       (video_vs),
         .clk_pixel(clk_pixel),
@@ -443,8 +396,8 @@ module galaga_hdmi_top #(
         .cy       (cy),
         .sync     (sync),
         .rgb      (rgb_scaler),
-        .dbg_we   (),                 // write-side taps of the scaler: nothing reads them,
-        .dbg_x    (),                 // ROMVIEW takes the core signals directly (rv_pix)
+        .dbg_we   (),                 // write-side taps of the scaler: nothing reads them
+        .dbg_x    (),
         .dbg_line (),
         .dbg_data ()
     );
@@ -459,43 +412,13 @@ module galaga_hdmi_top #(
         end else
             aud_div <= aud_div + 10'd1;
     end
-    // 10 bit unsigned -> 16 bit signed, into the pixel clock domain.
-    //
-    // The core delivers UNIPOLAR: silence = 0, largest possible value 817
-    // (galaga.vhd:423 = 16*cs54xx_1 + 16*cs54xx_2 + snd_audio/2 = 240 + 240 + 337).
-    // HDMI wants two's complement per IEC 60958 with silence at 0, hence aud_s = 64*audio
-    // with clipping at 32767, see WHY 64 below.
-    //
-    // Not {~audio[9], audio[8:0], 6'b0}: that would be 64*audio - 32768, the conversion from
-    // offset binary, and assumes silence at 512. The sound would still come out right because
-    // the mapping is affine and the sink is AC-coupled, but the idle value would be 0x8000,
-    // the digital negative rail, and not even constant: aud_g = -2048*gain, i.e. 0 at volume
-    // 0 and -32768 at volume 7. Every volume step would shift the stream by up to 30720 LSB:
-    // a pop, and no headroom left for the sink.
-    //
-    // WHY 64 AND NOT 32: learned on the device.
-    //
-    // 32*audio is arithmetically neat (32*1023 < 32768 holds for EVERY 10-bit value, so no
-    // overflow whatever the core may sum up one day), but it costs 6 dB against 64*audio: the
-    // AC component is halved. On the device NOTHING is audible over HDMI then: the monitor
-    // has a squelch and the quieter signal falls below it. The sigma-delta output on pin 77
-    // shows clean sound at the same time (0.07 V mean, fluctuating with explosions), so the
-    // core is not the problem.
-    //
-    // The root problem: with "silence = 0" only half of the number axis is available. The
-    // offset binary variant has all of it because it runs from -32768 to +19520, at the price
-    // that silence sits on the negative rail and the idle level jumps with the volume.
-    //
-    // So 64*audio WITH CLIPPING: the full level, silence at 0, and an overflow cannot happen.
-    // Clipping starts at audio > 511, which is twenty times the mean of about 25 measured on
-    // the device, so it hits only the loudest peaks. And it clips instead of wrapping: too
-    // loud becomes loud, not noise. The overflow the 32 is meant to prevent is dealt with.
-    logic [15:0] aud_s, aud_p0, aud_p1;
-    wire [16:0] aud_x64 = {1'b0, audio, 6'b0};      // 17 bits, up to 52288, always fits
-    assign aud_s = (aud_x64 > 17'd32767) ? 16'd32767 : aud_x64[15:0];
+    // Volume, then into the pixel clock domain. The game delivers two's complement with
+    // silence at 0 (HDMI wants that per IEC 60958), the scale is the game's business: a
+    // unipolar core such as Galaga delivers 0..32767, see its game_core.
+    logic [15:0] aud_p0, aud_p1;
     logic signed [21:0] aud_mul;
     logic [15:0] aud_g;
-    always_ff @(posedge clk_core) aud_mul <= $signed(aud_s) * $signed({1'b0, gain});
+    always_ff @(posedge clk_core) aud_mul <= audio * $signed({1'b0, gain});
     assign aud_g = aud_mul[19:4];   // /16, sign-correct
     always_ff @(posedge clk_pixel) begin
         aud_p0 <= aud_g;
@@ -594,12 +517,12 @@ module galaga_hdmi_top #(
 
     // Input test bar (menu Controller -> Input test), raw bits from the Companion plus game signals
     logic [31:0] dbg_bits_p0, dbg_bits_p;
-    logic [5:0]  dbg_map_p0, dbg_map_p;
+    logic [15:0] dbg_map_p0, dbg_map_p;
     logic        hid_seen_p0, hid_seen_p, inputtest_p0, inputtest_p;
     always_ff @(posedge clk_pixel) begin
         dbg_bits_p0  <= {joystick[0], joystick_extra[0], joystick_ax[0], joystick_ay[0]};
         dbg_bits_p   <= dbg_bits_p0;
-        dbg_map_p0   <= {joy_start2, joy_start1, joy_coin, joy_fire, joy_right, joy_left};
+        dbg_map_p0   <= map_bits;
         dbg_map_p    <= dbg_map_p0;
         hid_seen_p0  <= hid_seen;        hid_seen_p  <= hid_seen_p0;
         inputtest_p0 <= system_inputtest; inputtest_p <= inputtest_p0;
@@ -608,7 +531,7 @@ module galaga_hdmi_top #(
     logic [23:0] dbg_col;
     generate
         if (TESTBAR) begin : g_testbar
-            input_test_bar test_bar (
+            input_test_bar #(.MAP_N(MAP_N), .MAP_LABELS(MAP_LABELS)) test_bar (
                 .clk(clk_pixel), .enable(inputtest_p), .cx(cx), .cy(cy),
                 .hid_seen(hid_seen_p), .bits(dbg_bits_p), .mapped(dbg_map_p),
                 .on(dbg_on), .color(dbg_col)
@@ -646,7 +569,7 @@ module galaga_hdmi_top #(
 
     logic        ra_on;
     logic [23:0] ra_col;
-    ra_overlay ra_overlay_i (
+    ra_overlay #(.BX(BANNER_BX), .BY(BANNER_BY), .RX(BANNER_RX), .RY(BANNER_RY)) ra_overlay_i (
         .clk(clk_pixel), .cx(cx), .cy(cy), .rotate(rot90),
         .txt_we(txt_we_p), .txt_addr(txt_addr_p), .txt_data(txt_data_p),
         .banner_on(banner_p), .banner_gold(gold_p), .banner_new(new_p),
@@ -700,7 +623,7 @@ module galaga_hdmi_top #(
             .rd_req(fb_rd_req), .rd_ack(fb_rd_ack),
             .rd_dout(fb_rd_dout), .rd_valid(fb_rd_valid)
         );
-        fb_pack pack_i (
+        fb_pack #(.W(W), .H(H)) pack_i (
             .clk_core(clk_core), .r_in(video_r), .g_in(video_g), .b_in(video_b),
             .blankn(video_blankn), .vs(video_vs),
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .clear(s1 | system_reset[0]),
@@ -762,7 +685,7 @@ module galaga_hdmi_top #(
         // Every core frame goes into the SDRAM, the picture on the screen still comes from
         // the scaler. fb_check reads every finished frame back immediately and compares the
         // checksum. The phase is fixed at the value measured by the self test.
-        fb_check check_i (
+        fb_check #(.W(W), .H(H)) check_i (
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
             .frame_done(fb_frame_done), .done_bank(fb_done_bank),
             .done_words(fb_done_words), .done_sum(fb_done_sum),
@@ -778,7 +701,7 @@ module galaga_hdmi_top #(
         // ---- measurement builds: FBSHOW (not rotated) and FBROT (rotated) ----
         // FBSHOW shows the picture unrotated (proof of the path), FBROT rotated.
         if (FBROT) begin : g_rot
-            fb_read_rotated #(.X0(416), .Y0(72), .ROT_CCW(0)) rot_i (
+            fb_read_rotated #(.W(W), .H(H), .X0(X0_P), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
                 .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
                 .wbuf(fb_wbuf), .frame_done(fb_frame_done),
                 .rd_addr(fb_rd_addr), .rd_bank(fb_rd_bank),
@@ -789,7 +712,7 @@ module galaga_hdmi_top #(
                 .rgb(rgb_fb), .active(fb_active), .clear(s1 | system_reset[0])
             );
         end else begin : g_flat
-            fb_read_flat #(.X0(208), .Y0(24)) flat_i (
+            fb_read_flat #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L)) flat_i (
                 .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
                 .wbuf(fb_wbuf), .frame_done(fb_frame_done),
                 .rd_addr(fb_rd_addr), .rd_bank(fb_rd_bank),
@@ -813,7 +736,7 @@ module galaga_hdmi_top #(
     end else begin : g_fb_live
         // ---- g_fb_live, the normal case. Both picture paths are built, the menu
         // chooses. The frame buffer always runs along so that switching takes effect at once.
-        fb_read_rotated #(.X0(416), .Y0(72), .ROT_CCW(0)) rot_i (
+        fb_read_rotated #(.W(W), .H(H), .X0(X0_P), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
             .wbuf(fb_wbuf), .frame_done(fb_frame_done),
             .rd_addr(fb_rd_addr), .rd_bank(fb_rd_bank),
@@ -849,29 +772,29 @@ module galaga_hdmi_top #(
     wire snap_run_rise = snap_run_s[0] & ~snap_run_s[1];
 
     // The oracle: the write accesses during the harvest. Its 1536 bytes
-    // append themselves behind the 5120 payload bytes in the same FIFO, so the checksum
-    // covers them as well, and the SPI block sees only a longer body.
+    // append themselves behind the payload bytes (5120 for Galaga) in the same FIFO, so the
+    // checksum covers them as well, and the SPI block sees only a longer body.
     logic [7:0]  log_byte;
     logic [9:0]  log_count;
     logic        log_ovf;
 
-    // Source switching of the FIFO. The core does not count its 5120 bytes itself, so the
+    // Source switching of the FIFO. The core does not count its payload bytes itself, so the
     // top counts the pushed bytes: that is at the same time the point at which the oracle
     // log takes over.
-    logic [12:0] push_n = 0;
+    logic [15:0] push_n = 0;
     wire         log_phase = (push_n >= RAM_MIRROR_DATA);
     wire         log_push  = log_phase && !snap_full && (push_n < RAM_MIRROR_BODY);
     wire         fifo_push = log_phase ? log_push : snap_push;
     wire [7:0]   fifo_wdat = log_phase ? log_byte : snap_byte;
     always_ff @(posedge clk_core) begin
         if (snap_run_rise) begin
-            push_n   <= 13'd0;
-        end else if (fifo_push && !snap_full) push_n <= push_n + 13'd1;
+            push_n   <= 16'd0;
+        end else if (fifo_push && !snap_full) push_n <= push_n + 16'd1;
     end
 
     snap_log #(.DEPTH(512)) snap_log_i (
         .clk(clk_core), .harv_busy(snap_harv),
-        .ram_we(dbg_ram_we), .ram_addr(dbg_ram_addr), .ram_data(dbg_ram_data),
+        .ram_we(log_we), .ram_addr(log_addr), .ram_data(log_data),
         .send_start(snap_run_rise), .send_pop(log_push), .send_byte(log_byte),
         .count(log_count), .overflow(log_ovf)
     );
@@ -889,8 +812,8 @@ module galaga_hdmi_top #(
     // Checksum over the delivered payload bytes, formed AT THE SOURCE: here stands exactly
     // what the core put into the FIFO. The Pico computes the same over what arrives at its
     // end and compares. Header and footer only bracket the transfer and say nothing about
-    // the 6656 bytes in between (5120 payload + 1536 oracle log); this sum checks every
-    // single one.
+    // the bytes in between (for Galaga 6656: 5120 payload + 1536 oracle log); this sum
+    // checks every single one.
     // It thereby catches a byte delivered twice as well, and more reliably than the
     // underrun bit: it needs no assumption about WHEN something could go wrong.
     // Rotate left before combining, otherwise the order would not matter and a byte
@@ -921,29 +844,9 @@ module galaga_hdmi_top #(
         .pico_verdict(ram_verdict), .transfers()
     );
 
-    // RAMDIAG: the measurement block shares the result bar with the SDRAM diagnostic
-    // blocks above, only one of them is ever built.
-    logic        rd_on;
-    logic [23:0] rd_col;
-    logic [5:0]  rd_led;
-    generate
-    if (RAMDIAG) begin : g_ramdiag
-        ram_diag diag_i (
-            .clk_core(clk_core), .ram_we(dbg_ram_we), .ram_addr(dbg_ram_addr),
-            .ram_data(dbg_ram_data), .vcnt(dbg_vcnt),
-            .spi_count(ram_last_count), .spi_us(ram_last_us), .spi_verdict(ram_verdict),
-            .rc_calc_us(ram_us),
-            .catchup_peak_and_ach({snap_catchup_peak[7:0], ram_last}),
-            .rc_loaded_and_fired(ram_rc),
-            .clk_pixel(clk_pixel), .cx(cx), .cy(cy),
-            .bar_on(rd_on), .bar_color(rd_col), .leds(rd_led)
-        );
-    end else begin : g_no_ramdiag
-        assign rd_on = 1'b0; assign rd_col = 24'h000000; assign rd_led = 6'd0;
-    end
-    endgenerate
-
-    // The result bar lies on top of everything, above OSD and input test bar.
+    // The result bar of the RAMDIAG build (rd_*, from the game) shares the place with the
+    // SDRAM diagnostic blocks above, only one of them is ever built. It lies on top of
+    // everything, above OSD and input test bar.
     logic [23:0] rgb_hdmi;
     assign rgb_hdmi = rd_on ? rd_col : (st_on ? st_col : rgb_dbg);
 
@@ -953,7 +856,7 @@ module galaga_hdmi_top #(
         .VIDEO_ID_CODE(4), .DVI_OUTPUT(0), .VIDEO_REFRESH_RATE(60), .IT_CONTENT(1),
         .AUDIO_RATE(48000), .AUDIO_BIT_WIDTH(16), .START_X(0), .START_Y(0),
         .FRAME_W(1584), .FRAME_H(768), .SYNC_X(0), .SYNC_Y(20),
-        .VENDOR_NAME({"game20k", 8'd0}), .PRODUCT_DESCRIPTION({"Galaga", 80'd0})
+        .VENDOR_NAME({"game20k", 8'd0}), .PRODUCT_DESCRIPTION(PRODUCT_DESCRIPTION)
     ) hdmi_i (
         .clk_pixel_x5     (clk_x5),
         .clk_pixel        (clk_pixel),
@@ -979,23 +882,21 @@ module galaga_hdmi_top #(
     );
 
     // ---------------- Sigma-delta audio on the pins of the original port ----------------
-    // Computed unipolar, independent of the HDMI path: silence is duty cycle 0 at EVERY
-    // volume. Not aud_g[15:6] ^ 10'h200: that flips the sign bit of the HDMI word back to
-    // offset binary and inherits its idle level, which depends on the volume: at silence a
-    // duty cycle of up to 50 percent, i.e. up to 1.65 V DC and a 9.28 MHz square wave with
-    // full swing on pin 77.
+    // Unipolar from the positive half of the sample: silence is duty cycle 0 at EVERY
+    // volume, a negative sample counts as silence. Not aud_g[15:6] ^ 10'h200: that flips
+    // the sign bit of the HDMI word back to offset binary and inherits its idle level,
+    // which depends on the volume: at silence a duty cycle of up to 50 percent, i.e. up to
+    // 1.65 V DC and a 9.28 MHz square wave with full swing on pin 77.
     //
-    // Deriving it from aud_s would be possible but would cost half the amplitude (silence
-    // sits at the lower edge there, so only half the range is left). Hence the separate
-    // computation: 817/1024 = 79.8 percent duty cycle at full scale instead of 49.8.
-    // 1023*16 = 16368 < 2^14, no overflow.
+    // For a unipolar core (Galaga: 0..32767 after its scale) this is 49.8 percent duty
+    // cycle at full scale, and the loudest peaks, which the game clips at 32767 for HDMI,
+    // clip here too. A bipolar core loses its negative half on this pin; the pin is the
+    // legacy analogue output, HDMI carries the full signal.
     //
     // Touchstone on the device: multimeter on pin 77 against ground, game idle.
     // 0.00 V means correct, 1.65 V means offset binary has crept back in.
-    logic [13:0] aud_u_mul;
-    always_ff @(posedge clk_core) aud_u_mul <= audio * gain;   // /16 follows below
     logic [10:0] sd_acc = 0;
-    always_ff @(posedge clk_core) sd_acc <= {1'b0, sd_acc[9:0]} + {1'b0, aud_u_mul[13:4]};
+    always_ff @(posedge clk_core) sd_acc <= {1'b0, sd_acc[9:0]} + {1'b0, aud_g[15] ? 10'd0 : aud_g[15:6]};
     assign pwm_audio_l = sd_acc[10];
     
     // ---------------- LEDs (active low) ----------------

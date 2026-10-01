@@ -8,9 +8,9 @@ from a fresh initial commit, so its history carries nothing from before publicat
 
 Two components force the licence of the whole, independently of each other:
 
-1. `fpga/galaga_hdmi/src/sdram_fb.v` is a derivative of `src/sdram_nes.v` from
+1. `fpga/common/src/sdram_fb.v` is a derivative of `src/sdram_nes.v` from
    [NESTang](https://github.com/nand2mario/nestang), GPL-3.0.
-2. `sd_rw.v` and `sdcmd_ctrl.v` in `fpga/galaga_hdmi/src/misc/`, taken from Nanomig and built
+2. `sd_rw.v` and `sdcmd_ctrl.v` in `fpga/common/src/misc/`, taken from Nanomig and built
    into the bitstream, go back to
    [WangXuan95/FPGA-SDcard-Reader](https://github.com/WangXuan95/FPGA-SDcard-Reader), GPL-3.0.
    Nanomig ships them without the licence text. Under GPL-3.0 section 10 every recipient is
@@ -21,7 +21,7 @@ GPL-3.0 has no "or later" unless the source grants it, hence GPL-3.0-only. Our o
 carry `SPDX-License-Identifier: GPL-3.0-only` and `Copyright (C) 2026 scullymi`. Where one of
 them contains no code from others, it can be made available under another licence on request,
 file by file. Three files are the exception: `rtl_dar/gen_ram_dist.vhd`, `rtl_dar/prom_ram.vhd`
-and `misc/sysctrl_galaga.v` combine our code with lines from `gen_ram.vhd` and `sysctrl.v` that
+and `misc/sysctrl.v` combine our code with lines from `gen_ram.vhd` and `sysctrl.v` that
 carry no licence. They name our copyright for our parts and carry no SPDX tag. The files we add
 to the FPGA-Companion fork (`src/ra_*.c`, `src/ra_*.h` and
 `src/rp2040/game20k_mbedtls_config.h`) are Apache-2.0 like the Companion, so they can go
@@ -40,10 +40,10 @@ authors' terms, as with every other port of these cores.
 | [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga), `rtl_dar/` at `e06ba91` | [`fpga/galaga_hdmi/src/rtl_dar/`](fpga/galaga_hdmi/src/rtl_dar/README.md): `galaga.vhd`, `mb88.vhd`, `gen_video.vhd`, `sound_machine.vhd`, `stars.vhd`, `stars_machine.vhd` | Dar (darfpga@aol.fr) | none granted. `galaga.vhd` and `mb88.vhd` say "Educational use only, do not redistribute synthetized file with roms, do not redistribute roms whatever the form". The others carry no licence text | ROMs loaded at run time instead of built in (the two sound ROMs too), RAM mirror for the achievements, DIP switches as ports, resets, a Gowin timing fix, and the 51XX leaves credit mode only when a credit is consumed |
 | same repository, `rtl_dar/` | `gen_ram.vhd` in the same folder | Peter Wendrich (pwsoft@syntiac.com), modified by Dar | copyright notice, no licence text | one line. Our `gen_ram_dist.vhd` and `prom_ram.vhd` are derived from it |
 | same repository, `rtl_T80/` | [`fpga/galaga_hdmi/src/rtl_T80/`](fpga/galaga_hdmi/src/rtl_T80/README.md): `T80.vhd`, `T80_ALU.vhd`, `T80_MCode.vhd`, `T80_Pack.vhd`, `T80_Reg.vhd`, `T80se.vhd` (Z80 core) | Daniel Wallner | BSD-like, three conditions, in every header. Redistribution in synthesized form must reproduce the notice in the accompanying documentation | none |
-| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/galaga_hdmi/src/misc/`](fpga/galaga_hdmi/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, and `sysctrl_galaga.v` derived from `sysctrl.v` | Till Harbaum | no licence file, no licence header | extra joystick byte, SPI target 5, OSD rotated by 90 degrees, `sysctrl_galaga.v` reduced to what Galaga needs |
+| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/common/src/misc/`](fpga/common/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, and `sysctrl.v` derived from Till's `sysctrl.v` | Till Harbaum | no licence file, no licence header | extra joystick byte, SPI target 5, OSD rotated by 90 degrees, `sysctrl.v` reduced to what game20k needs, with a value strobe for the game |
 | [MiSTle-Dev/Nanomig](https://github.com/MiSTle-Dev/Nanomig), `src/misc/` at `df97f03` | same folder: `sd_card.v`, `sd_rw.v`, `sdcmd_ctrl.v` | Till Harbaum, the latter two from WangXuan95 | no licence file, `sd_rw.v` and `sdcmd_ctrl.v` GPL-3.0 by origin | `sd_rw.v` retries CMD24 |
-| [hdl-util/hdmi](https://github.com/hdl-util/hdmi) at `08936f6` | `fpga/galaga_hdmi/src/hdmi/*.sv` (10) | Sameer Puri | MIT OR Apache-2.0, upstream `LICENSE-MIT` and `LICENSE-APACHE`, used here under MIT, notice in [`src/hdmi/LICENSE`](fpga/galaga_hdmi/src/hdmi/LICENSE) | six files identical to upstream, `hdmi.sv`, `packet_assembler.sv` and `tmds_channel.sv` with changes marked `game20k:`, `serializer.sv` in NESTang's version, which adds the line `` `define GW_IDE `` that hdl-util prescribes for the Gowin toolchain |
-| [NESTang](https://github.com/nand2mario/nestang) | `fpga/galaga_hdmi/src/sdram_fb.v` | nand2mario | GPL-3.0 | derivative, carries both copyright notices |
+| [hdl-util/hdmi](https://github.com/hdl-util/hdmi) at `08936f6` | `fpga/common/src/hdmi/*.sv` (10) | Sameer Puri | MIT OR Apache-2.0, upstream `LICENSE-MIT` and `LICENSE-APACHE`, used here under MIT, notice in [`src/hdmi/LICENSE`](fpga/common/src/hdmi/LICENSE) | six files identical to upstream, `hdmi.sv`, `packet_assembler.sv` and `tmds_channel.sv` with changes marked `game20k:`, `serializer.sv` in NESTang's version, which adds the line `` `define GW_IDE `` that hdl-util prescribes for the Gowin toolchain |
+| [NESTang](https://github.com/nand2mario/nestang) | `fpga/common/src/sdram_fb.v` | nand2mario | GPL-3.0 | derivative, carries both copyright notices |
 | [Fritzing](https://fritzing.org) part graphics | [`docs/wiring_pico.svg`](docs/wiring_pico.svg), the breadboard export of the wiring sketch | Fritzing (the two breadboards). The Pico 2 W is Raspberry Pi's Pico W part by Alasdair Allan and Jack Wills, released with the design files "for any purpose, with or without fee", adapted for the Pico 2 W by vanepp on the Fritzing forum in February 2025 without a licence statement | Fritzing's graphics are CC BY-SA 3.0 Unported, and its `LICENSE.txt` asks that diagrams made with them credit Fritzing and carry the same licence, so the drawing is CC BY-SA 3.0 | the Tang Nano 20K part and the wires are ours |
 
 ## Submodules for the firmware build
@@ -123,8 +123,8 @@ script checks that the toolchain in use links that version.
   Services, published at [pki.goog](https://pki.goog/repository/) for inclusion in trust
   stores. Its fingerprint is documented in the file. A root certificate is functional data, not
   a work.
-- The 5x7 pixel font in `fpga/galaga_hdmi/src/ra_overlay.sv` (41 characters) is our own.
+- The 5x7 pixel font in `fpga/common/src/ra_overlay.sv` (41 characters) is our own.
 - The ten hdl-util files carry only the author's name. The MIT notice for them is in
-  [fpga/galaga_hdmi/src/hdmi/LICENSE](fpga/galaga_hdmi/src/hdmi/LICENSE).
+  [fpga/common/src/hdmi/LICENSE](fpga/common/src/hdmi/LICENSE).
 - An explicit licence statement is missing from Dar and from Peter Wendrich. Till Harbaum was
   asked in an issue in MiSTeryNano whether GPL-3.0-or-later is acceptable for his files.

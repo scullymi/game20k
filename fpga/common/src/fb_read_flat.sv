@@ -8,8 +8,8 @@
 //! Only built for FBSHOW=1. The production read path is fb_read_rotated.sv.
 //!
 //! This module builds only the UNROTATED path: the picture comes from the SDRAM instead of
-//! galaga_scaler.sv, but looks exactly the same (288 x 224 tripled to 864 x 672, X0 208,
-//! Y0 24). It proves the whole path with the simple address pattern independently of the
+//! arcade_scaler.sv, but looks exactly the same (288 x 224 tripled to 864 x 672, X0 208,
+//! Y0 24, for Galaga and Pac-Man; W x H in the code). It proves the whole path with the simple address pattern independently of the
 //! rotation: a fault that fb_read_rotated.sv shows and this path does not is in the rotation.
 //!
 //! Structure
@@ -46,7 +46,9 @@
 //! -----------------------------------------------------------------------------------------
 
 module fb_read_flat #(
-    parameter int X0 = 208,              //!< as galaga_scaler
+    parameter int W  = 288,              //!< visible width of the core raster
+    parameter int H  = 224,              //!< visible height of the core raster
+    parameter int X0 = 208,              //!< as arcade_scaler
     parameter int Y0 = 24
 )(
     //! ---- SDRAM side ----
@@ -143,10 +145,10 @@ module fb_read_flat #(
                 if (row3 == 2'd2) begin
                     row3 <= 2'd0;
                     ys   <= ys + 8'd1;
-                    if (ys == 8'd223) act_y <= 1'b0;
+                    if (ys == 8'(H - 1)) act_y <= 1'b0;
                     // While row ys+1 is shown, ys+2 goes into the half being freed.
                     // (ys+2)[0] is the opposite of (ys+1)[0].
-                    else if (ys + 8'd2 <= 8'd223) begin
+                    else if (ys + 8'd2 <= 8'(H - 1)) begin
                         req_line <= ys + 8'd2;
                         req_buf  <= rbuf_p;
                         req_tgl  <= ~req_tgl;
@@ -164,7 +166,7 @@ module fb_read_flat #(
             if (xph == 2'd2) begin
                 xph <= 2'd0;
                 xs  <= xs + 9'd1;
-                if (xs == 9'd287) act_x <= 1'b0;
+                if (xs == 9'(W - 1)) act_x <= 1'b0;
             end else
                 xph <= xph + 2'd1;
         end
@@ -229,7 +231,7 @@ module fb_read_flat #(
             // The restart branch above and the work branch below are in the same block;
             // without this guard the lower one wins and overwrites the reset.
             if (busy && (req_s[2] == req_d)) begin
-                if (!pend && s_xw != 7'd72) begin
+                if (!pend && s_xw != 7'(W / 4)) begin
                     rd_req <= ~rd_req;
                     pend   <= 1'b1;
                 end else if (pend && (rd_req == rd_ack)) begin
@@ -252,7 +254,7 @@ module fb_read_flat #(
                     if (g_b == 2'd3) begin
                         g_b  <= 2'd0;
                         g_xw <= g_xw + 7'd1;
-                        if (g_xw == 7'd71) busy <= 1'b0;   // row complete
+                        if (g_xw == 7'(W / 4 - 1)) busy <= 1'b0;   // row complete
                     end else
                         g_b <= g_b + 2'd1;
                 end else begin

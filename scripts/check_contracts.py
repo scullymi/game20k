@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(DEFAULT_ROOT, "scripts"))
 import make_rom  # noqa: E402  the manifest reader, one parser for every user of the format
 
 # the files the contracts read, relative to the game20k root ("root") or the fork ("fork")
-F_PKG = ("root", "fpga/galaga_hdmi/src/mcu/ram_mirror_pkg.sv")
+F_PKG = ("root", "fpga/common/src/mcu/ram_mirror_pkg.sv")
 F_MAIN = ("fork", "src/main.c")
 F_RAPATCH = ("fork", "src/ra_patch.c")
 

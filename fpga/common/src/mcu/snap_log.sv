@@ -19,8 +19,8 @@
 //! half of them. With catch-up it must be exactly zero. Addresses outside the window need
 //! no check: nothing can have changed at them between copy and snapshot.
 //!
-//! The oracle feeds on the write enables of the GAME (dbg_ram_we) and knows nothing of the
-//! catch-up FIFO. It does not measure whether the catch-up does what it should, but whether
+//! The oracle feeds on the write enables of the GAME, brought out by the game wrapper as a
+//! flat address in the RAM mirror, and knows nothing of the catch-up FIFO. It does not measure whether the catch-up does what it should, but whether
 //! the result is right - no circular reasoning.
 //!
 //! Writing and reading never collide: no harvest can begin during a transfer, and during a
@@ -32,9 +32,10 @@ module snap_log #(
 )(
     input  wire         clk,              //!< clk_core
     input  wire         harv_busy,
-    //! Write accesses of the game, as galaga.vhd brings them out
-    input  wire  [3:0]  ram_we,           //!< bgram, wram1, wram2, wram3
-    input  wire  [10:0] ram_addr,
+    //! Write accesses of the game: one clock of ram_we per byte written, with the address
+    //! as the position in the RAM mirror (the game wrapper flattens its RAMs), and the byte
+    input  wire         ram_we,
+    input  wire  [15:0] ram_addr,
     input  wire  [7:0]  ram_data,
     //! Delivery: one byte per call, into the same look-ahead FIFO as the payload
     input  wire         send_start,
@@ -51,18 +52,10 @@ module snap_log #(
     logic overflow_r = 1'b0;
     assign overflow = overflow_r;
 
-    // The flat address is the position in the stream: bgram 0..2047, then wram1, wram2,
-    // wram3 at 1024 each. This is exactly how the snapshot lies on the Pico and exactly how
-    // rcheevos computes.
-    wire [12:0] flat = ram_we[3] ? {2'b00, ram_addr[10:0]}
-                     : ram_we[2] ? (13'd2048 + {3'd0, ram_addr[9:0]})
-                     : ram_we[1] ? (13'd3072 + {3'd0, ram_addr[9:0]})
-                     :             (13'd4096 + {3'd0, ram_addr[9:0]});
-
     // One write port, one read port, one clock: synthesis turns this into a BSRAM block.
-    // As a register array it would be 10752 flip-flops - the board has them, the CLS
-    // utilisation does not.
-    logic [20:0] mem [0:DEPTH-1];
+    // As a register array it would be 12288 flip-flops - the board has them, the CLS
+    // utilisation does not. 512 x 24 still fits one block.
+    logic [23:0] mem [0:DEPTH-1];
 
     logic [AW:0] wp = 0;                  // one bit wider so DEPTH itself is representable
     logic        harv_d = 0;
@@ -72,24 +65,24 @@ module snap_log #(
         if (harv_busy && !harv_d) begin   // new harvest: window starts over
             wp       <= '0;
             overflow_r <= 1'b0;
-        end else if (harv_busy && |ram_we) begin
+        end else if (harv_busy && ram_we) begin
             if (wp[AW]) overflow_r <= 1'b1;
             else begin
-                mem[wp[AW-1:0]] <= {ram_data, flat};
+                mem[wp[AW-1:0]] <= {ram_data, ram_addr};
                 wp <= wp + 1'b1;
             end
         end
     end
     assign count = wp;
 
-    // ---- Delivery: three bytes per entry ----
+    // ---- Delivery: three bytes per entry: address low, address high, the written byte ----
     // The read uses the NEXT entry number, not the current one. Otherwise the old entry
     // would still be present at the transition from byte 3 to byte 1: the memory outputs
     // only one clock after the address, and three bytes can be fetched in three consecutive
     // clocks when the FIFO is empty.
     logic [AW:0] ep = 0;
     logic [1:0]  bsel = 0;
-    logic [20:0] q;
+    logic [23:0] q;
 
     wire [AW:0] ep_n = send_start                     ? '0
                      : (send_pop && bsel == 2'd2)     ? ep + 1'b1
@@ -105,8 +98,8 @@ module snap_log #(
     always_comb begin
         case (bsel)
             2'd0:    send_byte = q[7:0];          // flat address, lower eight bits
-            2'd1:    send_byte = {3'd0, q[12:8]};
-            default: send_byte = q[20:13];        // the written byte
+            2'd1:    send_byte = q[15:8];
+            default: send_byte = q[23:16];        // the written byte
         endcase
     end
 endmodule

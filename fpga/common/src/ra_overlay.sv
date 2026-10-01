@@ -44,7 +44,16 @@
 //! The OSD is not suited for this: it draws a 512x256 box into the middle of the
 //! picture with a darkened background (osd_u8g2.v, active/sactive/tactive).
 //! During play that would be exactly the wrong place.
-module ra_overlay (
+module ra_overlay #(
+    //! Banner position in portrait 2x: top left corner of the text, the text runs along x.
+    //! Galaga: 52 px below the picture at x 416..864, y 72..648.
+    parameter int BX = 448,
+    parameter int BY = 700,
+    //! Banner position in landscape 3x: the text field spans x RX..RX+14 and y RY..RY+384.
+    //! Galaga: in the band right of the picture at x 208..1072, y 24..696.
+    parameter int RX = 1124,
+    parameter int RY = 168
+)(
     input  wire         clk,          //!< clk_pixel
     input  wire  [10:0] cx,
     input  wire  [9:0]  cy,
@@ -70,8 +79,6 @@ module ra_overlay (
     // Portrait: the text starts at (BX, BY), its top left corner, and runs along x.
     // Landscape: the text field spans x RX..RX+14 and y RY..RY+384, and the text runs
     // along y from the bottom up.
-    localparam int BX = 448,  BY = 700;
-    localparam int RX = 1124, RY = 168;
 
     // ---- Pipeline. Four register stages from the raster position to the output:
     // ---- (1) position inside the banner, (2) character, (3) glyph row, (4) pixel and

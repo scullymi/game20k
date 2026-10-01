@@ -2,15 +2,19 @@
 // Copyright (C) 2026 scullymi
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a silent
                        // one-bit net.
-//! @file galaga_scaler.sv
-//! @brief Galaga raster (288x224 visible, 6.1875 MHz pixel, 384x264 total) -> 720p, 3x scaled.
+//! @file arcade_scaler.sv
+//! @brief Arcade raster (W x H visible, 3 core clocks per pixel) -> 720p, 3x scaled.
 //!
-//! Line ring buffer of 16 lines; core frame and HDMI frame are locked exactly through the PLL
-//! (1 core frame = 304128 core pixel clocks * 4 = 1584 * 768 HDMI clocks).
+//! Line ring buffer of 16 lines; core frame and HDMI frame are locked exactly through the PLL.
+//! For the 384 x 264 raster of Galaga and Pac-Man (288 x 224 visible, 6.1875 MHz pixel):
+//! 1 core frame = 304128 core pixel clocks * 4 = 1584 * 768 HDMI clocks.
 //! The picture lies "on its side" like the original raster. Portrait mode uses fb_read_rotated.
-module galaga_scaler #(
-    parameter int X0 = 208,   //!< left picture edge in the 720p raster, (1280-864)/2
-    parameter int Y0 = 24     //!< top picture edge, (720-672)/2
+//! W up to 512 (one ring buffer line), H up to 256.
+module arcade_scaler #(
+    parameter int W  = 288,   //!< visible width of the core raster
+    parameter int H  = 224,   //!< visible height of the core raster
+    parameter int X0 = 208,   //!< left picture edge in the 720p raster, (1280 - 3W) / 2
+    parameter int Y0 = 24     //!< top picture edge, (720 - 3H) / 2
 )(
     //! Core side
     input  wire         clk_core,
@@ -59,7 +63,7 @@ module galaga_scaler #(
                 wr_x <= wr_x + 9'd1;
             end else
                 ph <= ph + 2'd1;
-            if (ph == 2'd1 && wr_x < 9'd288) begin
+            if (ph == 2'd1 && wr_x < 9'(W)) begin
                 we    <= 1'b1;
                 waddr <= {wr_line[3:0], wr_x};
                 wdata <= {r_in, g_in, b_in};
@@ -101,7 +105,7 @@ module galaga_scaler #(
                 if (row3 == 2'd2) begin
                     row3    <= 2'd0;
                     rd_line <= rd_line + 8'd1;
-                    if (rd_line == 8'd223) act_y <= 1'b0;
+                    if (rd_line == 8'(H - 1)) act_y <= 1'b0;
                 end else
                     row3 <= row3 + 2'd1;
             end
@@ -115,7 +119,7 @@ module galaga_scaler #(
             if (xph == 2'd2) begin
                 xph  <= 2'd0;
                 rd_x <= rd_x + 9'd1;
-                if (rd_x == 9'd287) act_x <= 1'b0;
+                if (rd_x == 9'(W - 1)) act_x <= 1'b0;
             end else
                 xph <= xph + 2'd1;
         end

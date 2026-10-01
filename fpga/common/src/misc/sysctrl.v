@@ -1,14 +1,14 @@
-//! @file sysctrl_galaga.v
-//! @brief System control for the FPGA Companion (SPI target 0), Galaga variant.
+//! @file sysctrl.v
+//! @brief System control for the FPGA Companion (SPI target 0), game20k variant.
 //!
 //! DERIVED from MiSTeryNano src/misc/sysctrl.v (Till Harbaum, MiSTle-Dev), reduced to what
-//! Galaga needs. About 60 lines are Till's, taken over verbatim from the 333-line sysctrl.v:
+//! game20k needs. About 60 lines are Till's, taken over verbatim from the 333-line sysctrl.v:
 //! the SPI command state machine with its magic constants, because the Companion expects
-//! exactly this protocol. The rest (menu ROM, DIP switches, screen mode) is ours,
+//! exactly this protocol. The rest (menu ROM, generic settings, the value strobe) is ours,
 //! Copyright (C) 2026 scullymi. No SPDX tag, because the file mixes our lines with Till's,
 //! which carry no licence. MiSTeryNano has no licence file and no header, see THIRD-PARTY.md.
 //! The README in this folder names the upstream commit of sysctrl.v.
-module sysctrl_galaga (
+module sysctrl (
   input             clk,
   input             reset,
 
@@ -27,13 +27,8 @@ module sysctrl_galaga (
   output reg [1:0]  leds,
   output reg [23:0] color,
 
-  //! values the user can set in the OSD
+  //! values the user can set in the OSD, the ones the platform itself uses
   output reg [1:0]  system_reset,     //!< 1/3 = reset active
-  output reg [1:0]  system_lives,     //!< DSW B bits 7:6
-  output reg [2:0]  system_bonus,     //!< DSW B bits 5:3
-  output reg [2:0]  system_coinage,   //!< DSW B bits 2:0
-  output reg [1:0]  system_difficulty,//!< DSW A bits 1:0
-  output reg        system_demosound, //!< DSW A bit 3
   output reg [1:0]  system_scanlines,
   //! game20k: volume, input test, key mapping (0 = none or all, 1..12 = HID key)
   output reg [2:0]  system_volume,
@@ -44,7 +39,13 @@ module sysctrl_galaga (
   output reg [3:0]  system_start2_btn,
   output reg [3:0]  system_voldn_btn,
   output reg [3:0]  system_volup_btn,
-  output reg [1:0]  system_screen      //!< 0 = landscape (scaler), 1 = portrait 2x (SDRAM)
+  output reg [1:0]  system_screen,     //!< 0 = landscape (scaler), 1 = portrait 2x (SDRAM)
+  //! game20k: every value the Companion sets (CMD 4) also goes out as one clock of
+  //! cfg_we with its id and value. The game wrapper takes the ids it knows (its DIP
+  //! switches) from there, so this module needs to know nothing about the game.
+  output reg        cfg_we,
+  output reg [7:0]  cfg_id,
+  output reg [7:0]  cfg_val
 );
 
 reg [3:0] state;
@@ -77,11 +78,6 @@ always @(posedge clk) begin
       coldboot = 1'b1;
       sys_int = 1'b1;
       system_reset <= 2'd0;
-      system_lives <= 2'd2;        // 3 lives (MAME: 0x80 -> bits 7:6 = 10)
-      system_bonus <= 3'd2;
-      system_coinage <= 3'd7;      // 1 coin / 1 play
-      system_difficulty <= 2'd0;   // medium
-      system_demosound <= 1'b1;    // 1 = on; inverted in the top level onto DSW A bit 3
       system_scanlines <= 2'd0;
       system_volume <= 3'd6;        // gain 12/16
       system_inputtest <= 1'b0;
@@ -92,10 +88,12 @@ always @(posedge clk) begin
       system_voldn_btn <= 4'd0;
       system_volup_btn <= 4'd0;
       system_screen <= 2'd0;      // landscape by default, until the user switches
+      cfg_we <= 1'b0;
    end else begin
       buttonsD <= buttons;
       buttonsD2 <= buttonsD;
       int_ack <= 8'h00;
+      cfg_we <= 1'b0;
 
       if(int_ack[0]) sys_int <= 1'b0;
 
@@ -140,12 +138,11 @@ always @(posedge clk) begin
             if(command == 8'd4) begin
                 if(state == 4'd0) id <= data_in;
                 if(state == 4'd1) begin
+                    // game20k: the game wrapper sees every value, whatever its id
+                    cfg_we  <= 1'b1;
+                    cfg_id  <= id;
+                    cfg_val <= data_in;
                     if(id == "R") system_reset      <= data_in[1:0];
-                    if(id == "L") system_lives      <= data_in[1:0];
-                    if(id == "B") system_bonus      <= data_in[2:0];
-                    if(id == "C") system_coinage    <= data_in[2:0];
-                    if(id == "F") system_difficulty <= data_in[1:0];
-                    if(id == "M") system_demosound  <= data_in[0];
                     if(id == "S") system_scanlines  <= data_in[1:0];
                     if(id == "V") system_volume     <= data_in[2:0];
                     if(id == "T") system_inputtest  <= data_in[0];

@@ -153,16 +153,17 @@ submodules under `external/`, about 2 GB with git's object stores:
 Git records which commits are in use, and `git submodule status --recursive` lists them. A
 clone without `--recursive` works too, the build script fetches the submodules itself.
 
-**Third-party HDL** sits in `fpga/galaga_hdmi/src/` with its original headers. `rtl_dar/`,
-`rtl_T80/` and `misc/` each have a README that names the upstream commit and our changes,
-`hdmi/` has its MIT notice, which names the changed files:
+**Third-party HDL** sits under `fpga/` with its original headers: the game cores in the game
+folder (`fpga/galaga_hdmi/src/`), the board files in `fpga/common/src/`. `rtl_dar/`, `rtl_T80/`
+and `misc/` each have a README that names the upstream commit and our changes, `hdmi/` has its
+MIT notice, which names the changed files:
 
 | Folder | From | Our changes |
 |---|---|---|
 | [`rtl_dar/`](fpga/galaga_hdmi/src/rtl_dar/README.md) | Dar's Galaga core, via DECAfpga/Arcade_Galaga | ROMs from the SD card, DIP switches from the menu, RAM mirror for the achievements, Gowin fixes |
 | [`rtl_T80/`](fpga/galaga_hdmi/src/rtl_T80/README.md) | T80 Z80 core by Daniel Wallner | none |
-| [`misc/`](fpga/galaga_hdmi/src/misc/README.md) | MiSTeryNano and Nanomig by Till Harbaum | extra joystick byte, SPI target 5, rotated OSD, `sysctrl_galaga.v`, `sd_rw.v` retries `CMD24` |
-| [`hdmi/`](fpga/galaga_hdmi/src/hdmi/LICENSE) | hdl-util/hdmi by Sameer Puri, at `08936f6` | audio and timing changes marked `game20k:` |
+| [`misc/`](fpga/common/src/misc/README.md) | MiSTeryNano and Nanomig by Till Harbaum | extra joystick byte, SPI target 5, rotated OSD, `sysctrl.v`, `sd_rw.v` retries `CMD24` |
+| [`hdmi/`](fpga/common/src/hdmi/LICENSE) | hdl-util/hdmi by Sameer Puri, at `08936f6` | audio and timing changes marked `game20k:` |
 
 What comes from whom, under which licence, is listed in [THIRD-PARTY.md](THIRD-PARTY.md).
 
@@ -229,7 +230,7 @@ leaderboard entries are not kept.
 ### 4. FPGA: build and flash
 
 ```sh
-scripts/make_menu_hex.sh              # only after a change to galaga.xml
+scripts/make_menu_hex.sh              # only after a change to fpga/galaga_hdmi/menu.xml
 scripts/build_fpga.sh galaga_hdmi
 scripts/fpga_report.sh galaga_hdmi    # utilisation, clocks, violated endpoints
 scripts/flash_fpga.sh galaga_hdmi flash
@@ -352,8 +353,12 @@ Example: `RAMDIAG=1 scripts/build_fpga.sh galaga_hdmi`
 ## Layout
 
 ```
-fpga/galaga_hdmi/        our FPGA design: HDMI, scaler, SDRAM frame buffer, SPI, RAM mirror
-fpga/galaga_hdmi/src/rtl_dar/, rtl_T80/, misc/, hdmi/   third-party HDL, a README in the first three, a LICENSE in hdmi/
+fpga/common/             the platform, one for every game: top level, HDMI, scaler, SDRAM frame buffer,
+                         SPI, RAM mirror, pins and clocks of the board
+fpga/common/src/misc/, hdmi/   third-party HDL, a README in misc/, a LICENSE in hdmi/
+fpga/galaga_hdmi/        the game: Dar's core, its wrapper game_core.sv and game_pkg.sv, the menu,
+                         the ROM manifest
+fpga/galaga_hdmi/src/rtl_dar/, rtl_T80/   third-party HDL, a README in each
 external/                the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/                    your ROM zips, excluded from version control, only its README is tracked
 sdcard/                  what goes on the SD card, with the template for config.ini
@@ -377,7 +382,7 @@ risks of FTP and telnet.
 carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. Three files
 that mix our code with code nobody licensed carry our copyright for our parts and no SPDX tag:
 `gen_ram_dist.vhd` and `prom_ram.vhd` (from Peter Wendrich's `gen_ram.vhd`) and
-`sysctrl_galaga.v` (from Till Harbaum's `sysctrl.v`). The menu `galaga.xml`, which goes into the
+`sysctrl.v` (from Till Harbaum's `sysctrl.v`). The menu `menu.xml`, which goes into the
 bitstream byte for byte, carries no header. The wiring drawing `docs/wiring_pico.svg` is a Fritzing
 export and CC BY-SA 3.0 like Fritzing's breadboard graphics in it. Not ours: the ten HDMI files (MIT OR
 Apache-2.0, the notice in `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, a derivative of NESTang,
