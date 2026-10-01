@@ -385,10 +385,9 @@ risks of FTP and telnet.
 ## Licence
 
 **GPL-3.0-only** ([LICENSE](LICENSE)), Copyright (C) 2026 scullymi. Every own source file
-carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. Three files
-that mix our code with code nobody licensed carry our copyright for our parts and no SPDX tag:
-`gen_ram_dist.vhd` and `prom_ram.vhd` (from Peter Wendrich's `gen_ram.vhd`) and
-`sysctrl.v` (from Till Harbaum's `sysctrl.v`). The menu `menu.xml`, which goes into the
+carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. One file
+mixes our code with code that carries no licence and has our copyright for our parts and no
+SPDX tag: `sysctrl.v` (from Till Harbaum's `sysctrl.v`). The menu `menu.xml`, which goes into the
 bitstream byte for byte, carries no header. The wiring drawing `docs/wiring_pico.svg` is a Fritzing
 export and CC BY-SA 3.0 like Fritzing's breadboard graphics in it. Not ours: the ten HDMI files (MIT OR
 Apache-2.0, the notice in `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, a derivative of NESTang,

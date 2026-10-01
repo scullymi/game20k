@@ -1025,7 +1025,7 @@ begin
 end process;
 
 -- Shadow of the video RAM: own block, not bound to a slot, written only by the harvest process.
-bgram_shadow : entity work.gen_ram
+bgram_shadow : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18,
@@ -1493,7 +1493,7 @@ port map(
 );
 
 -- cs54xx program ROM
-cs54xx_prog : entity work.prom_ram
+cs54xx_prog : entity work.g20k_promram
 generic map(aWidth => 10)
 port map(
  clk     => clock_18n,
@@ -1506,7 +1506,7 @@ port map(
 );
 
 -- cpu1 program ROM
-rom_cpu1 : entity work.prom_ram
+rom_cpu1 : entity work.g20k_promram
 generic map(aWidth => 14)
 port map(
  clk     => clock_18n,
@@ -1519,7 +1519,7 @@ port map(
 );
 
 -- cpu2 program ROM
-rom_cpu2 : entity work.prom_ram
+rom_cpu2 : entity work.g20k_promram
 generic map(aWidth => 12)
 port map(
  clk     => clock_18n,
@@ -1532,7 +1532,7 @@ port map(
 );
 
 -- cpu3 program ROM
-rom_cpu3 : entity work.prom_ram
+rom_cpu3 : entity work.g20k_promram
 generic map(aWidth => 12)
 port map(
  clk     => clock_18n,
@@ -1544,7 +1544,7 @@ port map(
  wr_en   => rom_wr_en(2)
 );
 -- background graphics ROM
-bg_graphics : entity work.prom_ram
+bg_graphics : entity work.g20k_promram
 generic map(aWidth => 12)
 port map(
  clk     => clock_18,   -- game20k: rising edge, one clock read latency, see hcnt_bg_d
@@ -1557,7 +1557,7 @@ port map(
 );
 
 -- background palette ROM
-bg_palette : entity work.prom_ram
+bg_palette : entity work.g20k_promram
 generic map(aWidth => 8)
 port map(
  clk     => clock_18,
@@ -1570,7 +1570,7 @@ port map(
 );
 
 -- background char RAM   0x8000-0x87FF
-bgram : entity work.gen_ram_dist   -- game20k: distributed LUT RAM, asynchronous read
+bgram : entity work.g20k_lutram   -- game20k: distributed LUT RAM, asynchronous read
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
@@ -1580,7 +1580,7 @@ port map(
  q    => bgram_do
 );
 -- working/sprite register RAM1   0x8800-0x8BFF / 0x8C00-0x8FFF
-wram1 : entity work.gen_ram
+wram1 : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
@@ -1590,7 +1590,7 @@ port map(
  q    => wram1_do
 );
 -- working/sprite register RAM2   0x9000-0x93FF / 0x9400-0x97FF
-wram2 : entity work.gen_ram
+wram2 : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
@@ -1600,7 +1600,7 @@ port map(
  q    => wram2_do
 );
 -- working/sprite register RAM3   0x9800-0x9BFF / 0x9C00-0x9FFF
-wram3 : entity work.gen_ram
+wram3 : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
@@ -1611,7 +1611,7 @@ port map(
 );
 
 -- sprite RAM1
-spram1 : entity work.gen_ram
+spram1 : entity work.g20k_spram
 generic map( dWidth => 4, aWidth => 9)
 port map(
  clk  => clock_18,
@@ -1622,7 +1622,7 @@ port map(
 );
 
 -- sprite RAM2
-spram2 : entity work.gen_ram
+spram2 : entity work.g20k_spram
 generic map( dWidth => 4, aWidth => 9)
 port map(
  clk  => clock_18,
@@ -1633,7 +1633,7 @@ port map(
 );
 
 -- sprite graphics ROM
-sp_graphics : entity work.prom_ram
+sp_graphics : entity work.g20k_promram
 generic map(aWidth => 13)
 port map(
  clk     => clock_18n,
@@ -1646,7 +1646,7 @@ port map(
 );
 
 -- sprite palette ROM
-sp_palette : entity work.prom_ram
+sp_palette : entity work.g20k_promram
 generic map(aWidth => 8)
 port map(
  clk     => clock_18,
@@ -1659,7 +1659,7 @@ port map(
 );
 
 -- RGB palette ROM
-rgb_palette : entity work.prom_ram
+rgb_palette : entity work.g20k_promram
 generic map(aWidth => 5)
 port map(
  clk     => clock_18,

@@ -1,10 +1,11 @@
 # Dar's Galaga core
 
-Seven files copied from [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga)
-at commit `e06ba91d713702f8cde229ace2eacd7ad0f89855`, folder `rtl_dar/`: six by Dar
-(darfpga@aol.fr) and `gen_ram.vhd` by Peter Wendrich, modified by Dar. Two further files of
-ours, `gen_ram_dist.vhd` and `prom_ram.vhd`, are derived from `gen_ram.vhd`. The files keep
-their original headers. `galaga.vhd` and `mb88.vhd` carry Dar's condition:
+Six files by Dar (darfpga@aol.fr), copied from
+[DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga) at commit
+`e06ba91d713702f8cde229ace2eacd7ad0f89855`, folder `rtl_dar/`. The core's RAMs and the ROMs it
+loads at run time are our own files in `src/` (`g20k_spram.vhd`, `g20k_lutram.vhd`,
+`g20k_promram.vhd`). The files keep their original headers. `galaga.vhd` and `mb88.vhd` carry
+Dar's condition:
 
 ```
 -- Educational use only
@@ -24,8 +25,6 @@ time.
 | `gen_video.vhd` | Dar | yes, a reset input |
 | `sound_machine.vhd` | Dar | yes, the load side of the two sound ROMs |
 | `stars.vhd`, `stars_machine.vhd` | Dar | no |
-| `gen_ram.vhd` | Peter Wendrich, Dar | yes, a defined initial value |
-| `gen_ram_dist.vhd`, `prom_ram.vhd` | game20k, derived from `gen_ram.vhd` | new files, not upstream |
 
 Some changes are marked `game20k` in the text, not all. The complete record is the diff against
 the upstream commit:
@@ -46,12 +45,14 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
   data of the character ROM, clocked on the falling edge, one clock later than the original
   expects. **This is Gowin specific and wrong on Altera or Xilinx.**
 - The slot counter starts from reset in a defined phase, so the core runs reproducibly.
-- `gen_video.vhd` gets a reset input, `gen_ram.vhd` a defined initial value.
+- `gen_video.vhd` gets a reset input.
+- The RAMs are our own `entity work.g20k_spram`: synchronous, read-first, zero at start.
 
 **ROMs from the SD card instead of the bitstream**
 
-- All eleven fixed PROM entities are replaced by `entity work.prom_ram`, loaded at run time:
-  nine in `galaga.vhd`, the two sound ROMs in `sound_machine.vhd`. New file `prom_ram.vhd`.
+- All eleven fixed PROM entities are replaced by `entity work.g20k_promram`, loaded at run
+  time: nine in `galaga.vhd`, the two sound ROMs in `sound_machine.vhd`. Our file
+  `src/g20k_promram.vhd`.
 
 **RAM mirror for RetroAchievements**
 
@@ -59,7 +60,8 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
   delivery of a consistent snapshot of 5120 bytes per frame.
 - Diagnostic outputs `dbg_*` for the diagnostic build.
 - The three work RAMs are widened to 2048 bytes. The upper half is the shadow.
-- New file `gen_ram_dist.vhd`, a RAM with asynchronous read.
+- The background character RAM is `entity work.g20k_lutram`, our file with an asynchronous
+  read.
 
 **Coin and start**
 

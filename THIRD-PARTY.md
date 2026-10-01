@@ -20,9 +20,9 @@ Two components force the licence of the whole, independently of each other:
 GPL-3.0 has no "or later" unless the source grants it, hence GPL-3.0-only. Our own source files
 carry `SPDX-License-Identifier: GPL-3.0-only` and `Copyright (C) 2026 scullymi`. Where one of
 them contains no code from others, it can be made available under another licence on request,
-file by file. Three files are the exception: `rtl_dar/gen_ram_dist.vhd`, `rtl_dar/prom_ram.vhd`
-and `misc/sysctrl.v` combine our code with lines from `gen_ram.vhd` and `sysctrl.v` that
-carry no licence. They name our copyright for our parts and carry no SPDX tag. The files we add
+file by file. One file is the exception: `misc/sysctrl.v` combines our code with lines from
+Till's `sysctrl.v`, which carries no licence. It names our copyright for our parts and carries
+no SPDX tag. The files we add
 to the FPGA-Companion fork (`src/ra_*.c`, `src/ra_*.h` and
 `src/rp2040/game20k_mbedtls_config.h`) are Apache-2.0 like the Companion, so they can go
 upstream.
@@ -38,7 +38,6 @@ authors' terms, as with every other port of these cores.
 | Component | Files | Author | Licence | Our changes |
 |---|---|---|---|---|
 | [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga), `rtl_dar/` at `e06ba91` | [`fpga/galaga_hdmi/src/rtl_dar/`](fpga/galaga_hdmi/src/rtl_dar/README.md): `galaga.vhd`, `mb88.vhd`, `gen_video.vhd`, `sound_machine.vhd`, `stars.vhd`, `stars_machine.vhd` | Dar (darfpga@aol.fr) | none granted. `galaga.vhd` and `mb88.vhd` say "Educational use only, do not redistribute synthetized file with roms, do not redistribute roms whatever the form". The others carry no licence text | ROMs loaded at run time instead of built in (the two sound ROMs too), RAM mirror for the achievements, DIP switches as ports, resets, a Gowin timing fix, and the 51XX leaves credit mode only when a credit is consumed |
-| same repository, `rtl_dar/` | `gen_ram.vhd` in the same folder | Peter Wendrich (pwsoft@syntiac.com), modified by Dar | copyright notice, no licence text | one line. Our `gen_ram_dist.vhd` and `prom_ram.vhd` are derived from it |
 | same repository, `rtl_T80/` | [`fpga/galaga_hdmi/src/rtl_T80/`](fpga/galaga_hdmi/src/rtl_T80/README.md): `T80.vhd`, `T80_ALU.vhd`, `T80_MCode.vhd`, `T80_Pack.vhd`, `T80_Reg.vhd`, `T80se.vhd` (Z80 core) | Daniel Wallner | BSD-like, three conditions, in every header. Redistribution in synthesized form must reproduce the notice in the accompanying documentation | none |
 | [MiSTer-devel/Arcade-Pacman_MiSTer](https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer), `rtl/` at `648172d` | [`fpga/pacman_hdmi/src/rtl_pacman/`](fpga/pacman_hdmi/src/rtl_pacman/README.md): `pacman.vhd`, `pacman_video.vhd`, `pacman_audio.vhd`, `pacman_rom_descrambler.vhd`, `pacman_vram_addr.vhd` | MikeJ (the descrambler by d18c7db, `pacman_vram_addr.vhd` with CarlW), later changes by Alexey Melnikov and Alan Steremberg | BSD-like, three conditions, in every header. Redistribution in synthesized form must reproduce the notice in the accompanying documentation. The upstream repository has no licence file at its root | ROMs loaded at run time into RAM that Gowin can place, the second program bank left out, taps and a sprite register copy for the RAM mirror. Our `g20k_dpram.vhd`, `pacman_mirror.vhd` and the two sound-chip stubs `sn76489_top.vhd` and `ym2149.vhd` in the same folder are GPL-3.0-only |
 | same repository, `rtl/cpu/` | [`fpga/pacman_hdmi/src/rtl_T80/`](fpga/pacman_hdmi/src/rtl_T80/README.md): `T80.vhd`, `T80_ALU.vhd`, `T80_MCode.vhd`, `T80_Pack.vhd`, `T80_Reg.vhd`, `T80sed.vhd` (Z80 core, Ver 300, `T80sed` by MikeJ) | Daniel Wallner, MikeJ | BSD-like, three conditions, in every header, as above | none |
@@ -128,5 +127,5 @@ script checks that the toolchain in use links that version.
 - The 5x7 pixel font in `fpga/common/src/ra_overlay.sv` (41 characters) is our own.
 - The ten hdl-util files carry only the author's name. The MIT notice for them is in
   [fpga/common/src/hdmi/LICENSE](fpga/common/src/hdmi/LICENSE).
-- An explicit licence statement is missing from Dar and from Peter Wendrich. Till Harbaum was
+- An explicit licence statement is missing from Dar. Till Harbaum was
   asked in an issue in MiSTeryNano whether GPL-3.0-or-later is acceptable for his files.

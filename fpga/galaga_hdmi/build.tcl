@@ -17,11 +17,14 @@
 # its original headers, with a README.md on where it comes from, at which commit, and what
 # game20k changed:
 #   src/rtl_T80/   Z80 core by Daniel Wallner, unchanged
-#   src/rtl_dar/   Dar's Galaga core, changed, plus two files of ours derived from gen_ram.vhd
+#   src/rtl_dar/   Dar's Galaga core, changed. Its RAMs and the ROMs it loads at run time are
+#                  our own files in src/: g20k_spram, g20k_lutram, g20k_promram
 set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
 
 foreach f {T80 T80_ALU T80_MCode T80_Pack T80_Reg T80se} { add_file src/rtl_T80/$f.vhd }
-foreach f {galaga gen_ram gen_ram_dist gen_video mb88 prom_ram sound_machine stars stars_machine} { add_file src/rtl_dar/$f.vhd }
+# our RAMs before the core: VHDL analyses an entity before the architecture that uses it
+foreach f {g20k_spram g20k_lutram g20k_promram} { add_file src/$f.vhd }
+foreach f {galaga gen_video mb88 sound_machine stars stars_machine} { add_file src/rtl_dar/$f.vhd }
 # All eleven ROMs are loaded from SD card at run time (rom_loader), so there are no PROM files
 add_file src/game_pkg.sv
 add_file src/game_core.sv

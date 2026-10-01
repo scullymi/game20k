@@ -122,7 +122,7 @@ begin
 end process;
 
 -- sound register RAM0
-sound_ram_0 : entity work.gen_ram
+sound_ram_0 : entity work.g20k_spram
 generic map( dWidth => 4, aWidth => 4)
 port map(
  clk  => clock_18n,
@@ -133,7 +133,7 @@ port map(
 );
 
 -- sound register RAM1
-sound_ram_1 : entity work.gen_ram
+sound_ram_1 : entity work.g20k_spram
 generic map( dWidth => 4, aWidth => 4)
 port map(
  clk  => clock_18n,
@@ -144,7 +144,7 @@ port map(
 );
 
 -- sound samples ROM
-sound_samples : entity work.prom_ram
+sound_samples : entity work.g20k_promram
 generic map(aWidth => 8)
 port map(
  clk     => clock_18n,
@@ -157,7 +157,7 @@ port map(
 );
 
 -- sound compute sequencer ROM
-sound_seq : entity work.prom_ram
+sound_seq : entity work.g20k_promram
 generic map(aWidth => 8)
 port map(
  clk     => clock_18n,
