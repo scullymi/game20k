@@ -298,15 +298,43 @@ module game_core #(
     assign video_vs = ~core_vs;
     assign video_hs = ~core_hs;
 
-    // ---------------- Audio: 10 bit unipolar to 16 bit two's complement ----------------
-    // O_AUDIO is vol x wave << 2: unipolar, silence 0, at most 900. Times 32 gives at most
-    // 28800, no clipping logic, and silence stays 0 so the top's volume gain does not shift
-    // the idle level. Galaga needed x64 with clipping because its mean sits near 25/1023;
-    // Pac-Man's product is several times higher for the same fraction of scale. If the
-    // device says too quiet, Galaga's two lines are the fallback:
-    //   wire [16:0] aud_x64 = {1'b0, audio_u10, 6'b0};
-    //   assign audio = (aud_x64 > 17'd32767) ? 16'd32767 : aud_x64[15:0];
-    assign audio = {1'b0, audio_u10, 5'b0};
+    // ---------------- Audio: mean of the WSG's time multiplex, then one pole ----------------
+    // O_AUDIO is not a sum of the voices. The WSG has one output register (2M in
+    // rtl_pacman/pacman_audio.vhd) that holds voice 0 for 20 ena_6 steps, voice 1 for 20 and
+    // voice 2 for 24: a frame of 64 steps at 96.68 kHz. On the board the DAC and the analogue
+    // stage average it. The 48 kHz sample point of the HDMI path does not: it picked one voice
+    // at a time and folded the frame to |96.68 - 2 x 48.03| kHz, a comb of lines 0.63 kHz
+    // apart with a third of the power, the buzz next to every tone.
+    //
+    // Stage 1 sums exactly one frame, 20*v0 + 20*v1 + 24*v2, the board's weights, with nothing
+    // of the multiplex left. Any 64 consecutive ena_6 steps hold each slot once, so the frame
+    // counter needs no phase from the core. At most 64 * 900 = 57600, 16 bits.
+    logic [5:0]  frm     = 6'd0;       // ena_6 step within the frame
+    logic [15:0] frm_acc = 16'd0;      // running sum of the current frame
+    logic [15:0] frm_sum = 16'd0;      // sum of the last complete frame
+    wire  [15:0] frm_nx  = frm_acc + {6'd0, audio_u10};
+    always_ff @(posedge clk_core)
+        if (ena_6) begin
+            frm     <= frm + 6'd1;
+            // step 63 closes the frame: hand over the sum, start the next one from 0
+            frm_acc <= (frm == 6'd63) ? 16'd0 : frm_nx;
+            if (frm == 6'd63) frm_sum <= frm_nx;
+        end
+
+    // Stage 2, one pole at the ena_6 rate: lp += (64 * frm_sum - lp) / 64, -3 dB at
+    // 6.1875 MHz / (2 pi 64) = 15.5 kHz. It smooths the steps of the held frame value, whose
+    // images near 96.7 kHz the sample point would fold to 0.63 kHz above and below every
+    // tone. lp settles at 64 * frm_sum, at most 3686400 < 2^22.
+    logic [21:0] lp = 22'd0;
+    always_ff @(posedge clk_core)
+        if (ena_6) lp <= lp - {6'd0, lp[21:6]} + {6'd0, frm_sum};
+
+    // lp / 128 = frm_sum / 2 = 32 * the frame mean, the scale of the earlier 32 * O_AUDIO:
+    // at most 28800, no clipping, and silence stays 0 so the top's volume gain does not
+    // shift the idle level. If the device says too quiet, Galaga's x64 with clipping is the
+    // fallback:
+    //   assign audio = (lp[21:6] > 16'd32767) ? 16'd32767 : lp[21:6];
+    assign audio = {1'b0, lp[21:7]};
 
     // ---------------- No diagnostics in this folder ----------------
     assign diag_on    = 1'b0;
