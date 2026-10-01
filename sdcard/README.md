@@ -13,9 +13,10 @@ root directory, lowercase ASCII file names.
   without network and without unlocks. Contains secrets, see below.
 - galaga.ini: settings and the chosen ROM. The device writes it with "Save settings".
 - README.md: this file.
-- ra_patch.json, ra_unlocked.txt, ra_pending.txt, ra_parked.txt: created by the machine.
-  The achievement set from the server (so it is there without network too), what the
-  account has unlocked, what still has to be sent, and what was set aside. Do not edit.
+- ra_patch.json, ra_patch.mac, ra_unlocked.txt, ra_pending.txt, ra_parked.txt: created by
+  the machine. The achievement set from the server (so it is there without network too)
+  with its tag, what the account has unlocked, what still has to be sent, and what was set
+  aside. Do not edit.
 
 ## Preparing the card
 
@@ -42,8 +43,8 @@ are needed.
 
 ## Traps
 
-- Do not put a config.xml on the card. It replaces the menu from the bitstream, permanently
-  and without any notice on the device.
+- Do not put a config.xml on the card. It replaces the menu from the bitstream, and the
+  device then plays softcore only.
 - A line in config.ini longer than 62 characters is dropped by the firmware. The machine
   shows nothing. Only the debug log prints the start of the line in plain text.
   make_sdcard.sh checks this.

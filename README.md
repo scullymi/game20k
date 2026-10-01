@@ -23,7 +23,7 @@ of the game RAM goes to the Pico frame by frame, where
 | RAM mirror to the Pico, consistent snapshots | works |
 | RetroAchievements: conditions evaluated on the Pico | works |
 | RetroAchievements: login, unlocks submitted over HTTPS (TLS 1.2), achievement set and account state fetched from the server, unlocks queued on the card while offline | works |
-| In game: text banner on an unlock, account state under Status in the menu | works |
+| In game: text banner on an unlock, account state under RetroAchievements, Account in the menu | works |
 | RetroAchievements: session with Rich Presence, achievement list with progress in the menu, challenge marker, leaderboards | works |
 | WiFi after a cold start, clock from NTP | works |
 | Hardcore mode: the default, switched on only with a reset, FTP write protection, device key, known ROM only | works on the device. Until RetroAchievements approves this client, the server keeps its unlocks as softcore and no leaderboard entries, and the banner shows the server's warning |
@@ -188,7 +188,7 @@ wrong size **silently**, so the check happens here.
 The firmware needs nothing from RetroAchievements to build. At start it fetches the achievement
 set from the server and keeps it as `ra_patch.json` on the card, so it is there without a
 network at the next power-up. **Without an account:** nothing to do, the device does not log in
-anywhere and shows "no set loaded" under Status. Continue with step 4.
+anywhere and shows "no set loaded" under RetroAchievements, Account. Continue with step 4.
 
 **With an account:**
 
@@ -292,7 +292,7 @@ The numbers are the ones the input test shows on the buttons (menu, `Controller`
 On`). Everything can be changed under `Controller` and kept with `Save settings` under
 `Settings`, otherwise it lasts until power off.
 
-`RetroAchievements` holds the mode and the account. `Mode` switches between hardcore, the
+`RetroAchievements` holds the mode, the achievement list with progress and the account. `Mode` switches between hardcore, the
 default, and softcore. Softcore applies at once. Switching to hardcore resets a running game
 first, as RetroAchievements requires, and the banner names the mode at each game start. In
 hardcore the server's warning follows, "Unknown Emulator" until RetroAchievements approves this
