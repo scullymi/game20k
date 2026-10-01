@@ -69,7 +69,10 @@ module game20k_top #(
     input  wire        spi_sck,
     input  wire        spi_mosi,
     output logic       spi_miso,
-    output logic       spi_irqn
+    output logic       spi_irqn,
+    //! RECONFIG_N (pin 9), high in operation. A low pulse loads the next core, see
+    //! "Core switch" below.
+    output logic       reconfig_n
 );
     import ram_mirror_pkg::*;   // block sizes of the RAM mirror, see ram_mirror_pkg.sv
     import game_pkg::*;         // raster, name and test bar labels of the game
@@ -310,6 +313,24 @@ module game20k_top #(
         .system_screen(system_screen),
         .cfg_we(cfg_we), .cfg_id(cfg_id), .cfg_val(cfg_val)
     );
+
+    // ---------------- Core switch ----------------
+    // The Companion sets Z to 0xA5. The logic then pulls RECONFIG_N low for 1 ms and the
+    // FPGA loads the bitstream at the jump address in the header of the running one: the
+    // next core in fpga/common/slots.txt. The pin stays a configuration pin, the build has
+    // no -use_reconfign_as_gpio (gw_sh warns CT1122, expected). The Companion sees the
+    // new core as a cold boot and restarts. Power-on always loads slot 0.
+    // Z has no menu entry. The value 0xA5 keeps a menu of one's own that uses Z for
+    // something else from reloading the FPGA.
+    localparam logic [14:0] RECONF_CLKS = 15'd18563;   // 1 ms at 18.5625 MHz
+    logic [14:0] reconf_cnt = 15'd0;
+    logic        reconf_q   = 1'b1;
+    always_ff @(posedge clk_core) begin
+        if (cfg_we && cfg_id == "Z" && cfg_val == 8'hA5) reconf_cnt <= RECONF_CLKS;
+        else if (reconf_cnt != 15'd0)                   reconf_cnt <= reconf_cnt - 15'd1;
+        reconf_q <= (reconf_cnt == 15'd0);
+    end
+    assign reconfig_n = reconf_q;
 
     hid hid (
         .clk(clk_core), .reset(!pll_lock),

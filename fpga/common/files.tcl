@@ -49,6 +49,34 @@ add_file gen/menu_rom.v
 # game's build.tcl: it decides whether the original or a rewritten copy is added.
 set top_src $common/src/game20k_top.sv
 
+# The core switch: the bitstream header names the next core in slots.txt, the one the
+# FPGA loads when the top pulls RECONFIG_N. The project folder is the core's name.
+set core [file tail [pwd]]
+set ring {}
+set fin [open $common/slots.txt r]
+foreach line [split [read $fin] "\n"] {
+    # comments and empty lines carry no slot
+    if {[regexp {^\s*(#|$)} $line]} continue
+    if {![regexp {^\s*(\S+)\s+0x([0-9A-Fa-f]{6})\s*$} $line -> name addr]} {
+        close $fin
+        error "slots.txt: cannot read \"$line\""
+    }
+    lappend ring $name $addr
+}
+close $fin
+set at [lsearch -exact $ring $core]
+if {$at < 0 || $at % 2 != 0} {
+    error "slots.txt: $core has no slot"
+}
+set next [expr {($at + 2) % [llength $ring]}]
+set_option -multi_boot 1
+set_option -multiboot_spi_flash_address [lindex $ring [expr {$next + 1}]]
+puts "files.tcl: $core in the flash at 0x[lindex $ring [expr {$at + 1}]], the core switch loads [lindex $ring $next]"
+# 25 MHz from the flash instead of the default 2.5 MHz: a full bitstream loads in 0.3 s
+# instead of 2.9 s (UG290 table 3-3). The board's flash delivered 25 MHz in the TP1 test
+# of 01.10.2026.
+set_option -loading_rate 25.000
+
 # The board: pins and clocks are the same for every game. The description of the SDRAM
 # path belongs in EVERY build: the data pin is read in normal operation too
 # (fb_read_rotated fetches the picture data back). It is kept in a file of its own because

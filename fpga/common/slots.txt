@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# The cores in the SPI flash of the Tang Nano 20K, in ring order, 1 MB each.
+# The FPGA loads the first one at power-on. The header of each core's bitstream carries the
+# address of the next line, the last line points back to the first: the core switch (a low
+# pulse on RECONFIG_N, see game20k_top.sv) loads that one.
+# Read by fpga/common/files.tcl (the jump address) and scripts/flash_fpga.sh (the offset).
+# core        flash address
+galaga_hdmi   0x000000
+pacman_hdmi   0x100000

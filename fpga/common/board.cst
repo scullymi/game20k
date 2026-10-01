@@ -64,3 +64,8 @@ IO_LOC "spi_miso" 42;
 IO_PORT "spi_miso" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
 IO_LOC "spi_irqn" 51;
 IO_PORT "spi_irqn" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+
+// RECONFIG_N, the core switch (game20k_top.sv). Kept as a configuration pin: gw_sh warns
+// CT1122 and the logic drives it all the same, the low pulse reloads the FPGA.
+IO_LOC "reconfig_n" 9;
+IO_PORT "reconfig_n" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
