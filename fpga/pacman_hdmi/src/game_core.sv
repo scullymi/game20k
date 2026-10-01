@@ -120,24 +120,52 @@ module game_core #(
 
     // ---------------- Controls ----------------
     // An upright cabinet: both players take turns on one stick, so both controllers feed the
-    // same direction bits, as MiSTer does. The stick is 8-way and the game reads 4-way, so a
-    // diagonal is resolved by the rule "the direction pressed most recently wins": a fresh
-    // second direction takes over, a held one stays, two at once from nothing pick the
-    // first in the order up, down, left, right. One clock of latency; p1_dir/p2_dir are
-    // clk_core registers of the top already.
+    // same direction bits, as MiSTer does. The stick is 8-way with a square gate and the game
+    // reads 4-way. The rule the player wants is "the direction pressed last wins": moving up
+    // and pressing into up+left turns left, left alone stays left, left+down turns down. A
+    // hat switch pressed into a corner chatters, though: the marginal switch opens and closes
+    // while the firm one holds, from 2 ms bounces to on and off for seconds (logs of
+    // 01.10.2026: up, up+left, up, ... eleven changes over 3.5 s, half the gaps under 8 ms,
+    // two thirds under 50 ms).
+    // Taken literally, every gap handed the game back the old direction and every close
+    // counted as a new press, so Pac-Man saw a direction that flipped at the junction.
+    //
+    // So: a press counts as new only after its direction was released for HOLD_MS, else it is
+    // the switch chattering and changes nothing. The direction in effect stays while it is
+    // pressed, and through a gap of up to HOLD_MS while another direction is still pressed,
+    // which is the corner chattering. Releasing everything is neutral at once. Two new
+    // directions in one clock take the first in the order up, down, left, right. HOLD_MS is
+    // a compromise: longer bridges more of the slow chatter, but a direction released and
+    // pressed again within it does not take over while the old one is held, which with
+    // 200 ms already felt late in play. The cost at 100 ms: a deliberate move from a corner
+    // back to the old direction takes 100 ms to show, and a gap longer than that leaks.
+    // p1_dir/p2_dir are clk_core registers of the top.
+    localparam int HOLD_MS = 100;
     wire [3:0] raw_dir = p1_dir | p2_dir;      // {up, down, left, right}
-    logic [3:0] raw_dir_d = 4'd0, dir4 = 4'd0;
-    wire [3:0] fresh = raw_dir & ~raw_dir_d;
-    function automatic bit onehot(input logic [3:0] x);
-        onehot = (x != 4'd0) && ((x & (x - 4'd1)) == 4'd0);
+    logic [14:0] ms_div = 15'd0;               // 18.5625 MHz / 18563 = 1 kHz
+    wire ms_tick = (ms_div == 15'd18562);
+    always_ff @(posedge clk_core) ms_div <= ms_tick ? 15'd0 : ms_div + 15'd1;
+    logic [3:0]      raw_d = 4'd0;             // raw_dir a clock ago, for the press edges
+    logic [3:0][8:0] gap   = {4{9'd511}};      // ms since each direction was released, saturating
+    logic [3:0]      dir4  = 4'd0;
+    // a press of a direction that was released for HOLD_MS or longer: new, not chatter
+    wire [3:0] fresh = raw_dir & ~raw_d & {gap[3] >= HOLD_MS, gap[2] >= HOLD_MS, gap[1] >= HOLD_MS, gap[0] >= HOLD_MS};
+    function automatic logic [3:0] first(input logic [3:0] x);
+        first = x[3] ? 4'b1000 : x[2] ? 4'b0100 : x[1] ? 4'b0010 : x[0] ? 4'b0001 : 4'b0000;
     endfunction
+    // the gap of the direction in effect, 511 when none is
+    wire [8:0] gap4 = dir4[3] ? gap[3] : dir4[2] ? gap[2] : dir4[1] ? gap[1] : dir4[0] ? gap[0] : 9'd511;
     always_ff @(posedge clk_core) begin
-        raw_dir_d <= raw_dir;
-        if (raw_dir == 4'd0)             dir4 <= 4'd0;
-        else if (onehot(raw_dir))        dir4 <= raw_dir;
-        else if (onehot(fresh))          dir4 <= fresh;        // diagonal: the newest direction
-        else if ((dir4 & raw_dir) != 0)  dir4 <= dir4;         // still pressed: keep it
-        else dir4 <= raw_dir[3] ? 4'b1000 : raw_dir[2] ? 4'b0100 : raw_dir[1] ? 4'b0010 : 4'b0001;
+        raw_d <= raw_dir;
+        for (int i = 0; i < 4; i++) begin
+            if (raw_dir[i])                           gap[i] <= 9'd0;
+            else if (ms_tick && gap[i] != 9'd511)     gap[i] <= gap[i] + 9'd1;
+        end
+        if (raw_dir == 4'd0)                          dir4 <= 4'd0;             // all released
+        else if (fresh != 4'd0)                       dir4 <= first(fresh);     // the newest wins
+        else if ((dir4 & raw_dir) != 4'd0)            dir4 <= dir4;             // in effect and pressed
+        else if (dir4 != 4'd0 && gap4 < HOLD_MS)      dir4 <= dir4;             // a gap in the corner
+        else                                          dir4 <= first(raw_dir);  // released for good
     end
 
     // The core's ports are active low, bit order 0 up, 1 left, 2 right, 3 down. Hardcore
