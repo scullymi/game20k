@@ -233,15 +233,20 @@ leaderboard entries are not kept.
 ### 4. FPGA: build and flash
 
 ```sh
-scripts/make_menu_hex.sh              # only after a change to fpga/galaga_hdmi/menu.xml
+scripts/make_menu_hex.sh              # only after a change to a core's menu.xml
 scripts/build_fpga.sh galaga_hdmi
+scripts/build_fpga.sh pacman_hdmi
 scripts/fpga_report.sh galaga_hdmi    # utilisation, clocks, violated endpoints
 scripts/flash_fpga.sh galaga_hdmi flash
+scripts/flash_fpga.sh pacman_hdmi flash
 ```
 
-Without `flash` the bitstream goes to SRAM only and is gone after power off. The script uses
-Gowin's `programmer_cli`, with `FLASHER=openfpgaloader` it uses openFPGALoader instead. After
-writing the flash, power the board off and on.
+Without `flash` the bitstream goes to SRAM only and is gone after power off. The flash holds
+both cores, each at its address in [fpga/common/slots.txt](fpga/common/slots.txt): Galaga at 0,
+the one the FPGA loads at power-on, Pac-Man at 0x100000. The script writes Galaga with Gowin's
+`programmer_cli`, with `FLASHER=openfpgaloader` with openFPGALoader. Pac-Man always goes through
+openFPGALoader, which has to be installed for it: `programmer_cli` cannot write another
+address. After writing the flash, power the board off and on.
 
 ### 5. Firmware: build and flash
 
@@ -309,6 +314,12 @@ server is reached.
 
 `Status` shows the network and, under `Version`, the firmware version, the same one the firmware
 reports to RetroAchievements.
+
+The game changes under `ROM set` in `Settings`. A ROM of another game on the same board, such as
+`puckman.rom` while Pac-Man runs, restarts the Pico into that game with its own achievements. A
+ROM of a game on the other core, such as `galaga.rom` while Pac-Man runs, loads that core first.
+Either way the menu says so, and after about three seconds the new game starts. The choice lasts
+until power off. `Save settings` keeps a ROM of the same core. Power-on always starts Galaga.
 
 A stick button can open the menu as well: `GAMEPAD_TRIGGER` under `[MENU]` in `config.ini`, see
 [sdcard/config.ini.example](sdcard/config.ini.example). That setting counts the buttons from 0,
