@@ -60,7 +60,7 @@ grep -q 'XFER_RESULT_SUCCESS == result' "$ROOT/external/tinyusb/src/class/hid/hi
 # Two contracts between this repository and the firmware, compared without boards by the same
 # script the CI runs: the RAM mirror layout of the core against main.c (otherwise the firmware
 # refuses the core with "core too old" or reads garbage), and the known ROM digests of
-# make_galaga_rom.sh against ra_patch.c.
+# the ROM manifests against ra_patch.c.
 python3 "$ROOT/scripts/check_contracts.py" --root "$ROOT" --fork "$REPO" \
   || { echo "a contract between core, firmware and scripts is broken, see above"; exit 1; }
 VERSION=$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null | sed 's/^v//')

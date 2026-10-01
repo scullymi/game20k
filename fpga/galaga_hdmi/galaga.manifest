@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Galaga: which chips of the MAME set go where in galaga.rom, the one file
+# the Companion streams from the SD card into the core. This is the only place the layout is
+# written down. Three things are made from it:
+#   scripts/make_rom.py         builds sdcard/galaga.rom from roms/, checking every chip
+#   build.tcl                   the section table of rom_loader (gen/rom_map_pkg.sv)
+#   scripts/check_contracts.py  compares the known digests with the firmware (ra_patch.c)
+#
+# Format: one entry per line, words separated by blanks, # starts a comment.
+#   set <name>        MAME set name. The file on the card is <name>.rom, the settings <name>.ini
+#   title <text>      shown by the scripts
+#   zip <file>        the set in roms/, as a MAME merged set
+#   total <bytes>     size of the finished file, rom_loader accepts exactly this size
+#   section <name> <offset> <bytes>
+#                     one ROM memory of the core. Sections follow each other in file order,
+#                     offsets on 256-byte boundaries, which is why the 32-byte PROM comes last.
+#   chip <file> <bytes> <SHA-1> [zip=<file>] [optional]
+#                     one chip of the preceding section, in file order. SHA-1 as MAME lists it
+#                     for the set (src/mame/namco/galaga.cpp, the 54xx in namco54.cpp).
+#                     zip= takes it from another zip in roms/. optional: a missing chip becomes
+#                     zeros, with a warning.
+#   note <file> <text>  what is lost when an optional chip is missing
+#   known <SHA-256> <label>
+#                     a finished file the firmware accepts for hardcore (rom_known in ra_patch.c)
+
+set     galaga
+title   Galaga (Namco Rev B)
+zip     galaga.zip
+total   38944
+
+section cpu1        0x0000 16384
+chip    gg1_1b.3p   4096 ca7f5da42d4e76fd89bb0b35198a23c01462fbfe
+chip    gg1_2b.3m   4096 ab202aa259c3d332ef13dfb8fc8580ce2a5a253d
+chip    gg1_3.2m    4096 481f443aea3ed3504ec2f3a6bfcf3cd47e2f8f81
+chip    gg1_4b.2l   4096 ddb8b121903646c320939c7d13f4aa4ebb130378
+section cpu2        0x4000 4096
+chip    gg1_5b.3f   4096 e957a581463caac27bc37ca2e2a90f27e4f62b6f
+section cpu3        0x5000 4096
+chip    gg1_7b.2c   4096 44c1a04fba3c7c826ff484185cb881b4b22e6657
+section bg_graphx   0x6000 4096
+chip    gg1_9.4l    4096 62f1279a784ab2f8218c4137c7accda00e6a3490
+section sp_graphx   0x7000 8192
+chip    gg1_11.4d   4096 e697c180178cabd1d32483c5d8889a40633f7857
+chip    gg1_10.4f   4096 c340ed8c25e0979629a9a1730edc762bd72d0cff
+section cs54xx      0x9000 1024
+chip    54xx.bin    1024 01bdf984a49e8d0cc8761b2cc162fd6434d5afbe zip=namco54.zip optional
+note    54xx.bin    the explosion sounds stay silent, everything else works
+section bg_palette  0x9400 256
+chip    prom-4.2n   256  0281de86c236c88739297ff712e0a4f5c8bf8ab9
+section sp_palette  0x9500 256
+chip    prom-3.1c   256  cdd4bc1013f5c11984fdc4fd10e2d2e27120c1e5
+section sound_seq   0x9600 256
+chip    prom-2.5c   256  0c4d0bee858b97632411c440bea6948a74759746
+section sound_samp  0x9700 256
+chip    prom-1.1d   256  085ada18c498fdb18ecedef0ea8fe9217edb7b46
+section rgb         0x9800 32
+chip    prom-5.5n   32   1a6dea13b4af155d9cb5b999a75d4f1eb9c71346
+
+known   aaf7a7256f8c4e97b31f053e688f24cbb34075a26ac71ff0847651ae93b2af47 with the 54xx
+known   ec21e54daa09f78b2f58ab060f5cdfbd29d50b29816041c6cae3826cb2dabcd5 without the 54xx

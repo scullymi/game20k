@@ -178,9 +178,11 @@ scripts/make_sdcard.sh                        # builds and checks, lists what is
 scripts/make_sdcard.sh /Volumes/YOUR_CARD     # ... and copies to the card
 ```
 
-The script checks the size of all fifteen ROM files, builds `sdcard/galaga.rom` (exactly 38944
-bytes), checks `config.ini` (line length), writes a `galaga.ini` that preselects the ROM, and
-copies everything together with `sdcard/README.md` to the card. The loader on the device rejects a ROM of the
+The script builds one ROM file per game whose set lies in `roms/`, as the game's manifest
+(`fpga/galaga_hdmi/galaga.manifest`) describes it: every chip is checked by size and SHA-1
+against MAME, the result is `sdcard/galaga.rom` (exactly 38944 bytes). It then checks
+`config.ini` (line length), writes a `galaga.ini` that preselects the ROM, and copies everything
+together with `sdcard/README.md` to the card. The loader on the device rejects a ROM of the
 wrong size **silently**, so the check happens here.
 
 ### 3. RetroAchievements, with or without an account

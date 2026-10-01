@@ -8,13 +8,14 @@
 #   scripts/make_sdcard.sh /Volumes/GALAGA  ... and copy it to the card
 #
 # Sources you provide yourself:
-#   roms/galaga.zip      MAME set "galaga" (Namco Rev B), required
-#   roms/namco54.zip     explosion sounds, optional
+#   roms/<set>.zip       the MAME set of every game you want, e.g. galaga.zip (Namco Rev B);
+#                        which zips a game needs says its manifest, fpga/<core>/<set>.manifest
+#   roms/namco54.zip     Galaga's explosion sounds, optional
 #   sdcard/config.ini    WiFi and RA, created from the template on the first run
 #
-# What gets produced (all gitignored, all only for the card):
-#   sdcard/galaga.rom    from the zips, 38944 bytes
-#   sdcard/galaga.ini    starter file with the ROM entry, so the first trip into the OSD is not needed
+# What gets produced (all gitignored, all only for the card), per game with a set in roms/:
+#   sdcard/<set>.rom     from the zips, checked chip by chip (scripts/make_rom.py)
+#   sdcard/<set>.ini     starter file with the ROM entry, so the first trip into the OSD is not needed
 #
 # WHY THE CHECKS RUN HERE AND NOT ON THE DEVICE: the machine has no error channel, the OSD
 # shows no errors and the UART is not connected, so a bad card fails silently there. Here
@@ -28,23 +29,35 @@ NOTES=""
 
 report() { printf '  %-14s %s\n' "$1" "$2"; }
 
-echo "== ROM =="
-if [ -f "$ROOT/roms/galaga.zip" ]; then
-  # Always rebuild: it costs nothing, and sdcard/galaga.rom is then guaranteed to match roms/.
-  if "$ROOT/scripts/make_galaga_rom.sh" "$SD/galaga.rom" >/dev/null; then
-    report "galaga.rom" "built, $(wc -c < "$SD/galaga.rom" | tr -d ' ') bytes"
+echo "== ROMs =="
+# One ROM file per game: every manifest under fpga/ names its set and its zip. A game whose
+# zip is missing is left out with a note, the card is still made for the others. Only when
+# no game at all is there does the script stop: the screen would stay dark.
+SETS=""
+for M in $(python3 "$ROOT/scripts/make_rom.py" --list); do
+  SET=$(awk '$1 == "set" {print $2; exit}' "$ROOT/$M")
+  ZIP=$(awk '$1 == "zip" {print $2; exit}' "$ROOT/$M")
+  if [ -f "$ROOT/roms/$ZIP" ]; then
+    # Always rebuild: it costs nothing, and sdcard/<set>.rom is then guaranteed to match roms/.
+    if OUT=$(python3 "$ROOT/scripts/make_rom.py" "$ROOT/$M" "$SD/$SET.rom" 2>&1); then
+      report "$SET.rom" "built, $(wc -c < "$SD/$SET.rom" | tr -d ' ') bytes"
+      # the verdict on the file (hardcore possible or not) and the warnings of the build:
+      # an optional chip that is missing, an unknown file
+      printf '%s\n' "$OUT" | grep -v '^written' | sed 's/^WARNING: //;s/^/                 /'
+      printf '%s\n' "$OUT" | grep -q '^WARNING' && NOTES="$NOTES $SET"
+      SETS="$SETS $SET"
+    else
+      printf '%s\n' "$OUT" | sed 's/^/                 /' >&2
+      MISSING="$MISSING $SET.rom(build failed)"
+    fi
+  elif [ -f "$SD/$SET.rom" ]; then
+    report "$SET.rom" "present ($(wc -c < "$SD/$SET.rom" | tr -d ' ') bytes), roms/$ZIP is missing, not rebuilt"
+    SETS="$SETS $SET"
   else
-    MISSING="$MISSING galaga.rom(build failed)"
+    report "$SET.rom" "no roms/$ZIP, this game is left out"
   fi
-  if [ -f "$ROOT/roms/namco54.zip" ]; then report "namco54" "included, explosions will sound"
-  else report "namco54" "MISSING: roms/namco54.zip. Explosions stay silent, the rest runs"
-       NOTES="$NOTES namco54"; fi
-elif [ -f "$SD/galaga.rom" ]; then
-  report "galaga.rom" "present ($(wc -c < "$SD/galaga.rom" | tr -d ' ') bytes), roms/galaga.zip is missing, not rebuilt"
-else
-  report "galaga.rom" "MISSING. Provide roms/galaga.zip (MAME set galaga, Namco Rev B, merged set)"
-  MISSING="$MISSING galaga.rom"
-fi
+done
+[ -n "$SETS" ] || MISSING="$MISSING every-rom(see roms/README.md)"
 
 echo "== config.ini =="
 INI="$SD/config.ini"
@@ -79,23 +92,25 @@ for pair in "WiFi:WIFI_SSID:WIFI_PASS" "RA:RA_USER:RA_TOKEN"; do
 done
 report "Lines" "$n, all within the 62-character limit"
 
-echo "== galaga.ini =="
-GI="$SD/galaga.ini"
-if [ -f "$GI" ]; then
-  report "galaga.ini" "present, left untouched"
-else
-  # Only the ROM entry. The device fills in everything else from the menu defaults, and
-  # "Save settings" rewrites the file completely anyway. The path MUST start with /sd:
-  # sdc_set_default splits at the last slash into working directory and file name.
-  {
-    echo "; FPGA Companion settings"
-    echo "; Starter file from scripts/make_sdcard.sh. \"Save settings\" rewrites it."
-    echo ""
-    echo "; image files"
-    echo "image0=/sd/galaga.rom"
-  } > "$GI"
-  report "galaga.ini" "created with image0=/sd/galaga.rom, no trip into the OSD on first start"
-fi
+echo "== settings =="
+for SET in $SETS; do
+  GI="$SD/$SET.ini"
+  if [ -f "$GI" ]; then
+    report "$SET.ini" "present, left untouched"
+  else
+    # Only the ROM entry. The device fills in everything else from the menu defaults, and
+    # "Save settings" rewrites the file completely anyway. The path MUST start with /sd:
+    # sdc_set_default splits at the last slash into working directory and file name.
+    {
+      echo "; FPGA Companion settings"
+      echo "; Starter file from scripts/make_sdcard.sh. \"Save settings\" rewrites it."
+      echo ""
+      echo "; image files"
+      echo "image0=/sd/$SET.rom"
+    } > "$GI"
+    report "$SET.ini" "created with image0=/sd/$SET.rom, no trip into the OSD on first start"
+  fi
+done
 
 if [ -z "$TARGET" ]; then
   echo
@@ -107,15 +122,17 @@ fi
 echo "== Card: $TARGET =="
 [ -d "$TARGET" ] || { echo "  Not a directory: $TARGET" >&2; exit 1; }
 [ -n "$MISSING" ] && { echo "  Not copied, missing:$MISSING" >&2; exit 1; }
-cp "$SD/galaga.rom"  "$TARGET/galaga.rom";  report "galaga.rom"  "copied"
 cp "$INI"            "$TARGET/config.ini";  report "config.ini"  "copied"
 cp "$SD/README.md"   "$TARGET/README.md";   report "README.md"   "copied"
-if [ -f "$TARGET/galaga.ini" ]; then
-  # The card carries the settings the device saved. Those win.
-  report "galaga.ini" "present on the card, stays: it holds your saved settings"
-else
-  cp "$GI" "$TARGET/galaga.ini"; report "galaga.ini" "copied (starter file)"
-fi
+for SET in $SETS; do
+  cp "$SD/$SET.rom" "$TARGET/$SET.rom"; report "$SET.rom" "copied"
+  if [ -f "$TARGET/$SET.ini" ]; then
+    # The card carries the settings the device saved. Those win.
+    report "$SET.ini" "present on the card, stays: it holds your saved settings"
+  else
+    cp "$SD/$SET.ini" "$TARGET/$SET.ini"; report "$SET.ini" "copied (starter file)"
+  fi
+done
 if [ -f "$TARGET/config.xml" ]; then
   echo
   echo "  WARNING: there is a config.xml on the card. It replaces the menu from the"

@@ -8,7 +8,8 @@ root directory, lowercase ASCII file names.
 ## Files on the card
 
 - galaga.rom: the game data, 38944 bytes. You build it yourself from your own MAME set.
-  It is never shipped. Without it the screen stays dark.
+  It is never shipped. Without it the screen stays dark. Every further game brings its own
+  <set>.rom and <set>.ini the same way.
 - config.ini: WiFi and RetroAchievements account. Optional: without it the machine plays
   without network and without unlocks. Contains secrets, see below.
 - galaga.ini: settings and the chosen ROM. The device writes it with "Save settings".
@@ -24,7 +25,8 @@ root directory, lowercase ASCII file names.
     scripts/make_sdcard.sh /Volumes/YOUR_CARD   ... and copies to the card
 
 Sources: roms/galaga.zip (MAME set galaga, Namco Rev B, merged set) and optionally
-roms/namco54.zip (explosion sounds). The script builds galaga.rom, creates config.ini from
+roms/namco54.zip (explosion sounds). The script builds galaga.rom as the game's manifest
+(fpga/galaga_hdmi/galaga.manifest) describes it, every chip checked against MAME, creates config.ini from
 config.ini.example on the first run for you to fill in, checks that no line of it is longer
 than 62 characters, writes a galaga.ini that preselects the ROM, and warns if a config.xml is
 on the card. A galaga.ini already on the card is kept: it holds the settings saved on the

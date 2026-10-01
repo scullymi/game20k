@@ -5,7 +5,7 @@
 @brief Values that live in two places of game20k and must agree, compared without boards.
 
   mirror   the RAM mirror layout constants: ram_mirror_pkg.sv (core) against main.c (firmware)
-  rom-sha  SHA-256 of the known ROM files: make_galaga_rom.sh against rom_known in ra_patch.c
+  rom-sha  SHA-256 of the known ROM files: the ROM manifests against rom_known in ra_patch.c
 
 Each contract prints how many values it compared ("N of N agree") and fails when it matched
 nothing: a check that found nothing to compare is blind, not green.
@@ -14,16 +14,18 @@ Usage: scripts/check_contracts.py [--root DIR] [--fork DIR]
 Exit status 0 when both hold, 1 otherwise.
 """
 import argparse
+import glob
 import os
 import re
 import sys
 
 DEFAULT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(DEFAULT_ROOT, "scripts"))
+import make_rom  # noqa: E402  the manifest reader, one parser for every user of the format
 
 # the files the contracts read, relative to the game20k root ("root") or the fork ("fork")
 F_PKG = ("root", "fpga/galaga_hdmi/src/mcu/ram_mirror_pkg.sv")
 F_MAIN = ("fork", "src/main.c")
-F_ROMSH = ("root", "scripts/make_galaga_rom.sh")
 F_RAPATCH = ("fork", "src/ra_patch.c")
 
 
@@ -94,9 +96,13 @@ def contract_mirror(t):
 
 
 def contract_rom_sha(t):
-    """The ROM digests the script announces are the ones the firmware accepts, in order."""
-    # the case block after sha256 "$OUT": one "<64 hex>)" pattern per known file
-    script = re.findall(r"^[ \t]*([0-9a-f]{64})\)", t.read(F_ROMSH, code=False), re.M)
+    """The ROM digests the manifests announce are the ones the firmware accepts, in order."""
+    manifests = sorted(glob.glob(os.path.join(t.base["root"], "fpga", "*", "*.manifest")))
+    need(manifests, "no ROM manifest under %s/fpga" % t.base["root"])
+    try:
+        script = [sha for p in manifests for sha, _ in make_rom.read_manifest(p)["known"]]
+    except make_rom.ManifestError as e:
+        raise Violation(str(e))
     m = re.search(r"\brom_known\s*\[\s*\]\s*\[\s*32\s*\]\s*=\s*\{(.*?)\}\s*;", t.read(F_RAPATCH), re.S)
     need(m, "no rom_known[][32] table in %s" % t.path(F_RAPATCH))
     fw = []
@@ -104,11 +110,11 @@ def contract_rom_sha(t):
         b = re.findall(r"0[xX]([0-9a-fA-F]{2})\b", row)
         need(len(b) == 32, "a rom_known row in ra_patch.c has %d bytes, not 32" % len(b))
         fw.append("".join(b).lower())
-    need(script, "no known ROM digest in %s" % t.path(F_ROMSH))
+    need(script, "no known ROM digest in the manifests")
     need(fw, "rom_known in ra_patch.c is empty")
-    need(script == fw, "digests differ: make_galaga_rom.sh %s, ra_patch.c %s"
+    need(script == fw, "digests differ: manifests %s, ra_patch.c %s"
          % ([s[:12] for s in script], [s[:12] for s in fw]))
-    return "%d of %d digests agree in order (make_galaga_rom.sh, ra_patch.c)" % (len(fw), len(fw))
+    return "%d of %d digests agree in order (manifests, ra_patch.c)" % (len(fw), len(fw))
 
 
 CONTRACTS = [("mirror", contract_mirror), ("rom-sha", contract_rom_sha)]
