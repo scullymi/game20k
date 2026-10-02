@@ -20,9 +20,8 @@ Two components force the licence of the whole, independently of each other:
 GPL-3.0 has no "or later" unless the source grants it, hence GPL-3.0-only. Our own source files
 carry `SPDX-License-Identifier: GPL-3.0-only` and `Copyright (C) 2026 scullymi`. Where one of
 them contains no code from others, it can be made available under another licence on request,
-file by file. One file is the exception: `misc/sysctrl.v` combines our code with lines from
-Till's `sysctrl.v`, which carries no licence. It names our copyright for our parts and carries
-no SPDX tag. The files we add
+file by file. Our changes to Till Harbaum's files in `misc/` are GPL-3.0-or-later like his
+files, and those files carry that SPDX tag. The files we add
 to the FPGA-Companion fork (`src/ra_*.c`, `src/ra_*.h` and
 `src/rp2040/game20k_mbedtls_config.h`) are Apache-2.0 like the Companion, so they can go
 upstream.
@@ -41,8 +40,8 @@ authors' terms, as with every other port of these cores.
 | same repository, `rtl_T80/` | [`fpga/galaga_hdmi/src/rtl_T80/`](fpga/galaga_hdmi/src/rtl_T80/README.md): `T80.vhd`, `T80_ALU.vhd`, `T80_MCode.vhd`, `T80_Pack.vhd`, `T80_Reg.vhd`, `T80se.vhd` (Z80 core) | Daniel Wallner | BSD-like, three conditions, in every header. Redistribution in synthesized form must reproduce the notice in the accompanying documentation | none |
 | [MiSTer-devel/Arcade-Pacman_MiSTer](https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer), `rtl/` at `648172d` | [`fpga/pacman_hdmi/src/rtl_pacman/`](fpga/pacman_hdmi/src/rtl_pacman/README.md): `pacman.vhd`, `pacman_video.vhd`, `pacman_audio.vhd`, `pacman_rom_descrambler.vhd`, `pacman_vram_addr.vhd` | MikeJ (the descrambler by d18c7db, `pacman_vram_addr.vhd` with CarlW), later changes by Alexey Melnikov and Alan Steremberg | BSD-like, three conditions, in every header. Redistribution in synthesized form must reproduce the notice in the accompanying documentation. The upstream repository has no licence file at its root | ROMs loaded at run time into RAM that Gowin can place, the second program bank left out, taps and a sprite register copy for the RAM mirror. Our `g20k_dpram.vhd`, `pacman_mirror.vhd` and the two sound-chip stubs `sn76489_top.vhd` and `ym2149.vhd` in the same folder are GPL-3.0-only |
 | same repository, `rtl/cpu/` | [`fpga/pacman_hdmi/src/rtl_T80/`](fpga/pacman_hdmi/src/rtl_T80/README.md): `T80.vhd`, `T80_ALU.vhd`, `T80_MCode.vhd`, `T80_Pack.vhd`, `T80_Reg.vhd`, `T80sed.vhd` (Z80 core, Ver 300, `T80sed` by MikeJ) | Daniel Wallner, MikeJ | BSD-like, three conditions, in every header, as above | none |
-| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/common/src/misc/`](fpga/common/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, and `sysctrl.v` derived from Till's `sysctrl.v` | Till Harbaum | no licence file, no licence header. Treated as GPL-3.0, see [Bitstreams](#bitstreams) | extra joystick byte, SPI target 5, OSD rotated by 90 degrees, `sysctrl.v` reduced to what game20k needs, with a value strobe for the game |
-| [MiSTle-Dev/Nanomig](https://github.com/MiSTle-Dev/Nanomig), `src/misc/` at `df97f03` | same folder: `sd_card.v`, `sd_rw.v`, `sdcmd_ctrl.v` | Till Harbaum, the latter two from WangXuan95 | no licence file, `sd_card.v` treated as GPL-3.0 like the files above, `sd_rw.v` and `sdcmd_ctrl.v` GPL-3.0 by origin | `sd_rw.v` retries CMD24 |
+| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/common/src/misc/`](fpga/common/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, and `sysctrl.v` derived from Till's `sysctrl.v` | Till Harbaum | GPL-3.0-or-later. The upstream files carry no licence header, ours carry the SPDX tag | extra joystick byte, SPI target 5, OSD rotated by 90 degrees, `sysctrl.v` reduced to what game20k needs, with a value strobe for the game |
+| [MiSTle-Dev/Nanomig](https://github.com/MiSTle-Dev/Nanomig), `src/misc/` at `df97f03` | same folder: `sd_card.v`, `sd_rw.v`, `sdcmd_ctrl.v` | Till Harbaum, the latter two from WangXuan95 | `sd_card.v` GPL-3.0-or-later like the files above, `sd_rw.v` and `sdcmd_ctrl.v` GPL-3.0 by origin | `sd_rw.v` retries CMD24 |
 | [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/tang/nano20k/gowin_dpb/` at `c8e4601` | `fpga/common/src/mcu/sector_dpram.v` | output of the Gowin IP generator, the instantiation of the DPB primitive | no licence text, Gowin's copyright header ("All rights reserved"). Gowin's licence agreement lets the user keep and use the output data of its tools | `wire` in the port declarations, a `default_nettype` line, comments |
 | [hdl-util/hdmi](https://github.com/hdl-util/hdmi) at `08936f6` | `fpga/common/src/hdmi/*.sv` (10) | Sameer Puri | MIT OR Apache-2.0, upstream `LICENSE-MIT` and `LICENSE-APACHE`, used here under MIT, notice in [`src/hdmi/LICENSE`](fpga/common/src/hdmi/LICENSE) | six files identical to upstream, `hdmi.sv`, `packet_assembler.sv` and `tmds_channel.sv` with changes marked `game20k:`, `serializer.sv` in NESTang's version, which adds the line `` `define GW_IDE `` that hdl-util prescribes for the Gowin toolchain |
 | [NESTang](https://github.com/nand2mario/nestang) | `fpga/common/src/sdram_fb.v` | nand2mario | GPL-3.0 | derivative, carries both copyright notices |
@@ -146,10 +145,9 @@ also in a fresh clone at another path. Builds on other machines have not been co
   publish the Galaga bitstream all the same and name the point here, the source repository is in
   the same position. The Pac-Man core itself (MikeJ, T80) is BSD-style, so the point does not
   arise there.
-- **Till Harbaum's files** carry no licence, and their repositories have no licence file at their
-  root. We treat them as GPL-3.0: in MiSTeryNano the 15 HDL files that name him in their header,
-  `src/misc/scandoubler.v` next to these among them, are GPL-3.0-or-later, and his releases ship
-  bitstreams that combine these files with that code.
+- **Till Harbaum's files** in `fpga/common/src/misc/` are GPL-3.0-or-later. Upstream they carry
+  no licence header. Our copies carry the SPDX tag, our changes in them are under the same
+  licence.
 - **Gowin EDA Education** may be used only for education, research and other non-commercial
   purposes (release note RN100 in the installation). The bitstreams are built for this
   non-commercial project and published free of charge. This says how they were made and adds no

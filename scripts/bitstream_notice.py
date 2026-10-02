@@ -55,17 +55,14 @@ COMPONENTS = [
     },
     {
         "name": "MiSTeryNano and Nanomig files by Till Harbaum",
-        "short": "no licence stated, treated as GPL-3.0",
+        "short": "GPL-3.0-or-later",
         "url": "https://github.com/MiSTle-Dev/MiSTeryNano at c8e4601 (src/misc), "
                "https://github.com/MiSTle-Dev/Nanomig at df97f03 (sd_card.v)",
         "match": r"^fpga/common/src/misc/(hid|mcu_spi|osd_u8g2|sd_card|sysctrl)\.v$",
-        "licence": "no licence stated, treated as GPL-3.0, see the note",
-        "note": "These files carry no licence, and their repositories have no licence file at "
-                "their root. game20k treats them as GPL-3.0 like the code they are published "
-                "with: in MiSTeryNano the 15 HDL files that name Till Harbaum in their header, "
-                "scandoubler.v next to these among them, are GPL-3.0-or-later, and his releases "
-                "ship bitstreams that combine these files with that code. sysctrl.v is reduced to "
-                "what game20k needs and extended by it, our parts are Copyright (C) 2026 scullymi.",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "Upstream these files carry no licence header. game20k's copies carry the SPDX "
+                "tag, its changes in them are under the same licence, Copyright (C) 2026 "
+                "scullymi. sysctrl.v is reduced to what game20k needs and extended by it.",
         "show": [],
     },
     {

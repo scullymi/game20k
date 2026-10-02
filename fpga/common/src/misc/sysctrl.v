@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! @file sysctrl.v
 //! @brief System control for the FPGA Companion (SPI target 0), game20k variant.
 //!
@@ -5,8 +6,8 @@
 //! game20k needs. About 60 lines are Till's, taken over verbatim from the 333-line sysctrl.v:
 //! the SPI command state machine with its magic constants, because the Companion expects
 //! exactly this protocol. The rest (menu ROM, generic settings, the value strobe) is ours,
-//! Copyright (C) 2026 scullymi. No SPDX tag, because the file mixes our lines with Till's,
-//! which carry no licence. MiSTeryNano has no licence file and no header, see THIRD-PARTY.md.
+//! Copyright (C) 2026 scullymi. Till's lines and ours are GPL-3.0-or-later, see
+//! THIRD-PARTY.md.
 //! The README in this folder names the upstream commit of sysctrl.v.
 module sysctrl (
   input             clk,

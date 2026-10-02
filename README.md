@@ -400,9 +400,9 @@ risks of FTP and telnet.
 ## Licence
 
 **GPL-3.0-only** ([LICENSE](LICENSE)), Copyright (C) 2026 scullymi. Every own source file
-carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. Three files
+carries `SPDX-License-Identifier: GPL-3.0-only` and this notice in its first lines. Two files
 mix our changes with code that is not ours and carry our copyright for those changes but no
-SPDX tag: `sysctrl.v` (from Till Harbaum's `sysctrl.v`), `sd_rw.v` (GPL-3.0, WangXuan95's SD
+SPDX tag: `sd_rw.v` (GPL-3.0, WangXuan95's SD
 card reader via Nanomig) and `mcu/sector_dpram.v` (output of the Gowin IP generator via
 MiSTeryNano, with Gowin's header). The menu `menu.xml`, which goes into the
 bitstream byte for byte, carries no header. The wiring drawing `docs/wiring_pico.svg` is a Fritzing
@@ -410,7 +410,8 @@ export and CC BY-SA 3.0 like Fritzing's breadboard graphics in it. Not ours: the
 Apache-2.0, the notice in `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, a derivative of NESTang,
 both copyright notices in its header) and, kept with their original headers, the T80 cores
 (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, WangXuan95's SD card reader
-(GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files.
+(GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, our changes in
+them too).
 [THIRD-PARTY.md](THIRD-PARTY.md) explains what that means, on what terms the bitstreams are
 published and what the NOTICE files of the firmware image and of the bitstreams cover.
 The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) live

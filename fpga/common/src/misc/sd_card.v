@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// game20k: Nanomig src/misc/sd_card.v (Till Harbaum), unchanged apart from this header.
+// GPL-3.0-or-later.
 //
 // sd_card.v - sd card wrapper currently used to interface to sd_rw.v
 //

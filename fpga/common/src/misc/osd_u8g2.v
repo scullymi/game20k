@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /*
     osd_u8g2.v
  
@@ -7,8 +8,8 @@
 
 // game20k: MODIFIED VERSION of MiSTeryNano src/misc/osd_u8g2.v (Till Harbaum).
 // Some changes are marked "game20k" in the text, not all: the complete list is the diff
-// against the upstream commit named in the README of this folder. MiSTeryNano has no
-// licence file, see THIRD-PARTY.md.
+// against the upstream commit named in the README of this folder. Till Harbaum's file is
+// GPL-3.0-or-later, the game20k changes are too, Copyright (C) 2026 scullymi.
 
 module osd_u8g2 (
   input        clk,
