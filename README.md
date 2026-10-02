@@ -10,9 +10,9 @@ Classic arcade games on a small FPGA board, with **RetroAchievements**. A **Sipe
 20K** recreates the original arcade hardware and drives the HDMI output, while a **Raspberry Pi
 Pico 2 W** handles the USB stick, the on-screen menu and the achievements.
 
-<!-- docs/images/collage.png goes here, once the screenshots are picked:
-<p align="center"><img src="docs/images/collage.png" alt="Galaga, Pac-Man and Ms. Pac-Man on the Tang Nano 20K" width="800"></p>
--->
+![Galaga, Pac-Man, Ms. Pac-Man and the achievement list on the Tang Nano 20K](docs/images/games.png)
+
+More screenshots and a photo of the setup: [docs/images](docs/images/README.md).
 
 > **ROMs are not included and never will be.** You need your own, legally obtained ROM sets.
 > Without them, the screen stays dark.
@@ -38,9 +38,9 @@ a game on the other core first loads that core from the board's flash.
   there. Unlocks are sent over HTTPS, queued on the SD card while offline, and appear as a banner
   in the game. Rich Presence, leaderboards and an achievement list with progress in the menu are
   included too.
-- **Landscape or portrait.** 3x on a regular monitor, or 2x rotated through an SDRAM frame buffer
-  for a monitor turned on its side, just like in the original cabinet. Both are selectable in the
-  menu, as are scanlines.
+- **Upright or rotated.** 2x upright on a regular monitor, or 3x rotated through an SDRAM frame
+  buffer for a monitor turned on its side, which fills the screen as in the original cabinet.
+  Both are selectable in the menu (`Upright 2x`, `Landscape 3x`), as are scanlines.
 - **Four games, two cores, one flash.** Both cores are stored in the board's flash, and the menu
   switches between them in seconds.
 - **No game data in the bitstream.** The ROMs are loaded from the SD card at power-on, and every
