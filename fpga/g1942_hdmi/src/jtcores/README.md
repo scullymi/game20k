@@ -22,6 +22,11 @@ The sound chips come from [jotego/jt49](https://github.com/jotego/jt49), see `..
 The upstream files keep their headers. The T80 licence asks for the copyright notice in the
 documentation of a synthesized form, which [THIRD-PARTY.md](../../../../THIRD-PARTY.md) gives.
 
+For simulation with Verilator, which reads no VHDL, JTFRAME has a Verilog translation of the
+T80, `modules/jtframe/hdl/cpu/t80/T80s.v`. It carries no licence header, so it is not copied
+here: `../../sim/run_sim.sh` fetches it from the same jtcores commit and checks its git blob
+hash.
+
 ## What changed, and why
 
 Every change is marked `game20k` in the text.
