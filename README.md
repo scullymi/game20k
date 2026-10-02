@@ -36,7 +36,7 @@ of the game RAM goes to the Pico frame by frame, where
   [docs/hardware.md](docs/hardware.md#analogue-sound-optional).
 - **More games.** Every arcade board needs its own core and bitstream, shared by the games that
   ran on it. The ROMs come from the SD card as with Galaga. Candidates:
-  - Namco: Galaxian, Pac-Man and Ms. Pac-Man, Dig Dug, Xevious, Bosconian
+  - Namco: Galaxian, Dig Dug, Xevious, Bosconian
   - Capcom, from Jotego's jtcores: 1942, Vulgus, Commando, Gun.Smoke, 1943
   - games with an existing Tang Nano port: Donkey Kong, Defender, Time Pilot, Centipede,
     Pooyan, Bagman, Crazy Climber
@@ -252,8 +252,10 @@ as one image of the whole flash with every core at its address, and the command 
 ### 5. Firmware: build and flash
 
 Each release on the GitHub release page carries the image `game20k-<version>-pico2w.uf2` with
-its `NOTICE.txt`, for the Pico 2 W only. Take it instead of building, then continue with
-BOOTSEL below. To build:
+its `NOTICE.txt`, for the Pico 2 W only. GitHub Actions builds it from the sources at the tag,
+and `gh attestation verify game20k-<version>-pico2w.zip -R scullymi/game20k` checks that the
+zip comes from that build. Take it instead of building, then continue with BOOTSEL below. To
+build:
 
 ```sh
 scripts/build_companion.sh pico2 native
