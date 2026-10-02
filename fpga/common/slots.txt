@@ -8,3 +8,4 @@
 # core        flash address
 galaga_hdmi   0x000000
 pacman_hdmi   0x100000
+g1942_hdmi    0x200000

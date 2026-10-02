@@ -1,0 +1,157 @@
+/* SPDX-FileCopyrightText: 2026 Jose Tejada Gomez
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * Date: 20-1-2019 */
+
+// 1942 Object Generation
+
+
+module jt1942_obj(
+    input              rst,
+    input              clk,
+    input              cen6,    //  6 MHz
+    input              cen3,    //  3 MHz
+    input              cpu_cen,
+    input       [1:0]  game_id,
+    // screen
+    input              HINIT,
+    input              LHBL,
+    input              LVBL,
+    input   [ 7:0]     V,
+    input   [ 8:0]     H,
+    input              flip,
+    // CPU bus
+    input        [6:0] AB,
+    input        [7:0] DB,
+    input              obj_cs,
+    input              wr_n,
+    // SDRAM interface
+    input              obj_ok,
+    output      [14:0] obj_addr,
+    input       [15:0] obj_data,
+    // PROMs
+    input   [7:0]      prog_addr,
+    input              prom_pal_we,
+    input   [3:0]      prog_din,
+    // pixel output
+    output       [3:0] obj_pxl
+`ifdef JTFRAME_LF_BUFFER ,
+    output   [ 8:0] ln_addr,
+    output   [15:0] ln_data,
+    output          ln_done,
+    output          ln_we,
+    input           ln_hs,
+    input    [15:0] ln_pxl,
+    input    [ 7:0] ln_v
+`endif
+);
+
+parameter PXL_DLY = 7;
+
+
+wire line, fill, line_obj_we;
+wire [7:0]  objbuf_data0, objbuf_data1, objbuf_data2, objbuf_data3, V_eff;
+
+wire [3:0] pxlcnt, bufcnt;
+wire [4:0] objcnt;
+wire       pxlcnt_lsb;
+wire       over;
+
+wire LHBL_eff;   // game20k: declared before its first use (Gowin EX3638), was below
+
+jt1942_objtiming u_timing(
+    .rst         ( rst           ),
+    .clk         ( clk           ),
+    .cen6        ( cen6          ),    //  6 MHz
+    .game_id     ( game_id       ),
+    // screen
+    .LHBL        ( LHBL_eff      ),
+    .HINIT       ( HINIT         ),
+    .V           ( V_eff         ),
+    .H           ( H             ),
+    .flip        ( flip          ),
+    .obj_ok      ( obj_ok        ),
+    .over        ( over          ),
+    .pxlcnt      ( pxlcnt        ),
+    .pxlcnt_lsb  ( pxlcnt_lsb    ),
+    .objcnt      ( objcnt        ),
+    .bufcnt      ( bufcnt        ),
+    .line        ( line          )
+);
+
+// game20k: wire LHBL_eff moved up, see the declarations above
+
+jt1942_objram u_ram(
+    .rst            ( rst           ),
+    .clk            ( clk           ),
+    .cpu_cen        ( cpu_cen       ),
+    // Timings
+    .objcnt         ( objcnt        ),
+    .pxlcnt         ( pxlcnt        ),
+    .bufcnt         ( bufcnt        ),
+    .LVBL           ( LVBL          ),
+    // CPU interface
+    .DB             ( DB            ),
+    .AB             ( AB            ),
+    .wr_n           ( wr_n          ),
+    .obj_cs         ( obj_cs        ),
+    // memory output
+    .objbuf_data0   ( objbuf_data0  ),
+    .objbuf_data1   ( objbuf_data1  ),
+    .objbuf_data2   ( objbuf_data2  ),
+    .objbuf_data3   ( objbuf_data3  )
+);
+
+wire [8:0] posx, posx_eff;
+wire [3:0] new_pxl;
+
+// draw the sprite
+jt1942_objdraw u_draw(
+    .rst            ( rst           ),
+    .clk            ( clk           ),
+    .cen6           ( cen6          ),    //  6 MHz
+    .game_id        ( game_id       ),
+    // screen
+    .V              ( V_eff         ),
+    .H              ( H             ),
+    .pxlcnt         ( pxlcnt        ),
+    .pxlcnt_lsb     ( pxlcnt_lsb    ),
+    .bufcnt         ( bufcnt        ),
+    .posx           ( posx          ),
+    .flip           ( flip          ),
+    // per-line sprite data
+    .objbuf_data0   ( objbuf_data0  ),
+    .objbuf_data1   ( objbuf_data1  ),
+    .objbuf_data2   ( objbuf_data2  ),
+    .objbuf_data3   ( objbuf_data3  ),
+    .obj_data       ( obj_data      ),
+    // SDRAM interface
+    .obj_addr       ( obj_addr      ),
+    .obj_ok         ( obj_ok        ),
+    // Palette PROM
+    .prog_addr      ( prog_addr     ),
+    .prom_pal_we    ( prom_pal_we   ),
+    .prog_din       ( prog_din      ),
+    // pixel data
+    .new_pxl        ( new_pxl       )
+);
+
+assign LHBL_eff = LHBL,
+       V_eff    = V;
+assign posx_eff = flip ? posx+9'd1 : posx;
+
+jtgng_objpxl #(.PXL_DLY(PXL_DLY))u_pxlbuf(
+    .rst            ( rst           ),
+    .clk            ( clk           ),
+    .cen            ( 1'b1          ),
+    .pxl_cen        ( cen6          ),    //  6 MHz
+    // screen
+    .LHBL           ( LHBL          ),
+    .flip           ( flip          ),
+    .posx           ( posx_eff      ),
+    .line           ( line          ),
+    // pixel data
+    .new_pxl        ( new_pxl       ),
+    .obj_pxl        ( obj_pxl       )
+);
+
+endmodule
