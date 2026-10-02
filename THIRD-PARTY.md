@@ -118,10 +118,10 @@ script checks that the toolchain in use links that version.
 
 ## Bitstreams
 
-Each release carries `game20k-<version>-tangnano20k.zip` with one bitstream per core of
-[fpga/common/slots.txt](fpga/common/slots.txt), `FLASHING.txt` with the flash addresses,
-`NOTICE.txt` and `SHA256SUMS`. `scripts/make_bitstream_release.sh` builds them from the tagged
-sources with Gowin EDA Education on a local machine, GitHub Actions has no Gowin tools.
+Each release carries `game20k-<version>-tangnano20k.zip` with one flash image that holds every
+core of [fpga/common/slots.txt](fpga/common/slots.txt) at its address, `FLASHING.txt` with the
+command to write it, and `NOTICE.txt`. `scripts/make_bitstream_release.sh` builds them from
+the tagged sources with Gowin EDA Education on a local machine, GitHub Actions has no Gowin tools.
 `scripts/bitstream_notice.py` writes the NOTICE from the file lists of the synthesis: every
 source file of each bitstream has to belong to a listed component, a file that none claims stops
 the release. The NOTICE names the commit and the SHA-256 of each `.bin`. Rebuilds of the same
@@ -153,7 +153,7 @@ also in a fresh clone at another path. Builds on other machines have not been co
   non-commercial project and published free of charge. This says how they were made and adds no
   condition to the GPL-3.0. The design uses device primitives only, no Gowin IP core.
   `sector_dpram.v` and the rPLL instantiation in `pll_sdram.v` are output of the Gowin IP
-  generator. The `.fs` files begin with Gowin's copyright line of the tool.
+  generator.
 
 ## Notes
 

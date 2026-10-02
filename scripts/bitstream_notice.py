@@ -391,8 +391,9 @@ def main():
         "with Gowin EDA %s. Gowin provides its Education edition for education, research and "
         "other non-commercial purposes. These files were built for a non-commercial open "
         "source project and are published free of charge. This describes how they were made "
-        "and adds no condition to the licences below. The .fs files begin with Gowin's "
-        "copyright line of the tool. Each bitstream contains the hardware descriptions listed "
+        "and adds no condition to the licences below. The flash image holds each core's "
+        "bitstream at its flash address as the tool writes it to the .bin file, 0xFF in "
+        "between. Each bitstream contains the hardware descriptions listed "
         "below, each part under its own terms. The source of every part is in the repository "
         "at that commit."
         % (version, REPO_URL, commit, gowin_version(cores[0])), 78, break_long_words=False,
@@ -409,9 +410,9 @@ def main():
     out += ["", "Bitstreams", ""]
     for core in cores:
         base = os.path.join(ROOT, "fpga", core, "impl", "pnr", core)
-        out.append(field("%s.fs  " % core, "flash address %s, %d source files"
+        out.append(field("%s  " % core, "flash address %s, %d source files"
                          % (slot_of(core), len(per_core[core]))))
-        out.append(field(" " * (len(core) + 5), "SHA-256 of %s.bin: %s" % (core, sha256(base + ".bin"))))
+        out.append(field(" " * (len(core) + 2), "SHA-256 of %s.bin: %s" % (core, sha256(base + ".bin"))))
     out += ["", "Contents", ""]
     for n, i in enumerate(present, 1):
         out.append("%3d. %s" % (n, COMPONENTS[i]["name"]))

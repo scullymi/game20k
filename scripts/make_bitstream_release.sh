@@ -3,8 +3,9 @@
 # Copyright (C) 2026 scullymi
 # Builds the bitstreams of a release and packs them with their NOTICE.
 # Usage: scripts/make_bitstream_release.sh
-# Result: dist/game20k-<version>-tangnano20k/ with one .fs per core, NOTICE.txt, FLASHING.txt and
-# SHA256SUMS, and the same folder as .zip for the release page.
+# Result: dist/game20k-<version>-tangnano20k/ with the flash image game20k-<version>-tangnano20k.bin
+# (every core at its address), NOTICE.txt and FLASHING.txt, and the same folder as .zip for the
+# release page.
 #
 # The bitstreams are built here and not in GitHub Actions, the Gowin tools are not available
 # there. A release comes from a clean tree on a tag, like the firmware (DEV=1 skips these checks
@@ -14,7 +15,8 @@
 # Rebuilds of the same sources with the same Gowin version gave the same .bin byte for byte on
 # the build machine, also in a fresh clone at another path, the NOTICE records its SHA-256.
 #
-# The .fs files carry their build time in local time, the zip the time of packing.
+# The .fs files carry their build time in local time (the image is built from the .bin and has
+# none), the zip the time of packing.
 # git config game20k.quiethours "D1-D2 H1-H2" names a window of weekdays and hours, as date +%u
 # and +%H count them, in which no release is made: the script neither starts nor packs in it and
 # refuses a .fs whose "Created Time" falls in it. DEV=1 skips this check too.
@@ -103,38 +105,40 @@ if [ -z "$DEV" ]; then
 fi
 check_clock
 
-# --- pack: the bitstreams, the NOTICE, how to flash them, checksums, as folder and as zip ---
+# --- pack: one flash image, the NOTICE, how to flash it, as folder and as zip ---
 OUT="$ROOT/dist/$NAME"
 rm -rf "$OUT" "$OUT.zip"
 mkdir -p "$OUT"
 # shellcheck disable=SC2086
 python3 scripts/bitstream_notice.py "$OUT/NOTICE.txt" "$VERSION" $CORES
-for c in $CORES; do
-  # Gowin writes the .fs read-only and executable, the release gets plain file permissions
-  cp "fpga/$c/impl/pnr/$c.fs" "$OUT/$c.fs"
-  chmod 0644 "$OUT/$c.fs"
-done
+# The image is the SPI flash from 0x000000 as slots.txt lays it out: every core's .bin at its
+# address, 0xFF in between as in an erased flash. The .bin is the .fs as bytes, the same data
+# programmer_cli and openFPGALoader write from it. One write puts every core in place, and the
+# cores of a release always go on together, they must match the firmware of the same version.
+# Written with openFPGALoader and read back: equal byte for byte (02.10.2026).
+awk '!/^#/ && NF == 2 { print $1, $2 }' fpga/common/slots.txt | python3 -c '
+import sys
+img = bytearray()
+for line in sys.stdin:
+    core, addr = line.split()
+    addr = int(addr, 16)
+    if addr < len(img):
+        sys.exit("slots.txt: %s at %#x overlaps the core before it, which ends at %#x" % (core, addr, len(img)))
+    img += b"\xff" * (addr - len(img))
+    img += open("fpga/%s/impl/pnr/%s.bin" % (core, core), "rb").read()
+open(sys.argv[1], "wb").write(img)
+' "$OUT/$NAME.bin"
 {
-  echo "Flashing the game20k $VERSION bitstreams onto the Tang Nano 20K"
+  echo "Flashing game20k $VERSION onto the Tang Nano 20K"
   echo
-  echo "The SPI flash of the board holds every core at its own address. At power-on the FPGA"
-  echo "loads the one at 0x000000, picking a ROM of another core in the menu switches cores."
+  echo "$NAME.bin holds every game's core at its place in the board's flash. Write it"
+  echo "with openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):"
   echo
-  awk '!/^#/ && NF == 2 { printf "  %-16s %s\n", $1 ".fs", $2 }' fpga/common/slots.txt
-  echo
-  echo "With openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):"
-  echo
-  awk '!/^#/ && NF == 2 { printf "  openFPGALoader -b tangnano20k -f -o %s --verify %s.fs\n", $2, $1 }' fpga/common/slots.txt
-  echo
-  echo "Gowin's programmer_cli writes only the core at 0x000000: with --spiaddr it erased the"
-  echo "given address but programmed at 0. It wants the absolute path of the file:"
-  echo
-  awk '!/^#/ && NF == 2 && $2 == "0x000000" { printf "  programmer_cli --device GW2AR-18C --run 8 --fsFile /absolute/path/to/%s.fs\n", $1 }' fpga/common/slots.txt
+  echo "  openFPGALoader -b tangnano20k -f --verify $NAME.bin"
   echo
   echo "Power the board off and on afterwards. The firmware of the same version goes onto the"
   echo "Pico 2 W, the ROM files onto the SD card, see the README of the release."
 } > "$OUT/FLASHING.txt"
-( cd "$OUT" && shasum -a 256 ./*.fs | sed 's| \./| |' > SHA256SUMS )
 ( cd "$ROOT/dist" && zip -q -r "$NAME.zip" "$NAME" )
 echo "release files:"
 ls -la "$OUT" "$OUT.zip" | sed 's/^/  /'

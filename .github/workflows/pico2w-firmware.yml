@@ -4,9 +4,9 @@
 # Builds the firmware image for the Pico 2 W with its NOTICE, through
 # scripts/make_firmware_release.sh, on a clean Linux machine from the sources in this repository.
 #
-# On a pushed tag v<version>: a draft release with the zip, the text from
-# docs/releases/<version>.md and the SHA-256 sums, plus a build provenance attestation. The draft
-# is published by hand on the release page.
+# On a pushed tag v<version>: a draft release with the zip and the text from
+# docs/releases/<version>.md, plus a build provenance attestation. The draft is published by hand
+# on the release page.
 # By hand (Actions tab, "Run workflow", or gh workflow run pico2w-firmware.yml): a trial build of
 # the chosen branch, the zip kept as an artifact of the run, no release.
 name: Pico 2 W firmware
@@ -80,14 +80,5 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           NOTES="docs/releases/$VERSION.md"
           [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
-          {
-            cat "$NOTES"
-            echo
-            echo "## SHA-256"
-            echo
-            echo '```'
-            ( cd dist && sha256sum ./*.zip ./*/*.uf2 | sed 's|  \./|  |' )
-            echo '```'
-          } > "$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
-            --title "game20k $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+            --title "game20k $VERSION" --notes-file "$NOTES"

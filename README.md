@@ -245,8 +245,9 @@ the one the FPGA loads at power-on, Pac-Man at 0x100000. The script writes Galag
 openFPGALoader, which has to be installed for it: `programmer_cli` cannot write another
 address. After writing the flash, power the board off and on.
 
-Releases after 0.2.0 carry both bitstreams as `game20k-<version>-tangnano20k.zip`, with the
-flash commands in its `FLASHING.txt`: take them instead of building, like the firmware.
+Releases after 0.2.0 carry the bitstreams as `game20k-<version>-tangnano20k.zip`, from 0.3.1 on
+as one image of the whole flash with every core at its address, and the command in its
+`FLASHING.txt`: take it instead of building, like the firmware.
 
 ### 5. Firmware: build and flash
 
