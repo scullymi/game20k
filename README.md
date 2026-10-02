@@ -80,10 +80,6 @@ What this builds on:
 - **Pico W.** It has not been tested with the RetroAchievements firmware, yet
   `scripts/build_companion.sh` builds for it by default. Plan: make the Pico 2 W the default,
   then test the Pico W or drop it from the docs.
-- **Bitstreams in the release.** Up to 0.2.0 everyone builds the bitstream.
-  `scripts/make_bitstream_release.sh` builds them with their NOTICE for the next release, see
-  [THIRD-PARTY.md](THIRD-PARTY.md#bitstreams). Plan: read Gowin's current licence agreement
-  (behind a login on gowinsemi.com) before the first upload.
 
 ## Hardware
 
