@@ -6,10 +6,15 @@
 
 Usage:
   scripts/make_rom.py <manifest> [output]        build, default output sdcard/<set>.rom
-  scripts/make_rom.py --package <manifest> <out> write the section table for rom_loader
+  scripts/make_rom.py --package <manifest> <out> [<manifest> ...]
+                                                 write the section table for rom_loader
                                                  as a SystemVerilog package (build.tcl),
                                                  with the board id (BOARD_ID) and the RAM
-                                                 mirror size (MIRROR_DATA) of the game
+                                                 mirror size (MIRROR_DATA) of the game.
+                                                 Further manifests are sets of the same
+                                                 board whose file is a prefix of the first
+                                                 one's layout, their size becomes the
+                                                 loader's second size (ROM_TOTAL_SHORT)
   scripts/make_rom.py --list                     the manifests under fpga/, one per line
 
 The manifest (fpga/<core>/<set>.manifest) names every chip, its size and its SHA-1 as MAME
@@ -200,11 +205,36 @@ def build(m, out):
     return digest, label, warnings
 
 
-def write_package(m, out):
+def short_total(m, prefixes):
+    """The size of the shorter files of the board, 0 without any. Every further manifest must
+    describe the same board and mirror, and its sections must be the first sections of m with
+    the same offsets and sizes: rom_loader decodes with m's table and simply stops early, so
+    anything else would land in the wrong memory. All of them must have the same size, the
+    loader knows one second size."""
+    totals = set()
+    for p in prefixes:
+        if (p["board"], p["mirror"]) != (m["board"], m["mirror"]):
+            raise ManifestError("%s: board or mirror differ from %s" % (p["path"], m["path"]))
+        n = len(p["sections"])
+        mine = [(s["offset"], s["size"]) for s in m["sections"][:n]]
+        theirs = [(s["offset"], s["size"]) for s in p["sections"]]
+        if n >= len(m["sections"]) or mine != theirs:
+            raise ManifestError("%s: its sections are not the first sections of %s"
+                                % (p["path"], m["path"]))
+        totals.add(p["total"])
+    if len(totals) > 1:
+        raise ManifestError("the shorter files have different sizes %s, rom_loader takes one"
+                            % sorted(totals))
+    return totals.pop() if totals else 0
+
+
+def write_package(m, out, prefixes=()):
     """gen/rom_map_pkg.sv: the board id and the RAM mirror size the core announces in the
-    header (ram_spi.sv), then total size, number of sections and their offsets, the
-    parameters of rom_loader.sv. Written only when the content changes, so an unchanged
-    manifest does not touch the file's time stamp."""
+    header (ram_spi.sv), then total size, the second size of shorter sets of the board,
+    number of sections and their offsets, the parameters of rom_loader.sv. Written only
+    when the content changes, so an unchanged manifest does not touch the file's time
+    stamp."""
+    short = short_total(m, prefixes)
     offs = [s["offset"] for s in m["sections"]]
     if len(offs) > 16:
         raise ManifestError("%s: %d sections, rom_loader takes at most 16" % (m["path"], len(offs)))
@@ -217,6 +247,8 @@ def write_package(m, out):
              "    // game RAM bytes in the RAM mirror before the oracle log, header byte 14 x RAM_MIRROR_PAGE",
              "    localparam int MIRROR_DATA = %d;" % m["mirror"],
              "    localparam int ROM_TOTAL    = %d;" % m["total"],
+             "    // a second accepted file size, 0 for none: a shorter set of this board",
+             "    localparam int ROM_TOTAL_SHORT = %d;" % short,
              "    localparam int ROM_SECTIONS = %d;" % len(offs),
              "    // section 0 in the lowest 16 bits",
              "    localparam logic [16*16-1:0] ROM_OFFSETS = {"]
@@ -236,9 +268,9 @@ def main(argv):
     if len(argv) == 2 and argv[1] == "--list":
         print("\n".join(os.path.relpath(p, ROOT) for p in manifests()))
         return 0
-    if len(argv) == 4 and argv[1] == "--package":
+    if len(argv) >= 4 and argv[1] == "--package":
         try:
-            write_package(read_manifest(argv[2]), argv[3])
+            write_package(read_manifest(argv[2]), argv[3], [read_manifest(a) for a in argv[4:]])
         except (ManifestError, OSError) as e:
             print("make_rom.py: %s" % e, file=sys.stderr)
             return 1

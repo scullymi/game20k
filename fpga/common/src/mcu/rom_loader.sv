@@ -22,6 +22,9 @@
 module rom_loader #(
     parameter int SLOT = 0,            //!< image slot this loader accepts
     parameter int TOTAL = 38944,       //!< expected file size in bytes
+    //! a second accepted size, 0 for none: a file that is a prefix of the layout, so the
+    //! sections from TOTAL_SHORT on stay unwritten (Pac-Man next to Ms. Pac-Man)
+    parameter int TOTAL_SHORT = 0,
     parameter int SECTIONS = 11,       //!< ROM memories of the core, 1..16, one wr_en bit each
     //! start of every section in the file, section 0 in the lowest 16 bits, in file order:
     //! section i runs from OFFSETS[i] up to OFFSETS[i+1], the last one up to TOTAL. One slot
@@ -50,11 +53,13 @@ module rom_loader #(
     output logic        busy,
     output logic [15:0] count         //!< bytes taken so far, for the display
 );
-    // Only slot SLOT and only the exact file size are accepted. A wrong size is reported by
+    // Only slot SLOT and only the exact file sizes are accepted. A wrong size is reported by
     // the Companion as "Core has rejected image".
-    assign accepted = sel_strobe && (sel_index == SLOT[2:0]) && (image_size == TOTAL);
+    wire size_ok = (image_size == TOTAL) || (TOTAL_SHORT != 0 && image_size == TOTAL_SHORT);
+    assign accepted = sel_strobe && (sel_index == SLOT[2:0]) && size_ok;
 
     logic [15:0] cnt;
+    logic [15:0] last;        // offset of the file's last byte, set when it is accepted
     logic        active;
     assign busy  = active;
     assign count = cnt;
@@ -89,8 +94,9 @@ module rom_loader #(
 
             // selection: accepting starts the transfer, size 0 is the deselect at the end
             if (sel_strobe && (sel_index == SLOT[2:0])) begin
-                if (image_size == TOTAL) begin
+                if (size_ok) begin
                     cnt    <= 16'd0;
+                    last   <= image_size[15:0] - 16'd1;
                     active <= 1'b1;
                     loaded <= 1'b0;
                 end else if (image_size == 64'd0)
@@ -105,7 +111,7 @@ module rom_loader #(
                 wr_en       <= en_c;
                 data_strobe <= 1'b1;
                 cnt <= cnt + 16'd1;
-                if (cnt == TOTAL[15:0] - 16'd1) begin
+                if (cnt == last) begin
                     active <= 1'b0;
                     loaded <= 1'b1;
                 end
