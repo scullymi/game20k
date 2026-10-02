@@ -110,7 +110,7 @@ module game20k_top #(
     logic [7:0] rst_no = 0;
     always_ff @(posedge clk_core) begin
         s1_s <= {s1_s[0], s1};
-        if (!pll_lock || s1_s[1] || system_reset[0] || !rom_loaded) begin
+        if (!pll_lock || s1_s[1] || system_reset[0] || !rom_ready) begin
             rst_cnt <= 8'd0;
             reset   <= 1'b1;
         end else if (rst_cnt != 8'hFF)
@@ -164,6 +164,8 @@ module game20k_top #(
         .video_blankn(video_blankn), .video_vs(video_vs), .video_hs(video_hs),
         .audio(audio),
         .rom_wr_addr(rom_wr_addr), .rom_wr_data(rom_wr_data), .rom_wr_en(rom_wr_en),
+        .rom_rd_addr(rom_rd_addr), .rom_rd_req(rom_rd_req), .rom_rd_ack(rom_rd_ack),
+        .rom_rd_data(rom_rd_data),
         .cfg_we(cfg_we), .cfg_id(cfg_id), .cfg_val(cfg_val),
         .p1_dir(joystick[0][3:0]), .p2_dir(joystick[1][3:0]),
         .p1_fire(joy_fire), .p2_fire(joy_fire2),
@@ -211,8 +213,20 @@ module game20k_top #(
     logic        rom_loaded, rom_busy;
     logic [15:0] rom_count;
     logic [15:0] rom_wr_addr;
+    logic [ROM_AW-1:0] rom_wr_off;
     logic [7:0]  rom_wr_data;
     logic [15:0] rom_wr_en;
+    // A game whose manifest marks sections sdram (1942) keeps its ROM in SDRAM bank 2:
+    // rom_sdram takes those bytes, the SDRAM belongs to the ROM and the frame buffer, and
+    // with it portrait mode, is not built. The core leaves reset only once the last word
+    // has been written.
+    localparam bit ROM_IN_SDRAM = (ROM_SDRAM != 16'd0);
+    logic        rom_wr_ready, rom_wr_idle;
+    logic        rom_ready;
+    assign rom_ready = rom_loaded && (!ROM_IN_SDRAM || rom_wr_idle);
+    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM
+    logic        rom_rd_req, rom_rd_ack;
+    logic [31:0] rom_rd_data;
 
     sd_card #(
         .CLK_DIV(CORE_HZ > 20_000_000 ? 3'd1 : 3'd0),
@@ -240,12 +254,13 @@ module game20k_top #(
     // manifest lays them out. The file arrives from the SD card via the Companion,
     // rom_loaded reports completion to the LEDs.
     rom_loader #(.SLOT(0), .TOTAL(ROM_TOTAL), .TOTAL_SHORT(ROM_TOTAL_SHORT), .SECTIONS(ROM_SECTIONS),
-                 .OFFSETS(ROM_OFFSETS)) loader (
+                 .AW(ROM_AW), .OFFSETS(ROM_OFFSETS)) loader (
         .clk(clk_core), .reset(!pll_lock),
         .sel_strobe(rom_selection_strobe), .sel_index(rom_selected), .image_size(sd_img_size),
         .accepted(rom_accepted),
         .data_available(rom_data_available), .data_in(rom_data), .data_strobe(rom_data_strobe),
-        .wr_addr(rom_wr_addr), .wr_data(rom_wr_data), .wr_en(rom_wr_en),
+        .wr_addr(rom_wr_addr), .wr_off(rom_wr_off), .wr_data(rom_wr_data), .wr_en(rom_wr_en),
+        .wr_ready(rom_wr_ready),
         .loaded(rom_loaded), .busy(rom_busy), .count(rom_count)
     );
 
@@ -410,7 +425,7 @@ module game20k_top #(
         scr_s1 <= scr_s0;
         if (cx == 11'd0 && cy == 10'd760) screen_p <= scr_s1;
     end
-    wire screen_rot = (screen_p != 2'd0);
+    wire screen_rot = (screen_p != 2'd0) && !ROM_IN_SDRAM;   // no frame buffer, no portrait
     assign rgb = (FBSHOW || FBROT || screen_rot) ? rgb_fb : rgb_scaler;
 
     arcade_scaler #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L), .CPP(CPP), .RGB444(RGB444)) scaler (
@@ -635,7 +650,16 @@ module game20k_top #(
     logic [1:0]  fb_done_bank;
     logic [15:0] fb_done_words, fb_done_nz;
     logic [31:0] fb_done_sum;
+    // the ROM's side of the controller (rom_sdram below), used when ROM_IN_SDRAM
+    logic [21:0] rs_wr_addr, rs_rd_addr;
+    logic [31:0] rs_wr_din;
+    logic [1:0]  rs_wr_bank, rs_rd_bank;
+    logic        rs_wr_req, rs_rd_req;
     generate if (!SDRAMTEST) begin : g_fb
+        logic [21:0] pk_wr_addr;     // fb_pack's side of the write channel
+        logic [31:0] pk_wr_din;
+        logic [1:0]  pk_wr_bank;
+        logic        pk_wr_req;
         assign sdram_psda = SDRAM_PSDA;
         // Reset comes from pll_sdram_lock alone: a game reset must not
         // restart the 200 us initialisation of the memory.
@@ -658,14 +682,39 @@ module game20k_top #(
             .r_in(video_r[3:1]), .g_in(video_g[3:1]), .b_in(video_b[3:2]),   // 3/3/2 only
             .blankn(video_blankn), .vs(video_vs),
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .clear(s1 | system_reset[0]),
-            .wr_addr(fb_wr_addr), .wr_din(fb_wr_din), .wr_bank(fb_wr_bank),
-            .wr_req(fb_wr_req), .wr_ack(fb_wr_ack),
+            .wr_addr(pk_wr_addr), .wr_din(pk_wr_din), .wr_bank(pk_wr_bank),
+            .wr_req(pk_wr_req), .wr_ack(fb_wr_ack),
             .wbuf(fb_wbuf),            // consumed by the read path (fb_read_flat / fb_read_rotated)
             .frame_done(fb_frame_done), .done_bank(fb_done_bank),
             .done_words(fb_done_words), .done_sum(fb_done_sum), .done_nz(fb_done_nz),
             .err_overflow(fb_ovf), .err_addr(fb_eaddr)
         );
+        // The write channel serves the frame buffer, or with ROM_IN_SDRAM the ROM loading;
+        // the unused side is removed by synthesis.
+        assign fb_wr_addr = ROM_IN_SDRAM ? rs_wr_addr : pk_wr_addr;
+        assign fb_wr_din  = ROM_IN_SDRAM ? rs_wr_din  : pk_wr_din;
+        assign fb_wr_bank = ROM_IN_SDRAM ? rs_wr_bank : pk_wr_bank;
+        assign fb_wr_req  = ROM_IN_SDRAM ? rs_wr_req  : pk_wr_req;
     end endgenerate
+
+    // The game's ROM in SDRAM (ROM_IN_SDRAM): filled by rom_loader, read by the game
+    // through rom_rd_*. Without ROM_IN_SDRAM nothing drives it and synthesis removes it.
+    logic rs_ready, rs_idle;
+    rom_sdram #(.AW(22), .BANK(2'd2)) rom_sdram_i (
+        .clk_core(clk_core), .reset(!pll_lock),
+        .wr_we(ROM_IN_SDRAM && |(rom_wr_en & ROM_SDRAM)),
+        .wr_off(22'(rom_wr_off)), .wr_data(rom_wr_data),
+        .wr_ready(rs_ready), .wr_idle(rs_idle),
+        .rd_addr(rom_rd_addr), .rd_req(rom_rd_req),
+        .rd_ack(rom_rd_ack), .rd_data(rom_rd_data),
+        .clk_sdram(clk_sdram),
+        .sd_wr_addr(rs_wr_addr), .sd_wr_din(rs_wr_din), .sd_wr_bank(rs_wr_bank),
+        .sd_wr_req(rs_wr_req), .sd_wr_ack(fb_wr_ack),
+        .sd_rd_addr(rs_rd_addr), .sd_rd_bank(rs_rd_bank), .sd_rd_req(rs_rd_req),
+        .sd_rd_ack(fb_rd_ack), .sd_rd_dout(fb_rd_dout), .sd_rd_valid(fb_rd_valid)
+    );
+    assign rom_wr_ready = ROM_IN_SDRAM ? rs_ready : 1'b1;
+    assign rom_wr_idle  = ROM_IN_SDRAM ? rs_idle  : 1'b1;
 
     generate
     if (SDRAMTEST) begin : g_sdram_test
@@ -767,16 +816,24 @@ module game20k_top #(
     end else begin : g_fb_live
         // ---- g_fb_live, the normal case. Both picture paths are built, the menu
         // chooses. The frame buffer always runs along so that switching takes effect at once.
+        logic [21:0] fr_rd_addr;     // fb_read_rotated's side of the read channel
+        logic [1:0]  fr_rd_bank;
+        logic        fr_rd_req;
         fb_read_rotated #(.W(W), .H(H), .X0(X0_P), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
             .wbuf(fb_wbuf), .frame_done(fb_frame_done),
-            .rd_addr(fb_rd_addr), .rd_bank(fb_rd_bank),
-            .rd_req(fb_rd_req), .rd_ack(fb_rd_ack),
+            .rd_addr(fr_rd_addr), .rd_bank(fr_rd_bank),
+            .rd_req(fr_rd_req), .rd_ack(fb_rd_ack),
             .rd_dout(fb_rd_dout), .rd_valid(fb_rd_valid),
             .err_late(fb_late),
             .clk_pixel(clk_pixel), .cx(cx), .cy(cy),
             .rgb(rgb_fb), .active(fb_active), .clear(s1 | system_reset[0])
         );
+        // The read channel serves the portrait picture, or with ROM_IN_SDRAM the game's ROM
+        // reads; screen_rot is then always 0, and synthesis removes the frame buffer.
+        assign fb_rd_addr = ROM_IN_SDRAM ? rs_rd_addr : fr_rd_addr;
+        assign fb_rd_bank = ROM_IN_SDRAM ? rs_rd_bank : fr_rd_bank;
+        assign fb_rd_req  = ROM_IN_SDRAM ? rs_rd_req  : fr_rd_req;
 
         // In the normal case the usual LED assignment applies; st_led is not used.
         assign st_on  = 1'b0;

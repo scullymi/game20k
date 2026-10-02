@@ -85,9 +85,22 @@ def read_manifest(path):
                     m["title"] = " ".join(args)
                 elif key in ("total", "board", "mirror") and len(args) == 1:
                     m[key] = int(args[0], 0)
-                elif key == "section" and len(args) == 3:
-                    m["sections"].append({"name": args[0], "offset": int(args[1], 0),
-                                          "size": int(args[2], 0), "chips": []})
+                elif key == "section" and len(args) >= 3:
+                    sec = {"name": args[0], "offset": int(args[1], 0), "size": int(args[2], 0),
+                           "chips": [], "interleave": 8, "swap16": False, "sdram": False,
+                           "gfx_sort": None}
+                    for opt in args[3:]:
+                        if opt in ("interleave=16", "interleave=32"):
+                            sec["interleave"] = int(opt[11:])
+                        elif opt == "swap16":
+                            sec["swap16"] = True
+                        elif opt == "sdram":
+                            sec["sdram"] = True
+                        elif opt == "gfx_sort=hvvvvxx":
+                            sec["gfx_sort"] = opt[9:]
+                        else:
+                            raise ManifestError("%s: unknown section option %s" % (where, opt))
+                    m["sections"].append(sec)
                 elif key == "chip" and len(args) >= 3 and m["sections"]:
                     chip = {"name": args[0], "size": int(args[1], 0), "sha1": args[2].lower(),
                             "zip": None, "optional": False}
@@ -138,10 +151,31 @@ def read_manifest(path):
         if sum(c["size"] for c in s["chips"]) != s["size"]:
             raise ManifestError("%s: the chips of section %s do not add up to %d bytes"
                                 % (path, s["name"], s["size"]))
+        # interleave=N takes the chips in groups of N/8 of equal size
+        k = s["interleave"] // 8
+        if len(s["chips"]) % k or any(len({c["size"] for c in s["chips"][i:i + k]}) != 1
+                                      for i in range(0, len(s["chips"]), k)):
+            raise ManifestError("%s: section %s, interleave=%d needs groups of %d chips of equal size"
+                                % (path, s["name"], s["interleave"], k))
+        if s["swap16"] and s["size"] % 2:
+            raise ManifestError("%s: section %s, swap16 needs an even size" % (path, s["name"]))
+        if s["gfx_sort"] and (s["offset"] % 128 or s["size"] % 128):
+            raise ManifestError("%s: section %s, gfx_sort works on 128-byte blocks, offset and "
+                                "size must be multiples of 128" % (path, s["name"]))
         pos += s["size"]
     if pos != m["total"]:
         raise ManifestError("%s: the sections add up to %d bytes, total says %d"
                             % (path, pos, m["total"]))
+    # rom_sdram.sv writes whole 32-bit words and lets the core out of reset only when the last
+    # one is written: the sdram sections come first, one after the other, and end on a word
+    sd = [s["sdram"] for s in m["sections"]]
+    if any(sd):
+        n = sd.index(False) if False in sd else len(sd)
+        if any(sd[n:]):
+            raise ManifestError("%s: the sdram sections must be the first sections" % path)
+        end = m["sections"][n - 1]["offset"] + m["sections"][n - 1]["size"]
+        if end % 4:
+            raise ManifestError("%s: the sdram sections end at 0x%X, not on a 32-bit word" % (path, end))
     return m
 
 
@@ -172,10 +206,41 @@ def read_chip(zips, chip, default_zip):
     return data
 
 
+def arrange(s, datas):
+    """The bytes of one section from the contents of its chips, in manifest order. Plain:
+    one chip after the other. interleave=16 or 32: the chips in groups of 2 or 4, each group
+    byte by byte (byte i of the first chip, byte i of the second, ...), the groups one after
+    the other. swap16 then swaps the two bytes of every 16-bit word. This is how jotego's MRA
+    files lay out a ROM region (width and sequence, reverse), see fpga/g1942_hdmi. gfx_sort
+    finally moves the bytes the way JTFRAME's loader does for a bus with gfx_sort in its
+    mem.yaml, so the file is the image of the SDRAM."""
+    k = s["interleave"] // 8
+    out = bytearray()
+    for g in range(0, len(datas), k):
+        group = datas[g:g + k]
+        if k == 1:
+            out += group[0]
+        else:
+            for i in range(len(group[0])):
+                out += bytes(d[i] for d in group)
+    if s["swap16"]:
+        out[0::2], out[1::2] = out[1::2], out[0::2]
+    if s["gfx_sort"] == "hvvvvxx":
+        # JTFRAME sorts these address bits while it downloads the ROM into SDRAM
+        # (jtframe_dwnld.v, gfx16c with bit 0 at 2): the byte at a goes to the address whose
+        # bits 6:2 are a[5:2], a[6] (HVVVV -> VVVVH). The core reads with the plain address.
+        sorted_out = bytearray(len(out))
+        for a, byte in enumerate(out):
+            sorted_out[(a & ~0x7C) | ((a & 0x3C) << 1) | ((a >> 4) & 0x04)] = byte
+        out = sorted_out
+    return bytes(out)
+
+
 def build(m, out):
     """Assemble the file, checking every chip. Returns (sha256, known label or None, warnings)."""
     zips, parts, warnings = {}, [], []
     for s in m["sections"]:
+        datas = []
         for c in s["chips"]:
             data = read_chip(zips, c, m["zip"])
             # a missing optional chip becomes zeros; the firmware knows that file too
@@ -193,7 +258,8 @@ def build(m, out):
             elif hashlib.sha1(data).hexdigest() != c["sha1"]:
                 raise ManifestError("%s differs from MAME's set %s (SHA-1), wrong revision or modified?"
                                     % (c["name"], m["set"]))
-            parts.append(data)
+            datas.append(data)
+        parts.append(arrange(s, datas))
     blob = b"".join(parts)
     if len(blob) != m["total"]:
         raise ManifestError("assembled %d bytes, expected %d" % (len(blob), m["total"]))
@@ -238,6 +304,9 @@ def write_package(m, out, prefixes=()):
     offs = [s["offset"] for s in m["sections"]]
     if len(offs) > 16:
         raise ManifestError("%s: %d sections, rom_loader takes at most 16" % (m["path"], len(offs)))
+    # address width of the loader's byte counter: 16 bits up to 64 KiB, more for bigger files
+    aw = max(16, (m["total"] - 1).bit_length())
+    sdram = sum(1 << i for i, s in enumerate(m["sections"]) if s["sdram"])
     lines = ["// Generated by scripts/make_rom.py from %s. Do not edit." % os.path.relpath(m["path"], ROOT),
              "// Board id and RAM mirror size of %s for ram_spi.sv, its ROM layout for" % m["set"],
              "// rom_loader.sv, see the manifest.",
@@ -250,9 +319,13 @@ def write_package(m, out, prefixes=()):
              "    // a second accepted file size, 0 for none: a shorter set of this board",
              "    localparam int ROM_TOTAL_SHORT = %d;" % short,
              "    localparam int ROM_SECTIONS = %d;" % len(offs),
-             "    // section 0 in the lowest 16 bits",
-             "    localparam logic [16*16-1:0] ROM_OFFSETS = {"]
-    words = ["16'h%04X" % o for o in reversed(offs)]
+             "    // width of the loader's byte counter and of every offset below",
+             "    localparam int ROM_AW = %d;" % aw,
+             "    // bit i: section i goes to the SDRAM (rom_sdram.sv), not to the core's write port",
+             "    localparam logic [15:0] ROM_SDRAM = 16'h%04X;" % sdram,
+             "    // section 0 in the lowest ROM_AW bits",
+             "    localparam logic [16*%d-1:0] ROM_OFFSETS = {" % aw]
+    words = ["%d'h%0*X" % (aw, (aw + 3) // 4, o) for o in reversed(offs)]
     lines += ["        " + ", ".join(words[i:i + 6]) + ("," if i + 6 < len(words) else "")
               for i in range(0, len(words), 6)]
     lines += ["    };", "endpackage", ""]
