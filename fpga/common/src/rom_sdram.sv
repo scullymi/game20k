@@ -29,6 +29,16 @@
 //! Read side: one word at a time. rd_req toggles with a new rd_addr, rd_ack takes the value
 //! of rd_req once rd_data holds the word. Latency, worked out from sdram_fb.v: typically
 //! about 270 ns (10 clocks at 37.125 MHz), at most about 510 ns when a refresh is in the way.
+//!
+//! Writes and reads never overlap. sdram_fb opens the write channel's bank in ring cycle 0
+//! and the read channel's in cycle 1 of the same round; the frame buffer keeps the two on
+//! different banks, here both are bank BANK. A write in the same round as a read would open
+//! the open bank a second time, and a write in the round after a read would come one cycle
+//! before the read's auto precharge has finished (tRP). So a word goes out only while no
+//! read is outstanding (a read ends with its data, not with the controller's acknowledge),
+//! and a read is passed on only while no write is: the synchronisers then put at least one
+//! whole round between them. Found in simulation: without this the last word of the file
+//! landed in the row of the first read.
 module rom_sdram #(
     parameter int AW = 18,                 //!< width of the file offsets, ROM_AW of the package
     parameter logic [1:0] BANK = 2'd2      //!< SDRAM bank of the ROM; 0 and 1 hold the frame buffer
@@ -73,6 +83,12 @@ module rom_sdram #(
     logic          w_req = 1'b0;               // toggle towards clk_sdram
     logic [1:0]    w_ack_s = 2'b00;            // sd_wr_ack synchronised into clk_core
     wire           o_busy = w_req ^ w_ack_s[1];
+    logic          r_req = 1'b0;               // read toggle towards clk_sdram, see below
+    wire           r_busy = r_req ^ rd_ack;    // a read is out until its data is in rd_data
+    wire           r_wait = rd_req ^ r_req;    // the game asks for a read not yet passed on
+    // a full word goes out when neither a write nor a read is out and no read waits; reads
+    // come only while the game runs, writes only while it is held in reset
+    wire           w_go   = g_full && !o_busy && !r_busy && !r_wait;
 
     always_ff @(posedge clk_core) begin
         w_ack_s <= {w_ack_s[0], sd_wr_ack};
@@ -86,7 +102,7 @@ module rom_sdram #(
                 if (wr_off[1:0] == 2'd3) g_full <= 1'b1;
             end
             // a full word moves on as soon as the previous one has been taken
-            if (g_full && !o_busy) begin
+            if (w_go) begin
                 o_word <= g_word;
                 o_addr <= g_addr;
                 w_req  <= ~w_req;
@@ -109,6 +125,8 @@ module rom_sdram #(
             rd_data <= sd_rd_dout;              // stable since the controller wrote it
             rd_ack  <= ~rd_ack;
         end
+        // a waiting read is passed on once no write is out (and none goes out now)
+        if (r_wait && !r_busy && !o_busy) r_req <= rd_req;
     end
     initial rd_ack = 1'b0;
 
@@ -117,7 +135,7 @@ module rom_sdram #(
     logic       r_done = 1'b0;
     always_ff @(posedge clk_sdram) begin
         w_req_s <= {w_req_s[0], w_req};
-        r_req_s <= {r_req_s[0], rd_req};
+        r_req_s <= {r_req_s[0], r_req};
         if (sd_rd_valid) r_done <= ~r_done;     // sd_rd_dout holds the word from rd_valid on
     end
     assign sd_wr_req  = w_req_s[1];
