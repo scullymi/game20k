@@ -1,11 +1,14 @@
 # roms
 
-Put your own ROM files here. Nothing in this folder is committed, `.gitignore` excludes it.
+Put your own MAME sets here. Nothing in this folder is committed, `.gitignore` excludes it.
 
-- `galaga.zip`: the MAME set `galaga` (parent, Namco Rev B), as a merged set. Required.
-- `namco54.zip`: optional, without it the explosion sounds are missing.
+| Game | Zip |
+|---|---|
+| Galaga | `galaga.zip`, the MAME set `galaga` (parent, Namco Rev B), merged. Optionally `namco54.zip` for the explosion sounds |
+| Pac-Man | `pacman.zip` |
+| Puck Man | `puckman.zip` |
+| Ms. Pac-Man | `mspacman.zip` |
 
-`scripts/make_sdcard.sh` builds `sdcard/galaga.rom` (38944 bytes) from them, every chip checked
-by size and SHA-1 against MAME as the manifest `fpga/galaga_hdmi/galaga.manifest` lists them,
-see [sdcard/README.md](../sdcard/README.md). Sets of other games go here the same way, each
-game's manifest names its zip.
+`scripts/make_sdcard.sh` builds a ROM file for every game whose set is here and checks the size
+and SHA-1 of every chip against MAME, as the game's manifest (`fpga/<core>/<set>.manifest`)
+lists them. See [sdcard/README.md](../sdcard/README.md) for what goes onto the card.
