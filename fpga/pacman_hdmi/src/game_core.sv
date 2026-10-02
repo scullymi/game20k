@@ -137,10 +137,13 @@ module game_core #(
     // directions in one clock take the first in the order up, down, left, right. HOLD_MS is
     // a compromise: longer bridges more of the slow chatter, but a direction released and
     // pressed again within it does not take over while the old one is held, which with
-    // 200 ms already felt late in play. The cost at 100 ms: a deliberate move from a corner
-    // back to the old direction takes 100 ms to show, and a gap longer than that leaks.
+    // 200 ms already felt late in play. Back from a corner to the old direction takes
+    // BACK_MS (50 ms) to show, and a gap in the corner longer than that leaks.
     // p1_dir/p2_dir are clk_core registers of the top.
     localparam int HOLD_MS = 100;
+    // the gap in the corner bridged before the direction still held takes over again: shorter
+    // than HOLD_MS, so leaving a corner for the old direction shows sooner (test 02.10.2026)
+    localparam int BACK_MS = 50;
     wire [3:0] raw_dir = p1_dir | p2_dir;      // {up, down, left, right}
     logic [14:0] ms_div = 15'd0;               // 18.5625 MHz / 18563 = 1 kHz
     wire ms_tick = (ms_div == 15'd18562);
@@ -164,7 +167,7 @@ module game_core #(
         if (raw_dir == 4'd0)                          dir4 <= 4'd0;             // all released
         else if (fresh != 4'd0)                       dir4 <= first(fresh);     // the newest wins
         else if ((dir4 & raw_dir) != 4'd0)            dir4 <= dir4;             // in effect and pressed
-        else if (dir4 != 4'd0 && gap4 < HOLD_MS)      dir4 <= dir4;             // a gap in the corner
+        else if (dir4 != 4'd0 && gap4 < BACK_MS)      dir4 <= dir4;             // a gap in the corner
         else                                          dir4 <= first(raw_dir);  // released for good
     end
 
