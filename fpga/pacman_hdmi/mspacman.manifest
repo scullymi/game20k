@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Ms. Pac-Man on the Pac-Man board. The format is described in the head of
+# pacman.manifest.
+#
+# The file is pacman.rom's layout plus the second program bank at the end, so pacman.rom and
+# puckman.rom are a prefix of it and keep their layout and digests. build.tcl writes the
+# loader's section table from this manifest and takes those two sizes as its second size
+# (ROM_TOTAL_SHORT). This is why the bank comes last here, not in MAME's chip order.
+#
+# The bank is the core's 0x4000..0x7FFF of the download (CPU 0x8000..0xBFFF), laid out as
+# MiSTer's Ms. Pac-Man.mra does: u5 twice, u6, u7 twice. The core decrypts at run time from
+# the places MAME's ROM_LOAD names, u5 at 0x8000, u6 at 0x9000, u7 at 0xB000. The core sees a
+# loaded bank as Ms. Pac-Man (mod_ms), see game_core.sv.
+
+set     mspacman
+title   Ms. Pac-Man (Midway)
+zip     mspacman.zip
+total   41760
+board   2
+mirror  6272
+
+section program     0x0000 16384
+chip    pacman.6e   4096 e87e059c5be45753f7e9f33dff851f16d6751181
+chip    pacman.6f   4096 674d3a7f00d8be5e38b1fdc208ebef5a92d38329
+chip    pacman.6h   4096 8e47e8c2c4d6117d174cdac150392042d3e0a881
+chip    pacman.6j   4096 d4a70d56bb01d27d094d73db8667ffb00ca69cb9
+section gfx         0x4000 8192
+chip    5e          4096 5e8b472b615f12efca3fe792410c23619f067845
+chip    5f          4096 fd6a1dde780b39aea76bf1c4befa5882573c2ef4
+section palette_7f  0x6000 32
+chip    82s123.7f   32   8d0268dee78e47c712202b0ec4f1f51109b1f2a5
+section colour_4a   0x6020 256
+chip    82s126.4a   256  19097b5f60d1030f8b82d9f1d3a241f93e5c75d6
+section wave_1m     0x6120 256
+chip    82s126.1m   256  bbcec0570aeceb582ff8238a4bc8546a23430081
+section timing_3m   0x6220 256
+chip    82s126.3m   256  0c4d0bee858b97632411c440bea6948a74759746
+section bank1       0x6320 16384
+chip    u5          2048 b26cc1c8ee18e9b1daa97956d2159b954703a0ec
+chip    u5          2048 b26cc1c8ee18e9b1daa97956d2159b954703a0ec
+chip    u6          4096 e4df96f1db753533f7d770aa62ae1973349ea4cf
+chip    u7          4096 1d8ac7ad03db2dc4c8c18ade466e12032673f874
+chip    u7          4096 1d8ac7ad03db2dc4c8c18ade466e12032673f874
+
+known   d6d7cfdbd89153b572ceb6ddc2a1322f1f481eb608e84c5fdee7319c4c05bae0 MAME mspacman

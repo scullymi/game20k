@@ -188,8 +188,8 @@ module game_core #(
     // program at 0x0000, graphics at 0x8000, the PROMs at 0xC000 + their MiSTer offset. The
     // palette chip has 32 bytes of which the core decodes 16; bytes 16..31 land at 0xC310
     // where nothing listens, as on MiSTer. The timing PROM (section 5) is in the file for the
-    // digest only, the core generates its timing itself. Bank 1 (0x4000..0x7FFF) is never
-    // written: G_HI_BANK is false in the core copy.
+    // digest only, the core generates its timing itself. Section 6 is Ms. Pac-Man's second
+    // program bank (0x4000..0x7FFF), only mspacman.rom has it, see mspacman.manifest.
     logic [15:0] dn_addr;
     logic        dn_wr;
     always_comb begin
@@ -198,8 +198,18 @@ module game_core #(
         else if (rom_wr_en[2]) dn_addr = 16'hC300 | {11'd0, rom_wr_addr[4:0]};    // col_rom_7f
         else if (rom_wr_en[3]) dn_addr = 16'hC100 | {8'd0, rom_wr_addr[7:0]};     // col_rom_4a
         else if (rom_wr_en[4]) dn_addr = 16'hC000 | {8'd0, rom_wr_addr[7:0]};     // audio_rom_1m
+        else if (rom_wr_en[6]) dn_addr = {2'b01, rom_wr_addr[13:0]};              // u_program_rom1
         else                   dn_addr = 16'h0000;
-        dn_wr = |rom_wr_en[4:0];
+        dn_wr = |rom_wr_en[4:0] | rom_wr_en[6];
+    end
+
+    // Which game the file is: a file with the second bank is Ms. Pac-Man. The first program
+    // byte of every load clears the flag, a byte of the bank sets it. The core stays in
+    // reset until the whole file is in (game20k_top), so it never runs with a stale flag.
+    logic is_ms = 1'b0;
+    always_ff @(posedge clk_core) begin
+        if (rom_wr_en[0] && rom_wr_addr == 16'd0) is_ms <= 1'b0;
+        else if (rom_wr_en[6])                     is_ms <= 1'b1;
     end
 
     // ---------------- Core nets ----------------
@@ -217,9 +227,10 @@ module game_core #(
     logic [1:0]  blankn_q = 2'b00;
 
     // ---------------- The core ----------------
-    // Every mod_* input is 0: this is Pac-Man, the other games' decoders and sound chips are
-    // swept. hs_access_read and hs_access_write must stay 0: any 1 silently drops all CPU
-    // RAM writes (pacman.vhd, u_rams). The high score port B is the mirror's read port.
+    // Every mod_* input but mod_ms is 0: Pac-Man and Ms. Pac-Man, the other games' decoders
+    // and sound chips are swept. hs_access_read and hs_access_write must stay 0: any 1
+    // silently drops all CPU RAM writes (pacman.vhd, u_rams). The high score port B is the
+    // mirror's read port.
     // Fallback if Gowin does not bind the entity PACMAN from here: lowercase 'pacman core'
     // or a VHDL shell, see src/rtl_pacman/README.md.
     PACMAN core (
@@ -239,7 +250,7 @@ module game_core #(
         .mod_jmpst   (1'b0),
         .mod_bird    (1'b0),
         .mod_mrtnt   (1'b0),
-        .mod_ms      (1'b0),
+        .mod_ms      (is_ms),
         .mod_woodp   (1'b0),
         .mod_eeek    (1'b0),
         .mod_glob    (1'b0),

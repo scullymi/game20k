@@ -260,6 +260,7 @@ architecture rtl of rom_descrambler is
 	signal rom_addr     : std_logic_vector(15 downto 0);
 	signal rom_lo       : std_logic_vector( 7 downto 0);
 	signal rom_hi       : std_logic_vector( 7 downto 0);
+	signal rom1_q       : std_logic_vector( 7 downto 0); -- game20k: the second bank before the choice
 	signal rom_data_in  : std_logic_vector( 7 downto 0);
 	signal rom_data_out : std_logic_vector( 7 downto 0);
 	signal rom0_cs,rom1_cs  : std_logic;
@@ -298,7 +299,9 @@ begin
 		b_dout => rom_lo
 	);
 
-	-- game20k: Altera dpram replaced by g20k_dpram, bank only with G_HI_BANK
+	-- game20k: Altera dpram replaced by g20k_dpram, bank only with G_HI_BANK. Only Ms. Pac-Man
+	-- reads it: for every other game A15 mirrors bank 0 as on the Pac-Man board, so one
+	-- bitstream runs Pac-Man and Ms. Pac-Man and a bank left over from Ms. Pac-Man stays unseen.
 	gen_bank1 : if G_HI_BANK generate
 	u_program_rom1 : entity work.g20k_dpram generic map (AW => 14, DW => 8)
 	port map
@@ -309,8 +312,9 @@ begin
 		a_din  => dn_data,
 		a_dout => open,
 		b_addr => rom_addr(13 downto 0),
-		b_dout => rom_hi
+		b_dout => rom1_q
 	);
+	rom_hi <= rom1_q when MSPACMAN = '1' else rom_lo;
 	end generate;
 	gen_mirror : if not G_HI_BANK generate
 		rom_hi <= rom_lo; -- A15 ignored: 0x8000-0xBFFF mirrors 0x0000-0x3FFF

@@ -56,9 +56,10 @@ entity PACMAN is
 generic
 (
 	-- game20k: false leaves out the second 16 KB program bank (8 BSRAM), 0x8000-0xBFFF
-	-- then mirrors 0x0000-0x3FFF as on the Pac-Man board. Ms. Pac-Man needs true. The
-	-- wrapper passes no generic, so this default is the value of the build.
-	G_HI_BANK  : boolean := false
+	-- then mirrors 0x0000-0x3FFF as on the Pac-Man board. Ms. Pac-Man needs true, and with
+	-- true the other games still see the mirror (rom_descrambler). The wrapper passes no
+	-- generic, so this default is the value of the build.
+	G_HI_BANK  : boolean := true
 );
 port
 (

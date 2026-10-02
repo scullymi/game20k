@@ -28,8 +28,10 @@ add_file src/game_pkg.sv
 add_file src/game_core.sv
 
 # The ROM layout for rom_loader, from the manifest. python3 is needed for the report anyway.
+# Ms. Pac-Man's layout is the longest of the board, pacman.rom and puckman.rom are a prefix
+# of it and give the loader its second size.
 file mkdir gen
-if {[catch {exec python3 ../../scripts/make_rom.py --package pacman.manifest gen/rom_map_pkg.sv} msg]} {
+if {[catch {exec python3 ../../scripts/make_rom.py --package mspacman.manifest gen/rom_map_pkg.sv pacman.manifest puckman.manifest} msg]} {
     error "rom_map_pkg.sv: $msg"
 }
 add_file gen/rom_map_pkg.sv
