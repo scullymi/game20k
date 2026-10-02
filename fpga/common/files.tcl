@@ -90,6 +90,19 @@ set anchor {set_clock_groups -asynchronous -group [get_clocks {clk_sdram}]}
 if {[string first $anchor $sdc] < 0} {
     error "board.sdc: insertion anchor not found"
 }
+# The period of clk_core comes from the game's CORE_HZ (src/game_pkg.sv), so the clock is
+# named in one place only. board.sdc carries the 18.5625 MHz line as the default.
+set fin [open src/game_pkg.sv r]; set pkg [read $fin]; close $fin
+if {![regexp {localparam int CORE_HZ = ([0-9_]+);} $pkg -> core_hz]} {
+    error "src/game_pkg.sv: CORE_HZ not found"
+}
+set core_period [format %.3f [expr {1e9 / [string map {_ {}} $core_hz]}]]
+set clk_line {create_clock -name clk_core  -period 53.872 [get_nets {clk_core}]}
+if {[string first $clk_line $sdc] < 0} {
+    error "board.sdc: clk_core line not found"
+}
+set sdc [string map [list $clk_line "create_clock -name clk_core  -period $core_period \[get_nets {clk_core}\]"] $sdc]
+puts "files.tcl: clk_core $core_hz Hz, period $core_period ns"
 set fout [open gen/board_gen.sdc w]
 puts $fout [string map [list $anchor $sdram] $sdc]; close $fout
 add_file -type sdc gen/board_gen.sdc

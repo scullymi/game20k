@@ -24,9 +24,10 @@ module game_core #(
     input  wire         reset,          //!< core reset, held by the top until the ROM is loaded
 
     //! ---- video in the core raster, blankn = 1 visible, vs active low ----
-    output logic [2:0]  video_r,
-    output logic [2:0]  video_g,
-    output logic [1:0]  video_b,
+    output logic [3:0]  video_r,        //!< 4/4/4, a 3/3/2 core leaves the low bits 0
+    output logic [3:0]  video_g,
+    output logic [3:0]  video_b,
+    output logic        video_ce,       //!< pixel enable, only read when game_pkg::CPP is 0
     output logic        video_blankn,
     output logic        video_vs,
     output logic        video_hs,
@@ -332,9 +333,11 @@ module game_core #(
     always_ff @(posedge clk_core) blankn_q <= {blankn_q[0], blankn_live};
     wire [2:0] blankn_sh = {blankn_q, blankn_live};   // [0] live, [1] one clock, [2] two clocks
     assign video_blankn = blankn_sh[BLANK_DLY];
-    assign video_r  = core_r;
-    assign video_g  = core_g;
-    assign video_b  = core_b;
+    // 3/3/2 in the upper bits (game_pkg::RGB444 is 0), the scaler counts the pixels itself
+    assign video_r  = {core_r, 1'b0};
+    assign video_g  = {core_g, 1'b0};
+    assign video_b  = {core_b, 2'b00};
+    assign video_ce = 1'b0;
     // O_VSYNC is an active high 8-line pulse 16 lines before the first visible line; the
     // scaler wants it active low. O_HSYNC has no consumer.
     assign video_vs = ~core_vs;

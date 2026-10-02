@@ -37,7 +37,8 @@
 
 module ram_spi #(
     parameter int         DATA  = 5120,   //!< game RAM bytes in the mirror, a multiple of RAM_MIRROR_PAGE (MIRROR_DATA of the game)
-    parameter logic [7:0] BOARD = 8'd0    //!< board id of the core, 1..254 (BOARD_ID of the game); 0 and 255 are no board
+    parameter logic [7:0] BOARD = 8'd0,   //!< board id of the core, 1..254 (BOARD_ID of the game); 0 and 255 are no board
+    parameter int         US_DIV = 19     //!< core clocks per microsecond, rounded: 19 at 18.5625 MHz, 37 at 37.125
 )(
     input  wire         clk,              //!< clk_core
     input  wire         reset,
@@ -94,7 +95,8 @@ module ram_spi #(
     localparam int FOOT = RAM_MIRROR_HEAD + DATA + RAM_MIRROR_LOG;
     logic [15:0] cnt;                     // byte within the running transfer
     logic [15:0] us_cnt;                  // microseconds of the running transfer
-    logic [4:0]  us_div;                  // 18.5625 MHz / 18.5625 = 1 us (approx.: 19 clocks)
+    localparam int UW = $clog2(US_DIV);
+    logic [UW-1:0] us_div;                // US_DIV clocks = 1 us (approximately)
     logic        busy;
     // The end of a transfer is told by chip select, not by a guessed idle time.
     // An idle time is no good here: the Pico is interrupted during the block (USB polling,
@@ -209,7 +211,7 @@ module ram_spi #(
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            cnt <= 16'd0; busy <= 1'b0; us_cnt <= 16'd0; us_div <= 5'd0;
+            cnt <= 16'd0; busy <= 1'b0; us_cnt <= 16'd0; us_div <= '0;
             last_count <= 16'd0; last_us <= 16'd0; transfers <= 16'd0;
             pico_verdict <= 8'd0; ss_s <= 3'b111; underrun <= 1'b0; harv_at_start <= 1'b0;
             pico_rc <= 16'd0; pico_us <= 16'd0; pico_last <= 8'd0;
@@ -218,11 +220,11 @@ module ram_spi #(
             ra_flags <= 8'd0; ra_flags_prev <= 8'd0;
         end else begin
             // microsecond tick
-            if (us_div == 5'd18) begin
-                us_div <= 5'd0;
+            if (us_div == UW'(US_DIV - 1)) begin
+                us_div <= '0;
                 if (busy && us_cnt != 16'hFFFF) us_cnt <= us_cnt + 16'd1;
             end else
-                us_div <= us_div + 5'd1;
+                us_div <= us_div + 1'b1;
 
             ss_s <= {ss_s[1:0], spi_ss};
             txt_we <= 1'b0;   // the write pulse is exactly one clock wide

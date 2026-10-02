@@ -12,7 +12,7 @@
 //! Video and audio go out over HDMI.
 //!
 //! Clocks: 27 MHz crystal and TWO PLLs. pll_hdmi produces clk_x5 (371.25 MHz) and clk_core
-//! (18.5625 MHz), clkdiv5 divides clk_x5 down to clk_pixel (74.25 MHz). pll_sdram provides
+//! (game_pkg::CORE_HZ, 18.5625 or 37.125 MHz), clkdiv5 divides clk_x5 down to clk_pixel (74.25 MHz). pll_sdram provides
 //! a separate 64.8 MHz for the frame buffer in SDRAM.
 //!
 //! Buttons: S1 = reset. S2 = OSD button, reported to the Companion. Coin and start come
@@ -93,7 +93,10 @@ module game20k_top #(
     localparam int BANNER_RY = (720 - 384) / 2;
     // ---------------- Clocks ----------------
     logic clk_x5, clk_pixel, clk_core, pll_lock;
-    pll_hdmi pll (.clkin(sys_clk), .clkout(clk_x5), .clkoutd(clk_core), .lock(pll_lock));
+    // clk_core = 371.25 MHz / SDIV: 20 gives 18.5625 MHz (Galaga, Pac-Man), 10 gives 37.125
+    localparam int CORE_SDIV = 371_250_000 / CORE_HZ;
+    pll_hdmi #(.SDIV(CORE_SDIV)) pll (.clkin(sys_clk), .clkout(clk_x5), .clkoutd(clk_core),
+                                      .lock(pll_lock));
     clkdiv5  div (.hclkin(clk_x5), .resetn(pll_lock), .clkout(clk_pixel));
 
     // ---------------- Reset ----------------
@@ -128,8 +131,8 @@ module game20k_top #(
     always_ff @(posedge clk_core) s2_s <= {s2_s[0], s2};
 
     // ---------------- The game ----------------
-    logic [2:0] video_r, video_g;
-    logic [1:0] video_b;
+    logic [3:0] video_r, video_g, video_b;   // 4/4/4, a 3/3/2 game leaves the low bits 0
+    logic       video_ce;                    // the game's pixel enable, see game_pkg::CPP
     logic        log_we;         // the game's RAM writes, flat mirror address, observation only
     logic [15:0] log_addr;
     logic [7:0]  log_data;
@@ -157,7 +160,7 @@ module game20k_top #(
 
     game_core #(.ROMVIEW(ROMVIEW), .RAMDIAG(RAMDIAG)) game (
         .clk_core(clk_core), .reset(reset),
-        .video_r(video_r), .video_g(video_g), .video_b(video_b),
+        .video_r(video_r), .video_g(video_g), .video_b(video_b), .video_ce(video_ce),
         .video_blankn(video_blankn), .video_vs(video_vs), .video_hs(video_hs),
         .audio(audio),
         .rom_wr_addr(rom_wr_addr), .rom_wr_data(rom_wr_data), .rom_wr_en(rom_wr_en),
@@ -196,8 +199,8 @@ module game20k_top #(
 
     // ---------------- microSD (SPI target 3), controller from Nanomig ----------------
     // The card hangs on the FPGA, not on the Pico: the Companion reads every sector through
-    // the FPGA. CLK_DIV 0 gives 189 kHz init and 9.3 MHz transfer at the 18.5625 MHz core
-    // clock. Reset hangs on pll_lock, not on the core reset, so that a game reset does not
+    // the FPGA. sd_rw divides by 2 x (CLK_DIV + 1): CLK_DIV 0 at 18.5625 MHz and CLK_DIV 1 at
+    // 37.125 MHz both give 189 kHz init and 9.3 MHz transfer. Reset hangs on pll_lock, not on the core reset, so that a game reset does not
     // unmount the card.
     logic [63:0] sd_img_size;
     logic [7:0]  sd_img_mounted;
@@ -212,7 +215,7 @@ module game20k_top #(
     logic [15:0] rom_wr_en;
 
     sd_card #(
-        .CLK_DIV(3'd0),
+        .CLK_DIV(CORE_HZ > 20_000_000 ? 3'd1 : 3'd0),
         .IMAGE_FIFO_BITS(9)          // 512 bytes, the Companion must never be told more
     ) sd_card (
         .rstn(pll_lock), .clk(clk_core),
@@ -325,13 +328,14 @@ module game20k_top #(
     // FPGA reloads selects another way of loading. Power-on always loads slot 0.
     // Z has no menu entry. The value 0xA5 keeps a menu of one's own that uses Z for
     // something else from reloading the FPGA.
-    localparam logic [14:0] RECONF_CLKS = 15'd18563;   // 1 ms at 18.5625 MHz
-    logic [14:0] reconf_cnt = 15'd0;
-    logic        reconf_q   = 1'b1;
+    localparam int RECONF_CLKS = (CORE_HZ + 999) / 1000;   // 1 ms
+    localparam int RECONF_W    = $clog2(RECONF_CLKS + 1);  // 15 bits at 18.5625 MHz, 16 at 37.125
+    logic [RECONF_W-1:0] reconf_cnt = '0;
+    logic                reconf_q   = 1'b1;
     always_ff @(posedge clk_core) begin
-        if (cfg_we && cfg_id == "Z" && cfg_val == 8'hA5) reconf_cnt <= RECONF_CLKS;
-        else if (reconf_cnt != 15'd0)                   reconf_cnt <= reconf_cnt - 15'd1;
-        reconf_q <= (reconf_cnt == 15'd0);
+        if (cfg_we && cfg_id == "Z" && cfg_val == 8'hA5) reconf_cnt <= RECONF_W'(RECONF_CLKS);
+        else if (reconf_cnt != '0)                      reconf_cnt <= reconf_cnt - 1'b1;
+        reconf_q <= (reconf_cnt == '0);
     end
     assign reconfig_n = reconf_q;
 
@@ -409,11 +413,12 @@ module game20k_top #(
     wire screen_rot = (screen_p != 2'd0);
     assign rgb = (FBSHOW || FBROT || screen_rot) ? rgb_fb : rgb_scaler;
 
-    arcade_scaler #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L)) scaler (
+    arcade_scaler #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L), .CPP(CPP), .RGB444(RGB444)) scaler (
         .clk_core (clk_core),
         .r_in     (video_r),
         .g_in     (video_g),
         .b_in     (video_b),
+        .pix_ce   (video_ce),
         .blankn   (video_blankn),
         .vs       (video_vs),
         .clk_pixel(clk_pixel),
@@ -491,7 +496,7 @@ module game20k_top #(
        At 3x one line in three is dark instead of every second. That looks
        different from a CRT, but it is the best that can be done there.
 
-       The counter stays aligned across frames because FRAME_H 768 is
+       The counter stays aligned across frames because FRAME_H (768, 786) is
        divisible by 3 and it is reset at cy == 0.
 
        Price: at 50 percent about half the brightness. Hence adjustable in
@@ -649,7 +654,8 @@ module game20k_top #(
             .rd_dout(fb_rd_dout), .rd_valid(fb_rd_valid)
         );
         fb_pack #(.W(W), .H(H)) pack_i (
-            .clk_core(clk_core), .r_in(video_r), .g_in(video_g), .b_in(video_b),
+            .clk_core(clk_core),
+            .r_in(video_r[3:1]), .g_in(video_g[3:1]), .b_in(video_b[3:2]),   // 3/3/2 only
             .blankn(video_blankn), .vs(video_vs),
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .clear(s1 | system_reset[0]),
             .wr_addr(fb_wr_addr), .wr_din(fb_wr_din), .wr_bank(fb_wr_bank),
@@ -855,7 +861,7 @@ module game20k_top #(
 
     // The game's RAM size and board id go out in the header; both from the manifest through
     // rom_map_pkg, so the firmware reads the length of the block and which core it talks to.
-    ram_spi #(.DATA(MIRROR_DATA), .BOARD(BOARD_ID)) ram_spi_i (
+    ram_spi #(.DATA(MIRROR_DATA), .BOARD(BOARD_ID), .US_DIV((CORE_HZ + 500_000) / 1_000_000)) ram_spi_i (
         .clk(clk_core), .reset(!pll_lock),
         .spi_ss(spi_csn), .spi_clk(spi_sck),
         .strobe(mcu_ram_strobe), .start(mcu_start), .data_in(mcu_data_out),
@@ -885,7 +891,7 @@ module game20k_top #(
     hdmi #(
         .VIDEO_ID_CODE(4), .DVI_OUTPUT(0), .VIDEO_REFRESH_RATE(60), .IT_CONTENT(1),
         .AUDIO_RATE(48000), .AUDIO_BIT_WIDTH(16), .START_X(0), .START_Y(0),
-        .FRAME_W(1584), .FRAME_H(768), .SYNC_X(0), .SYNC_Y(20),
+        .FRAME_W(1584), .FRAME_H(FRAME_H), .SYNC_X(0), .SYNC_Y(20),
         .VENDOR_NAME({"game20k", 8'd0}), .PRODUCT_DESCRIPTION(PRODUCT_DESCRIPTION)
     ) hdmi_i (
         .clk_pixel_x5     (clk_x5),

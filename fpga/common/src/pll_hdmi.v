@@ -6,10 +6,11 @@
 //! @file pll_hdmi.v
 //! @brief Clock generation for HDMI and core (game20k)
 //!
-//! 27 MHz crystal -> CLKOUT 371.25 MHz (serialiser clock), CLKOUTD 18.5625 MHz (Galaga core).
+//! 27 MHz crystal -> CLKOUT 371.25 MHz (serialiser clock), CLKOUTD the core clock.
 //!   371.25 = 27 * 55 / 4      (IDIV_SEL 3 divides by 4, FBDIV_SEL 54 multiplies by 55)
 //!   pixel clock 74.25 = 371.25 / 5, generated in clkdiv5.v
-//!   core clock  18.5625 = 371.25 / 20 (DYN_SDIV_SEL)
+//!   core clock  371.25 / SDIV (DYN_SDIV_SEL): 20 gives 18.5625 (Galaga, Pac-Man), 10 gives
+//!               37.125 (1942). Both come from the same VCO, so the frame lock to HDMI holds.
 //!
 //! Why this file is hand-written: see the header of clkdiv5.v. In short: what stands here is
 //! the instantiation of a hardware primitive with chosen parameters, and there is only one
@@ -20,9 +21,11 @@
 //! treated alike; PSDA_SEL would be ineffective in dynamic mode anyway.
 //! -----------------------------------------------------------------------------------------
 
-module pll_hdmi (
+module pll_hdmi #(
+    parameter SDIV = 20      //!< CLKOUTD = CLKOUT / SDIV, even, 2..128 (UG286)
+) (
     output wire clkout,      //!< 371.25 MHz
-    output wire clkoutd,     //!<  18.5625 MHz
+    output wire clkoutd,     //!<  371.25 MHz / SDIV
     output wire lock,
     input  wire clkin        //!<  27 MHz
 );
@@ -50,7 +53,7 @@ module pll_hdmi (
     defparam rpll_inst.IDIV_SEL         = 3;      // /4
     defparam rpll_inst.FBDIV_SEL        = 54;     // *55
     defparam rpll_inst.ODIV_SEL         = 2;
-    defparam rpll_inst.DYN_SDIV_SEL     = 20;     // CLKOUTD = CLKOUT / 20
+    defparam rpll_inst.DYN_SDIV_SEL     = SDIV;   // CLKOUTD = CLKOUT / SDIV
     defparam rpll_inst.DYN_IDIV_SEL     = "false";
     defparam rpll_inst.DYN_FBDIV_SEL    = "false";
     defparam rpll_inst.DYN_ODIV_SEL     = "false";
