@@ -49,7 +49,7 @@ USB plug to USB A socket).
 - No soldering beyond the SPI connection.
 - Uses the USB controller in the chip, not the PIO implementation, and is not affected by
   erratum RP2350-E9 (see [hardware.md](hardware.md)).
-- Firmware: `scripts/build_companion.sh pico2 native`, or `pico native` for the Pico W.
+- Firmware: `scripts/build_companion.sh pico2 native`.
 - To reflash the Pico over USB, unplug the stick. The port is then needed for the computer.
   Also unplug the 5 V line from the Nano, otherwise two 5 V supplies are tied together.
 
@@ -66,8 +66,7 @@ USB A socket, with no adapter.
 | GND | GND | 38 or 23 |
 
 On a USB A socket the contacts are, in order, 5 V, D-, D+, GND. GP2 and GP3 are fixed. The
-firmware expects D+ on the lower pin number. Firmware: `scripts/build_companion.sh pico2 pio`,
-or `pico pio` for the Pico W.
+firmware expects D+ on the lower pin number. Firmware: `scripts/build_companion.sh pico2 pio`.
 
 **Pull-down resistors are mandatory:** one from D+ to GND and one from D- to GND, directly at
 the socket. Without them the port works unreliably or not at all.
@@ -75,7 +74,7 @@ the socket. Without them the port works unreliably or not at all.
 | Chip | Value | Reason |
 |---|---|---|
 | RP2350 stepping A2 | 4.7 kOhm | erratum E9, see below. 3.3 to 8.2 kOhm is acceptable |
-| RP2350 A3/A4, RP2040 | 15 kOhm | value from the USB specification |
+| RP2350 A3/A4 | 15 kOhm | value from the USB specification |
 
 A USB host needs about 15 kOhm to ground on both data lines to detect a device. The native USB
 port has these resistors in hardware. Ordinary pins have none. The PIO library relies on the
@@ -214,8 +213,7 @@ lost.
 
 Unplug the 5 V line from the Nano first, otherwise the computer's 5 V and the Nano's 5 V are
 tied together without decoupling. Then hold BOOTSEL, connect the Pico to the computer over USB,
-and copy `fpga_companion.uf2` to the drive that appears (`RPI-RP2` on the Pico and Pico W,
-`RP2350` on the Pico 2 and Pico 2 W).
+and copy `fpga_companion.uf2` to the drive that appears (`RP2350` on the Pico 2 W).
 
 On the Pico 2 W, macOS ends the copy with an error about extended attributes. That is normal:
 the drive disappears as soon as the file is complete, and a vanished drive means success.
@@ -230,8 +228,8 @@ the drive disappears as soon as the file is complete, and a vanished drive means
    the game.
 4. The Nano's LEDs: LED 2 stays on once a packet from the Pico has arrived. LED 3 is on while a
    direction or button is held.
-5. The test bar (menu `Controller`, `Input test: On`) shows the raw data from the Pico below the
-   game picture, labelled, and next to it the game signals derived from them.
+5. The input test (menu `Controller`, `Input test: On`) shows a bar at the top of the picture with
+   the raw data from the Pico, labelled, and next to it the game signals derived from them.
 
 If something hangs: power everything off for ten seconds. A pin latched by E9 is a hardware
 state and survives every reset.
