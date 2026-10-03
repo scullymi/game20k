@@ -189,6 +189,10 @@
         <listentry label="6" value="6"/>
         <listentry label="7 (max)" value="7"/>
       </list>
+      <list label="Sound:" id="W" default="0">
+        <listentry label="Original" value="0"/>
+        <listentry label="Soft" value="1"/>
+      </list>
       <list label="Scanlines:" id="S" default="0">
         <listentry label="Off" value="0"/>
         <listentry label="25%" value="1"/>

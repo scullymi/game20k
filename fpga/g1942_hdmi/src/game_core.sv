@@ -291,28 +291,48 @@ module game_core #(
     // and 220 kOhm: a passive sum, AC coupled. jt49 gives each AY's three channels as one
     // unsigned 10-bit sum, so the mix is psg0 + psg1, 0..2046. Two things are added for HDMI,
     // all steps on cen3 (3 MHz on average):
-    //   - DC removal, a one-pole high pass at 3 MHz / (2 pi 65536) = 7.3 Hz, the coupling
-    //     capacitors' part. Without it the sum sits on a DC level and only swings upwards.
+    //   - DC removal, a one-pole high pass at 3 MHz / (2 pi 2^21) = 0.23 Hz, the coupling
+    //     capacitors' part (10 uF into 220 kOhm, 0.07 Hz on the board). Without it the sum sits
+    //     on a DC level and only swings upwards. A corner at 7.3 Hz was tried first: after
+    //     every loud noise burst the baseline sagged and crept back, the effects sounded like
+    //     a broken speaker (measured against MAME's recording of the same sounds).
     //   - three one-pole low passes at 3 MHz / (2 pi 32) = 14.9 kHz each, before the platform
     //     samples at 48 kHz. The AY's square waves have harmonics far above 24 kHz, which a
     //     plain sample folds back as whistles (measured on the device: lines up to 24 kHz at
     //     -50 to -60 dB). Together -9 dB at 15 kHz, -30 dB at 48 kHz, -48 dB at 96 kHz.
     // Fixed point: x = mix << 11 (up to 2^22), the stage states carry extra fraction bits
-    // (16 for the high pass, 5 per low pass) so that small signals do not stick.
+    // (21 for the high pass, 5 per low pass) so that small signals do not stick.
     wire signed [24:0] au_x = $signed({2'b00, {1'b0, psg0} + {1'b0, psg1}, 11'd0});
-    logic signed [40:0] au_dc = '0;                        // DC level << 16
-    wire  signed [24:0] au_hp = au_x - 25'(au_dc >>> 16);  // the signal without DC
+    logic signed [45:0] au_dc = '0;                        // DC level << 21
+    wire  signed [24:0] au_hp = au_x - 25'(au_dc >>> 21);  // the signal without DC
     logic signed [29:0] au_s1 = '0, au_s2 = '0, au_s3 = '0; // low pass stages << 5
     always_ff @(posedge clk)
         if (cen3) begin
-            au_dc <= au_dc + 41'(au_x) - (au_dc >>> 16);
+            au_dc <= au_dc + 46'(au_x) - (au_dc >>> 21);
             au_s1 <= au_s1 + 30'(au_hp)          - (au_s1 >>> 5);
             au_s2 <= au_s2 + 30'(au_s1 >>> 5)    - (au_s2 >>> 5);
             au_s3 <= au_s3 + 30'(au_s2 >>> 5)    - (au_s3 >>> 5);
         end
-    // au_s3 >>> 5 is in units of x = mix << 11; >>> 6 more gives mix << 5, twice the former
-    // unipolar scale, which the signal centred on 0 has room for. Saturated to 16 bits.
-    wire signed [29:0] au_y = au_s3 >>> 11;
+    // Sound setting (menu id W): 0 original, 1 soft. Soft puts two more one-pole low passes
+    // behind, at 3 MHz / (2 pi 128) = 3.7 kHz each, like a cabinet speaker. The music has a
+    // square wave near 1.9 kHz on the beat whose harmonics (5.6, 9.4, 13 kHz) sit where the
+    // ear is most sensitive: soft takes them down by 10 to 17 dB and the tone by 2 dB, and
+    // smooths the noise of the effects. Tried on the device: 2.8 and 1.9 kHz were too dull.
+    // Original is the default.
+    logic au_soft = 1'b0;
+    always_ff @(posedge clk)
+        if (cfg_we && cfg_id == "W") au_soft <= (cfg_val != 8'd0);
+    logic signed [33:0] au_s4 = '0, au_s5 = '0;                  // extra stages << 7
+    always_ff @(posedge clk)
+        if (cen3) begin
+            au_s4 <= au_s4 + 34'(au_s3 >>> 5) - (au_s4 >>> 7);
+            au_s5 <= au_s5 + (au_s4 >>> 7)    - (au_s5 >>> 7);
+        end
+    // in units of x = mix << 11
+    wire signed [29:0] au_lp = au_soft ? 30'(au_s5 >>> 7) : 30'(au_s3 >>> 5);
+    // >>> 6 more gives mix << 5, twice the former unipolar scale, which the signal centred
+    // on 0 has room for. Saturated to 16 bits.
+    wire signed [29:0] au_y = au_lp >>> 6;
     always_ff @(posedge clk)
         audio <= (au_y >  30'sd32767) ? 16'sd32767 :
                  (au_y < -30'sd32768) ? -16'sd32768 : 16'(au_y);
