@@ -65,6 +65,14 @@ flowchart LR
     rc <-->|HTTPS over WiFi| ra[(retroachievements.org)]
 ```
 
+All cores live side by side in the Tang Nano's 8 MB flash, each in its own 1 MB slot:
+
+![The flash: Galaga at 0x000000, the Pac-Man core at 0x100000, 1942 planned at 0x200000, the rest free](docs/images/flash-layout.svg)
+
+Every core takes 886 KB of its slot, because a bitstream always configures the whole FPGA,
+whatever the game. At power-on the FPGA loads the core at 0x000000, and the menu switches to the
+others.
+
 ## Quick start
 
 **You need** a Tang Nano 20K, a Raspberry Pi Pico 2 W, a microSD card, a micro USB OTG adapter,

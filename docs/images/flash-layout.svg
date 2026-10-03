@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 180" width="960" height="180" role="img" aria-labelledby="t d">
+  <title id="t">SPI flash of the Tang Nano 20K</title>
+  <desc id="d">An 8 MB flash split into 1 MB slots. Galaga at 0x000000 and the Pac-Man core at 0x100000 each use 886 KB of their slot. 1942 is planned at 0x200000. The rest, from 0x300000 to 0x800000, is free.</desc>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b0b0b; }
+    .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; fill: #52514e; }
+    .name { font-size: 14px; font-weight: 600; }
+    .sub { font-size: 12px; fill: #52514e; }
+    .tick { stroke: #c9c8c2; stroke-width: 1; }
+    .used-galaga { fill: #2a78d6; }
+    .used-pacman { fill: #eb6834; }
+    .rest { fill: none; stroke-width: 2; }
+    .rest-galaga { stroke: #2a78d6; }
+    .rest-pacman { stroke: #eb6834; }
+    .planned { fill: none; stroke: #1baf7a; stroke-width: 2; stroke-dasharray: 6 4; }
+    .free { fill: none; stroke: #8a8984; stroke-width: 1.5; stroke-dasharray: 2 4; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #ffffff; }
+      .addr, .sub { fill: #c3c2b7; }
+      .tick { stroke: #4a4a47; }
+      .used-galaga { fill: #3987e5; }
+      .used-pacman { fill: #d95926; }
+      .rest-galaga { stroke: #3987e5; }
+      .rest-pacman { stroke: #d95926; }
+      .planned { stroke: #199e70; }
+      .free { stroke: #8f8e88; }
+    }
+  </style>
+
+  <!-- address ticks: 110 px per MB, from x = 40 -->
+  <g>
+    <line class="tick" x1="40"  y1="44" x2="40"  y2="54"/><text class="addr" x="40"  y="38" text-anchor="start">0x000000</text>
+    <line class="tick" x1="150" y1="44" x2="150" y2="54"/><text class="addr" x="150" y="38" text-anchor="middle">0x100000</text>
+    <line class="tick" x1="260" y1="44" x2="260" y2="54"/><text class="addr" x="260" y="38" text-anchor="middle">0x200000</text>
+    <line class="tick" x1="370" y1="44" x2="370" y2="54"/><text class="addr" x="370" y="38" text-anchor="middle">0x300000</text>
+    <line class="tick" x1="480" y1="44" x2="480" y2="54"/><text class="addr" x="480" y="38" text-anchor="middle">0x400000</text>
+    <line class="tick" x1="590" y1="44" x2="590" y2="54"/><text class="addr" x="590" y="38" text-anchor="middle">0x500000</text>
+    <line class="tick" x1="700" y1="44" x2="700" y2="54"/><text class="addr" x="700" y="38" text-anchor="middle">0x600000</text>
+    <line class="tick" x1="810" y1="44" x2="810" y2="54"/><text class="addr" x="810" y="38" text-anchor="middle">0x700000</text>
+    <line class="tick" x1="920" y1="44" x2="920" y2="54"/><text class="addr" x="920" y="38" text-anchor="end">0x800000</text>
+  </g>
+
+  <!-- Galaga, slot 0: 886 KB of 1 MB = 95.2 of 110 px -->
+  <rect class="rest rest-galaga" x="42" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-galaga" x="43" y="58" width="94" height="52" rx="3"/>
+  <text class="name" x="44" y="146">Galaga</text>
+  <text class="sub"  x="44" y="164">886 KB</text>
+
+  <!-- Pac-Man core, slot 1 -->
+  <rect class="rest rest-pacman" x="152" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-pacman" x="153" y="58" width="94" height="52" rx="3"/>
+  <text class="name" x="154" y="146">Pac-Man</text>
+  <text class="sub"  x="154" y="164">886 KB, 3 games</text>
+
+  <!-- 1942, slot 2, planned -->
+  <rect class="planned" x="262" y="57" width="106" height="54" rx="4"/>
+  <text class="name" x="264" y="146">1942</text>
+  <text class="sub"  x="264" y="164">planned</text>
+
+  <!-- free, 0x300000 to 0x800000 -->
+  <rect class="free" x="372" y="57" width="546" height="54" rx="4"/>
+  <text class="sub" x="645" y="89" text-anchor="middle">free, room for five more cores</text>
+
+</svg>
