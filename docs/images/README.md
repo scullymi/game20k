@@ -9,6 +9,10 @@ Galaga with an achievement banner, Pac-Man, Ms. Pac-Man and the achievement list
 
 ![Galaga, Pac-Man, Ms. Pac-Man and the achievement list](games.png)
 
+1942 in its attract mode, upright on a regular monitor (`Upright 2x`).
+
+![1942 upright, two scenes from the attract mode](1942.png)
+
 ## Upright or rotated
 
 The same game on a regular monitor (`Upright 2x`) and rotated for a monitor turned on its side
