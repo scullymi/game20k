@@ -14,8 +14,9 @@
 //! Raster tracking
 //! ---------------
 //! Identical to the raster tracking in arcade_scaler.sv so that both paths see the same pixels:
-//! three core clocks per pixel, sampled in phase 1. The bounds wr_x < W and wr_line < H
-//! are mandatory: a glitch must never write into the neighbouring buffer.
+//! CPP core clocks per pixel, sampled in phase 1 (Galaga, Pac-Man: 3), or with CPP 0 on the
+//! core's own pixel enable pix_ce (1942). The bounds wr_x < W and wr_line < H are mandatory:
+//! a glitch must never write into the neighbouring buffer.
 //! The numbers below are for the 288 x 224 raster of Galaga and Pac-Man. W is a multiple
 //! of 4 up to 508, H up to 255.
 //!
@@ -43,13 +44,15 @@
 
 module fb_pack #(
     parameter int W = 288,               //!< visible width of the core raster
-    parameter int H = 224                //!< visible height of the core raster
+    parameter int H = 224,               //!< visible height of the core raster
+    parameter int CPP = 3                //!< core clocks per pixel, counted here; 0: take pix_ce
 )(
     //! ---- core side ----
     input  wire         clk_core,
     input  wire  [2:0]  r_in,
     input  wire  [2:0]  g_in,
     input  wire  [1:0]  b_in,
+    input  wire         pix_ce,          //!< pixel enable of the core, only with CPP 0
     input  wire         blankn,          //!< 1 = visible area
     input  wire         vs,              //!< vsync, active low
 
@@ -114,23 +117,39 @@ module fb_pack #(
             ph      <= 2'd0;
             wr_x    <= 9'd0;
         end else if (blankn) begin
-            if (ph == 2'd2) begin
-                ph   <= 2'd0;
-                wr_x <= wr_x + 9'd1;
-            end else
-                ph <= ph + 2'd1;
-
-            // sample the pixel (phase 1, as in the scaler), only inside the frame
-            if (ph == 2'd1 && wr_x < 9'(W) && wr_line < 8'(H) && armed) begin
-                if (wr_x[1:0] == 2'd3) begin
-                    // Fourth byte: the word is full. Order: the first pixel of the group of
-                    // four sits in the lowest 8 bits.
-                    f_data  <= {{r_in, g_in, b_in}, acc};
-                    f_word  <= {wr_line, wr_x[8:2]};
-                    f_first <= (wr_line == 8'd0) && (wr_x[8:2] == 7'd0);
-                    f_push  <= 1'b1;
+            if (CPP == 0) begin
+                // the core's own enable: the pixel is still stable in the clock of the enable
+                if (pix_ce) begin
+                    wr_x <= wr_x + 9'd1;
+                    if (wr_x < 9'(W) && wr_line < 8'(H) && armed) begin
+                        if (wr_x[1:0] == 2'd3) begin
+                            f_data  <= {{r_in, g_in, b_in}, acc};
+                            f_word  <= {wr_line, wr_x[8:2]};
+                            f_first <= (wr_line == 8'd0) && (wr_x[8:2] == 7'd0);
+                            f_push  <= 1'b1;
+                        end else
+                            acc <= {{r_in, g_in, b_in}, acc[23:8]};
+                    end
+                end
+            end else begin
+                if (ph == 2'(CPP - 1)) begin
+                    ph   <= 2'd0;
+                    wr_x <= wr_x + 9'd1;
                 end else
-                    acc <= {{r_in, g_in, b_in}, acc[23:8]};
+                    ph <= ph + 2'd1;
+
+                // sample the pixel (phase 1, as in the scaler), only inside the frame
+                if (ph == 2'd1 && wr_x < 9'(W) && wr_line < 8'(H) && armed) begin
+                    if (wr_x[1:0] == 2'd3) begin
+                        // Fourth byte: the word is full. Order: the first pixel of the group of
+                        // four sits in the lowest 8 bits.
+                        f_data  <= {{r_in, g_in, b_in}, acc};
+                        f_word  <= {wr_line, wr_x[8:2]};
+                        f_first <= (wr_line == 8'd0) && (wr_x[8:2] == 7'd0);
+                        f_push  <= 1'b1;
+                    end else
+                        acc <= {{r_in, g_in, b_in}, acc[23:8]};
+                end
             end
         end
     end

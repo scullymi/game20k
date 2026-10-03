@@ -38,6 +38,7 @@ add_file $common/src/misc/sd_card.v
 add_file $common/src/mcu/rom_loader.sv
 add_file $common/src/rom_sdram.sv
 add_file $common/src/rom_slots.sv
+add_file $common/src/sdram_share.sv
 add_file $common/src/input_test_bar.sv
 add_file $common/src/ra_overlay.sv
 
