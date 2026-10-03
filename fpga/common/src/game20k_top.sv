@@ -86,6 +86,8 @@ module game20k_top #(
     localparam int X0_L = (1280 - 3 * W) / 2;
     localparam int Y0_L = (720 - 3 * H) / 2;
     localparam int X0_P = (1280 - 2 * H) / 2;
+    // the palette stage holds the picture one clock, so both picture paths start one earlier
+    localparam int PAL_LAT = PALETTE ? 1 : 0;
     localparam int Y0_P = (720 - 2 * W) / 2;
     localparam int BANNER_BX = (1280 - 384) / 2;
     localparam int BANNER_BY = Y0_P + 2 * W + 52;
@@ -413,6 +415,9 @@ module game20k_top #(
     logic [23:0] rgb;
     logic [23:0] rgb_scaler;             // picture from the line ring buffer (landscape 3x)
     logic [23:0] rgb_fb;                 // picture from the SDRAM frame buffer (portrait 2x)
+    logic        pic_sc, pic_fb;         // with rgb_scaler / rgb_fb: the pixel is picture
+    logic [23:0] rgb_pic;                // the chosen one, before the palette
+    logic        pic;
     // Portrait mode takes the picture from the frame buffer instead of the scaler. The
     // scaler keeps running either way: it generates the sync pulse HDMI is locked to.
     // Screen mode: 0 = landscape 3x via the scaler, 1 = portrait 2x from the SDRAM.
@@ -426,9 +431,39 @@ module game20k_top #(
         if (cx == 11'd0 && cy == 10'd760) screen_p <= scr_s1;
     end
     wire screen_rot = (screen_p != 2'd0);
-    assign rgb = (FBSHOW || FBROT || screen_rot) ? rgb_fb : rgb_scaler;
+    wire   use_fb = FBSHOW || FBROT || screen_rot;
+    assign rgb_pic = use_fb ? rgb_fb : rgb_scaler;
+    assign pic     = use_fb ? pic_fb : pic_sc;
 
-    arcade_scaler #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L), .CPP(CPP), .RGB444(RGB444)) scaler (
+    // Palette mode (game_pkg::PALETTE): the game delivers its colour index in the 3/3/2
+    // layout, both picture paths carry it unchanged, and here it becomes the colour from the
+    // game's colour PROMs, which the loader writes into three small RAMs as it passes them
+    // to the core. The colour is registered (read without one, the RAMs left clk_pixel just
+    // above its 74.25 MHz), and the picture paths start one clock earlier for it, PAL_LAT.
+    // Outside the picture the index would be 0, a colour like any other, hence the pic flag.
+    generate if (PALETTE) begin : g_pal
+        logic [3:0] pal_r [0:255];
+        logic [3:0] pal_g [0:255];
+        logic [3:0] pal_b [0:255];
+        always_ff @(posedge clk_core)
+            if (rom_wr_en[PAL_SEC])
+                case (rom_wr_addr[11:8])
+                    4'd0: pal_r[rom_wr_addr[7:0]] <= rom_wr_data[3:0];
+                    4'd1: pal_g[rom_wr_addr[7:0]] <= rom_wr_data[3:0];
+                    4'd2: pal_b[rom_wr_addr[7:0]] <= rom_wr_data[3:0];
+                    default: ;
+                endcase
+        // the index back out of the 3/3/2 expansion of the picture paths
+        wire [7:0] pal_i = {rgb_pic[23:21], rgb_pic[15:13], rgb_pic[7:6]};
+        wire [3:0] pr = pal_r[pal_i], pg = pal_g[pal_i], pb = pal_b[pal_i];
+        logic [23:0] rgb_pal = 24'h000000;
+        always_ff @(posedge clk_pixel) rgb_pal <= pic ? {pr, pr, pg, pg, pb, pb} : 24'h000000;
+        assign rgb = rgb_pal;
+    end else begin : g_nopal
+        assign rgb = rgb_pic;
+    end endgenerate
+
+    arcade_scaler #(.W(W), .H(H), .X0(X0_L - PAL_LAT), .Y0(Y0_L), .CPP(CPP), .RGB444(RGB444)) scaler (
         .clk_core (clk_core),
         .r_in     (video_r),
         .g_in     (video_g),
@@ -441,6 +476,7 @@ module game20k_top #(
         .cy       (cy),
         .sync     (sync),
         .rgb      (rgb_scaler),
+        .pic      (pic_sc),
         .dbg_we   (),                 // write-side taps of the scaler: nothing reads them
         .dbg_x    (),
         .dbg_line (),
@@ -805,7 +841,7 @@ module game20k_top #(
         // ---- measurement builds: FBSHOW (not rotated) and FBROT (rotated) ----
         // FBSHOW shows the picture unrotated (proof of the path), FBROT rotated.
         if (FBROT) begin : g_rot
-            fb_read_rotated #(.W(W), .H(H), .X0(X0_P), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
+            fb_read_rotated #(.W(W), .H(H), .X0(X0_P - PAL_LAT), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
                 .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
                 .wbuf(fb_wbuf), .frame_done(fb_frame_done),
                 .rd_addr(fu_rd_addr), .rd_bank(fu_rd_bank),
@@ -813,10 +849,10 @@ module game20k_top #(
                 .rd_dout(fb_rd_dout), .rd_valid(fu_rd_valid),
                 .err_late(fb_late),
                 .clk_pixel(clk_pixel), .cx(cx), .cy(cy),
-                .rgb(rgb_fb), .active(fb_active), .clear(s1 | system_reset[0])
+                .rgb(rgb_fb), .pic(pic_fb), .active(fb_active), .clear(s1 | system_reset[0])
             );
         end else begin : g_flat
-            fb_read_flat #(.W(W), .H(H), .X0(X0_L), .Y0(Y0_L)) flat_i (
+            fb_read_flat #(.W(W), .H(H), .X0(X0_L - PAL_LAT), .Y0(Y0_L)) flat_i (
                 .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
                 .wbuf(fb_wbuf), .frame_done(fb_frame_done),
                 .rd_addr(fu_rd_addr), .rd_bank(fu_rd_bank),
@@ -824,7 +860,7 @@ module game20k_top #(
                 .rd_dout(fb_rd_dout), .rd_valid(fu_rd_valid),
                 .err_late(fb_late),
                 .clk_pixel(clk_pixel), .cx(cx), .cy(cy),
-                .rgb(rgb_fb), .active(fb_active), .clear(s1 | system_reset[0])
+                .rgb(rgb_fb), .pic(pic_fb), .active(fb_active), .clear(s1 | system_reset[0])
             );
         end
 
@@ -840,7 +876,7 @@ module game20k_top #(
     end else begin : g_fb_live
         // ---- g_fb_live, the normal case. Both picture paths are built, the menu
         // chooses. The frame buffer always runs along so that switching takes effect at once.
-        fb_read_rotated #(.W(W), .H(H), .X0(X0_P), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
+        fb_read_rotated #(.W(W), .H(H), .X0(X0_P - PAL_LAT), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
             .wbuf(fb_wbuf), .frame_done(fb_frame_done),
             .rd_addr(fu_rd_addr), .rd_bank(fu_rd_bank),
@@ -848,7 +884,7 @@ module game20k_top #(
             .rd_dout(fb_rd_dout), .rd_valid(fu_rd_valid),
             .err_late(fb_late),
             .clk_pixel(clk_pixel), .cx(cx), .cy(cy),
-            .rgb(rgb_fb), .active(fb_active), .clear(s1 | system_reset[0])
+            .rgb(rgb_fb), .pic(pic_fb), .active(fb_active), .clear(s1 | system_reset[0])
         );
 
         // In the normal case the usual LED assignment applies; st_led is not used.

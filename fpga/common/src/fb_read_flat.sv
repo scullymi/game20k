@@ -69,6 +69,7 @@ module fb_read_flat #(
     input  wire  [10:0] cx,
     input  wire  [9:0]  cy,
     output logic [23:0] rgb,
+    output logic        pic,             //!< with rgb: this pixel is picture (palette mode)
     output logic        active,          //!< held per frame: output running. Only for LED1
     input  wire         clear            //!< button S1 raw, clears err_late
 );
@@ -175,6 +176,7 @@ module fb_read_flat #(
         act_x_d1 <= act_x;
         // RGB332 -> RGB888, bit for bit as the conversion in galaga_scaler.sv.
         // Black until two complete frames are in memory.
+        pic <= act_x_d1 && nfr_p == 2'd2 && rdy_p[2];
         rgb <= (act_x_d1 && nfr_p == 2'd2 && rdy_p[2])
              ? {q[7:5], q[7:5], q[7:6],
                 q[4:2], q[4:2], q[4:3],

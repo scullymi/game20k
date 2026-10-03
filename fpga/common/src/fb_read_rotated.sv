@@ -77,6 +77,7 @@ module fb_read_rotated #(
     input  wire  [10:0] cx,
     input  wire  [9:0]  cy,
     output logic [23:0] rgb,
+    output logic        pic,             //!< with rgb: this pixel is picture (palette mode)
     output logic        active,          //!< held per frame: output running. Only for LED1
     input  wire         clear
 );
@@ -173,6 +174,7 @@ module fb_read_rotated #(
 
         q        <= tbuf[{grp[0], xo, lane_o}];
         act_x_d1 <= act_x;
+        pic <= act_x_d1 && nfr_p == 2'd2 && rdy_p[2];
         rgb <= (act_x_d1 && nfr_p == 2'd2 && rdy_p[2])
              ? {q[7:5], q[7:5], q[7:6],
                 q[4:2], q[4:2], q[4:3],

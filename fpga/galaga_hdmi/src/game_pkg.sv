@@ -18,6 +18,10 @@ package game_pkg;
     localparam int CPP = 3;
     //! colour depth on video_r/g/b: 0 = 3/3/2 in the upper bits, 1 = 4/4/4
     localparam bit RGB444 = 0;
+    //! 1: video_r/g/b carry a palette index, which the platform turns into colour from
+    //! section PAL_SEC of the manifest (see 1942). 0: they carry the colour.
+    localparam bit PALETTE = 0;
+    localparam int PAL_SEC = 0;
     //! MAME ROT90 (the monitor is turned clockwise for portrait): 0. ROT270: 1.
     localparam bit ROT_CCW = 0;
     //! the name in the HDMI source product description, 16 bytes

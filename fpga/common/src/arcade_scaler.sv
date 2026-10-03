@@ -36,6 +36,7 @@ module arcade_scaler #(
     input  wire  [9:0]  cy,
     output logic        sync,       //!< 1-clock pulse at the start of the first visible core line
     output logic [23:0] rgb,
+    output logic        pic,        //!< with rgb: this pixel is picture (palette mode)
     //! Debug: write side brought out (clk_core)
     output logic        dbg_we,
     output logic [8:0]  dbg_x,
@@ -159,6 +160,7 @@ module arcade_scaler #(
         q        <= mem[{rd_line[3:0], rd_x[XW-1:0]}];
         act_x_d1 <= act_x;
         rgb <= act_x_d1 ? rgb_q : 24'h000000;
+        pic <= act_x_d1;
     end
 endmodule
 
