@@ -14,7 +14,7 @@ The sound chips come from [jotego/jt49](https://github.com/jotego/jt49), see `..
 
 | Folder | Author | Licence | Changed here |
 |---|---|---|---|
-| `cores/1942/hdl` | Jose Tejada Gomez (jotego) | GPL-3.0-or-later | `jt1942_obj.v`, `jt1942_main.v`, `jt1942_sound.v`, `jt1942_game.v`, see below |
+| `cores/1942/hdl` | Jose Tejada Gomez (jotego) | GPL-3.0-or-later | `jt1942_obj.v`, `jt1942_main.v`, `jt1942_sound.v`, `jt1942_game.v`, `jt1942_colmix.v`, `jt1942_video.v`, see below |
 | `cores/gng/hdl` | Jose Tejada Gomez | GPL-3.0-or-later | no |
 | `modules/jtframe/hdl` (without `cpu/t80`) | Jose Tejada Gomez | GPL-3.0-or-later | `ram/jtframe_dual_ram.v`, see below |
 | `modules/jtframe/hdl/cpu/t80` | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-style, see the file heads | no |
@@ -47,6 +47,11 @@ Every change is marked `game20k` in the text.
   jt1942_game passes these out together with the main CPU's bus and chip selects, which it
   already has as wires. The extra ports are in our `../inc/mem_ports.inc`. Outputs only, the
   logic of the game is unchanged.
+- **`cores/1942/hdl/jt1942_colmix.v`, `jt1942_video.v`, `jt1942_game.v`:** the palette index
+  of each pixel as an extra output, `pal_idx`. jt1942_colmix delays it like the colour (a
+  register like the PROM output, then a second `jtframe_blank`), jt1942_video and jt1942_game
+  pass it out. `../game_core.sv` sends the index instead of the colour, and the platform
+  applies the colour PROMs after its frame buffer, which keeps 8 bits a pixel. Outputs only.
 
 ## Checking the copy
 
@@ -60,4 +65,4 @@ cd fpga/g1942_hdmi/src/jtcores
 for f in $(find . -type f ! -name README.md); do cmp -s "$f" "/tmp/jtcores/$f" || echo "differs: $f"; done
 ```
 
-It lists exactly the five changed files.
+It lists exactly the seven changed files.

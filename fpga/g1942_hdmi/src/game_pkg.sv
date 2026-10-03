@@ -17,11 +17,18 @@ package game_pkg;
     localparam int FRAME_H = 786;
     //! the pixel enable comes from the core (cen6, 6 or 7 core clocks apart) on video_ce
     localparam int CPP = 0;
-    //! colour depth on video_r/g/b: 4/4/4, from the colour PROMs
-    localparam bit RGB444 = 1;
-    //! MAME ROT270. The platform's OSD and banner only turn for ROT90 so far, the first
-    //! milestone runs in landscape where the rotation plays no part.
-    localparam bit ROT_CCW = 1;
+    //! colour depth on video_r/g/b: with PALETTE the index in 3/3/2, so 0
+    localparam bit RGB444 = 0;
+    //! the game delivers its palette index, the platform applies the colour PROMs after the
+    //! scaler and the frame buffer: the frame buffer keeps 8 bits a pixel, the picture keeps
+    //! all 4/4/4 colours. The PROMs are section PAL_SEC of the manifest, red at 0x000, green
+    //! at 0x100, blue at 0x200 (sb-5.e8, sb-6.e9, sb-7.e10).
+    localparam bit PALETTE = 1;
+    localparam int PAL_SEC = 5;
+    //! MAME lists 1942 as ROT270, but jt1942 sends its raster the other way round (with
+    //! flip_xor 0, as in jotego's MRA): turned clockwise it stands, as a ROT90 game does.
+    //! Seen in the simulation, where ROT_CCW 1 gave an upside-down picture.
+    localparam bit ROT_CCW = 0;
     //! the name in the HDMI source product description, 16 bytes
     localparam logic [127:0] PRODUCT_DESCRIPTION = {"1942", 96'd0};
     //! game signals on the input test bar, two characters each, signal 0 in the lowest 16

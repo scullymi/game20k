@@ -214,6 +214,7 @@ jt1942_video u_video(
     .red        ( red           ),
     .green      ( green         ),
     .blue       ( blue          ),
+    .pal_idx    ( pal_idx       ),   // game20k
     .gfx_en     ( gfx_en        ),
     // PROM access
     .prog_addr  ( prog_addr[7:0]),

@@ -50,6 +50,7 @@ module jt1942_video(
     output      [3:0]   red,
     output      [3:0]   green,
     output      [3:0]   blue,
+    output      [7:0]   pal_idx,        // game20k: palette index, see jt1942_colmix
     // PROM access
     input       [7:0]   prog_addr,
     input       [7:0]   prog_din,
@@ -291,7 +292,8 @@ jt1942_colmix u_colmix (
     // output
     .red        ( red           ),
     .green      ( green         ),
-    .blue       ( blue          )
+    .blue       ( blue          ),
+    .pal_idx    ( pal_idx       )    // game20k
 );
 
 endmodule

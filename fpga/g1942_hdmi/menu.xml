@@ -199,6 +199,10 @@
         <listentry label="50%" value="2"/>
         <listentry label="75%" value="3"/>
       </list>
+      <list label="Screen:" id="G" default="0">
+        <listentry label="Landscape 3x" value="0"/>
+        <listentry label="Upright 2x" value="1"/>
+      </list>
       <button label="Save settings" action="save"/>
     </menu>
     <!-- game20k: the mode goes to the core like any value and the core ignores

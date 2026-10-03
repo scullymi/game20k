@@ -63,4 +63,6 @@
     // sound CPU: its RAM's write
     output          mir_snd_we,
     output  [10:0]  mir_snd_addr,
-    output  [ 7:0]  mir_snd_dout
+    output  [ 7:0]  mir_snd_dout,
+    // the palette index of each pixel, timed like red/green/blue (jt1942_colmix)
+    output  [ 7:0]  pal_idx

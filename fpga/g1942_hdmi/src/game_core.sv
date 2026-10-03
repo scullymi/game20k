@@ -23,7 +23,7 @@ module game_core #(
     input  wire         reset,          //!< core reset, held by the top until the ROM is loaded
 
     //! ---- video in the core raster, blankn = 1 visible, vs active low ----
-    output logic [3:0]  video_r,        //!< 4/4/4 from the colour PROMs
+    output logic [3:0]  video_r,        //!< palette index in 3/3/2, game_pkg::PALETTE
     output logic [3:0]  video_g,
     output logic [3:0]  video_b,
     output logic        video_ce,       //!< pixel enable, cen6
@@ -145,6 +145,7 @@ module game_core #(
 
     // ---------------- The game ----------------
     wire [ 3:0] red, green, blue;
+    wire [ 7:0] pal_idx;                // the same pixel as palette index
     wire        LHBL, LVBL, HS, VS, pxl2_cen, pxl_cen;
     wire [ 9:0] psg0, psg1;
     wire [10:1] tmap_addr, chram_addr;
@@ -177,6 +178,7 @@ module game_core #(
         .rst96      (rst),          .clk96      (1'b0),
         .pxl2_cen   (pxl2_cen),     .pxl_cen    (pxl_cen),
         .red        (red),          .green      (green),       .blue (blue),
+        .pal_idx    (pal_idx),
         .LHBL       (LHBL),         .LVBL       (LVBL),        .HS   (HS),  .VS (VS),
         .cab_1p     (cab_1p),       .coin       (coin_n),
         .joystick1  (joystick1),    .joystick2  (joystick2),
@@ -305,9 +307,11 @@ module game_core #(
     assign scr_ok    = slot_ok[S_SCR];
 
     // ---------------- Video and audio to the platform ----------------
-    assign video_r      = red;
-    assign video_g      = green;
-    assign video_b      = blue;
+    // The palette index goes out in the 3/3/2 layout, the platform applies the colour PROMs
+    // (game_pkg::PALETTE). jt1942's own colour is used only without it.
+    assign video_r      = game_pkg::PALETTE ? {pal_idx[7:5], 1'b0} : red;
+    assign video_g      = game_pkg::PALETTE ? {pal_idx[4:2], 1'b0} : green;
+    assign video_b      = game_pkg::PALETTE ? {pal_idx[1:0], 2'b0} : blue;
     assign video_ce     = pxl_cen;
     assign video_blankn = LHBL & LVBL;
     assign video_vs     = ~VS;

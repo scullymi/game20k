@@ -30,6 +30,9 @@ module jt1942_colmix(
     output    [3:0] red,
     output    [3:0] green,
     output    [3:0] blue,
+    // game20k: the palette index of each pixel, timed like red/green/blue, for a frame
+    // buffer that applies the colour PROMs after it
+    output    [7:0] pal_idx,
     // Debug
     input     [3:0] gfx_en
 );
@@ -91,6 +94,22 @@ jtframe_blank #(.DLY(BLANK_DLY),.DW(12)) u_dly(
     .preLBL     (               ),
     .rgb_in     ( hige ? hige_pre12 : vulgus_pre   ),
     .rgb_out    ( {red,green,blue}    )
+);
+
+// game20k: the index takes the same two steps as the colour: a register at cen6 like the
+// PROMs' output, then a second jtframe_blank like u_dly
+reg  [7:0] pal_q;
+always @(posedge clk) if(cen6) pal_q <= pixel_mux;
+jtframe_blank #(.DLY(BLANK_DLY),.DW(8)) u_pal_dly(
+    .clk        ( clk           ),
+    .pxl_cen    ( cen6          ),
+    .preLHBL    ( preLHBL       ),
+    .preLVBL    ( preLVBL       ),
+    .LHBL       (               ),
+    .LVBL       (               ),
+    .preLBL     (               ),
+    .rgb_in     ( pal_q         ),
+    .rgb_out    ( pal_idx       )
 );
 
 // palette ROM

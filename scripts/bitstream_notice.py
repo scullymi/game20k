@@ -133,7 +133,8 @@ COMPONENTS = [
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jtframe_dual_ram.v writes in Gowin's normal mode, jt1942_obj.v declares a net "
                 "before its first use, jt1942_main.v, jt1942_sound.v and jt1942_game.v bring out "
-                "the CPU writes for the RAM mirror, all marked game20k. The ROMs of 1942, its "
+                "the CPU writes for the RAM mirror, jt1942_colmix.v, jt1942_video.v and "
+                "jt1942_game.v bring out the palette index, all marked game20k. The ROMs of 1942, its "
                 "PROMs included, come from the SD card at run time. The RAM modules read data "
                 "files only in simulation or through a SYN* parameter, which no instance sets.",
         "show": [],
