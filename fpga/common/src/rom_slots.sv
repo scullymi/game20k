@@ -21,6 +21,10 @@
 //! one after the other (a CPU fetching code, the sprite engine reading the two halves of a
 //! word) so needs one SDRAM read per word instead of one per access.
 //!
+//! slot_hold keeps a slot from starting a new read for as long as it is set, its held word
+//! stays valid. A game uses it to keep the port free just before a bus with a short, known
+//! deadline asks (1942: the tile layer, every 8 pixels).
+//!
 //! miss counts the clocks a slot with chip select waited, a measure for the SDRAM latency
 //! as the game sees it.
 module rom_slots #(
@@ -33,6 +37,7 @@ module rom_slots #(
     //! ---- the game's buses, word addresses into the ROM image ----
     input  wire  [N-1:0][AW-1:2]    slot_addr,
     input  wire  [N-1:0]            slot_cs,
+    input  wire  [N-1:0]            slot_hold,  //!< 1: this slot starts no read now
     output logic [N-1:0]            slot_ok,
     output logic [N-1:0][31:0]      slot_data,
 
@@ -57,13 +62,14 @@ module rom_slots #(
             want[i]      = slot_cs[i] && !hit[i];
         end
 
-    // the lowest numbered slot that asks
+    // the lowest numbered slot that asks and is not held
     localparam int PW = $clog2(N > 1 ? N : 2);
+    wire  [N-1:0]  go = want & ~slot_hold;
     logic [PW-1:0] pick;
     always_comb begin
         pick = '0;
         for (int i = N - 1; i >= 0; i--)
-            if (want[i]) pick = PW'(i);
+            if (go[i]) pick = PW'(i);
     end
 
     // one read at a time: issue, then wait for the acknowledge and fill the slot
@@ -83,7 +89,7 @@ module rom_slots #(
                 valid[sel]     <= 1'b1;
                 busy           <= 1'b0;
             end
-        end else if (|want) begin
+        end else if (|go) begin
             rd_addr <= slot_addr[pick];
             rd_req  <= ~rd_req;
             sel     <= pick;

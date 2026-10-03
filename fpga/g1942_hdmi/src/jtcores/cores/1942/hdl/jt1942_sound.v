@@ -28,7 +28,11 @@ module jt1942_sound(
     input   [ 7:0]  rom_data,
     input           rom_ok,
     // Sound output
-    output  [ 9:0]  psg0, psg1
+    output  [ 9:0]  psg0, psg1,
+    // game20k: writes into the sound RAM, for the RetroAchievements mirror
+    output          mirror_we,
+    output  [10:0]  mirror_addr,
+    output  [ 7:0]  mirror_dout
 );
 
 `ifndef NOSOUND
@@ -91,6 +95,11 @@ always @(*) begin
         ay1_cs = main_ay1_cs;
     end
 end
+
+// game20k: the sound RAM's write as jtframe_sysz80 sees it (ram_cs & ~wr_n)
+assign mirror_we   = ram_cs & ~wr_n;
+assign mirror_addr = A[10:0];
+assign mirror_dout = cpu_dout;
 
 reg [7:0] latch0, latch1;
 

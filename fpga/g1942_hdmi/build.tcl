@@ -37,6 +37,7 @@ add_file $jt/cores/1942/hdl/jt1942_video.v
 add_file $jt/cores/1942/hdl/jt1942_game.v
 foreach f {jtframe_bcd_cnt.v clocking/jtframe_freqinfo.v clocking/jtframe_gated_cen.v ram/jtframe_dual_ram16.v} { add_file $fw/$f }
 
+add_file src/g1942_mirror.sv
 add_file src/game_pkg.sv
 add_file src/game_core.sv
 

@@ -6,7 +6,7 @@
 # sheet of the frames, turned upright. Takes about six minutes (port), ten (path).
 #
 # Usage: sh fpga/g1942_hdmi/sim/run_sim.sh [port|path]          (default: port)
-#   port   the ROM buses read through a model of rom_sdram's read port, 9..19 clocks latency
+#   port   the ROM buses read through a model of rom_sdram's read port, latency as measured
 #   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model (tb define ROM_PATH)
 #
 # Needs roms/1942.zip (the ROM file is built from it with make_rom.py, as for the SD card)
@@ -78,7 +78,7 @@ verilator --binary --timing -j 8 -O3 --top-module tb_1942 -Mdir "$W/obj_$mode" $
   "$FW/jtframe_bcd_cnt.v" "$FW/clocking/jtframe_freqinfo.v" "$FW/clocking/jtframe_gated_cen.v" \
   "$FW/ram/jtframe_dual_ram16.v" \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
-  "$ROOT/fpga/common/src/rom_sdram.sv" "$G/game_core.sv" "$HERE/tb_1942.sv" \
+  "$ROOT/fpga/common/src/rom_sdram.sv" "$G/g1942_mirror.sv" "$G/game_core.sv" "$HERE/tb_1942.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 
 cd "$W"

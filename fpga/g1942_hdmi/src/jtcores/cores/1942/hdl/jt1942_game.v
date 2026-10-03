@@ -31,6 +31,14 @@ wire        prom_red_we, prom_green_we, prom_blue_we,
             prom_char_we, prom_scr_we, prom_obj_we,
             prom_d1_we, prom_d2_we, prom_irq_we;
 
+// game20k: the CPU writes for the RetroAchievements mirror, see mem_ports.inc
+assign mir_char_cs = char_cs;
+assign mir_scr_cs  = scr_cs;
+assign mir_obj_cs  = obj_cs;
+assign mir_wr_n    = wr_n;
+assign mir_ab      = cpu_AB;
+assign mir_dout    = cpu_dout;
+
 reg  [ 1:0] game_id=0;
 reg         flip_xor=0, eff_flip=0, hige=0;
 
@@ -120,6 +128,7 @@ jt1942_main u_main(
     .prog_addr  ( prog_addr[7:0]),
     .prom_irq_we( prom_irq_we   ),
     .prog_din   ( prog_data[3:0]),
+    .mirror_ram_we( mir_ram_we  ),   // game20k
     // Cheat
     .cheat_invincible( 1'b0 ),
     // DIP switches
@@ -152,7 +161,11 @@ jt1942_sound u_sound (
     .rom_ok         ( snd_ok         ),
     // sound output
     .psg0           ( psg0           ),
-    .psg1           ( psg1           )
+    .psg1           ( psg1           ),
+    // game20k: the sound RAM's writes, for the RetroAchievements mirror
+    .mirror_we      ( mir_snd_we     ),
+    .mirror_addr    ( mir_snd_addr   ),
+    .mirror_dout    ( mir_snd_dout   )
 );
 /* verilator tracing_off */
 jt1942_video u_video(

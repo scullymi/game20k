@@ -14,7 +14,7 @@
 //! Four ROM buses read the ROM image in SDRAM through rom_slots (fpga/common). The
 //! character ROM and the PROMs come over the loader's write port into block RAM.
 //!
-//! Not built yet: the RAM mirror for RetroAchievements (snap_* and log_* are tied off).
+//! The RAM mirror for RetroAchievements is g1942_mirror.sv, fed from CPU write taps.
 module game_core #(
     parameter bit ROMVIEW = 0,      //!< accepted for the top's sake, no effect here
     parameter bit RAMDIAG = 0       //!< accepted for the top's sake, no effect here
@@ -60,7 +60,7 @@ module game_core #(
     input  wire         start2,
     output logic [15:0] map_bits,       //!< the game signals, shown on the input test bar
 
-    //! ---- RAM mirror: not built yet ----
+    //! ---- RAM mirror: the harvest delivers the mirror bytes, see g1942_mirror.sv ----
     input  wire         snap_run,
     input  wire         snap_full,
     output logic        snap_push,
@@ -159,6 +159,10 @@ module game_core #(
     wire [15:1] obj_addr;
     wire [15:2] scr_addr;
     wire        main_cs, snd_cs, main_ok, snd_ok, char_ok, obj_ok, scr_ok;
+    wire        mir_ram_we, mir_char_cs, mir_scr_cs, mir_obj_cs, mir_wr_n, mir_snd_we;
+    wire [12:0] mir_ab;
+    wire [10:0] mir_snd_addr;
+    wire [ 7:0] mir_dout, mir_snd_dout;
 
     // The colour and timing PROMs come over the loader's write port: section 5 of
     // 1942.manifest, the address inside it is prog_addr, whose bits 11:8 the game decodes
@@ -206,7 +210,12 @@ module game_core #(
         .snd_addr   (snd_addr),     .snd_ok     (snd_ok),
         .char_data  (char_data),    .char_addr  (char_addr),   .char_ok (char_ok),
         .obj_data   (obj_data),     .obj_addr   (obj_addr),    .obj_ok  (obj_ok),
-        .scr_data   (scr_data),     .scr_addr   (scr_addr),    .scr_ok  (scr_ok)
+        .scr_data   (scr_data),     .scr_addr   (scr_addr),    .scr_ok  (scr_ok),
+        // game20k taps for the RAM mirror
+        .mir_ram_we (mir_ram_we),   .mir_char_cs(mir_char_cs), .mir_scr_cs(mir_scr_cs),
+        .mir_obj_cs (mir_obj_cs),   .mir_wr_n   (mir_wr_n),    .mir_ab    (mir_ab),
+        .mir_dout   (mir_dout),
+        .mir_snd_we (mir_snd_we),   .mir_snd_addr(mir_snd_addr), .mir_snd_dout(mir_snd_dout)
     );
 
     // The tmap block RAM with the CPU's chram as the second port, as JTFRAME's generator
@@ -263,9 +272,26 @@ module game_core #(
     assign slot_addr[S_MAIN] = off_main[21:2];  assign slot_cs[S_MAIN] = main_cs;
     assign slot_addr[S_SND]  = off_snd[21:2];   assign slot_cs[S_SND]  = snd_cs;
 
+    // Guard for the tiles: jtgng_tile3 sets a new address every 8 pixels (HS[2:0] == 1) and
+    // takes the data within the next 6 pixels, about 37 clocks. A sprite or CPU read already
+    // under way when it asks can cost 20 of them. So no slot behind the tiles starts a read
+    // in the last 4 pixels (about 25 clocks) before the next change. The phase is counted
+    // from the last address change, modulo 8, so a tile repeated with the same address keeps
+    // it. Measured with the latency model: without the guard 10 tiles late in 10 s.
+    logic [15:2] scr_addr_q;
+    logic [2:0]  scr_px = 3'd0;             // pixels since the last tile address change
+    always_ff @(posedge clk) begin
+        scr_addr_q <= scr_addr;
+        if (scr_addr != scr_addr_q) scr_px <= 3'd0;
+        else if (pxl_cen)           scr_px <= scr_px + 3'd1;
+    end
+    wire scr_soon = LVBL && scr_px[2];       // pixels 4 to 7 of the tile period
+    wire [NSLOT-1:0] slot_hold = scr_soon ? ~(NSLOT'(1) << S_SCR) : '0;
+
     rom_slots #(.N(NSLOT), .AW(22)) u_slots (
         .clk(clk), .reset(rst),
-        .slot_addr(slot_addr), .slot_cs(slot_cs), .slot_ok(slot_ok), .slot_data(slot_data),
+        .slot_addr(slot_addr), .slot_cs(slot_cs), .slot_hold(slot_hold),
+        .slot_ok(slot_ok), .slot_data(slot_data),
         .rd_addr(rom_rd_addr), .rd_req(rom_rd_req), .rd_ack(rom_rd_ack), .rd_data(rom_rd_data),
         .miss()
     );
@@ -337,14 +363,44 @@ module game_core #(
         audio <= (au_y >  30'sd32767) ? 16'sd32767 :
                  (au_y < -30'sd32768) ? -16'sd32768 : 16'(au_y);
 
-    // ---------------- Not built yet ----------------
-    assign snap_push  = 1'b0;
-    assign snap_byte  = 8'd0;
-    assign snap_frame = 16'd0;
-    assign snap_harv  = 1'b0;
-    assign log_we     = 1'b0;
-    assign log_addr   = 16'd0;
-    assign log_data   = 8'd0;
+    // ---------------- RAM mirror for RetroAchievements ----------------
+    // Every CPU write into one of the five mirrored RAMs becomes one event: the rising edge
+    // of the RAM's write condition, with the address in FBNeo's "All Ram" order (see
+    // g1942_mirror.sv). The main CPU's writes come from its bus: main RAM E000-EFFF through
+    // jt1942_main's own strobe, sprite RAM CC00-CC7F, character RAM D000-D7FF and background
+    // RAM D800-DBFF through the chip selects and wr_n. A Z80 write holds wr_n low for at
+    // least one T state and raises it before the next, so each write gives exactly one edge.
+    wire        mw_ram = mir_ram_we;
+    wire        mw_obj = mir_obj_cs  && !mir_wr_n;
+    wire        mw_chr = mir_char_cs && !mir_wr_n;
+    wire        mw_scr = mir_scr_cs  && !mir_wr_n;
+    wire        mw_any = mw_ram || mw_obj || mw_chr || mw_scr;
+    logic       mw_q = 1'b0, sw_q = 1'b0;
+    logic [13:0] m_flat;
+    always_comb
+        if      (mw_ram) m_flat = 14'h0000 + 14'(mir_ab[11:0]);
+        else if (mw_obj) m_flat = 14'h1800 + 14'(mir_ab[6:0]);
+        else if (mw_chr) m_flat = 14'h1880 + 14'(mir_ab[10:0]);
+        else             m_flat = 14'h2080 + 14'(mir_ab[9:0]);
+    always_ff @(posedge clk) begin
+        mw_q <= mw_any;
+        sw_q <= mir_snd_we;
+    end
+    // the snapshot instant: the start of the vertical blank
+    logic lvbl_q = 1'b0;
+    always_ff @(posedge clk) lvbl_q <= LVBL;
+
+    g1942_mirror #(.N(9344)) u_mirror (
+        .clk(clk), .reset(rst), .frame_go(lvbl_q && !LVBL),
+        .m_ev(mw_any && !mw_q), .m_flat(m_flat), .m_data(mir_dout),
+        .s_ev(mir_snd_we && !sw_q), .s_flat(14'h1000 + 14'(mir_snd_addr)), .s_data(mir_snd_dout),
+        .snap_run(snap_run), .snap_full(snap_full),
+        .snap_push(snap_push), .snap_byte(snap_byte), .snap_frame(snap_frame),
+        .snap_harv(snap_harv),
+        .log_we(log_we), .log_addr(log_addr), .log_data(log_data)
+    );
+
+    // ---------------- No diagnostics in this folder ----------------
     assign diag_on    = 1'b0;
     assign diag_color = 24'd0;
     assign diag_leds  = 6'd0;

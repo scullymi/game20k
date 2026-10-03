@@ -62,7 +62,9 @@ module jt1942_main(
     // PROM F1
     input    [7:0]     prog_addr,
     input              prom_irq_we,
-    input    [3:0]     prog_din
+    input    [3:0]     prog_din,
+    // game20k: write strobe of the main RAM, for the RetroAchievements mirror
+    output             mirror_ram_we
 );
 
 `ifndef NOMAIN
@@ -80,6 +82,7 @@ wire [ 3:0] int_ctrl;
 wire        irq_ack = !iorq_n && !m1_n;
 // RAM, 8kB
 wire        cpu_ram_we = ram_cs && !wr_n;
+assign      mirror_ram_we = cpu_ram_we;   // game20k
 
 reg         hige=0;
 reg   [1:0] bank;
