@@ -13,7 +13,7 @@ for the USB stick, the menu and RetroAchievements. The wiring is in [wiring.md](
 | microSD card | required | FAT32 |
 | USB arcade stick (HID) | required | tested with a Mayflash F500 Elite |
 | Perfboard, pin headers, sockets, wire | required | seven connections |
-| HDMI cable, monitor that accepts 1280x720 at 61.03 Hz | required | |
+| HDMI cable, monitor that accepts 1280x720 at 61.03 Hz and 59.64 Hz | required | |
 | Raspberry Pi Debug Probe | recommended | flashing without BOOTSEL, and the serial log, in one device |
 | 2 resistors, 15 kOhm (A3/A4) or 4.7 kOhm (A2) | only with a separate USB A socket | pull-downs on D+ and D- |
 | RC low-pass and a small amplifier | optional | analogue sound from pin 77, see below |
@@ -42,8 +42,9 @@ almost all 46 blocks.
 the clocks (`board.sdc`), the PLLs (`pll_hdmi.v`, `pll_sdram.v`), the HDMI serializer (Gowin's
 `OSER10` and `ELVDS_OBUF`) and the SDRAM controller (`sdram_fb.v`).
 
-**Monitor.** The HDMI output is not standard 720p60. It shows 1280x720 at 61.03 Hz, while the
-AVI infoframe announces CEA mode 4. Every display tried so far accepts it, but one that insists
+**Monitor.** The HDMI output is not standard 720p60. It shows 1280x720 at 61.03 Hz (Galaga and
+Pac-Man) or 59.64 Hz (1942), each locked to the frame of its core, while the AVI infoframe
+announces CEA mode 4. Every display tried so far accepts it, but one that insists
 on exact CEA timing may stay black.
 
 ### Shared pins

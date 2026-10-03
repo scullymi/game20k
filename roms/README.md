@@ -8,6 +8,7 @@ Put your own MAME sets here. Nothing in this folder is committed, `.gitignore` e
 | Pac-Man | `pacman.zip` |
 | Puck Man | `puckman.zip` |
 | Ms. Pac-Man | `mspacman.zip` |
+| 1942 | `1942.zip`, the MAME set `1942` (parent, Revision B) |
 
 `scripts/make_sdcard.sh` builds a ROM file for every game whose set is here and checks the size
 and SHA-1 of every chip against MAME, as the game's manifest (`fpga/<core>/<set>.manifest`)

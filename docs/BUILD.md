@@ -8,7 +8,7 @@ building the bitstreams and the firmware yourself, and debugging.
 | Tool | Version | Note |
 |---|---|---|
 | Gowin EDA **Education** | 1.9.11.03 | free download, **no licence file needed** |
-| openFPGALoader | | to flash the Pac-Man core: `brew install openfpgaloader` or `apt install openfpgaloader` |
+| openFPGALoader | | to flash the Pac-Man and 1942 cores: `brew install openfpgaloader` or `apt install openfpgaloader` |
 | Arm GNU Toolchain | 14.2 | |
 | git, curl, CMake, make, Python 3, gzip, unzip, a C compiler | | |
 
@@ -34,8 +34,8 @@ forks of [FPGA-Companion](https://github.com/scullymi/FPGA-Companion) and
 2.2.0. If you cloned without `--recursive`, the build script fetches them itself.
 
 Third-party HDL keeps its original headers. Each of its folders (`rtl_dar/`, `rtl_pacman/`,
-`rtl_T80/`, `misc/`, `hdmi/`) has a README or LICENSE that names the upstream commit and our
-changes. [THIRD-PARTY.md](../THIRD-PARTY.md) lists who wrote what and under which licence.
+`rtl_T80/`, `jtcores/`, `jt49/`, `misc/`, `hdmi/`) has a README or LICENSE that names the
+upstream commit and our changes. [THIRD-PARTY.md](../THIRD-PARTY.md) lists who wrote what and under which licence.
 
 ## 2. ROMs and the SD card
 
@@ -60,27 +60,29 @@ Build each core:
 ```sh
 scripts/build_fpga.sh galaga_hdmi
 scripts/build_fpga.sh pacman_hdmi
+scripts/build_fpga.sh g1942_hdmi
 ```
 
 Each build ends with a short report on utilisation and timing, and fails if a clock misses its
 target. If you changed a core's `menu.xml`, run `scripts/make_menu_hex.sh <core>` first,
 otherwise the bitstream keeps the old menu.
 
-Write both cores into the board's flash, then power the board off and on:
+Write the cores into the board's flash, then power the board off and on:
 
 ```sh
 scripts/flash_fpga.sh galaga_hdmi flash
 scripts/flash_fpga.sh pacman_hdmi flash
+scripts/flash_fpga.sh g1942_hdmi flash
 ```
 
 Each core has its own address in the flash, listed in
 [fpga/common/slots.txt](../fpga/common/slots.txt). At power-on, the FPGA loads the core at
-address 0, which is Galaga. The script writes Galaga with Gowin's `programmer_cli` and Pac-Man
-with openFPGALoader, because `programmer_cli` can only write to address 0. Set
+address 0, which is Galaga. The script writes Galaga with Gowin's `programmer_cli` and the other
+cores with openFPGALoader, because `programmer_cli` can only write to address 0. Set
 `FLASHER=openfpgaloader` to use openFPGALoader for both. Without `flash`, the script loads the
 core into the FPGA's SRAM only, which is handy for a quick test and gone at power-off.
 
-`scripts/make_bitstream_release.sh` builds both cores from a release tag and packs them as the
+`scripts/make_bitstream_release.sh` builds all cores from a release tag and packs them as the
 single flash image that the release ships. `DEV=1` runs it without a tag, for a trial.
 
 ## 4. Firmware: build and flash
@@ -153,6 +155,8 @@ fpga/common/        the platform shared by all games: top level, HDMI, scaler, S
 fpga/galaga_hdmi/   Galaga: Dar's core, its wrapper, the menu and the ROM manifest
 fpga/pacman_hdmi/   Pac-Man, Puck Man and Ms. Pac-Man: MikeJ's core, its wrapper, the menu,
                     the ROM manifests and testbenches for nvc
+fpga/g1942_hdmi/    1942: jotego's core and sound chips, its wrapper, the menu, the ROM
+                    manifest and a simulation with Verilator
 external/           the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/               your ROM zips, not under version control
 sdcard/             what goes on the SD card, including the template for config.ini
@@ -172,8 +176,8 @@ graphics in it, CC BY-SA 3.0.
 
 Not ours, and kept with their original headers: the HDMI files (MIT OR Apache-2.0, see
 `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, derived from NESTang, with both copyright notices),
-the T80 cores (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, WangXuan95's SD
-card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
+the T80 cores (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, jotego's 1942
+core, JTFRAME and JT49 files (GPL-3.0-or-later), WangXuan95's SD card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
 also applies to our changes in them).
 
 The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) are
