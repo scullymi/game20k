@@ -5,8 +5,9 @@
 
 Usage: ppm2png.py <out.png> <frame.ppm> [<frame.ppm> ...]   environment: SCALE=2
 
-Each frame is turned upright: 1942 is a ROT270 game, its raster lies on its side, and
-turned 90 degrees clockwise the text reads normally. Six frames per row. Standard library
+A frame wider than high is turned upright: 1942 is a ROT270 game, its raster lies on its
+side, and turned 90 degrees clockwise the text reads normally. A frame higher than wide (the
+frame buffer's output, already upright) is taken as it is. Six frames per row. Standard library
 only, so the script runs wherever Python does.
 """
 import os
@@ -17,15 +18,18 @@ import zlib
 
 def read_ppm(path):
     words = open(path).read().split()
-    w, h = int(words[1]), int(words[2])
+    w, h, mx = int(words[1]), int(words[2]), int(words[3])
     v = list(map(int, words[4:]))
-    # 4-bit channels to 8 bits: 15 * 17 = 255
-    return w, h, [[tuple(v[(y * w + x) * 3 + i] * 17 for i in range(3)) for x in range(w)]
+    # channels to 8 bits: 4-bit frames scale by 17 (15 * 17 = 255), 8-bit ones by 1
+    k = 255 // mx
+    return w, h, [[tuple(v[(y * w + x) * 3 + i] * k for i in range(3)) for x in range(w)]
                   for y in range(h)]
 
 
 def upright(w, h, px):
-    """The raster turned 90 degrees clockwise."""
+    """The raster turned 90 degrees clockwise, unless it already stands."""
+    if h > w:
+        return w, h, px
     return h, w, [[px[h - 1 - y][x] for y in range(h)] for x in range(w)]
 
 

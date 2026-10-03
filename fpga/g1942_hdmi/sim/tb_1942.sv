@@ -67,6 +67,11 @@ module tb_1942;
         $readmemh("rom32.hex", rom);
         $readmemh("proms.hex", prom);
     end
+    // the colour of a palette index, as the platform's palette stage makes it
+    // (game_pkg::PALETTE): red, green and blue PROM at 0x000, 0x100, 0x200 of the section
+    function automatic logic [11:0] pal12(input logic [7:0] i);
+        return {prom[i][3:0], prom[256 + i][3:0], prom[512 + i][3:0]};
+    endfunction
 
 `ifndef ROM_PATH
     // ---------------- read port model ----------------
@@ -101,7 +106,7 @@ module tb_1942;
     logic [7:0]  wr_byte = '0;
     logic        wr_ready, wr_idle;
     logic [21:0] sd_wr_addr, sd_rd_addr;
-    logic [31:0] sd_wr_din, sd_rd_dout;
+    logic [31:0] sd_wr_din, sd_rd_dout, rom_rd_dout;   // controller's word, rom_sdram's copy
     logic [1:0]  sd_wr_bank, sd_rd_bank;
     logic        sd_wr_req, sd_wr_ack, sd_rd_req, sd_rd_ack, sd_rd_valid, sdram_ready;
     int          reads = 0;
@@ -119,7 +124,7 @@ module tb_1942;
         .sd_wr_addr(sd_wr_addr), .sd_wr_din(sd_wr_din), .sd_wr_bank(sd_wr_bank),
         .sd_wr_req(sd_wr_req), .sd_wr_ack(sd_wr_ack),
         .sd_rd_addr(sd_rd_addr), .sd_rd_bank(sd_rd_bank), .sd_rd_req(sd_rd_req),
-        .sd_rd_ack(sd_rd_ack), .sd_rd_dout(sd_rd_dout), .sd_rd_valid(sd_rd_valid)
+        .sd_rd_ack(sd_rd_ack), .sd_rd_dout(rom_rd_dout), .sd_rd_valid(sd_rd_valid)
     );
     wire [31:0] dq;
     wire [10:0] a;
@@ -130,11 +135,93 @@ module tb_1942;
         .SDRAM_DQ(dq), .SDRAM_A(a), .SDRAM_DQM(dqm), .SDRAM_BA(ba),
         .SDRAM_nCS(ncs), .SDRAM_nWE(nwe), .SDRAM_nRAS(nras), .SDRAM_nCAS(ncas), .SDRAM_CKE(cke),
         .clk(clk_sdram), .resetn(sd_resetn), .sdram_ready(sdram_ready), .cap_ofs(2'd1),
-        .wr_addr(sd_wr_addr), .wr_din(sd_wr_din), .wr_bank(sd_wr_bank),
-        .wr_req(sd_wr_req), .wr_ack(sd_wr_ack),
-        .rd_addr(sd_rd_addr), .rd_bank(sd_rd_bank), .rd_req(sd_rd_req), .rd_ack(sd_rd_ack),
-        .rd_dout(sd_rd_dout), .rd_valid(sd_rd_valid)
+        .wr_addr(c_wr_addr), .wr_din(c_wr_din), .wr_bank(c_wr_bank),
+        .wr_req(c_wr_req), .wr_ack(c_wr_ack),
+        .rd_addr(c_rd_addr), .rd_bank(c_rd_bank), .rd_req(c_rd_req), .rd_ack(c_rd_ack),
+        .rd_dout(sd_rd_dout), .rd_valid(c_rd_valid)
     );
+    // the controller's side: straight to rom_sdram, or with FB_PATH through sdram_share,
+    // with the frame buffer of the upright picture on its port B
+    logic [21:0] c_wr_addr, c_rd_addr;
+    logic [31:0] c_wr_din;
+    logic [1:0]  c_wr_bank, c_rd_bank;
+    logic        c_wr_req, c_wr_ack, c_rd_req, c_rd_ack, c_rd_valid;
+`ifndef FB_PATH
+    assign {c_wr_addr, c_wr_din, c_wr_bank, c_wr_req} = {sd_wr_addr, sd_wr_din, sd_wr_bank, sd_wr_req};
+    assign {c_rd_addr, c_rd_bank, c_rd_req}           = {sd_rd_addr, sd_rd_bank, sd_rd_req};
+    assign sd_wr_ack   = c_wr_ack;
+    assign sd_rd_ack   = c_rd_ack;
+    assign sd_rd_valid = c_rd_valid;
+    assign rom_rd_dout = sd_rd_dout;
+`else
+    // ---- frame buffer: fb_pack writes the core's frames, fb_read_rotated turns them ----
+    logic clk_pixel = 0;
+    always #6.734 clk_pixel = ~clk_pixel;          // 74.25 MHz
+    logic [10:0] cx = '0;
+    logic [9:0]  cy = '0;
+    always @(posedge clk_pixel) begin             // the 1942 raster, 1584 x 786, free running
+        cx <= (cx == 11'd1583) ? 11'd0 : cx + 11'd1;
+        if (cx == 11'd1583) cy <= (cy == 10'd785) ? 10'd0 : cy + 10'd1;
+    end
+    logic [21:0] f_wr_addr, f_rd_addr;
+    logic [31:0] f_wr_din;
+    logic [1:0]  f_wr_bank, f_rd_bank;
+    logic        f_wr_req, f_wr_ack, f_rd_req, f_rd_ack, f_rd_valid;
+    logic        fb_wbuf, fb_done, fb_ovf, fb_eaddr, fb_late, fb_active, fb_pic;
+    logic [23:0] fb_rgb;
+    fb_pack #(.W(256), .H(224), .CPP(0)) pack (
+        .clk_core(clk), .r_in(r[3:1]), .g_in(g[3:1]), .b_in(b[3:2]), .pix_ce(ce),
+        .blankn(blankn), .vs(vs),
+        .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .clear(1'b0),
+        .wr_addr(f_wr_addr), .wr_din(f_wr_din), .wr_bank(f_wr_bank), .wr_req(f_wr_req), .wr_ack(f_wr_ack),
+        .wbuf(fb_wbuf), .frame_done(fb_done), .done_bank(), .done_words(), .done_sum(), .done_nz(),
+        .err_overflow(fb_ovf), .err_addr(fb_eaddr)
+    );
+    fb_read_rotated #(.W(256), .H(224), .X0(416), .Y0(104), .ROT_CCW(game_pkg::ROT_CCW)) rot (
+        .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .wbuf(fb_wbuf), .frame_done(fb_done),
+        .rd_addr(f_rd_addr), .rd_bank(f_rd_bank), .rd_req(f_rd_req), .rd_ack(f_rd_ack),
+        .rd_dout(sd_rd_dout), .rd_valid(f_rd_valid), .err_late(fb_late),
+        .clk_pixel(clk_pixel), .cx(cx), .cy(cy), .rgb(fb_rgb), .pic(fb_pic), .active(fb_active), .clear(1'b0)
+    );
+    sdram_share share (
+        .clk(clk_sdram),
+        .c_wr_addr(c_wr_addr), .c_wr_din(c_wr_din), .c_wr_bank(c_wr_bank), .c_wr_req(c_wr_req), .c_wr_ack(c_wr_ack),
+        .c_rd_addr(c_rd_addr), .c_rd_bank(c_rd_bank), .c_rd_req(c_rd_req), .c_rd_dout(sd_rd_dout), .c_rd_ack(c_rd_ack), .c_rd_valid(c_rd_valid),
+        .a_wr_addr(sd_wr_addr), .a_wr_din(sd_wr_din), .a_wr_bank(sd_wr_bank), .a_wr_req(sd_wr_req), .a_wr_ack(sd_wr_ack),
+        .a_rd_addr(sd_rd_addr), .a_rd_bank(sd_rd_bank), .a_rd_req(sd_rd_req), .a_rd_ack(sd_rd_ack), .a_rd_dout(rom_rd_dout), .a_rd_valid(sd_rd_valid),
+        .b_wr_addr(f_wr_addr), .b_wr_din(f_wr_din), .b_wr_bank(f_wr_bank), .b_wr_req(f_wr_req), .b_wr_ack(f_wr_ack),
+        .b_rd_addr(f_rd_addr), .b_rd_bank(f_rd_bank), .b_rd_req(f_rd_req), .b_rd_ack(f_rd_ack), .b_rd_valid(f_rd_valid)
+    );
+    // the upright picture, 448 x 512 from (416, 104), every second pixel and line: 224 x 256
+    logic [23:0] up [0:255][0:223];
+    int upn = 0;
+    always @(posedge clk_pixel) begin
+        if (cx >= 416 && cx < 864 && cy >= 104 && cy < 616 && !cx[0] && !cy[0])
+            up[(cy - 104) >> 1][(cx - 416) >> 1] <= !game_pkg::PALETTE ? fb_rgb : up_col(fb_pic, fb_rgb);
+        if (cx == 0 && cy == 700) begin             // below the picture: one upright frame complete
+            upn <= upn + 1;
+            if (upn % 60 == 59) dump_up(upn);
+        end
+    end
+    function automatic logic [23:0] up_col(input logic pic, input logic [23:0] c);
+        logic [11:0] p;
+        p = pal12({c[23:21], c[15:13], c[7:6]});
+        return pic ? {p[11:8], p[11:8], p[7:4], p[7:4], p[3:0], p[3:0]} : 24'h000000;
+    endfunction
+    task automatic dump_up(input int n);
+        int fd;
+        fd = $fopen($sformatf("frames/u%04d.ppm", n), "w");
+        $fwrite(fd, "P3\n224 256\n255\n");
+        for (int yy = 0; yy < 256; yy++) begin
+            for (int xx = 0; xx < 224; xx++)
+                $fwrite(fd, "%0d %0d %0d ", up[yy][xx][23:16], up[yy][xx][15:8], up[yy][xx][7:0]);
+            $fwrite(fd, "\n");
+        end
+        $fclose(fd);
+    endtask
+    final $display("frame buffer: overflow %0d, address error %0d, group late %0d, output running %0d",
+                   fb_ovf, fb_eaddr, fb_late, fb_active);
+`endif
     logic [31:0] mem [0:4*2048*256-1];
     logic [10:0] row [0:3];
     logic [31:0] dq_out = '0;
@@ -313,7 +400,8 @@ module tb_1942;
         vs_d     <= vs;
         if (blankn && !blankn_d) begin y <= y + 1; x <= 0; end
         if (ce && blankn) begin
-            if (x < 256 && y >= 0 && y < 224) frame[y][x] <= {r, g, b};
+            if (x < 256 && y >= 0 && y < 224)
+                frame[y][x] <= game_pkg::PALETTE ? pal12({r[3:1], g[3:1], b[3:2]}) : {r, g, b};
             x <= x + 1;
         end
         if (!vs && vs_d) begin                // start of the vsync pulse: a frame is complete
