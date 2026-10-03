@@ -16,9 +16,10 @@
 # wide in the order 0,2,4,4,1,3,5,5. The section starts are his JTFRAME_BA1_START,
 # BA2_START, BA3_START and PROM_START, which the core's buses address (game_core.sv). The PROMs come in the order of jt1942_game.v, which
 # decodes prog_addr[11:8]: 0..2 the palette, 3 sb-0, 4 sb-4, 5 sb-8, 6 sb-2, 7 sb-3, 9 sb-1.
-# Without gfx_sort the file was checked against jotego's Pocket image of 1942 from 2023: all
-# bytes equal except the last two PROMs, which that older core version decoded the other way
-# round. The file is therefore the MRA image with the sprites sorted as JTFRAME stores them.
+# Checked against jotego's MRA "1942 (Revision B)" for jt1942 (MiSTer, MAME 0282): this file
+# without gfx_sort and with the MRA's four header bytes 00 00 00 00 in front has the MRA's
+# asm_md5 8f89cfc477ebfac8346c8f0d7b0b3e97. So the file is the MRA image with the sprites sorted
+# as JTFRAME's loader stores them in SDRAM.
 
 set     1942
 title   1942 (Revision B)
