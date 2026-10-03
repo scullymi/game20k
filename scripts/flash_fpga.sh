@@ -16,10 +16,10 @@
 #
 # The flash holds several cores, each at its address in fpga/common/slots.txt, and the core
 # switch goes from one to the next. The FPGA loads the core at 0x000000 at power-on.
-# programmer_cli writes only that one: with --spiaddr 0x100000 it erased at 0x100000 but
-# programmed at 0 (measured 01.10.2026). A core at another address is therefore written by
-# openFPGALoader, which needs to be installed for it. Both tools erase only the sectors they
-# write, the other cores stay (measured).
+# programmer_cli writes only that one: given another --spiaddr, it erases there but programs at
+# 0, in its .fs mode as in its binary mode (--run 32 with --mcuFile). A core at another address
+# is therefore written by openFPGALoader, which needs to be installed for it. Both tools erase
+# only the sectors they write, the other cores stay (measured).
 #
 # Volatile or permanent, the difference matters:
 #   without "flash" the design is gone at the next power cut and the FPGA boots the core at

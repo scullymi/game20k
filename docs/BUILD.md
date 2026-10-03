@@ -83,7 +83,15 @@ cores with openFPGALoader, because `programmer_cli` can only write to address 0.
 core into the FPGA's SRAM only, which is handy for a quick test and gone at power-off.
 
 `scripts/make_bitstream_release.sh` builds all cores from a release tag and packs them as the
-single flash image that the release ships. `DEV=1` runs it without a tag, for a trial.
+single flash image that the release ships. `DEV=1` runs it without a tag, for a trial. The image
+starts at address 0, so `programmer_cli` can write it as well as openFPGALoader:
+
+```sh
+programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/game20k-<version>-tangnano20k.bin" --spiaddr 0x000000
+```
+
+If it reports an error, run it once more. Do not give `programmer_cli` any other address: it
+erases the flash there but writes at address 0.
 
 ## 4. Firmware: build and flash
 

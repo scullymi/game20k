@@ -115,7 +115,8 @@ python3 scripts/bitstream_notice.py "$OUT/NOTICE.txt" "$VERSION" $CORES
 # address, 0xFF in between as in an erased flash. The .bin is the .fs as bytes, the same data
 # programmer_cli and openFPGALoader write from it. One write puts every core in place, and the
 # cores of a release always go on together, they must match the firmware of the same version.
-# Written with openFPGALoader and read back: equal byte for byte (02.10.2026).
+# Written with openFPGALoader and with programmer_cli --run 32 and read back, it is equal byte
+# for byte. programmer_cli writes it correctly only because it starts at 0.
 awk '!/^#/ && NF == 2 { print $1, $2 }' fpga/common/slots.txt | python3 -c '
 import sys
 img = bytearray()
@@ -135,6 +136,13 @@ open(sys.argv[1], "wb").write(img)
   echo "with openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):"
   echo
   echo "  openFPGALoader -b tangnano20k -f --verify $NAME.bin"
+  echo
+  echo "Gowin's programmer_cli works too, given the full path of the file:"
+  echo
+  echo "  programmer_cli --device GW2AR-18C --run 32 --mcuFile \"\$PWD/$NAME.bin\" --spiaddr 0x000000"
+  echo
+  echo "If it reports an error, run it once more. It must start at 0x000000: given another"
+  echo "address, programmer_cli erases there but writes at 0x000000."
   echo
   echo "Power the board off and on afterwards. The firmware of the same version goes onto the"
   echo "Pico 2 W, the ROM files onto the SD card, see the README of the release."
