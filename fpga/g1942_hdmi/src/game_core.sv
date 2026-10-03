@@ -286,9 +286,36 @@ module game_core #(
     assign video_blankn = LHBL & LVBL;
     assign video_vs     = ~VS;
     assign video_hs     = ~HS;
-    // Two AY-3-8910, 10 bits unsigned each: the sum is at most 2046, x16 gives at most 32736.
-    // Unipolar like Galaga, silence is not 0 here but the AYs' idle level. To be measured.
-    always_ff @(posedge clk) audio <= $signed({1'b0, {1'b0, psg0} + {1'b0, psg1}, 4'd0});
+    // ---------------- Audio: the sound board's mix, without DC, filtered for 48 kHz ----------------
+    // The board (MAME nl_1942.cpp) mixes the six AY channels with equal weight through 10 uF
+    // and 220 kOhm: a passive sum, AC coupled. jt49 gives each AY's three channels as one
+    // unsigned 10-bit sum, so the mix is psg0 + psg1, 0..2046. Two things are added for HDMI,
+    // all steps on cen3 (3 MHz on average):
+    //   - DC removal, a one-pole high pass at 3 MHz / (2 pi 65536) = 7.3 Hz, the coupling
+    //     capacitors' part. Without it the sum sits on a DC level and only swings upwards.
+    //   - three one-pole low passes at 3 MHz / (2 pi 32) = 14.9 kHz each, before the platform
+    //     samples at 48 kHz. The AY's square waves have harmonics far above 24 kHz, which a
+    //     plain sample folds back as whistles (measured on the device: lines up to 24 kHz at
+    //     -50 to -60 dB). Together -9 dB at 15 kHz, -30 dB at 48 kHz, -48 dB at 96 kHz.
+    // Fixed point: x = mix << 11 (up to 2^22), the stage states carry extra fraction bits
+    // (16 for the high pass, 5 per low pass) so that small signals do not stick.
+    wire signed [24:0] au_x = $signed({2'b00, {1'b0, psg0} + {1'b0, psg1}, 11'd0});
+    logic signed [40:0] au_dc = '0;                        // DC level << 16
+    wire  signed [24:0] au_hp = au_x - 25'(au_dc >>> 16);  // the signal without DC
+    logic signed [29:0] au_s1 = '0, au_s2 = '0, au_s3 = '0; // low pass stages << 5
+    always_ff @(posedge clk)
+        if (cen3) begin
+            au_dc <= au_dc + 41'(au_x) - (au_dc >>> 16);
+            au_s1 <= au_s1 + 30'(au_hp)          - (au_s1 >>> 5);
+            au_s2 <= au_s2 + 30'(au_s1 >>> 5)    - (au_s2 >>> 5);
+            au_s3 <= au_s3 + 30'(au_s2 >>> 5)    - (au_s3 >>> 5);
+        end
+    // au_s3 >>> 5 is in units of x = mix << 11; >>> 6 more gives mix << 5, twice the former
+    // unipolar scale, which the signal centred on 0 has room for. Saturated to 16 bits.
+    wire signed [29:0] au_y = au_s3 >>> 11;
+    always_ff @(posedge clk)
+        audio <= (au_y >  30'sd32767) ? 16'sd32767 :
+                 (au_y < -30'sd32768) ? -16'sd32768 : 16'(au_y);
 
     // ---------------- Not built yet ----------------
     assign snap_push  = 1'b0;
