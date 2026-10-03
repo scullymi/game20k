@@ -36,7 +36,8 @@ chip    srb-06.m6   8192  2ccc8fc59962d3001fbc10e8d2f20a254a74f251
 chip    srb-07.m7   16384 b588eaf6fddd66ecb2d9832dc197f286f1ccd846
 section sound       0x14000 16384 sdram
 chip    sr-01.c11   16384 821f85cf157f81117eeaba0c3cf0337eac357e58
-section chars       0x18000 8192 sdram swap16
+# the characters go to block RAM in game_core: their deadline is too short for SDRAM
+section chars       0x18000 8192 swap16
 chip    sr-02.f2    8192  0dbddadde54a0ab66994c4a8726be05c6ca88a0e
 section sprites     0x1A000 65536 sdram interleave=16 gfx_sort=hvvvvxx
 chip    sr-16.n1    16384 145b8d5d6c8654cd090955a98f6dd8c8dbafe7c1

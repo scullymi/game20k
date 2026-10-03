@@ -8,7 +8,7 @@
 //   ROM_PATH  the real path: rom_sdram.sv, sdram_fb.v at 64.8 MHz unrelated to the core
 //             clock, and an SDR SDRAM model; the image is first written through rom_sdram's
 //             write side, as rom_loader does on the device
-// The PROMs come over the loader's write port while the core is in reset. A coin and a start
+// The character ROM and the PROMs come over the loader's write port while the core is in reset. A coin and a start
 // follow, so the frames show the game itself. Every FRAME_EVERY-th frame is written as
 // frames/fNNNN.ppm, the raw raster (256 x 224, the game turned on its side). Run by
 // run_sim.sh, which reads the ROM image from rom32.hex and proms.hex in its work folder.
@@ -162,6 +162,7 @@ module tb_1942;
 `ifdef ROM_PATH
         sd_resetn <= 1'b1;
         for (int o = 0; o < 32'h3A000; o++) begin
+            if (o >= 32'h18000 && o < 32'h1A000) continue;   // the characters go to block RAM
             while (!wr_ready) @(posedge clk);
             wr_we <= 1'b1; wr_off <= 22'(o); wr_byte <= rom[o >> 2][8*(o & 3) +: 8];
             @(posedge clk);
@@ -171,6 +172,15 @@ module tb_1942;
         while (!wr_idle) @(posedge clk);
         $display("image written at %0t", $time);
 `endif
+        // the characters, section 2, over the write port into game_core's block RAM
+        for (int i = 0; i < 8192; i++) begin
+            rom_wr_addr <= 16'(i);
+            rom_wr_data <= rom[(32'h18000 + i) >> 2][8*(i & 3) +: 8];
+            rom_wr_en   <= 16'h0004;
+            @(posedge clk);
+            rom_wr_en   <= '0;
+            @(posedge clk);
+        end
         for (int i = 0; i < 2560; i++) begin
             rom_wr_addr <= 16'(i);
             rom_wr_data <= prom[i];
@@ -181,6 +191,33 @@ module tb_1942;
         end
         repeat (300) @(posedge clk);
         reset <= 1'b0;
+    end
+
+    // ---------------- late ROM data, counted in the visible picture only ----------------
+    // char: jtframe_tilemap takes rom_data at pxl_cen && zero and draws zeros if rom_ok is
+    // low then. scroll: jtgng_tile3 takes the data only while HS[2:0] > 2 and rom_ok and draws
+    // it at HS[2:0] == 2, a window without ok draws the previous tile's pattern. sprites: the
+    // object engine must reach 'over' within the line, else the last objects are missing.
+    // Fetches in the blanking are not counted, nothing of them is shown.
+    int char_late = 0, scr_late = 0, obj_lines = 0, obj_short = 0;
+    logic scr_seen = 1'b0, lhbl_q = 1'b0;
+    wire  visible = dut.u_game.LVBL && dut.u_game.LHBL;
+    always @(posedge clk) begin
+        if (dut.u_game.u_video.u_char.pxl_cen && dut.u_game.u_video.u_char.zero &&
+            dut.u_game.u_video.u_char.rom_cs && !dut.u_game.u_video.char_ok && visible)
+            char_late <= char_late + 1;
+        if (dut.u_game.u_video.u_scroll.genblk1.u_tile3.HS[2:0] > 3'd2 && dut.u_game.u_video.scr_ok)
+            scr_seen <= 1'b1;
+        if (dut.u_game.u_video.u_scroll.genblk1.u_tile3.pxl_cen &&
+            dut.u_game.u_video.u_scroll.genblk1.u_tile3.HS[2:0] == 3'd2) begin
+            scr_seen <= 1'b0;
+            if (!scr_seen && visible) scr_late <= scr_late + 1;
+        end
+        lhbl_q <= dut.u_game.u_video.u_obj.u_timing.LHBL;
+        if (dut.u_game.u_video.u_obj.u_timing.LHBL && !lhbl_q && dut.u_game.LVBL) begin
+            obj_lines <= obj_lines + 1;
+            if (!dut.u_game.u_video.u_obj.u_timing.over) obj_short <= obj_short + 1;
+        end
     end
 
     // ---------------- frames ----------------
@@ -202,6 +239,10 @@ module tb_1942;
             if (nframe == FRAMES) begin
                 $display("done: %0d frames, %0d ROM reads, slot misses %0d", nframe, reads,
                          dut.u_slots.miss);
+                $display("late in the picture: char %0d, scroll %0d; sprite lines %0d, unfinished %0d",
+                         char_late, scr_late, obj_lines, obj_short);
+                if (char_late + scr_late + obj_short != 0) $fatal(1, "FAIL: ROM data late in the picture");
+                $display("PASS");
                 $finish;
             end
         end

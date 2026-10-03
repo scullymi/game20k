@@ -166,16 +166,11 @@ def read_manifest(path):
     if pos != m["total"]:
         raise ManifestError("%s: the sections add up to %d bytes, total says %d"
                             % (path, pos, m["total"]))
-    # rom_sdram.sv writes whole 32-bit words and lets the core out of reset only when the last
-    # one is written: the sdram sections come first, one after the other, and end on a word
-    sd = [s["sdram"] for s in m["sections"]]
-    if any(sd):
-        n = sd.index(False) if False in sd else len(sd)
-        if any(sd[n:]):
-            raise ManifestError("%s: the sdram sections must be the first sections" % path)
-        end = m["sections"][n - 1]["offset"] + m["sections"][n - 1]["size"]
-        if end % 4:
-            raise ManifestError("%s: the sdram sections end at 0x%X, not on a 32-bit word" % (path, end))
+    # rom_sdram.sv gathers whole 32-bit words: an sdram section starts and ends on a word
+    for s in m["sections"]:
+        if s["sdram"] and (s["offset"] % 4 or s["size"] % 4):
+            raise ManifestError("%s: section %s, an sdram section starts and ends on a 32-bit word"
+                                % (path, s["name"]))
     return m
 
 

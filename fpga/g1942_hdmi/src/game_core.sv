@@ -11,8 +11,8 @@
 //! and the five ROM buses. It also holds what is 1942's alone: the DIP switches, the
 //! controls and the audio mix.
 //!
-//! The five ROM buses read the ROM image in SDRAM through rom_slots (fpga/common), the
-//! PROMs come over the loader's write port into the core's block RAM.
+//! Four ROM buses read the ROM image in SDRAM through rom_slots (fpga/common). The
+//! character ROM and the PROMs come over the loader's write port into block RAM.
 //!
 //! Not built yet: the RAM mirror for RetroAchievements (snap_* and log_* are tied off).
 module game_core #(
@@ -216,26 +216,50 @@ module game_core #(
         .clk1  (clk), .data1 (chram_din), .addr1 (chram_addr), .we1 (chram_we), .q1 (chram_o16)
     );
 
-    // ---------------- ROM buses: the image in SDRAM ----------------
+    // ---------------- Character ROM: block RAM ----------------
+    // sr-02, 8 KiB, comes over the loader's write port (section 2 of 1942.manifest, already
+    // byte-swapped as JTFRAME stores it) into two byte RAMs, even and odd bytes. The layer
+    // takes a new address every 8 pixels and its data 8 pixels later; from SDRAM it came too
+    // late now and then (simulated: 516 of 1.3 million fetches with the sprites first in the
+    // slot order, 121 with them behind), and jt1942 then draws an empty character: parts of
+    // the score digits flickered on the device. From block RAM the word is there one clock
+    // after the address, ok follows the address one clock later.
+    localparam int SEC_CHARS = 2;
+    logic [7:0]  chr_lo [0:4095];
+    logic [7:0]  chr_hi [0:4095];
+    logic [7:0]  chr_lo_q, chr_hi_q;
+    logic [12:1] chr_addr_q;
+    always_ff @(posedge clk) begin
+        if (rom_wr_en[SEC_CHARS] && !rom_wr_addr[0]) chr_lo[rom_wr_addr[12:1]] <= rom_wr_data;
+        if (rom_wr_en[SEC_CHARS] &&  rom_wr_addr[0]) chr_hi[rom_wr_addr[12:1]] <= rom_wr_data;
+    end
+    always_ff @(posedge clk) begin
+        chr_lo_q   <= chr_lo[char_addr];
+        chr_hi_q   <= chr_hi[char_addr];
+        chr_addr_q <= char_addr;
+    end
+    assign char_data = {chr_hi_q, chr_lo_q};
+    assign char_ok   = LVBL && chr_addr_q == char_addr;
+
+    // ---------------- The other ROM buses: the image in SDRAM ----------------
     // The ROM file lies in SDRAM at its file offsets (1942.manifest): main CPU from 0, sound
-    // CPU from 0x14000, characters from 0x18000, sprites from 0x1A000, tiles from 0x2A000,
-    // jotego's bank starts. Each bus adds its start to its address; the slot returns the
-    // whole 32-bit word, a byte of it lies at 8 * address[1:0]. Slot order is priority: the
-    // sprites first, they must be drawn within one line; the CPUs last, they wait.
-    // cs for char and scr is LVBL, for obj always (mem.yaml).
-    localparam int NSLOT = 5;
-    localparam int S_OBJ = 0, S_SCR = 1, S_CHAR = 2, S_MAIN = 3, S_SND = 4;
+    // CPU from 0x14000, sprites from 0x1A000, tiles from 0x2A000, jotego's bank starts. Each
+    // bus adds its start to its address; the slot returns the whole 32-bit word, a byte of it
+    // lies at 8 * address[1:0]. Slot order is priority: the tiles first, the layer draws a
+    // new tile every 8 pixels and has no time to wait; the sprites next, they have a whole
+    // line; the CPUs last, they stop until the byte is there.
+    // cs for scr is LVBL, for obj always (mem.yaml).
+    localparam int NSLOT = 4;
+    localparam int S_SCR = 0, S_OBJ = 1, S_MAIN = 2, S_SND = 3;
     wire [21:0] off_main = 22'(main_addr);
     wire [21:0] off_snd  = 22'h14000 + 22'(snd_addr);
-    wire [21:0] off_char = 22'h18000 + 22'({char_addr, 1'b0});
     wire [21:0] off_obj  = 22'h1A000 + 22'({obj_addr, 1'b0});
     wire [21:0] off_scr  = 22'h2A000 + 22'({scr_addr, 2'b00});
     wire [NSLOT-1:0][21:2] slot_addr;
     wire [NSLOT-1:0]       slot_cs, slot_ok;
     wire [NSLOT-1:0][31:0] slot_data;
-    assign slot_addr[S_OBJ]  = off_obj[21:2];   assign slot_cs[S_OBJ]  = 1'b1;
     assign slot_addr[S_SCR]  = off_scr[21:2];   assign slot_cs[S_SCR]  = LVBL;
-    assign slot_addr[S_CHAR] = off_char[21:2];  assign slot_cs[S_CHAR] = LVBL;
+    assign slot_addr[S_OBJ]  = off_obj[21:2];   assign slot_cs[S_OBJ]  = 1'b1;
     assign slot_addr[S_MAIN] = off_main[21:2];  assign slot_cs[S_MAIN] = main_cs;
     assign slot_addr[S_SND]  = off_snd[21:2];   assign slot_cs[S_SND]  = snd_cs;
 
@@ -247,12 +271,10 @@ module game_core #(
     );
     assign main_data = slot_data[S_MAIN][8*off_main[1:0] +: 8];
     assign snd_data  = slot_data[S_SND][8*off_snd[1:0] +: 8];
-    assign char_data = off_char[1] ? slot_data[S_CHAR][31:16] : slot_data[S_CHAR][15:0];
     assign obj_data  = off_obj[1]  ? slot_data[S_OBJ][31:16]  : slot_data[S_OBJ][15:0];
     assign scr_data  = slot_data[S_SCR];
     assign main_ok   = slot_ok[S_MAIN];
     assign snd_ok    = slot_ok[S_SND];
-    assign char_ok   = slot_ok[S_CHAR];
     assign obj_ok    = slot_ok[S_OBJ];
     assign scr_ok    = slot_ok[S_SCR];
 
