@@ -1,64 +1,38 @@
 # game20k: the SD card
 
-This file is also copied onto the card, for whoever holds the card later.
+This file is also copied onto the card.
 
-The card goes into the slot of the Tang Nano 20K, not the Pico. FAT32, lowercase ASCII file
-names. What you put on it goes into the root directory. The machine writes galaga.ini and its
-queue files ra_pending.txt and ra_parked.txt into the root too, and keeps the per-game files
-in the folder ra.
+The card goes into the slot of the Tang Nano 20K, not the Pico. Use SD, SDHC or SDXC with FAT32
+and lowercase ASCII file names, and put everything in the root directory.
+scripts/make_sdcard.sh in the repository prepares the card, see the repository's README.
 
 ## Files on the card
 
-- galaga.rom: the game data, 38944 bytes. You build it yourself from your own MAME set.
-  It is never shipped. Without it the screen stays dark. Every further game brings its own
-  <set>.rom and <set>.ini the same way.
-- config.ini: WiFi and RetroAchievements account. Optional: without it the machine plays
-  without network and without unlocks. Contains secrets, see below.
-- galaga.ini: settings and the chosen ROM. The device writes it with "Save settings".
+- galaga.rom, pacman.rom, puckman.rom, mspacman.rom: the games. make_sdcard.sh builds them from
+  your own MAME sets in a layout of its own, so ROM files from anywhere else do not work. They
+  are never shipped. Without them, the screen stays dark.
+- config.ini: WiFi and RetroAchievements account. Optional: without it, the machine plays
+  offline and without achievements.
+- galaga.ini, pacman.ini: one settings file per core, not per game. pacman.ini covers Pac-Man,
+  Puck Man and Ms. Pac-Man and holds the chosen ROM. make_sdcard.sh creates them, and
+  "Save settings" saves your current settings into them.
+- ra_pending.txt, ra_parked.txt and the folder ra: written by the machine. Unlocks waiting to
+  be sent, and the achievement set and unlocks of each game. Do not edit.
 - README.md: this file.
-- ra_pending.txt, ra_parked.txt: created by the machine. Unlocks that still have to be
-  sent, each line with the game it was earned under, and what was set aside. Do not edit.
-- ra/<id>/patch.json, patch.mac, unlocked.txt: created by the machine, one folder per game,
-  named by the game's id on RetroAchievements (Galaga: ra/12138). The achievement set from
-  the server (so it is there without network too), its tag, and what the account has
-  unlocked. Do not edit. Files of these names in the root come from an earlier firmware and
-  are moved into the folder at the next start.
-
-## Preparing the card
-
-    scripts/make_sdcard.sh                      builds and checks, lists what is missing
-    scripts/make_sdcard.sh /Volumes/YOUR_CARD   ... and copies to the card
-
-Sources: roms/galaga.zip (MAME set galaga, Namco Rev B, merged set) and optionally
-roms/namco54.zip (explosion sounds). The script builds galaga.rom as the game's manifest
-(fpga/galaga_hdmi/galaga.manifest) describes it, every chip checked against MAME, creates config.ini from
-config.ini.example on the first run for you to fill in, checks that no line of it is longer
-than 62 characters, writes a galaga.ini that preselects the ROM, and warns if a config.xml is
-on the card. A galaga.ini already on the card is kept: it holds the settings saved on the
-device.
-
-Card types: SD, SDHC, SDXC. FAT32 is tested, exFAT is compiled in but untested. The only
-folder, ra, is made by the machine itself.
 
 ## First start
 
-1. Card into the Nano, power on.
-2. The screen stays dark until LED 5 comes on, which means the ROM is loaded. That takes a
-   moment.
-3. S2 on the Nano opens the menu. If galaga.ini is missing: Settings, "ROM set", galaga.rom,
-   then "Save settings".
+Power on. The screen stays dark until LED 5 lights up, which means the ROM has loaded. Press S2
+on the Nano to open the menu.
 
-## Traps
+## Things to avoid
 
-- Do not put a config.xml on the card. It replaces the menu from the bitstream, and the
-  device then plays softcore only.
-- A line in config.ini longer than 62 characters is dropped by the firmware. The machine
-  shows nothing. Only the debug log prints the start of the line in plain text.
-  make_sdcard.sh checks this.
-- WiFi: WPA2-PSK on 2.4 GHz only. The firmware connects with WPA2, so open and WPA3-only
-  networks do not work. The Pico's radio has no 5 GHz band.
-- FAT32 has no file permissions. The WiFi password and the RA token are in config.ini in
-  plain text, and the machine's FTP server serves the card to anyone on the network. Before
-  lending the machine, delete config.ini from the card.
+- Do not put a config.xml on the card. It replaces the menu built into the FPGA, and the
+  machine then only plays in softcore.
+- Keep every line of config.ini within 62 characters. The firmware silently drops longer lines.
+- WiFi works with WPA2 on 2.4 GHz only. Open networks, WPA3-only networks and 5 GHz do not work.
+- The WiFi password and the RetroAchievements token are stored in config.ini in plain text, and
+  the machine's FTP server lets anyone on the network read the card. Delete config.ini before
+  lending the machine to someone.
 
 Source code, build instructions and licence: https://github.com/scullymi/game20k

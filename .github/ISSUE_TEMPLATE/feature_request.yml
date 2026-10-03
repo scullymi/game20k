@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea for a new feature or a new game.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: The feature or game, and what you would use it for.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Optional. How it could work, hardware it needs, or projects that already do something similar.

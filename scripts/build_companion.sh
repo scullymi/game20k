@@ -7,8 +7,9 @@
 # leading v, so 0.1.0 on the tag v0.1.0, 0.1.0-5-gabc1234 five commits later, plus -dirty with
 # uncommitted changes. The firmware reports it to RetroAchievements in its User-Agent and
 # shows it under Status, Version. Without any tag (before the first release) it is the commit.
-# Usage: scripts/build_companion.sh [pico|pico2] [native|pio]
-#   pico   = Pico W (RP2040), pico2 = Pico 2 W (RP2350)
+# Usage: scripts/build_companion.sh [pico2] [native|pio]
+#   pico2  = Pico 2 W (RP2350), the only supported board. The firmware needs more RAM than the
+#            Pico W (RP2040) has
 #   native = the Pico's own micro USB port as USB host (OTG adapter), pio = USB A socket on GP2/GP3
 # Result: external/FPGA-Companion/src/rp2040/build_<board>_<usb>/fpga_companion.uf2. The build
 # dir has to sit under src/rp2040: the Companion's CMakeLists names ../freertos_callbacks.c,
@@ -17,13 +18,13 @@
 # A clone made with --recursive has them, otherwise this script initialises them.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[ $# -le 2 ] || { echo "usage: $0 [pico|pico2] [native|pio]"; exit 1; }
-BOARD_ARG="${1:-pico}"
+[ $# -le 2 ] || { echo "usage: $0 [pico2] [native|pio]"; exit 1; }
+BOARD_ARG="${1:-pico2}"
 USB_ARG="${2:-native}"
 case "$BOARD_ARG" in
-  pico)  CM_BOARD=PICO ;;
   pico2) CM_BOARD=PICO2 ;;
-  *) echo "board must be pico or pico2"; exit 1 ;;
+  pico)  echo "the Pico W is not supported: the firmware needs more RAM than it has. Use a Pico 2 W"; exit 1 ;;
+  *) echo "board must be pico2"; exit 1 ;;
 esac
 case "$USB_ARG" in
   native) CM_USB="-DNATIVE_USB=ON" ;;

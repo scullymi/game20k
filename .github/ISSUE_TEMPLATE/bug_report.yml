@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: When does it happen? After a cold start, after a game switch, only sometimes?
+      placeholder: |
+        1. Power on
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      description: In the menu under `Status`, `Version`, for example `game20k v0.3.1`.
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game and ROM
+      description: The game, and the last line of the `Version` screen, for example `board 1, with the 54xx`.
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Pico 2 W stepping (printed on the chip, for example `RP2350A0A4`), how the stick is connected, stick model, monitor.
+  - type: textarea
+    id: log
+    attributes:
+      label: Serial log
+      description: |
+        Optional, from UART0 at 921600 baud, see docs/wiring.md.
+        Remove your WiFi name and password and your RetroAchievements token before you paste it. The log can contain them.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before you submit
+      options:
+        - label: This report contains no ROM data, no WiFi password and no RetroAchievements token.
+          required: true

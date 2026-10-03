@@ -15,7 +15,9 @@
 #
 # What gets produced (all gitignored, all only for the card), per game with a set in roms/:
 #   sdcard/<set>.rom     from the zips, checked chip by chip (scripts/make_rom.py)
-#   sdcard/<set>.ini     starter file with the ROM entry, so the first trip into the OSD is not needed
+#   sdcard/<core>.ini    one settings file per core, named as its menu.xml saves it (galaga.ini,
+#                        pacman.ini), a starter with the ROM entry, so the first trip into the
+#                        OSD is not needed
 #
 # WHY THE CHECKS RUN HERE AND NOT ON THE DEVICE: the machine has no error channel, the OSD
 # shows no errors and the UART is not connected, so a bad card fails silently there. Here
@@ -34,6 +36,7 @@ echo "== ROMs =="
 # zip is missing is left out with a note, the card is still made for the others. Only when
 # no game at all is there does the script stop: the screen would stay dark.
 SETS=""
+PAIRS=""   # core folder:set, for the settings files
 for M in $(python3 "$ROOT/scripts/make_rom.py" --list); do
   SET=$(awk '$1 == "set" {print $2; exit}' "$ROOT/$M")
   ZIP=$(awk '$1 == "zip" {print $2; exit}' "$ROOT/$M")
@@ -45,14 +48,14 @@ for M in $(python3 "$ROOT/scripts/make_rom.py" --list); do
       # an optional chip that is missing, an unknown file
       printf '%s\n' "$OUT" | grep -v '^written' | sed 's/^WARNING: //;s/^/                 /'
       printf '%s\n' "$OUT" | grep -q '^WARNING' && NOTES="$NOTES $SET"
-      SETS="$SETS $SET"
+      SETS="$SETS $SET"; PAIRS="$PAIRS $(dirname "$M"):$SET"
     else
       printf '%s\n' "$OUT" | sed 's/^/                 /' >&2
       MISSING="$MISSING $SET.rom(build failed)"
     fi
   elif [ -f "$SD/$SET.rom" ]; then
     report "$SET.rom" "present ($(wc -c < "$SD/$SET.rom" | tr -d ' ') bytes), roms/$ZIP is missing, not rebuilt"
-    SETS="$SETS $SET"
+    SETS="$SETS $SET"; PAIRS="$PAIRS $(dirname "$M"):$SET"
   else
     report "$SET.rom" "no roms/$ZIP, this game is left out"
   fi
@@ -93,10 +96,23 @@ done
 report "Lines" "$n, all within the 62-character limit"
 
 echo "== settings =="
-for SET in $SETS; do
-  GI="$SD/$SET.ini"
+# One settings file per core, under the name its menu.xml loads and saves: the device reads no
+# other. It preselects the set named like the file (pacman.rom for pacman.ini), otherwise the
+# first set of that core that was built.
+INIS=""
+for C in $(printf '%s\n' $PAIRS | cut -d: -f1 | sort -u); do
+  NAME=$(sed -n 's/.*<save file="\([^"]*\)".*/\1/p' "$ROOT/$C/menu.xml" | head -n 1)
+  [ -n "$NAME" ] || { echo "  $C/menu.xml names no settings file" >&2; exit 1; }
+  PICK=""
+  for P in $PAIRS; do
+    [ "${P%%:*}" = "$C" ] || continue
+    [ -z "$PICK" ] && PICK=${P#*:}
+    [ "${P#*:}.ini" = "$NAME" ] && PICK=${P#*:}
+  done
+  INIS="$INIS $NAME"
+  GI="$SD/$NAME"
   if [ -f "$GI" ]; then
-    report "$SET.ini" "present, left untouched"
+    report "$NAME" "present, left untouched"
   else
     # Only the ROM entry. The device fills in everything else from the menu defaults, and
     # "Save settings" rewrites the file completely anyway. The path MUST start with /sd:
@@ -106,9 +122,9 @@ for SET in $SETS; do
       echo "; Starter file from scripts/make_sdcard.sh. \"Save settings\" rewrites it."
       echo ""
       echo "; image files"
-      echo "image0=/sd/$SET.rom"
+      echo "image0=/sd/$PICK.rom"
     } > "$GI"
-    report "$SET.ini" "created with image0=/sd/$SET.rom, no trip into the OSD on first start"
+    report "$NAME" "created with image0=/sd/$PICK.rom, no trip into the OSD on first start"
   fi
 done
 
@@ -126,11 +142,13 @@ cp "$INI"            "$TARGET/config.ini";  report "config.ini"  "copied"
 cp "$SD/README.md"   "$TARGET/README.md";   report "README.md"   "copied"
 for SET in $SETS; do
   cp "$SD/$SET.rom" "$TARGET/$SET.rom"; report "$SET.rom" "copied"
-  if [ -f "$TARGET/$SET.ini" ]; then
+done
+for NAME in $INIS; do
+  if [ -f "$TARGET/$NAME" ]; then
     # The card carries the settings the device saved. Those win.
-    report "$SET.ini" "present on the card, stays: it holds your saved settings"
+    report "$NAME" "present on the card, stays: it holds your saved settings"
   else
-    cp "$SD/$SET.ini" "$TARGET/$SET.ini"; report "$SET.ini" "copied (starter file)"
+    cp "$SD/$NAME" "$TARGET/$NAME"; report "$NAME" "copied (starter file)"
   fi
 done
 if [ -f "$TARGET/config.xml" ]; then
