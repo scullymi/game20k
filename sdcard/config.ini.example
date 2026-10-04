@@ -28,7 +28,8 @@ PASS=YOUR_WIFI_PASSWORD
 ; RetroAchievements server runs in UTC and does not need it.
 TIMEZONE=1
 ; Time servers. NUMERIC IPs only, names like pool.ntp.org are
-; NOT resolved. Separate several with commas.
+; NOT resolved. Separate several with commas, the first two
+; are used.
 ; Without this line the Companion asks DHCP for a server
 ; (option 42). If the router offers none, the debug log says
 ; "SNTP server 0 is 0.0.0.0", the clock stays at 1970 and
