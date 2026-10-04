@@ -41,7 +41,8 @@ DEPS = [
 #: HDL copied into fpga/: name, upstream repository, commit the copy is taken from, newest
 #: upstream commit already looked at, local folder, the same folder upstream, files in the local
 #: folder that come from elsewhere, further upstream paths. Every file under the local folder
-#: except README.md and LICENSE is watched. After looking at a reported change, set the fourth
+#: except README.md and LICENSE is watched. A local file instead of a folder stands for the one
+#: upstream file it is derived from. After looking at a reported change, set the fourth
 #: field to the newest upstream commit of the report. Taking a change over moves the third.
 VENDORED = [
     ('Galaga', 'DECAfpga/Arcade_Galaga', 'e06ba91', 'e06ba91',
@@ -50,7 +51,8 @@ VENDORED = [
      'fpga/pacman_hdmi/src/rtl_pacman', 'rtl',
      ('g20k_dpram.vhd', 'pacman_mirror.vhd', 'sn76489_top.vhd', 'ym2149.vhd'), ()),
     ('1942', 'jotego/jtcores', '0b197ca', '548b87b',
-     'fpga/g1942_hdmi/src/jtcores', '', (), ('modules/jt12',)),
+     'fpga/g1942_hdmi/src/jtcores', '', (),
+     ('modules/jt12', 'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
     ('jt49', 'jotego/jt49', '7f6abfd', '47301ed', 'fpga/g1942_hdmi/src/jt49/hdl', 'hdl', (), ()),
     ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'c8e4601', 'fpga/common/src/misc',
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
@@ -58,6 +60,8 @@ VENDORED = [
     ('Nanomig', 'MiSTle-Dev/Nanomig', 'df97f03', '5a33804', 'fpga/common/src/misc', 'src/misc',
      ('hid.v', 'mcu_spi.v', 'osd_u8g2.v', 'sysctrl.v'), ()),
     ('hdmi', 'hdl-util/hdmi', '08936f6', '83b1c95', 'fpga/common/src/hdmi', 'src', (), ()),
+    ('NESTang', 'nand2mario/nestang', '1c00dc5', '5b24a71',
+     'fpga/common/src/sdram_fb.v', 'src/sdram_nes.v', (), ()),
 ]
 RELEASE = re.compile(r'^v?(\d+)\.(\d+)(?:\.(\d+))?$')
 
@@ -164,6 +168,8 @@ def vendored():
         folder = ROOT / local
         ours = {f'{there}/{p.relative_to(folder)}'.lstrip('/') for p in folder.rglob('*')
                 if p.is_file() and p.name not in ('README.md', 'LICENSE') + other}
+        if folder.is_file():
+            ours = {there}
         ours |= set(extra)
         try:
             branch = api(f'repos/{repo}')['default_branch']
