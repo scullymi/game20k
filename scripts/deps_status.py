@@ -42,7 +42,7 @@ DEPS = [
 #: upstream commit already looked at, local folder, the same folder upstream, files in the local
 #: folder that come from elsewhere, further upstream paths. Every file under the local folder
 #: except README.md and LICENSE is watched. After looking at a reported change, set the fourth
-#: field to the upstream commit named in the report.
+#: field to the newest upstream commit of the report. Taking a change over moves the third.
 VENDORED = [
     ('Galaga', 'DECAfpga/Arcade_Galaga', 'e06ba91', 'e06ba91',
      'fpga/galaga_hdmi/src/rtl_dar', 'rtl_dar', (), ()),
@@ -136,9 +136,30 @@ def why(e):
     return str(e)
 
 
+def touched(repo, base, head, ours):
+    """Upstream changes to our files from base to head: (commits upstream, report lines, None),
+    or (0, [], reason) when the API cannot give a complete answer."""
+    cmp = api(f'repos/{repo}/compare/{base}...{head}')
+    files = cmp.get('files', [])
+    # the API lists at most 300 files and 250 commits of a comparison
+    if len(files) >= 300 or cmp.get('total_commits', 0) > 250:
+        return 0, [], f'{cmp["ahead_by"]} commits, too many for the API, compare by hand'
+    shas = {c['sha'] for c in cmp.get('commits', [])}
+    lines = []
+    for fn in sorted(f['filename'] for f in files if f['filename'] in ours):
+        q = urllib.parse.quote(fn)
+        for c in api(f'repos/{repo}/commits?path={q}&sha={head}&per_page=30'):
+            if c['sha'] in shas:
+                msg = c['commit']['message'].splitlines()[0]
+                lines.append(f'  {fn}: {c["sha"][:7]} {c["commit"]["committer"]["date"][:10]} {msg}')
+    return cmp['ahead_by'], lines, None
+
+
 def vendored():
-    """Report lines for the copied HDL, and whether something needs a look."""
-    lines, look = [], False
+    """Report lines for the copied HDL, and whether something new needs a look. New means
+    after the reviewed commit. Changes between the copy and the reviewed commit were looked at
+    and not taken over, they are listed under "known" and do not count."""
+    lines, known, look = [], [], False
     for name, repo, pinned, reviewed, local, there, other, extra in VENDORED:
         folder = ROOT / local
         ours = {f'{there}/{p.relative_to(folder)}'.lstrip('/') for p in folder.rglob('*')
@@ -146,33 +167,25 @@ def vendored():
         ours |= set(extra)
         try:
             branch = api(f'repos/{repo}')['default_branch']
-            cmp = api(f'repos/{repo}/compare/{reviewed}...{branch}')
+            ahead, hit, err = touched(repo, reviewed, branch, ours)
+            if pinned != reviewed:
+                _, old, _ = touched(repo, pinned, reviewed, ours)
+                if old:
+                    known += [f'{name} ({pinned}..{reviewed}):'] + old
         except (OSError, ValueError, KeyError) as e:
-            lines.append(f'{name}: GitHub did not answer ({why(e)})')
+            ahead, hit, err = 0, [], f'GitHub did not answer ({why(e)})'
+        if err:
+            lines.append(f'{name}: {err}')
             look = True
-            continue
-        files = cmp.get('files', [])
-        hit = sorted(f['filename'] for f in files if f['filename'] in ours)
-        # the API lists at most 300 files and 250 commits of a comparison
-        if len(files) >= 300 or cmp.get('total_commits', 0) > 250:
-            lines.append(f'{name}: {cmp["ahead_by"]} commits since {reviewed}, too many for the '
-                         f'API, compare by hand')
+        elif hit:
+            lines.append(f'{name}: new upstream changes to our files since {reviewed}:')
+            lines += hit
             look = True
-        elif not hit:
-            lines.append(f'{name}: none of our {len(ours)} files changed since {reviewed} '
-                         f'({cmp["ahead_by"]} commits upstream)')
         else:
-            look = True
-            head = cmp['commits'][-1]['sha'][:7]
-            lines.append(f'{name}: {len(hit)} of our files changed since {reviewed}, '
-                         f'upstream now {head}, copy taken at {pinned}')
-            shas = {c['sha'] for c in cmp['commits']}
-            for fn in hit:
-                q = urllib.parse.quote(fn)
-                for c in api(f'repos/{repo}/commits?path={q}&sha={branch}&per_page=30'):
-                    if c['sha'] in shas:
-                        msg = c['commit']['message'].splitlines()[0]
-                        lines.append(f'  {fn}: {c["sha"][:7]} {c["commit"]["committer"]["date"][:10]} {msg}')
+            lines.append(f'{name}: nothing new for our {len(ours)} files since {reviewed} '
+                         f'({ahead} commits upstream)')
+    if known:
+        lines += ['', 'Known, looked at and not taken over (copy..reviewed):'] + known
     return lines, look
 
 
