@@ -70,19 +70,19 @@ if [ ! -f "$INI" ]; then
   NOTES="$NOTES config.ini-new"
 fi
 # Line length limit as in the firmware: it reads config.ini with f_gets into a char
-# buffer[64], so a line longer than 62 characters is truncated and, unless the truncated
+# buffer[128], so a line longer than 126 characters is truncated and, unless the truncated
 # head holds a semicolon, dropped. The device shows nothing. Only its debug log prints the
 # start of the line. A CR of a CRLF file counts here as it does in the firmware.
 n=0; TOO_LONG=0
 while IFS= read -r z; do
-  n=$((n+1)); [ ${#z} -le 62 ] && continue
-  case "$(printf '%.62s' "$z")" in *";"*) ;; *)
+  n=$((n+1)); [ ${#z} -le 126 ] && continue
+  case "$(printf '%.126s' "$z")" in *";"*) ;; *)
     echo "  Line $n ($( printf '%s' "${#z}") characters, no semicolon) would be dropped by the firmware:" >&2
     echo "    $z" >&2; TOO_LONG=1 ;;
   esac
 done < "$INI"
 if [ "$TOO_LONG" = "1" ]; then
-  echo "  Nothing copied. If the WiFi password is too long, only a shorter one helps." >&2
+  echo "  Nothing copied. Shorten the line or start its comment earlier." >&2
   exit 1
 fi
 # shellcheck disable=SC1091
@@ -93,7 +93,7 @@ for pair in "WiFi:WIFI_SSID:WIFI_PASS" "RA:RA_USER:RA_TOKEN"; do
   if [ -n "$va" ] && [ -n "$vb" ]; then report "$name" "filled in"
   else report "$name" "not filled in, the game runs without $name anyway"; NOTES="$NOTES $name"; fi
 done
-report "Lines" "$n, all within the 62-character limit"
+report "Lines" "$n, all within the 126-character limit"
 
 echo "== settings =="
 # One settings file per core, under the name its menu.xml loads and saves: the device reads no

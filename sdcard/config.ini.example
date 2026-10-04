@@ -6,12 +6,12 @@
 ; template on its first run. Fill in your values there by
 ; hand, then run the script once more.
 ;
-; LINE LENGTH: the firmware reads with a 64-byte buffer
-; (inifile.c, f_gets). A line may have at most 62 characters.
+; LINE LENGTH: the firmware reads with a 128-byte buffer
+; (inifile.c, f_gets). A line may have at most 126 characters.
 ; A longer line is dropped. Only when a ; sits within the
-; first 62 characters does the part before it count. The
+; first 126 characters does the part before it count. The
 ; machine shows nothing. Its debug log prints the start of
-; the line in plain text, even a long WiFi password.
+; the line in plain text.
 ; scripts/make_sdcard.sh checks this beforehand.
 ;
 ; Everything after a semicolon is a comment.

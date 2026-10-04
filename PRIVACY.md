@@ -122,10 +122,6 @@ and they cannot be switched off.
   the folder `ra` cannot be changed over FTP, but they can still be read.
 - **Telnet without a password.** Anyone on your network can connect to port 23 and read the
   debug log from then on.
-- **Long lines in `config.ini`.** A line longer than 62 bytes, 61 with Windows line endings, can
-  be skipped, and so can a last line without a line break. Up to 63 bytes of it then appear in
-  plain text in the debug log on the serial port at start-up. That can be the WiFi key or the
-  token.
 - **The SD card has no protection.** Whoever holds the card can read `config.ini`, the `ra_*`
   files show your account name and unlock times, and the folder `ra` your account name and
   unlocks. Before you lend the device, remove `config.ini`, and the `ra_*` files and the folder
