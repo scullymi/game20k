@@ -17,6 +17,9 @@ permissions:
 
 jobs:
   vendored:
+    # VENDORED holds this repository's review state, so a fork skips the weekly run and can
+    # still start it by hand.
+    if: github.repository == 'scullymi/game20k' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
