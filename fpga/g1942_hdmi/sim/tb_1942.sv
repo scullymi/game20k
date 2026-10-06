@@ -24,13 +24,13 @@ module tb_1942;
     logic [7:0]  rom_wr_data = '0;
     logic [15:0] rom_wr_en   = '0;
     logic [21:2] rom_rd_addr;
-    logic        rom_rd_req;
+    logic        rom_rd_push;
 `ifdef ROM_PATH
-    logic        rom_rd_ack;
+    logic        rom_rd_ready, rom_rd_valid;
     logic [31:0] rom_rd_data;
 `else
-    logic        rom_rd_ack  = 1'b0;
-    logic [31:0] rom_rd_data = '0;
+    logic        rom_rd_ready = 1'b1, rom_rd_valid = 1'b0;
+    logic [31:0] rom_rd_data  = '0;
 `endif
     logic [3:0]  r, g, b;
     logic        ce, blankn, vs, hs;
@@ -44,8 +44,8 @@ module tb_1942;
         .video_blankn(blankn), .video_vs(vs), .video_hs(hs),
         .audio(audio),
         .rom_wr_addr(rom_wr_addr), .rom_wr_data(rom_wr_data), .rom_wr_en(rom_wr_en),
-        .rom_rd_addr(rom_rd_addr), .rom_rd_req(rom_rd_req), .rom_rd_ack(rom_rd_ack),
-        .rom_rd_data(rom_rd_data),
+        .rom_rd_addr(rom_rd_addr), .rom_rd_push(rom_rd_push), .rom_rd_ready(rom_rd_ready),
+        .rom_rd_valid(rom_rd_valid), .rom_rd_data(rom_rd_data),
         .cfg_we(1'b0), .cfg_id(8'd0), .cfg_val(8'd0),
         .p1_dir(4'd0), .p2_dir(4'd0), .p1_fire(1'b0), .p2_fire(1'b0),
         .p1_btns(12'd0), .p2_btns(12'd0),
@@ -74,26 +74,35 @@ module tb_1942;
     endfunction
 
 `ifndef ROM_PATH
-    // ---------------- read port model ----------------
-    int          wait_cnt = 0;
-    logic        pending  = 1'b0;
+    // ---------------- read stream model ----------------
+    // Up to four reads in flight, words in order. Each read is due 9..12 clocks after its
+    // push (one in 40 meets a refresh: 13..19), the latency measured on the single-read port
+    // before the stream; a word never comes before the one ahead of it, and the ring takes
+    // a read only every 3.4 core clocks at most (one per round of six SDRAM cycles), so a
+    // read is never due earlier than 4 clocks after the one before.
+    logic [21:2] m_addr [$];
+    longint      m_due  [$];
+    longint      now = 0, last_due = 0;
     int          reads = 0;
     always @(posedge clk) begin
-        if (!pending && rom_rd_req != rom_rd_ack) begin
-            pending  <= 1'b1;
-            // measured in path mode: mean 11.7, at most 20 clocks, 0.25 % above 19: mostly
-            // 10..13, one read in 40 meets a refresh and takes 14..20. This model adds two
-            // clocks of its own (request seen, acknowledge registered), hence 8..11 and 12..18.
-            wait_cnt <= ($urandom % 40 == 0) ? 12 + ($urandom % 7) : 8 + ($urandom % 4);
-        end else if (pending) begin
-            if (wait_cnt <= 1) begin
-                rom_rd_data <= rom[rom_rd_addr[17:2]];
-                rom_rd_ack  <= rom_rd_req;
-                pending     <= 1'b0;
-                reads       <= reads + 1;
-            end else
-                wait_cnt <= wait_cnt - 1;
+        now++;
+        rom_rd_valid <= 1'b0;
+        if (rom_rd_push && rom_rd_ready) begin
+            longint d;   // assigned, not initialised: in an always block an initialiser runs once
+            d = now + (($urandom % 40 == 0) ? 13 + ($urandom % 7) : 9 + ($urandom % 4));
+            if (d < last_due + 4) d = last_due + 4;
+            last_due = d;
+            m_addr.push_back(rom_rd_addr);
+            m_due.push_back(d);
         end
+        if (m_due.size() > 0 && m_due[0] <= now) begin
+            rom_rd_data  <= rom[m_addr[0][17:2]];
+            rom_rd_valid <= 1'b1;
+            void'(m_addr.pop_front());
+            void'(m_due.pop_front());
+            reads <= reads + 1;
+        end
+        rom_rd_ready <= m_due.size() < 3;      // registered: four in flight at most
     end
 
 `else
@@ -108,23 +117,21 @@ module tb_1942;
     logic [21:0] sd_wr_addr, sd_rd_addr;
     logic [31:0] sd_wr_din, sd_rd_dout, rom_rd_dout;   // controller's word, rom_sdram's copy
     logic [1:0]  sd_wr_bank, sd_rd_bank;
-    logic        sd_wr_req, sd_wr_ack, sd_rd_req, sd_rd_ack, sd_rd_valid, sdram_ready;
+    logic        sd_wr_req, sd_wr_ack, sd_rd_req, sd_rd_ack, sd_rd_valid, sdram_ready, sd_rd_hint;
     int          reads = 0;
-    logic        rom_rd_req_q = 0;
-    always @(posedge clk) begin
-        rom_rd_req_q <= rom_rd_req;
-        if (rom_rd_req != rom_rd_req_q) reads <= reads + 1;
-    end
+    always @(posedge clk) if (rom_rd_push && rom_rd_ready) reads <= reads + 1;
 
     rom_sdram #(.AW(22), .BANK(2'd2)) path (
         .clk_core(clk), .reset(1'b0),
         .wr_we(wr_we), .wr_off(wr_off), .wr_data(wr_byte), .wr_ready(wr_ready), .wr_idle(wr_idle),
-        .rd_addr(rom_rd_addr), .rd_req(rom_rd_req), .rd_ack(rom_rd_ack), .rd_data(rom_rd_data),
+        .rd_addr(rom_rd_addr), .rd_push(rom_rd_push), .rd_ready(rom_rd_ready),
+        .rd_valid(rom_rd_valid), .rd_data(rom_rd_data),
         .clk_sdram(clk_sdram),
         .sd_wr_addr(sd_wr_addr), .sd_wr_din(sd_wr_din), .sd_wr_bank(sd_wr_bank),
         .sd_wr_req(sd_wr_req), .sd_wr_ack(sd_wr_ack),
         .sd_rd_addr(sd_rd_addr), .sd_rd_bank(sd_rd_bank), .sd_rd_req(sd_rd_req),
-        .sd_rd_ack(sd_rd_ack), .sd_rd_dout(rom_rd_dout), .sd_rd_valid(sd_rd_valid)
+        .sd_rd_ack(sd_rd_ack), .sd_rd_dout(rom_rd_dout), .sd_rd_valid(sd_rd_valid),
+        .sd_rd_hint(sd_rd_hint)
     );
     wire [31:0] dq;
     wire [10:0] a;
@@ -138,7 +145,7 @@ module tb_1942;
         .wr_addr(c_wr_addr), .wr_din(c_wr_din), .wr_bank(c_wr_bank),
         .wr_req(c_wr_req), .wr_ack(c_wr_ack),
         .rd_addr(c_rd_addr), .rd_bank(c_rd_bank), .rd_req(c_rd_req), .rd_ack(c_rd_ack),
-        .rd_dout(sd_rd_dout), .rd_valid(c_rd_valid)
+        .rd_dout(sd_rd_dout), .rd_valid(c_rd_valid), .rd_hint(sd_rd_hint)
     );
     // the controller's side: straight to rom_sdram, or with FB_PATH through sdram_share,
     // with the frame buffer of the upright picture on its port B
@@ -349,19 +356,22 @@ module tb_1942;
     end
 
     // ---------------- read latency of the ROM port, as the game sees it ----------------
-    // clocks from a new rom_rd_req toggle to its rom_rd_ack, mean and maximum, and how many
-    // reads took more than 19 clocks (the upper end of the port model)
-    int lat_t = 0, lat_n = 0, lat_max = 0, lat_over = 0;
-    longint lat_sum = 0;
-    logic lat_on = 1'b0;
+    // clocks from a push to its word, mean and maximum, how many reads took more than 19
+    // clocks (the upper end of the model), and the most reads in flight at once
+    int lat_n = 0, lat_max = 0, lat_over = 0, fly_max = 0;
+    longint lat_sum = 0, lat_clk = 0;
+    longint lat_t0 [$];
     always @(posedge clk) begin
-        if (lat_on) lat_t++;
-        if (!lat_on && rom_rd_req != rom_rd_ack) begin lat_on = 1'b1; lat_t = 1; end
-        else if (lat_on && rom_rd_req == rom_rd_ack) begin
-            lat_on = 1'b0; lat_n++; lat_sum += lat_t;
-            if (lat_t > lat_max) lat_max = lat_t;
-            if (lat_t > 19) lat_over++;
+        lat_clk++;
+        if (rom_rd_push && rom_rd_ready) lat_t0.push_back(lat_clk);
+        if (rom_rd_valid && lat_t0.size() > 0) begin
+            int t;
+            t = int'(lat_clk - lat_t0.pop_front());
+            lat_n++; lat_sum += t;
+            if (t > lat_max) lat_max = t;
+            if (t > 19) lat_over++;
         end
+        if (lat_t0.size() > fly_max) fly_max = lat_t0.size();
     end
 
     // ---------------- late ROM data, counted in the visible picture only ----------------
@@ -413,8 +423,8 @@ module tb_1942;
                          dut.u_slots.miss);
                 $display("late in the picture: char %0d, scroll %0d; sprite lines %0d, unfinished %0d",
                          char_late, scr_late, obj_lines, obj_short);
-                $display("ROM port: %0d reads, latency mean %0.1f, max %0d clocks, %0d over 19",
-                         lat_n, real'(lat_sum) / lat_n, lat_max, lat_over);
+                $display("ROM port: %0d reads, latency mean %0.1f, max %0d clocks, %0d over 19, at most %0d in flight",
+                         lat_n, real'(lat_sum) / lat_n, lat_max, lat_over, fly_max);
                 $display("mirror: %0d snapshots, %0d bytes differ from the core, %0d against the oracle; most log entries in a window %0d",
                          snaps, mir_bad, ora_bad, lg_max);
                 if (char_late + scr_late + obj_short != 0) $fatal(1, "FAIL: ROM data late in the picture");

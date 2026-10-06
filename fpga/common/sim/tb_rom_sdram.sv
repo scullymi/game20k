@@ -4,7 +4,8 @@
 // (37.125 MHz) and clk_sdram (64.8 MHz) run unrelated. A byte stream like rom_loader's (one
 // byte every two clocks at most, waiting on wr_ready, with gaps) fills 1942's 232 KiB of
 // sdram sections into bank 2 while a second process keeps reading words already written.
-// Then every word is read back and compared, then random reads. The data is generated, no
+// Then every word is read back and compared, then random reads one at a time, then random
+// reads streamed with as many in flight as rd_ready allows. The data is generated, no
 // ROM is needed. The SDRAM model samples on the falling edge of clk_sdram (the board's
 // lagging clock phase) and counts every ACTIVATE on a bank that is still open or still
 // precharging. Ends with PASS or $fatal. Run by run_sim.sh.
@@ -23,22 +24,25 @@ module tb_rom_sdram;
     logic [7:0]  wr_data = '0;
     logic        wr_ready, wr_idle;
     logic [21:2] rd_addr = '0;
-    logic        rd_req = 0, rd_ack;
+    logic        rd_want = 0, rd_ready, rd_valid;
+    wire         rd_push = rd_want && rd_ready;   // as rom_slots: only while rd_ready
     logic [31:0] rd_data;
     logic [21:0] sd_wr_addr, sd_rd_addr;
     logic [31:0] sd_wr_din, sd_rd_dout;
     logic [1:0]  sd_wr_bank, sd_rd_bank;
-    logic        sd_wr_req, sd_wr_ack, sd_rd_req, sd_rd_ack, sd_rd_valid, sdram_ready;
+    logic        sd_wr_req, sd_wr_ack, sd_rd_req, sd_rd_ack, sd_rd_valid, sdram_ready, sd_rd_hint;
 
     rom_sdram #(.AW(22), .BANK(2'd2)) dut (
         .clk_core(clk_core), .reset(reset),
         .wr_we(wr_we), .wr_off(wr_off), .wr_data(wr_data), .wr_ready(wr_ready), .wr_idle(wr_idle),
-        .rd_addr(rd_addr), .rd_req(rd_req), .rd_ack(rd_ack), .rd_data(rd_data),
+        .rd_addr(rd_addr), .rd_push(rd_push), .rd_ready(rd_ready),
+        .rd_valid(rd_valid), .rd_data(rd_data),
         .clk_sdram(clk_sdram),
         .sd_wr_addr(sd_wr_addr), .sd_wr_din(sd_wr_din), .sd_wr_bank(sd_wr_bank),
         .sd_wr_req(sd_wr_req), .sd_wr_ack(sd_wr_ack),
         .sd_rd_addr(sd_rd_addr), .sd_rd_bank(sd_rd_bank), .sd_rd_req(sd_rd_req),
-        .sd_rd_ack(sd_rd_ack), .sd_rd_dout(sd_rd_dout), .sd_rd_valid(sd_rd_valid)
+        .sd_rd_ack(sd_rd_ack), .sd_rd_dout(sd_rd_dout), .sd_rd_valid(sd_rd_valid),
+        .sd_rd_hint(sd_rd_hint)
     );
 
     wire [31:0] dq;
@@ -53,7 +57,7 @@ module tb_rom_sdram;
         .wr_addr(sd_wr_addr), .wr_din(sd_wr_din), .wr_bank(sd_wr_bank),
         .wr_req(sd_wr_req), .wr_ack(sd_wr_ack),
         .rd_addr(sd_rd_addr), .rd_bank(sd_rd_bank), .rd_req(sd_rd_req), .rd_ack(sd_rd_ack),
-        .rd_dout(sd_rd_dout), .rd_valid(sd_rd_valid)
+        .rd_dout(sd_rd_dout), .rd_valid(sd_rd_valid), .rd_hint(sd_rd_hint)
     );
 
     // ---------------- SDRAM model: 4 banks x 2048 rows x 256 columns x 32 bits, CL2, BL1 ----------------
@@ -141,25 +145,61 @@ module tb_rom_sdram;
         $display("read back all %0d words, %0d errors", NBYTES / 4, errors);
         for (int i = 0; i < 20000; i++) check($urandom % (NBYTES / 4));
         $display("20000 random reads, %0d errors in total", errors);
+        stream(20000);
+        $display("20000 streamed reads, at most %0d in flight, %0d errors in total", fly_max, errors);
         if (errors != 0 || hazards != 0) $fatal(1, "FAIL: %0d errors, %0d SDRAM timing hazards", errors, hazards);
         $display("PASS");
         $finish;
     end
 
     int lat_max = 0, lat_sum = 0, nreads = 0;
+    // one read: wanted until a clock edge takes it with rd_ready, then wait for the word
     task automatic check(input int w);
         int t;
         @(posedge clk_core);
         rd_addr <= 20'(w);
-        rd_req  <= ~rd_req;
+        rd_want <= 1;
+        do @(posedge clk_core); while (!rd_ready);
+        rd_want <= 0;
         t = 0;
-        @(posedge clk_core);
-        while (rd_ack != rd_req) begin @(posedge clk_core); t++; end
+        while (!rd_valid) begin @(posedge clk_core); t++; end
         nreads++; lat_sum += t; if (t > lat_max) lat_max = t;
-        if (rd_data !== word_at(w)) begin
+        compare(w, rd_data);
+    endtask
+
+    task automatic compare(input int w, input logic [31:0] d);
+        if (d !== word_at(w)) begin
             errors++;
-            if (errors < 10) $display("word %05x: read %08x, expected %08x", w, rd_data, word_at(w));
+            if (errors < 10) $display("word %05x: read %08x, expected %08x", w, d, word_at(w));
         end
+    endtask
+
+    // n reads, pushed back to back with random gaps. The words must come back in the order of the pushes.
+    int fly_max = 0;
+    task automatic stream(input int n);
+        int sent = 0, got = 0, w;
+        int q [$];
+        while (got < n) begin
+            @(posedge clk_core);
+            if (rd_valid) begin
+                compare(q.pop_front(), rd_data);
+                got++;
+            end
+            if (rd_push) begin
+                q.push_back(int'(rd_addr));
+                sent++;
+            end
+            if (!rd_want || rd_ready) begin           // the last read is taken: offer the next
+                if (sent < n && $urandom % 4 != 0) begin
+                    w = $urandom % (NBYTES / 4);
+                    rd_addr <= 20'(w);
+                    rd_want <= 1;
+                end else
+                    rd_want <= 0;
+            end
+            if (q.size() > fly_max) fly_max = q.size();
+        end
+        rd_want <= 0;
     endtask
 
     final $display("read latency in core clocks: mean %0.1f, max %0d; SDRAM timing hazards %0d", real'(lat_sum) / nreads, lat_max, hazards);

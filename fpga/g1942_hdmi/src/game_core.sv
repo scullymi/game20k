@@ -38,10 +38,11 @@ module game_core #(
     input  wire  [7:0]  rom_wr_data,
     input  wire  [15:0] rom_wr_en,
     //! ---- word reads from the ROM in SDRAM (rom_sdram.sv), for a manifest with sdram sections ----
-    output logic [21:2] rom_rd_addr,
-    output logic        rom_rd_req,     //!< toggle: read rom_rd_addr
-    input  wire         rom_rd_ack,     //!< equals rom_rd_req once rom_rd_data holds the word
-    input  wire  [31:0] rom_rd_data,
+    output logic [21:2] rom_rd_addr,    //!< taken with rom_rd_push
+    output logic        rom_rd_push,    //!< one clock per read, only while rom_rd_ready
+    input  wire         rom_rd_ready,
+    input  wire         rom_rd_valid,   //!< one clock per word, in the order of the pushes
+    input  wire  [31:0] rom_rd_data,    //!< valid with rom_rd_valid
 
     //! ---- menu values from the Companion: one clock of cfg_we per value set ----
     input  wire         cfg_we,
@@ -294,7 +295,8 @@ module game_core #(
         .clk(clk), .reset(rst),
         .slot_addr(slot_addr), .slot_cs(slot_cs), .slot_hold(slot_hold),
         .slot_ok(slot_ok), .slot_data(slot_data),
-        .rd_addr(rom_rd_addr), .rd_req(rom_rd_req), .rd_ack(rom_rd_ack), .rd_data(rom_rd_data),
+        .rd_addr(rom_rd_addr), .rd_push(rom_rd_push), .rd_ready(rom_rd_ready),
+        .rd_valid(rom_rd_valid), .rd_data(rom_rd_data),
         .miss()
     );
     assign main_data = slot_data[S_MAIN][8*off_main[1:0] +: 8];

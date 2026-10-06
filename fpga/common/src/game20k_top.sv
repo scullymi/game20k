@@ -166,8 +166,8 @@ module game20k_top #(
         .video_blankn(video_blankn), .video_vs(video_vs), .video_hs(video_hs),
         .audio(audio),
         .rom_wr_addr(rom_wr_addr), .rom_wr_data(rom_wr_data), .rom_wr_en(rom_wr_en),
-        .rom_rd_addr(rom_rd_addr), .rom_rd_req(rom_rd_req), .rom_rd_ack(rom_rd_ack),
-        .rom_rd_data(rom_rd_data),
+        .rom_rd_addr(rom_rd_addr), .rom_rd_push(rom_rd_push), .rom_rd_ready(rom_rd_ready),
+        .rom_rd_valid(rom_rd_valid), .rom_rd_data(rom_rd_data),
         .cfg_we(cfg_we), .cfg_id(cfg_id), .cfg_val(cfg_val),
         .p1_dir(joystick[0][3:0]), .p2_dir(joystick[1][3:0]),
         .p1_fire(joy_fire), .p2_fire(joy_fire2),
@@ -226,8 +226,8 @@ module game20k_top #(
     logic        rom_wr_ready, rom_wr_idle;
     logic        rom_ready;
     assign rom_ready = rom_loaded && (!ROM_IN_SDRAM || rom_wr_idle);
-    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM
-    logic        rom_rd_req, rom_rd_ack;
+    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM, a stream
+    logic        rom_rd_push, rom_rd_ready, rom_rd_valid;
     logic [31:0] rom_rd_data;
 
     sd_card #(
@@ -699,6 +699,7 @@ module game20k_top #(
     logic [1:0]  rs_wr_bank, rs_rd_bank;
     logic        rs_wr_req, rs_rd_req, rs_wr_ack, rs_rd_ack, rs_rd_valid;
     logic [31:0] rs_rd_dout;             // the ROM's own copy of its word, see sdram_share
+    logic        rs_rd_hint;             // a ROM read is on its way: the controller holds a refresh
     generate if (!SDRAMTEST) begin : g_fb
         assign sdram_psda = SDRAM_PSDA;
         // Reset comes from pll_sdram_lock alone: a game reset must not
@@ -715,7 +716,8 @@ module game20k_top #(
             .wr_req(fb_wr_req), .wr_ack(fb_wr_ack),
             .rd_addr(fb_rd_addr), .rd_bank(fb_rd_bank),
             .rd_req(fb_rd_req), .rd_ack(fb_rd_ack),
-            .rd_dout(fb_rd_dout), .rd_valid(fb_rd_valid)
+            .rd_dout(fb_rd_dout), .rd_valid(fb_rd_valid),
+            .rd_hint(ROM_IN_SDRAM && rs_rd_hint)
         );
         fb_pack #(.W(W), .H(H), .CPP(CPP)) pack_i (
             .clk_core(clk_core),
@@ -765,13 +767,14 @@ module game20k_top #(
         .wr_we(ROM_IN_SDRAM && |(rom_wr_en & ROM_SDRAM)),
         .wr_off(22'(rom_wr_off)), .wr_data(rom_wr_data),
         .wr_ready(rs_ready), .wr_idle(rs_idle),
-        .rd_addr(rom_rd_addr), .rd_req(rom_rd_req),
-        .rd_ack(rom_rd_ack), .rd_data(rom_rd_data),
+        .rd_addr(rom_rd_addr), .rd_push(rom_rd_push), .rd_ready(rom_rd_ready),
+        .rd_valid(rom_rd_valid), .rd_data(rom_rd_data),
         .clk_sdram(clk_sdram),
         .sd_wr_addr(rs_wr_addr), .sd_wr_din(rs_wr_din), .sd_wr_bank(rs_wr_bank),
         .sd_wr_req(rs_wr_req), .sd_wr_ack(rs_wr_ack),
         .sd_rd_addr(rs_rd_addr), .sd_rd_bank(rs_rd_bank), .sd_rd_req(rs_rd_req),
-        .sd_rd_ack(rs_rd_ack), .sd_rd_dout(rs_rd_dout), .sd_rd_valid(rs_rd_valid)
+        .sd_rd_ack(rs_rd_ack), .sd_rd_dout(rs_rd_dout), .sd_rd_valid(rs_rd_valid),
+        .sd_rd_hint(rs_rd_hint)
     );
     assign rom_wr_ready = ROM_IN_SDRAM ? rs_ready : 1'b1;
     assign rom_wr_idle  = ROM_IN_SDRAM ? rs_idle  : 1'b1;
@@ -800,7 +803,7 @@ module game20k_top #(
             .wr_req(sd_wr_req), .wr_ack(sd_wr_ack),
             .rd_addr(sd_rd_addr), .rd_bank(sd_rd_bank),
             .rd_req(sd_rd_req), .rd_ack(sd_rd_ack),
-            .rd_dout(sd_rd_dout), .rd_valid(sd_rd_valid)
+            .rd_dout(sd_rd_dout), .rd_valid(sd_rd_valid), .rd_hint(1'b0)
         );
 
         // The self test owns the controller's reset because the SDRAM has to be

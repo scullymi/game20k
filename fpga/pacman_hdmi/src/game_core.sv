@@ -39,10 +39,11 @@ module game_core #(
     input  wire  [7:0]  rom_wr_data,
     input  wire  [15:0] rom_wr_en,
     //! ---- word reads from the ROM in SDRAM (rom_sdram.sv), for a manifest with sdram sections ----
-    output logic [21:2] rom_rd_addr,
-    output logic        rom_rd_req,     //!< toggle: read rom_rd_addr
-    input  wire         rom_rd_ack,     //!< equals rom_rd_req once rom_rd_data holds the word
-    input  wire  [31:0] rom_rd_data,
+    output logic [21:2] rom_rd_addr,    //!< taken with rom_rd_push
+    output logic        rom_rd_push,    //!< one clock per read, only while rom_rd_ready
+    input  wire         rom_rd_ready,
+    input  wire         rom_rd_valid,   //!< one clock per word, in the order of the pushes
+    input  wire  [31:0] rom_rd_data,    //!< valid with rom_rd_valid
 
     //! ---- menu values from the Companion: one clock of cfg_we per value set ----
     input  wire         cfg_we,
@@ -345,7 +346,7 @@ module game_core #(
     assign video_ce = 1'b0;
     // the ROM lives in block RAM, nothing is read from SDRAM
     assign rom_rd_addr = '0;
-    assign rom_rd_req  = 1'b0;
+    assign rom_rd_push = 1'b0;
     // O_VSYNC is an active high 8-line pulse 16 lines before the first visible line; the
     // scaler wants it active low. O_HSYNC has no consumer.
     assign video_vs = ~core_vs;

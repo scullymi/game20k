@@ -120,6 +120,11 @@ endmodule
 //!   - The controller accepts when c_ack becomes equal to c_req. In that clock the user's
 //!     ack takes the level its req had when the request was latched, and acc pulses with the
 //!     owner on acc_b. A new request is latched one clock later at the earliest.
+//!   - A that streams (rom_sdram with several reads queued) puts its next request up two
+//!     clocks after its acknowledge. For those two clocks B is not latched, else B would take
+//!     every second round while it has a long run of its own (the frame buffer's groups of
+//!     224 reads). The controller takes one request per round of six clocks, so the wait
+//!     costs B no round when A has nothing more.
 module sdram_share_ch #(
     parameter int DW = 24
 )(
@@ -137,6 +142,7 @@ module sdram_share_ch #(
     output logic         acc_b              //!< with acc: it was B's
 );
     logic fly = 1'b0;                       // a request is latched and not accepted yet
+    logic [1:0] a_hold = 2'b00;             // clocks since A's last acceptance, B waits
     logic own_b;                            // whose
     logic lvl;                              // the req level of the user when it was latched
     initial begin a_ack = 1'b0; b_ack = 1'b0; c_req = 1'b0; end
@@ -145,10 +151,11 @@ module sdram_share_ch #(
     assign acc   = fly && (c_ack == c_req);
     assign acc_b = own_b;
     always_ff @(posedge clk) begin
+        a_hold <= (acc && !own_b) ? 2'd2 : (a_hold != 2'd0 ? a_hold - 2'd1 : 2'd0);
         if (acc) begin
             fly <= 1'b0;
             if (own_b) b_ack <= lvl; else a_ack <= lvl;
-        end else if (!fly && (pa || pb)) begin
+        end else if (!fly && (pa || (pb && a_hold == 2'd0))) begin
             fly   <= 1'b1;
             own_b <= !pa;
             lvl   <= pa ? a_req : b_req;

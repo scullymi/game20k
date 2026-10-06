@@ -110,6 +110,13 @@
 //!     budget. Costs one cycle of latency on rd_dout/rd_valid, nothing else. Measured in
 //!     the measurement build: with this stage "I/O Register as FF" is 77 instead of 10, and
 //!     the path pad -> dq_r is at 2.314 ns.
+//! 13. A due refresh waits while a read is pending, for at most 31 rounds (2.9 us), then it
+//!     is forced. rd_hint extends "pending" to a read still on its way to rd_req (a clock
+//!     domain crossing or an arbiter in between): one that arrives just after the decision
+//!     would otherwise wait for both refresh rounds. A refresh costs the read channel two rounds; falling on a ROM read with a
+//!     short deadline (1943's scroll layers, 25 core clocks from address to sample) it made
+//!     the read late. The interval stays below 7.73 + 2.9 = 10.7 us against 31.25 us needed.
+//!     rfsh_go is the one condition both places use (change 11).
 //! -----------------------------------------------------------------------------------------
 
 module sdram_fb #(
@@ -153,7 +160,8 @@ module sdram_fb #(
     input              wire rd_req,
     output reg         rd_ack,
     output reg [31:0]  rd_dout,
-    output reg         rd_valid      //!< one cycle, rd_dout is then stable
+    output reg         rd_valid,     //!< one cycle, rd_dout is then stable
+    input              wire rd_hint       //!< a read is on its way, holds a due refresh (change 13)
 );
 
 // ---- Data bus ----
@@ -227,11 +235,13 @@ reg [8:0]  refresh_cnt;
 reg        need_refresh;
 reg        rfsh_arm;      // clear this round, AutoRefresh at its end
 reg        rfsh_wait;     // recovery round after the AutoRefresh (tRFC)
+reg [4:0]  rfsh_defer;    // rounds a due refresh has waited for a pending read (change 13)
 
 wire block_act = rfsh_arm | rfsh_wait;
 wire wr_pend   = wr_req ^ wr_ack;
 wire rd_pend   = rd_req ^ rd_ack;
 wire rd_start  = normal & cycle[1] & rd_pend & ~block_act;
+wire rfsh_go   = need_refresh & (~(rd_pend | rd_hint) | (rfsh_defer == 5'd31));   // change 13
 
 assign sdram_ready = normal;
 
@@ -243,12 +253,17 @@ always @(posedge clk) begin
     if (~resetn) begin
         need_refresh <= 1'b0;
         refresh_cnt  <= 9'd0;
+        rfsh_defer   <= 5'd0;
     end else begin
         if (normal) refresh_cnt <= refresh_cnt + 9'd1;
         if (refresh_cnt == RFRSH_CYCLES) need_refresh <= 1'b1;
         if (normal && cycle[5] && !rfsh_arm && !rfsh_wait && need_refresh) begin
-            need_refresh <= 1'b0;
-            refresh_cnt  <= 9'd0;
+            if (rfsh_go) begin
+                need_refresh <= 1'b0;
+                refresh_cnt  <= 9'd0;
+                rfsh_defer   <= 5'd0;
+            end else
+                rfsh_defer   <= rfsh_defer + 5'd1;
         end
     end
 end
@@ -390,7 +405,7 @@ always @(posedge clk) begin
                     rfsh_wait <= 1'b1;               // one round of pause for tRFC
                 end else if (rfsh_wait) begin
                     rfsh_wait <= 1'b0;
-                end else if (need_refresh) begin
+                end else if (rfsh_go) begin
                     rfsh_arm  <= 1'b1;               // clear the next round
                 end
             end
