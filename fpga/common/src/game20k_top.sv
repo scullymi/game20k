@@ -585,7 +585,7 @@ module game20k_top #(
     logic [5:0] osd_r, osd_g, osd_b;
     logic       osd_visible;
     osd_u8g2 osd (
-        .clk(clk_pixel), .reset(!pll_lock), .rotate(rot90),
+        .clk(clk_pixel), .reset(!pll_lock), .rotate(rot90), .flip(ROT_CCW),
         .data_in_strobe(osd_strobe_p), .data_in_start(osd_start_s[1]), .data_in(osd_data_s1),
         .hs(hdmi_hs_n), .vs(hdmi_vs_n),
         .r_in(rgb_sl[23:18]), .g_in(rgb_sl[15:10]), .b_in(rgb_sl[7:2]),
@@ -651,7 +651,7 @@ module game20k_top #(
     logic        ra_on;
     logic [23:0] ra_col;
     ra_overlay #(.BX(BANNER_BX), .BY(BANNER_BY), .RX(BANNER_RX), .RY(BANNER_RY)) ra_overlay_i (
-        .clk(clk_pixel), .cx(cx), .cy(cy), .rotate(rot90),
+        .clk(clk_pixel), .cx(cx), .cy(cy), .rotate(rot90), .flip(ROT_CCW),
         .txt_we(txt_we_p), .txt_addr(txt_addr_p), .txt_data(txt_data_p),
         .banner_on(banner_p), .banner_gold(gold_p), .banner_new(new_p),
         .challenge_on(chal_p),

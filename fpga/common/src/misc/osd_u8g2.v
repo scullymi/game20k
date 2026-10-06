@@ -15,6 +15,7 @@ module osd_u8g2 (
   input        clk,
   input        reset,
   input        rotate,   // game20k: 1 = OSD rotated 90 degrees counter-clockwise (top = left, like the unrotated game picture)
+  input        flip,     // game20k: with rotate, 180 degrees more (top = right), for games whose monitor turns the other way (ROT270)
 
   input        data_in_strobe,
   input        data_in_start,
@@ -144,10 +145,12 @@ wire [9:0]  vpix  = vcnt-vstart;      // vertical pixel position inside OSD
 
 // upright: page = vpix/32, column = hpix/4, bit = (vpix/4)%8
 // rotated (counter-clockwise): page = hpix/32, column = 127 - vpix/4, bit = (hpix/4)%8
-wire [9:0] buf_addr = rotate ? { hpixD[7:5], ~vpix[8:2] } : { vpix[7:5], hpixD[8:2] };
+// rotated and flipped (clockwise): page = 7 - hpix/32, column = vpix/4, bit = 7 - (hpix/4)%8
+wire [9:0] buf_addr = !rotate ? { vpix[7:5], hpixD[8:2] } :
+                      flip    ? { ~hpixD[7:5], vpix[8:2] } : { hpixD[7:5], ~vpix[8:2] };
 reg  [2:0] buf_bit;
 always @(posedge clk)
-   buf_bit <= rotate ? hpixD[4:2] : vpix[4:2];   // one pixel ahead, in step with buffer_byte
+   buf_bit <= !rotate ? vpix[4:2] : flip ? ~hpixD[4:2] : hpixD[4:2];   // one pixel ahead, in step with buffer_byte
 assign osd_pix = buffer_byte[buf_bit];
 
 reg [7:0] buffer_byte;

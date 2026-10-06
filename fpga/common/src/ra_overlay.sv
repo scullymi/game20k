@@ -58,6 +58,7 @@ module ra_overlay #(
     input  wire  [10:0] cx,
     input  wire  [9:0]  cy,
     input  wire         rotate,       //!< 1 = landscape 3x, banner rotated in the band right of the picture
+    input  wire         flip,         //!< with rotate: the monitor turns the other way (ROT270), all turned 180 degrees
     input  wire         txt_we,       //!< write one character
     input  wire  [4:0]  txt_addr,     //!< 0..23
     input  wire  [7:0]  txt_data,
@@ -87,6 +88,15 @@ module ra_overlay #(
     // ---- pixels ahead so that the output lands where the constants say. ----
     logic [10:0] cxa;
     assign cxa = cx + 11'd3;
+    // A game whose monitor turns the other way in landscape (ROT270) sees the frame
+    // turned by 180 degrees: the banner and its marks are drawn at the point mirror of
+    // the 1280x720 frame, in the band left of the picture, upside down. The picture is
+    // centred in the frame, so the distances to it stay the same. Raster positions
+    // outside the frame wrap around and fall outside every area below.
+    logic [10:0] px;
+    logic [9:0]  py;
+    assign px = (rotate && flip) ? 11'd1279 - cxa : cxa;
+    assign py = (rotate && flip) ? 10'd719  - cy  : cy;
 
     // Stage 1: position. tx runs along the text (0..383), ty across it (0..13),
     // whichever way the text lies. Outside the banner both are meaningless, the
@@ -102,13 +112,13 @@ module ra_overlay #(
     logic        in_chal;
     always_comb begin
         if (rotate) begin
-            in_chal = (cxa >= RX + 1) && (cxa < RX + 13) && (cy >= RY - 20) && (cy < RY - 8);
-            mx = cxa - (RX + 1);
-            my = cy - (RY - 20);
+            in_chal = (px >= RX + 1) && (px < RX + 13) && (py >= RY - 20) && (py < RY - 8);
+            mx = px - (RX + 1);
+            my = py - (RY - 20);
         end else begin
-            in_chal = (cxa >= BX + 384 + 8) && (cxa < BX + 384 + 20) && (cy >= BY + 1) && (cy < BY + 13);
-            mx = cxa - (BX + 384 + 8);
-            my = cy - (BY + 1);
+            in_chal = (px >= BX + 384 + 8) && (px < BX + 384 + 20) && (py >= BY + 1) && (py < BY + 13);
+            mx = px - (BX + 384 + 8);
+            my = py - (BY + 1);
         end
     end
     always_ff @(posedge clk)
@@ -117,22 +127,22 @@ module ra_overlay #(
                   (mx[3:0] >= 4'd4 && mx[3:0] < 4'd8 && my[3:0] >= 4'd4 && my[3:0] < 4'd8));
     always_ff @(posedge clk) begin
         if (rotate) begin
-            in_banner1 <= banner_on && (cxa >= RX) && (cxa < RX + 14)
-                                    && (cy >= RY) && (cy < RY + 384);
+            in_banner1 <= banner_on && (px >= RX) && (px < RX + 14)
+                                    && (py >= RY) && (py < RY + 384);
             /* Small filled square, 10x10, with an 8 pixel gap before the first
                character: below the text field in the frame, left of it for the player. */
-            in_mark1   <= banner_on && (cxa >= RX + 2) && (cxa < RX + 12)
-                                    && (cy >= RY + 384 + 8) && (cy < RY + 384 + 18);
-            tx1 <= RY + 383 - cy;
-            ty1 <= cxa - RX;
+            in_mark1   <= banner_on && (px >= RX + 2) && (px < RX + 12)
+                                    && (py >= RY + 384 + 8) && (py < RY + 384 + 18);
+            tx1 <= RY + 383 - py;
+            ty1 <= px - RX;
         end else begin
-            in_banner1 <= banner_on && (cxa >= BX) && (cxa < BX + 384)
-                                    && (cy >= BY) && (cy < BY + 14);
+            in_banner1 <= banner_on && (px >= BX) && (px < BX + 384)
+                                    && (py >= BY) && (py < BY + 14);
             /* The same square, here to the left of the text. */
-            in_mark1   <= banner_on && (cxa >= BX - 18) && (cxa < BX - 8)
-                                    && (cy >= BY + 2)  && (cy < BY + 12);
-            tx1 <= cxa - BX;
-            ty1 <= cy - BY;
+            in_mark1   <= banner_on && (px >= BX - 18) && (px < BX - 8)
+                                    && (py >= BY + 2)  && (py < BY + 12);
+            tx1 <= px - BX;
+            ty1 <= py - BY;
         end
     end
 
