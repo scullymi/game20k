@@ -183,7 +183,9 @@ def read_chip(zips, chip, default_zip):
     """Content of one chip from its zip in roms/, or None when zip or member is missing.
 
     Members are matched by their base name: a merged set keeps its files at the top level,
-    but a repacked zip may have a folder in front.
+    but a repacked zip may have a folder in front. A set from another MAME release may name
+    a chip differently, so without a name match the member with the manifest's SHA-1 is
+    taken, as MAME finds it by its checksum.
     """
     zpath = os.path.join(ROOT, "roms", chip["zip"] or default_zip)
     if zpath not in zips:
@@ -193,7 +195,8 @@ def read_chip(zips, chip, default_zip):
         return None
     hits = [i for i in z.infolist() if os.path.basename(i.filename) == chip["name"]]
     if not hits:
-        return None
+        return next((d for d in (z.read(i) for i in z.infolist())
+                     if hashlib.sha1(d).hexdigest() == chip["sha1"]), None)
     data = z.read(hits[0])
     # the same name twice with different content: which one is meant cannot be decided
     if any(z.read(h) != data for h in hits[1:]):
