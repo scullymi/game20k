@@ -26,6 +26,7 @@ More screenshots and a photo of the setup: [docs/images](docs/images/README.md).
 | Puck Man | MikeJ's Pac-Man core | `puckman` | [Perfect Pac subset](https://retroachievements.org/game/24933) |
 | Ms. Pac-Man | MikeJ's Pac-Man core | `mspacman` | [Ms. Pac-Man](https://retroachievements.org/game/11800) |
 | 1942 | jotego's jt1942 core | `1942` | [1942](https://retroachievements.org/game/11960) |
+| 1943: The Battle of Midway | jotego's jt1943 core | `1943` | [1943](https://retroachievements.org/game/11961) |
 
 Choose a game under `ROM set` in the menu. A game on the same core restarts straight into it, and
 a game on another core first loads that core from the board's flash.
@@ -42,7 +43,7 @@ a game on another core first loads that core from the board's flash.
 - **Upright or rotated.** 2x upright on a regular monitor, or 3x rotated through an SDRAM frame
   buffer for a monitor turned on its side, which fills the screen as in the original cabinet.
   Both are selectable in the menu (`Upright 2x`, `Landscape 3x`), as are scanlines.
-- **Five games, three cores, one flash.** All cores are stored in the board's flash, and the menu
+- **Six games, four cores, one flash.** All cores are stored in the board's flash, and the menu
   switches between them in seconds.
 - **No game data in the bitstream.** The ROMs are loaded from the SD card at power-on, and every
   chip is checked against MAME's checksums when the card is prepared.
@@ -68,7 +69,7 @@ flowchart LR
 
 All cores live side by side in the Tang Nano's 8 MB flash, each in its own 1 MB slot:
 
-![The flash: Galaga at 0x000000, the Pac-Man core at 0x100000, 1942 at 0x200000, the rest free](docs/images/flash-layout.svg)
+![The flash: Galaga at 0x000000, the Pac-Man core at 0x100000, 1942 at 0x200000, 1943 at 0x300000, the rest free](docs/images/flash-layout.svg)
 
 Every core takes 886 KB of its slot, because a bitstream always configures the whole FPGA,
 whatever the game. At power-on the FPGA loads the core at 0x000000, and the menu switches to the
@@ -86,7 +87,7 @@ a USB arcade stick, an HDMI monitor that accepts 1280x720 at 61.03 Hz and 59.64 
    Python 3:
    ```sh
    git clone https://github.com/scullymi/game20k.git && cd game20k
-   # copy galaga.zip (and namco54.zip), pacman.zip, puckman.zip, mspacman.zip, 1942.zip into roms/
+   # copy galaga.zip (and namco54.zip), pacman.zip, puckman.zip, mspacman.zip, 1942.zip, 1943.zip into roms/
    scripts/make_sdcard.sh /Volumes/YOUR_CARD
    ```
    To use WiFi and RetroAchievements, fill in `sdcard/config.ini` first (see
@@ -110,14 +111,15 @@ On the Nano, **S1** resets the game and **S2** opens and closes the menu.
 
 Default stick layout:
 
-| | Galaga, Pac-Man | 1942 |
-|---|---|---|
-| Fire | any button | 1 |
-| Loop | | 2 |
-| Coin | 9 | 9 |
-| Start player 1 | 10 | 10 |
-| Start player 2 | off | off |
-| Volume | menu, Settings | menu, Settings |
+| | Galaga, Pac-Man | 1942 | 1943 |
+|---|---|---|---|
+| Fire | any button | 1 | 1 |
+| Loop | | 2 | |
+| Bomb | | | 2 |
+| Coin | 9 | 9 | 9 |
+| Start player 1 | 10 | 10 | 10 |
+| Start player 2 | off | off | off |
+| Volume | menu, Settings | menu, Settings | menu, Settings |
 
 The button numbers come from the **input test**, a bar at the top of the picture with a labelled
 box for every button and direction that lights up while you press it. Switch it on in the menu
@@ -196,7 +198,7 @@ confirmed email address is all you need.
 | Raspberry Pi Pico 2 W | stepping **A3 or A4**, printed on the chip as `RP2350A0A3` or `RP2350A0A4`, see [docs/hardware.md](docs/hardware.md#rp2350-stepping-and-erratum-e9) |
 | microSD card | FAT32, see [sdcard/README.md](sdcard/README.md) |
 | Micro USB to USB A OTG adapter | for the stick on the Pico |
-| HDMI monitor | must accept 1280x720 at **61.03 Hz**, and at **59.64 Hz** for 1942 |
+| HDMI monitor | must accept 1280x720 at **61.03 Hz**, and at **59.64 Hz** for 1942 and 1943 |
 | USB arcade stick (HID) | |
 | Perfboard, wire | seven connections, see [docs/wiring.md](docs/wiring.md) |
 
@@ -232,7 +234,7 @@ goes onto the card.
   ran on that board. Candidates:
   - Namco: Galaxian, Dig Dug, Xevious, Bosconian
   - Capcom, from jotego's jtcores: Vulgus and Pirate Ship Higemaru on the 1942 core, Commando,
-    Gun.Smoke, 1943
+    Gun.Smoke
   - games with an existing Tang Nano port: Donkey Kong, Defender, Time Pilot, Centipede,
     Pooyan, Bagman, Crazy Climber
 - **Hardcore unlocks and leaderboard entries on RetroAchievements,** once RetroAchievements
@@ -263,10 +265,11 @@ game20k builds on the work of others:
   [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga)
 - **MikeJ** for the Pac-Man core, via
   [MiSTer-devel/Arcade-Pacman_MiSTer](https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer)
-- **Jose Tejada Gomez** (jotego) for the 1942 core and its JTFRAME modules, via
-  [jotego/jtcores](https://github.com/jotego/jtcores), and the AY-3-8910 sound chip
-  [jotego/jt49](https://github.com/jotego/jt49)
-- **Daniel Wallner** for the T80, the Z80 CPU in all three cores, included in the core
+- **Jose Tejada Gomez** (jotego) for the 1942 and 1943 cores and their JTFRAME modules, via
+  [jotego/jtcores](https://github.com/jotego/jtcores), and the sound chips
+  [jotego/jt12](https://github.com/jotego/jt12) (YM2203) and
+  [jotego/jt49](https://github.com/jotego/jt49) (AY-3-8910)
+- **Daniel Wallner** for the T80, the Z80 CPU in all four cores, included in the core
   repositories above
 - **Till Harbaum** for [MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano),
   [Nanomig](https://github.com/MiSTle-Dev/Nanomig) and

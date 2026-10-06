@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 180" width="960" height="180" role="img" aria-labelledby="t d">
   <title id="t">SPI flash of the Tang Nano 20K</title>
-  <desc id="d">An 8 MB flash split into 1 MB slots. Galaga at 0x000000, the Pac-Man core at 0x100000 and 1942 at 0x200000 each use 886 KB of their slot. The rest, from 0x300000 to 0x800000, is free.</desc>
+  <desc id="d">An 8 MB flash split into 1 MB slots. Galaga at 0x000000, the Pac-Man core at 0x100000, 1942 at 0x200000 and 1943 at 0x300000 each use 886 KB of their slot. The rest, from 0x400000 to 0x800000, is free.</desc>
   <style>
     text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b0b0b; }
     .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; fill: #52514e; }
@@ -10,10 +10,12 @@
     .used-galaga { fill: #2a78d6; }
     .used-pacman { fill: #eb6834; }
     .used-1942 { fill: #1baf7a; }
+    .used-1943 { fill: #8a5cd6; }
     .rest { fill: none; stroke-width: 2; }
     .rest-galaga { stroke: #2a78d6; }
     .rest-pacman { stroke: #eb6834; }
     .rest-1942 { stroke: #1baf7a; }
+    .rest-1943 { stroke: #8a5cd6; }
     .free { fill: none; stroke: #8a8984; stroke-width: 1.5; stroke-dasharray: 2 4; }
     @media (prefers-color-scheme: dark) {
       text { fill: #ffffff; }
@@ -22,9 +24,11 @@
       .used-galaga { fill: #3987e5; }
       .used-pacman { fill: #d95926; }
       .used-1942 { fill: #199e70; }
+      .used-1943 { fill: #9a6ee6; }
       .rest-galaga { stroke: #3987e5; }
       .rest-pacman { stroke: #d95926; }
       .rest-1942 { stroke: #199e70; }
+      .rest-1943 { stroke: #9a6ee6; }
       .free { stroke: #8f8e88; }
     }
   </style>
@@ -60,8 +64,14 @@
   <text class="name" x="264" y="146">1942</text>
   <text class="sub"  x="264" y="164">886 KB</text>
 
-  <!-- free, 0x300000 to 0x800000 -->
-  <rect class="free" x="372" y="57" width="546" height="54" rx="4"/>
-  <text class="sub" x="645" y="89" text-anchor="middle">free, room for five more cores</text>
+  <!-- 1943, slot 3 -->
+  <rect class="rest rest-1943" x="372" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-1943" x="373" y="58" width="94" height="52" rx="3"/>
+  <text class="name" x="374" y="146">1943</text>
+  <text class="sub"  x="374" y="164">886 KB</text>
+
+  <!-- free, 0x400000 to 0x800000 -->
+  <rect class="free" x="482" y="57" width="436" height="54" rx="4"/>
+  <text class="sub" x="700" y="89" text-anchor="middle">free, room for four more cores</text>
 
 </svg>

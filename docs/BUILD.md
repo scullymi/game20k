@@ -8,7 +8,7 @@ building the bitstreams and the firmware yourself, and debugging.
 | Tool | Version | Note |
 |---|---|---|
 | Gowin EDA **Education** | 1.9.11.03 | free download, **no licence file needed** |
-| openFPGALoader | | to flash the Pac-Man and 1942 cores: `brew install openfpgaloader` or `apt install openfpgaloader` |
+| openFPGALoader | | to flash the Pac-Man, 1942 and 1943 cores: `brew install openfpgaloader` or `apt install openfpgaloader` |
 | Arm GNU Toolchain | 14.2 | |
 | git, curl, CMake, make, Python 3, gzip, unzip, a C compiler | | |
 
@@ -165,6 +165,8 @@ fpga/pacman_hdmi/   Pac-Man, Puck Man and Ms. Pac-Man: MikeJ's core, its wrapper
                     the ROM manifests and testbenches for nvc
 fpga/g1942_hdmi/    1942: jotego's core and sound chips, its wrapper, the menu, the ROM
                     manifest and a simulation with Verilator
+fpga/g1943_hdmi/    1943: the same for jotego's jt1943, plus the prefetch of scroll and map
+                    words from the SDRAM
 external/           the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/               your ROM zips, not under version control
 sdcard/             what goes on the SD card, including the template for config.ini
@@ -185,7 +187,7 @@ graphics in it, CC BY-SA 3.0.
 Not ours, and kept with their original headers: the HDMI files (MIT OR Apache-2.0, see
 `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, derived from NESTang, with both copyright notices),
 the T80 cores (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, jotego's 1942
-core, JTFRAME and JT49 files (GPL-3.0-or-later), WangXuan95's SD card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
+and 1943 cores, JTFRAME, JT12 and JT49 files (GPL-3.0-or-later), WangXuan95's SD card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
 also applies to our changes in them).
 
 The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) are

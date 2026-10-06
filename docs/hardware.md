@@ -43,7 +43,7 @@ the clocks (`board.sdc`), the PLLs (`pll_hdmi.v`, `pll_sdram.v`), the HDMI seria
 `OSER10` and `ELVDS_OBUF`) and the SDRAM controller (`sdram_fb.v`).
 
 **Monitor.** The HDMI output is not standard 720p60. It shows 1280x720 at 61.03 Hz (Galaga and
-Pac-Man) or 59.64 Hz (1942), each locked to the frame of its core, while the AVI infoframe
+Pac-Man) or 59.64 Hz (1942, 1943), each locked to the frame of its core, while the AVI infoframe
 announces CEA mode 4. Every display tried so far accepts it, but one that insists
 on exact CEA timing may stay black.
 
