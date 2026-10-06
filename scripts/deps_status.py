@@ -53,7 +53,15 @@ VENDORED = [
     ('1942', 'jotego/jtcores', '0b197ca', '548b87b',
      'fpga/g1942_hdmi/src/jtcores', '', (),
      ('modules/jt12', 'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
-    ('jt49', 'jotego/jt49', '7f6abfd', '47301ed', 'fpga/g1942_hdmi/src/jt49/hdl', 'hdl', (), ()),
+    ('jt49 (1942)', 'jotego/jt49', '7f6abfd', '47301ed', 'fpga/g1942_hdmi/src/jt49/hdl', 'hdl',
+     (), ()),
+    ('1943', 'jotego/jtcores', '548b87b', '548b87b',
+     'fpga/g1943_hdmi/src/jtcores', '', (),
+     ('modules/jt12', 'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
+    ('jt12', 'jotego/jt12', 'dc9be7c', 'dc9be7c', 'fpga/g1943_hdmi/src/jt12/hdl', 'hdl', (),
+     ('jt49',)),   # jt49: the submodule commit, the copy is in fpga/g1943_hdmi/src/jt49
+    ('jt49 (1943)', 'jotego/jt49', '7f6abfd', '47301ed', 'fpga/g1943_hdmi/src/jt49/hdl', 'hdl',
+     (), ()),
     ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'c8e4601', 'fpga/common/src/misc',
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
      ('src/tang/nano20k/gowin_dpb/sector_dpram.v',)),

@@ -41,6 +41,10 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # the RAM mirror package of the FPGA platform: the unit and the bound of a game's mirror size
 PKG = os.path.join(ROOT, "fpga", "common", "src", "mcu", "ram_mirror_pkg.sv")
+# gfx_sort values of JTFRAME's mem.yaml that arrange() knows: (lowest sorted address bit, number
+# of V bits). The x suffixes are the bits below, which stay. jtframe_dwnld.v: hvvvx is gfx4
+# with GFX8B0=1, hvvvvxx is gfx16c with GFX16B0=2.
+GFX_SORT = {"hvvvx": (1, 3), "hvvvvxx": (2, 4)}
 
 
 class ManifestError(Exception):
@@ -96,7 +100,7 @@ def read_manifest(path):
                             sec["swap16"] = True
                         elif opt == "sdram":
                             sec["sdram"] = True
-                        elif opt == "gfx_sort=hvvvvxx":
+                        elif opt.startswith("gfx_sort=") and opt[9:] in GFX_SORT:
                             sec["gfx_sort"] = opt[9:]
                         else:
                             raise ManifestError("%s: unknown section option %s" % (where, opt))
@@ -159,9 +163,14 @@ def read_manifest(path):
                                 % (path, s["name"], s["interleave"], k))
         if s["swap16"] and s["size"] % 2:
             raise ManifestError("%s: section %s, swap16 needs an even size" % (path, s["name"]))
-        if s["gfx_sort"] and (s["offset"] % 128 or s["size"] % 128):
-            raise ManifestError("%s: section %s, gfx_sort works on 128-byte blocks, offset and "
-                                "size must be multiples of 128" % (path, s["name"]))
+        # the sort moves bytes inside blocks of 2^(b0+nv+1) bytes: 32 for hvvvx, 128 for hvvvvxx
+        if s["gfx_sort"]:
+            b0, nv = GFX_SORT[s["gfx_sort"]]
+            block = 2 << (b0 + nv)
+            if s["offset"] % block or s["size"] % block:
+                raise ManifestError("%s: section %s, gfx_sort=%s works on %d-byte blocks, offset "
+                                    "and size must be multiples of %d"
+                                    % (path, s["name"], s["gfx_sort"], block, block))
         pos += s["size"]
     if pos != m["total"]:
         raise ManifestError("%s: the sections add up to %d bytes, total says %d"
@@ -223,13 +232,17 @@ def arrange(s, datas):
                 out += bytes(d[i] for d in group)
     if s["swap16"]:
         out[0::2], out[1::2] = out[1::2], out[0::2]
-    if s["gfx_sort"] == "hvvvvxx":
+    if s["gfx_sort"]:
         # JTFRAME sorts these address bits while it downloads the ROM into SDRAM
-        # (jtframe_dwnld.v, gfx16c with bit 0 at 2): the byte at a goes to the address whose
-        # bits 6:2 are a[5:2], a[6] (HVVVV -> VVVVH). The core reads with the plain address.
+        # (jtframe_dwnld.v): above the b0 bits that stay, the H bit on top of the nv V bits
+        # moves down to bit b0 and the V bits move up by one. hvvvvxx: bits 6:2 become
+        # a[5:2], a[6] (HVVVV -> VVVVH), hvvvx: bits 4:1 become a[3:1], a[4] (HVVV -> VVVH).
+        # The core reads with the plain address.
+        b0, nv = GFX_SORT[s["gfx_sort"]]
+        vbits, hbit = ((1 << nv) - 1) << b0, 1 << (b0 + nv)
         sorted_out = bytearray(len(out))
         for a, byte in enumerate(out):
-            sorted_out[(a & ~0x7C) | ((a & 0x3C) << 1) | ((a >> 4) & 0x04)] = byte
+            sorted_out[(a & ~(vbits | hbit)) | ((a & vbits) << 1) | ((a & hbit) >> nv)] = byte
         out = sorted_out
     return bytes(out)
 

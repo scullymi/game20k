@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of 1943 (Euro). The format is described in the
+# head of fpga/galaga_hdmi/galaga.manifest, the section options in fpga/g1942_hdmi/1942.manifest.
+# One more option here:
+#   gfx_sort=hvvvx    address bits 4:1 sorted HVVV -> VVVH, as JTFRAME's loader does for a
+#                     bus with this gfx_sort in mem.yaml (jtframe_dwnld.v, gfx4)
+#
+# The layout is jotego's (jtcores cores/1943/cfg/mame2mra.toml at 548b87b): maincpu, audiocpu,
+# gfx1 and tilerom swapped (reverse), gfx2 and gfx4 16 bits wide in the order 4,0,5,1,6,2,7,3,
+# gfx3 16 bits wide and reversed (bm25 on the even byte), mcu at JTFRAME_PROM_START, proms in
+# the order 4,7,0,6,1,2,10,3,11,9,8,5, which jt1943_game.v decodes with prog_addr[11:8]. The
+# section starts are the bank starts of cfg/macros.def that game_core adds to each bus. The
+# map1 and map2 buses (maps) and the obj bus (sprites) are sorted as mem.yaml says.
+# Checked against jotego's MRA "1943: The Battle of Midway (Euro)" for jt1943 (MiSTer, MAME
+# 0282, jtbin c6deab3): this file without gfx_sort and without the palette section has the
+# MRA's asm_md5 1a7e9fe91e24ac1bb2b4a19ecd6dc5d5 (the MRA has no header bytes). So the file
+# is the MRA image with maps and sprites sorted as JTFRAME's loader stores them in SDRAM,
+# plus the colour PROMs once more for the platform's palette.
+# SHA-1 from MAME src/mame/capcom/1943.cpp.
+
+set     1943
+title   1943: The Battle of Midway
+zip     1943.zip
+total   892672
+board   6
+mirror  8832
+
+section main        0x00000 163840 sdram
+chip    bme01.12d   32768 f9125745ce85282aa487f744cbf509f335dc3e85
+chip    bme02.13d   65536 6824fa387badd3c420f5c9e2b68159ac8a3aaec7
+chip    bme03.14d   65536 2c2fad13f062069efa7721abb9d807fb5a7625b4
+section sound       0x28000 32768 sdram
+chip    bm05.4k     32768 4d2d019a9f8452fbbb247e893280568a2e86073e
+section chars       0x30000 32768 sdram swap16
+chip    bm04.5h     32768 96fd0e714b91fe13a2ca0d185ada9e4b4baa0c0b
+section maps        0x38000 65536 sdram swap16 gfx_sort=hvvvx
+chip    bm14.5f     32768 ce4f6dbf8fa030ad45cbb5afd58df27fed2d4618
+chip    bm23.8k     32768 45b0283d84d394c16c35802463ca95d70d1062d4
+section scr1        0x48000 262144 sdram interleave=16
+chip    bm19.10j    32768 1c7be905f53c63bad25fbbd9b3cf82d2c7749bc3
+chip    bm15.10f    32768 32337c840ccd6815fd5844c194365c58d708f6dc
+chip    bm20.11j    32768 62dd277bc1fa54cfe168ae2380bc147bd17f4205
+chip    bm16.11f    32768 42b83ff5781be9181802a21ff1b23c17ab1bc5a2
+chip    bm21.12j    32768 f1bae7ec46edcf46c7af84c054e89b322f8c8972
+chip    bm17.12f    32768 38feda668be25d1adc04aa36afc73b07c1545f89
+chip    bm22.14j    32768 932780c04abe285e1ec67b726b145175f73eafe0
+chip    bm18.14f    32768 959c306dc28b9be2adc54b3d46312d26764c7b8b
+section scr2        0x88000 65536 sdram interleave=16
+chip    bm25.14l    32768 19fe3c714b1d52cbb21dea25cdee5af841f525db
+chip    bm24.14k    32768 88da112ab9fc7e0d8f0e901f273715b950ae588c
+section sprites     0x98000 262144 sdram interleave=16 gfx_sort=hvvvvxx
+chip    bm10.10c    32768 873629b00cf3f6d8976a7fdafe63cd16e47b7491
+chip    bm06.10a    32768 c9fa07cb61f6905408b355edabfe453fb652ff0d
+chip    bm11.11c    32768 c213d5c3e76a5749bc32539604716dcef6dcb694
+chip    bm07.11a    32768 6367c7e80e80d4a0d33d7840b5c843c63c80123e
+chip    bm12.12c    32768 fef271a38dc1a9e45a0c6e27e28e713c77c8f8c9
+chip    bm08.12a    32768 755c27a07728fd686168e9d9e4dee3d8f274892a
+chip    bm13.14c    32768 2b3a65e354a205c05a87f783e9938b64bc62396f
+chip    bm09.14a    32768 3ab299bad1ba115efead53ebd92254abe7a092ba
+# the i8751 program: unused with JT1943_MCU_HLE, kept so the PROMs stay where jotego has them
+section mcu         0xD8000 4096
+chip    bm.7k       4096  4d63da5bf39a892499c02a79c7daf33d3a94234a optional
+note    bm.7k       nothing, the protection runs as a table (JT1943_MCU_HLE)
+# the PROMs go to the core's write port, the address inside the section is prog_addr
+section proms       0xD9000 3072
+chip    bm10.7l     256   13da924e4b182759c4aae49034f3a7cbe556ea65
+chip    bm11.12l    256   94a06f81b775c4e49d57d42fc064d3072a253bbd
+chip    bm1.12a     256   5b8b59f6f4e5ad358611de50608f47f41a5b0e51
+chip    bm12.12m    256   684f04d9a5b94ae1db5fb95763e65271f4cf8e01
+chip    bm2.13a     256   1796c4c9041dfe28e6319576f21df1dbcb8d12bf
+chip    bm3.14a     256   d1118159b3d429d841e4efa938728ebedadd7ec5
+chip    bm4.12c     256   9583c87eff876f04bc2ccf7218cd8081f1bcdb94
+chip    bm5.7f      256   fa609f6d675af18c379838583505724d28bcff0e
+chip    bm6.4b      256   bafd4108708f66cd7b280e47152b108f3e254fc9
+chip    bm7.7c      256   9f5e6db464d21457a33ec8bdfdff069632b791db
+chip    bm8.8c      256   be9852500209066e2f0ff2770e0c217d1636a0b5
+chip    bm9.6l      256   98f4570ee061e9aa58d8ed2d2f8ae59ce2ec5795
+# the colour PROMs once more, for the platform's palette after the frame buffer (game_pkg)
+section palette     0xD9C00 768
+chip    bm1.12a     256   5b8b59f6f4e5ad358611de50608f47f41a5b0e51
+chip    bm2.13a     256   1796c4c9041dfe28e6319576f21df1dbcb8d12bf
+chip    bm3.14a     256   d1118159b3d429d841e4efa938728ebedadd7ec5
+
+known   cef89a371cbcbc0221d7ff09c00be48543e5d7f5b06c9b8f0cbc567ef866bf44 MAME 1943

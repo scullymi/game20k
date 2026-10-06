@@ -9,3 +9,4 @@
 galaga_hdmi   0x000000
 pacman_hdmi   0x100000
 g1942_hdmi    0x200000
+g1943_hdmi    0x300000
