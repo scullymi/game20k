@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Super Pang (World 900914), the second game of the Pang core. The layout is
+# pang.manifest's, see there. The keys are MAME's spang_decode. Characters and sprites in the
+# pairs of jotego's MRA "Super Pang (World 900914)": spe_02/spe_04 then spj_03/spj_05, and
+# spj_10/spj_09. The EEPROM section is MAME's default eeprom-spang.bin, a file of 16-bit words
+# with the high byte first, swapped for the 93C46's dump port, which takes the low byte first.
+# game_id 1.
+
+set     spang
+title   Super Pang (World 900914)
+zip     spang.zip
+total   1507460
+board   9
+mirror  18176
+screen  upright
+# the file make_rom.py builds from roms/spang.zip, the candidate for the firmware's digest list
+known   efc3cec0f81ba2daf4986fad0313a3ae6f19aac473fa5dcb89737b68b92b040f MAME spang
+kabuki  45670123 45670123 5852 43
+
+section main_data   0x000000 294912 sdram kabuki=data
+chip    spe_06.11h  32768   476ba5c95e090663a47d3f98451bf3b79bac7748
+chip    spe_07.13h  131072  9d44f7240b56756dcb69d110036b1cb13b1bbc02
+chip    spe_08.14h  131072  3a8ee342b0556a8f6d5a417c98e5c3c43422713d
+section main_op     0x048000 294912 sdram kabuki=op
+chip    spe_06.11h  32768   476ba5c95e090663a47d3f98451bf3b79bac7748
+chip    spe_07.13h  131072  9d44f7240b56756dcb69d110036b1cb13b1bbc02
+chip    spe_08.14h  131072  3a8ee342b0556a8f6d5a417c98e5c3c43422713d
+section oki         0x090000 131072 sdram
+chip    spe_01.1d   131072  b3ec226f35494dfc259e910895cec8a49dd2f846
+section chars       0x0B0000 524288 sdram interleave=16
+chip    spe_02.1e   131072  ddc8ddee336855e857fb3124c8b64af33c2d0080
+chip    spe_04.1g   131072  d949c91da6ba6b82df0b3445499761a98c7e2703
+chip    spj_03.3e   131072  4f6d9a86f624598ebc0825b50941adfb7436e98a
+chip    spj_05.2g   131072  f83d713aee4230fc04a1d5f1d4d79c64a5bf2753
+section sprites     0x130000 262144 sdram interleave=16
+chip    spj_10.2k   131072  f2da2eb743c68c5c9a56a94709527110cef5d91d
+chip    spj_09.1k   131072  946ed04a17f1f71085143d43905aa310ce1e05f4
+section eeprom      0x170000 128 swap16
+chip    eeprom-spang.bin 128 f62f2ad99852903f1cea3f8c1f69fc11e4e7b48b
+section id          0x170080 4 header
+data    01 00
+fill    2 0

@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Super Buster Bros. (US 901001), the US version of Super Pang (MAME clone
+# sbbros). The layout is pang.manifest's, see there. The keys are MAME's sbbros_decode, the
+# same that jotego's MRA header gives for sbbros. Characters in the pairs spu_02/spu_04 then
+# spj_03/spj_05, sprites spu_10/spu_09. The EEPROM section is MAME's default
+# eeprom-sbbros.bin, swapped as in spang.manifest. game_id 1.
+
+set     sbbros
+title   Super Buster Bros. (US 901001)
+zip     spang.zip
+total   1507460
+board   9
+mirror  18176
+screen  upright
+# the file make_rom.py builds from roms/spang.zip, the candidate for the firmware's digest list
+known   c8828e85a74e4cb98317a13fda6e4bc52d4e857d0bd885a4a6d7ed9d8c729fb2 MAME sbbros
+# the file make_rom.py builds from roms/spang.zip, the candidate for the firmware's digest list
+kabuki  45670123 45670123 2130 12
+
+section main_data   0x000000 294912 sdram kabuki=data
+chip    spu_06.11h  32768   d33368d2373a1ee9e24ada6aa045e0675c8e8160
+chip    spu_07.13h  131072  6a1867f591aa0fb9e02dd472699df93f9d018793
+chip    spu_08.14h  131072  0331d1a3e888678909f3e6d21f97896a5350e585
+section main_op     0x048000 294912 sdram kabuki=op
+chip    spu_06.11h  32768   d33368d2373a1ee9e24ada6aa045e0675c8e8160
+chip    spu_07.13h  131072  6a1867f591aa0fb9e02dd472699df93f9d018793
+chip    spu_08.14h  131072  0331d1a3e888678909f3e6d21f97896a5350e585
+section oki         0x090000 131072 sdram
+chip    spj_01.1d   131072  83fa71994518d40b8938520faa8701c63b7f579e
+section chars       0x0B0000 524288 sdram interleave=16
+chip    spu_02.1e   131072  f95b50617ef5cd8cffffacab0b96b4bfe8dd3a1e
+chip    spu_04.1g   131072  e81875b9d9a56e91daa66375b22a4fa6dcd14faa
+chip    spj_03.3e   131072  4f6d9a86f624598ebc0825b50941adfb7436e98a
+chip    spj_05.2g   131072  f83d713aee4230fc04a1d5f1d4d79c64a5bf2753
+section sprites     0x130000 262144 sdram interleave=16
+chip    spu_10.2k   131072  1c65803fcce2305841e74772ae6ffb6e39edf5c6
+chip    spu_09.1k   131072  66dc7c14cc012ffa9320cd63bc84977fa76ad738
+section eeprom      0x170000 128 swap16
+chip    eeprom-sbbros.bin 128 89eb0ca65ffe30f5cbe6427f767f1f0870c8a990
+section id          0x170080 4 header
+data    01 00
+fill    2 0

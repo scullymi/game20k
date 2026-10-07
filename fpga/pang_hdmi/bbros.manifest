@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Buster Bros. (US), the US version of Pang (MAME clone bbros). The layout and
+# the keys are pang.manifest's, see there: MAME decodes both with pang_decode. Characters in
+# the pairs pwu_02/pwu_04 then pw_03/pw_05, sprites pw_10/pw_9 as in Pang. game_id 0.
+
+set     bbros
+title   Buster Bros. (US)
+zip     pang.zip
+total   1507460
+board   9
+mirror  18176
+screen  upright
+# the file make_rom.py builds from roms/pang.zip, the candidate for the firmware's digest list
+known   c1b709ece306765cb44118dfee4ee26c0a301b54d45318e077dc99ba93b1aef0 MAME bbros
+# the file make_rom.py builds from roms/pang.zip, the candidate for the firmware's digest list
+kabuki  01234567 76543210 6548 24
+
+section main_data   0x000000 294912 sdram kabuki=data
+chip    pwu_06.11h  32768   2accb2151f621e4802211efe986969ebd3acb6d4
+chip    pwu_07.13h  131072  9e735487a99a5eb89a6abb81d5d9a20414ad75bf
+fill    131072
+section main_op     0x048000 294912 sdram kabuki=op
+chip    pwu_06.11h  32768   2accb2151f621e4802211efe986969ebd3acb6d4
+chip    pwu_07.13h  131072  9e735487a99a5eb89a6abb81d5d9a20414ad75bf
+fill    131072
+section oki         0x090000 131072 sdram
+chip    pw_01.1d    131072  933b954bfdd2d67e28b032ffabde192531249c1f
+section chars       0x0B0000 524288 sdram interleave=16
+chip    pwu_02.1e   131072  af4d43f76228e9908fbfbf83af2f577b84cc5e1d
+chip    pwu_04.1g   131072  cce2d90f7b767044e84bc22a16474a2f6496292e
+chip    pw_03.2e    131072  c1e43889e29b80c7fe2c09b11eecde24450a1ff5
+chip    pw_05.2g    131072  328814d28569fec763975a8ae4c2767517a680af
+section sprites     0x130000 262144 sdram interleave=16
+chip    pw_10.2k    131072  9a2412a97682bbd25b8942520a0c02616bd59353
+chip    pw_9.1k     131072  05675ad45909a7d723acaf4d53b4e588d4e048b9
+section eeprom      0x170000 128
+fill    128
+section id          0x170080 4 header
+data    00 00
+fill    2 0

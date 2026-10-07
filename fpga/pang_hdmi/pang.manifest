@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Pang (World), jotego's jtpang. The format is described in the head of
+# fpga/galaga_hdmi/galaga.manifest, the section options in fpga/g1942_hdmi/1942.manifest.
+#
+# The program is encrypted for the Kabuki Z80. make_rom.py decrypts it ahead, twice: as the
+# CPU's data reads see it (main_data) and as its opcode fetches see it (main_op), with the
+# keys of the kabuki line (MAME mitchell.cpp, pang_decode). game_core.sv reads the one or the
+# other by the CPU's M1. Both sections are 288 KiB, Super Pang's program size, so that both
+# games have one layout and one file size; Pang fills its upper eight banks with FF.
+# Characters and sprites are 16 bits wide in the pairs of jotego's MRA (jtbin c6deab30,
+# "Pang (World)"): pwe_02/pwe_04 then pw_03/pw_05, and pw_10/pw_9, the first chip the low
+# byte. Laid out as jotego's MRA lays them, with its 16-byte header, the same chips give its
+# asm_md5.
+# The EEPROM section goes to the 93C46 over its dump port while the core is in reset. MAME
+# starts Pang with an erased EEPROM, all FF, and so does this file. The header section is
+# last: byte 0 game_id (0 Pang), byte 1 unused, byte 2 the screen code.
+
+set     pang
+title   Pang (World)
+zip     pang.zip
+total   1507460
+board   9
+mirror  18176
+screen  upright
+# the file make_rom.py builds from roms/pang.zip, the candidate for the firmware's digest list
+known   3a2e950cf6e5879a007d669ecbfc0564579b1466df623f4de34a56939e01c729 MAME pang
+kabuki  01234567 76543210 6548 24
+
+section main_data   0x000000 294912 sdram kabuki=data
+chip    pwe_06.11h  32768   67b9ac15f4cbd3959c417f979beae36ae17334c1
+chip    pwe_07.13h  131072  039db1b51374e5637b5c2ba8e18ccd08816613a7
+fill    131072
+section main_op     0x048000 294912 sdram kabuki=op
+chip    pwe_06.11h  32768   67b9ac15f4cbd3959c417f979beae36ae17334c1
+chip    pwe_07.13h  131072  039db1b51374e5637b5c2ba8e18ccd08816613a7
+fill    131072
+section oki         0x090000 131072 sdram
+chip    pw_01.1d    131072  933b954bfdd2d67e28b032ffabde192531249c1f
+section chars       0x0B0000 524288 sdram interleave=16
+chip    pwe_02.1e   131072  a8a33071e10f5992e80afdb782c334829f9ae27f
+chip    pwe_04.1g   131072  7f907c78b7ac8c99e3d79761a6ae689c77e3a1f5
+chip    pw_03.2e    131072  c1e43889e29b80c7fe2c09b11eecde24450a1ff5
+chip    pw_05.2g    131072  328814d28569fec763975a8ae4c2767517a680af
+section sprites     0x130000 262144 sdram interleave=16
+chip    pw_10.2k    131072  9a2412a97682bbd25b8942520a0c02616bd59353
+chip    pw_9.1k     131072  05675ad45909a7d723acaf4d53b4e588d4e048b9
+section eeprom      0x170000 128
+fill    128
+section id          0x170080 4 header
+data    00 00
+fill    2 0
