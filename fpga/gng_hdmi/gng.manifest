@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Ghosts'n Goblins. The format is described in the head of
+# fpga/galaga_hdmi/galaga.manifest, the section options in fpga/g1942_hdmi/1942.manifest
+# and fpga/g1943_hdmi/1943.manifest.
+#
+# The set is the one RetroAchievements set 12149 was made for and jotego's MRA "Ghosts'n
+# Goblins (World? set 1)" names gng: gg1.bin to gg17.bin. In MAME 0.289 gng is the mm_c
+# revision and this set is gngb. The SHA-1 are MAME's for gngb (src/mame/capcom/gng.cpp).
+#
+# The layout is jotego's (jtcores cores/gng/cfg/mame2mra.toml and mem.yaml at 548b87b, MRA in
+# jtbin c6deab3): maincpu as gg3, gg4, gg5 (8000-FFFF, then 4000-7FFF, then the banks),
+# chars swapped (reverse), tiles 32 bits wide with the planes in bytes 0..2 and byte 2 once
+# more in byte 3, sprites 16 bits wide and sorted for the obj bus as mem.yaml says. The
+# section starts are the bank starts of cfg/macros.def that game_core adds to each bus. The
+# PROMs and the PAL of the set are not used (MAME: unused), and the palette is a RAM.
+# jotego's MRA also patches 0xA07A to skip the RAM and ROM test at power-on, not done here.
+# Without gfx_sort the file has the MRA's asm_md5 314bf8a2179fea0b42b1e675093d01b7.
+
+set     gng
+title   Ghosts'n Goblins
+zip     gng.zip
+total   360448
+board   7
+mirror  5760
+# MAME ROT0: the raster stands upright as it comes
+screen  upright
+# the file make_rom.py builds from roms/gng.zip, the candidate for the firmware's digest list
+known   3dde4d4fd230f8325dce7a49866275ec21bc589cd9d292c22ee5c97c52132676 MAME gng (gg)
+
+section main        0x00000 81920 sdram
+chip    gg3.bin   32768  a87880d87c64a6d61313c3bc69c8d49511e0f9c3
+chip    gg4.bin   16384  4c640f49be93c7d2b12d4d4c56c56e74099b6c2f
+chip    gg5.bin   32768  39aa3cb8c229e60ac0ac410ff61e0c09dba78501
+section chars       0x14000 16384 sdram swap16
+chip    gg1.bin   16384  0a1518e19a2e0a4cc3dde4b9568202ea911b5ece
+section sound       0x18000 32768 sdram
+chip    gg2.bin   32768  7ef9ec5c2072e21c787a6bbf700033f50c759c1d
+section tiles       0x20000 131072 sdram interleave=32
+chip    gg7.bin   16384  1947f159189b3a53f1251d8653b6e7c65c91fc3c
+chip    gg9.bin   16384  bbb1fba0eb19471f66d29526fa8423ccb047bd63
+chip    gg11.bin  16384  f9d77eee5e2738b7e83ba02fcc55dd480391479f
+chip    gg11.bin  16384  f9d77eee5e2738b7e83ba02fcc55dd480391479f
+chip    gg6.bin   16384  944da1ce29a18bf0fc8deff78bceacba0bf23a07
+chip    gg8.bin   16384  1c42fa02cb27b35d10c3f7f036005e747f9f6b79
+chip    gg10.bin  16384  8434c994cc55d2586641f3b90b6b15fd65dfb67c
+chip    gg10.bin  16384  8434c994cc55d2586641f3b90b6b15fd65dfb67c
+section sprites     0x40000 98304 sdram interleave=16 gfx_sort=hvvvvxx
+chip    gg14.bin  16384  207a7407288182a4f3eddaea634c6a6452131182
+chip    gg17.bin  16384  42d367f57bb2fdf60a0445ac1533da99cfeaa617
+chip    gg13.bin  16384  cb641c25bb04b970b2cbeca41adb792bbe142fb5
+chip    gg16.bin  16384  9e06012bcd82f98fad43de666ef9a75979d940ab
+chip    gg12.bin  16384  3f129ca6d695548b659955fe538584bd9ac2ff17
+chip    gg15.bin  16384  e3a1421d465b87148ffa94f5673b2307f0246afe

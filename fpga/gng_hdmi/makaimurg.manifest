@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Makaimura (Japan), the Japanese version of Ghosts'n Goblins (MAME clone
+# makaimurg). The layout is gng.manifest's, see there: each chip takes the place of the gngb
+# chip at the same MAME region and offset. jotego's mame2mra.toml has no maincpu entry of its
+# own for this set, so the program order is gng's. The program is mj03g, mj04g and mj05g, and
+# the sprite chips gng13.n4 and gng16.l4 replace gg17 and gg14. The other chips are gng's.
+
+set     makaimurg
+title   Makaimura (Japan)
+zip     gng.zip
+total   360448
+board   7
+mirror  5760
+screen  upright
+# the file make_rom.py builds from roms/gng.zip, the candidate for the firmware's digest list
+known   3660816e2b431f20364c400336ee23e818f12339aa9ab2a432c1375786175d3f MAME makaimurg
+
+section main        0x00000 81920 sdram
+chip    mj03g.bin 32768  23a0a17d0abc4b084ffeba90266ef455361771cc
+chip    mj04g.bin 16384  07f7cf788810a1425016e016ce3579adb3253ac7
+chip    mj05g.bin 32768  7694a981a6196d77fd2279fc34042b4cfb40c054
+section chars       0x14000 16384 sdram swap16
+chip    gg1.bin   16384  0a1518e19a2e0a4cc3dde4b9568202ea911b5ece
+section sound       0x18000 32768 sdram
+chip    gg2.bin   32768  7ef9ec5c2072e21c787a6bbf700033f50c759c1d
+section tiles       0x20000 131072 sdram interleave=32
+chip    gg7.bin   16384  1947f159189b3a53f1251d8653b6e7c65c91fc3c
+chip    gg9.bin   16384  bbb1fba0eb19471f66d29526fa8423ccb047bd63
+chip    gg11.bin  16384  f9d77eee5e2738b7e83ba02fcc55dd480391479f
+chip    gg11.bin  16384  f9d77eee5e2738b7e83ba02fcc55dd480391479f
+chip    gg6.bin   16384  944da1ce29a18bf0fc8deff78bceacba0bf23a07
+chip    gg8.bin   16384  1c42fa02cb27b35d10c3f7f036005e747f9f6b79
+chip    gg10.bin  16384  8434c994cc55d2586641f3b90b6b15fd65dfb67c
+chip    gg10.bin  16384  8434c994cc55d2586641f3b90b6b15fd65dfb67c
+section sprites     0x40000 98304 sdram interleave=16 gfx_sort=hvvvvxx
+chip    gng16.l4  16384  af207f9ee2f93a0cf9cf25cfe72b0fdfe55481b8
+chip    gng13.n4  16384  13e5a38a134bd7cfa16c63a18fa332c6d66b9345
+chip    gg13.bin  16384  cb641c25bb04b970b2cbeca41adb792bbe142fb5
+chip    gg16.bin  16384  9e06012bcd82f98fad43de666ef9a75979d940ab
+chip    gg12.bin  16384  3f129ca6d695548b659955fe538584bd9ac2ff17
+chip    gg15.bin  16384  e3a1421d465b87148ffa94f5673b2307f0246afe
