@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/logo.svg" alt="game20k logo: a pixel spaceship and the word GAME20K" width="480"></p>
+
 # game20k: arcade games with RetroAchievements, on real hardware
 
 [![Release](https://img.shields.io/github/v/release/scullymi/game20k)](https://github.com/scullymi/game20k/releases/latest)
