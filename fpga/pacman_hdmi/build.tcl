@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
-# Pac-Man with HDMI. Invocation: scripts/build_fpga.sh pacman_hdmi
+# Pac-Man, Ms. Pac-Man and Jr. Pac-Man with HDMI. Invocation: scripts/build_fpga.sh pacman_hdmi
 #
 # Diagnostic variants via environment variables, see ../common/src/game20k_top.sv:
 #   SDRAMTEST=2  SDRAM self-test with CAS latency 2   (sdram_selftest)
@@ -28,10 +28,10 @@ add_file src/game_pkg.sv
 add_file src/game_core.sv
 
 # The ROM layout for rom_loader, from the manifest. python3 is needed for the report anyway.
-# Ms. Pac-Man's layout is the longest of the board, pacman.rom and puckman.rom are a prefix
-# of it and give the loader its second size.
+# Jr. Pac-Man's layout is the longest of the board, mspacman.rom, pacman.rom and puckman.rom
+# are a prefix of it and give the loader its two further sizes.
 file mkdir gen
-if {[catch {exec python3 ../../scripts/make_rom.py --package mspacman.manifest gen/rom_map_pkg.sv pacman.manifest puckman.manifest} msg]} {
+if {[catch {exec python3 ../../scripts/make_rom.py --package jrpacman.manifest gen/rom_map_pkg.sv mspacman.manifest pacman.manifest puckman.manifest} msg]} {
     error "rom_map_pkg.sv: $msg"
 }
 add_file gen/rom_map_pkg.sv

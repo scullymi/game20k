@@ -59,6 +59,7 @@ entity PACMAN_AUDIO is
     I_WR1_L           : in    std_logic;
     I_WR0_L           : in    std_logic;
     I_SOUND_ON        : in    std_logic;
+    mod_jr            : in    std_logic := '0';
     --
 	 dn_addr           : in  std_logic_vector(15 downto 0);
 	 dn_data           : in  std_logic_vector(7 downto 0);
@@ -88,6 +89,7 @@ architecture RTL of PACMAN_AUDIO is
   
   signal prom_cs       : std_logic;
   signal rom1m_cs      : std_logic;
+  signal jr_wave_cs    : std_logic;
 
 begin
   p_sel_com : process(I_HCNT, I_AB, I_DB, accum_reg)
@@ -195,13 +197,15 @@ begin
 
   prom_cs <= '1' when dn_addr(15 downto 14) = "11" else '0';
   rom1m_cs <= '1' when dn_addr(9 downto 8) = "00" else '0';
+  -- Jr. Pac-Man WSG waveform PROM (7p) loads at dn E300-E3FF (per MRA), NOT the Pac-Man 0xC000/dn(9:8)=00 slot.
+  jr_wave_cs <= '1' when mod_jr = '1' and dn_addr(15 downto 8) = x"E3" else '0';
 
   -- game20k: Altera dpram replaced by g20k_dpram
   audio_rom_1m : entity work.g20k_dpram generic map (AW => 8, DW => 8)
   port map
   (
     clk    => CLK,
-    a_we   => dn_wr and rom1m_cs and prom_cs,
+    a_we   => dn_wr and (jr_wave_cs or (rom1m_cs and prom_cs and not mod_jr)),
     a_addr => dn_addr(7 downto 0),
     a_din  => dn_data,
     a_dout => open,

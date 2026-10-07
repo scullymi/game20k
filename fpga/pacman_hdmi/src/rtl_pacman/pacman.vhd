@@ -97,6 +97,14 @@ port
 	v_offset    : in  std_logic_vector(2 downto 0);
 
 	--
+	mod_jr     : in  std_logic := '0';      -- Jr. Pac-Man
+	-- game20k: Jr.'s program ROM lies outside the core (SDRAM, decrypted by make_rom.py).
+	-- jr_rom_ok is low while the byte for jr_rom_addr is not there yet, the CPU then waits.
+	jr_rom_addr : out std_logic_vector(15 downto 0);
+	jr_rom_cs   : out std_logic;   -- the address is a ROM address, not a refresh address
+	jr_rom_din  : in  std_logic_vector(7 downto 0) := x"00";
+	jr_rom_ok   : in  std_logic := '1';
+
 	dn_addr    : in  std_logic_vector(15 downto 0);
 	dn_data    : in  std_logic_vector(7 downto 0);
 	dn_wr      : in  std_logic;
@@ -104,8 +112,8 @@ port
 	-- game20k: taps for the RAM mirror (pacman_mirror.vhd). Read side: the sprite x/y
 	-- shadow. Write side: the raw strobes the core itself uses, high on two consecutive
 	-- ena_6 cycles per Z80 write (T80sed holds WR for two T states), the mirror dedupes.
-	-- mir_frame_go marks the pixel at which a harvest must start so that its 3089
-	-- rounds end at the interrupt edge, see the mirror's head.
+	-- mir_frame_go marks the pixel at which a harvest must start so that its 3089 rounds
+	-- (4112 with mod_jr) end at the interrupt edge, see the mirror's head.
 	mir_sxy_addr : in  std_logic_vector(3 downto 0);   -- sprite x/y shadow read, 1 clock latency
 	mir_sxy_data : out std_logic_vector(7 downto 0);
 	mir_flip     : out std_logic;                       -- control_reg(3), the byte FBNeo stores
@@ -114,7 +122,7 @@ port
 	mir_we_flip  : out std_logic;                       -- write strobe latch bit 3 (0x5003)
 	mir_wr_addr  : out std_logic_vector(11 downto 0);   -- ab(11 downto 0) in the CPU slot
 	mir_wr_data  : out std_logic_vector(7 downto 0);    -- cpu_data_out
-	mir_frame_go : out std_logic;                       -- one ena_6 cycle per frame: hcnt 0x09E, vcnt 0x1E7
+	mir_frame_go : out std_logic;                       -- one ena_6 cycle per frame: hcnt 0x09E, vcnt 0x1E7 (Jr. 0x11F, 0x1E5)
 
 	pause      : in  std_logic;
 
@@ -224,6 +232,31 @@ architecture RTL of PACMAN is
 	signal wav1u,wav2u,wav3u: std_logic_vector(7 downto 0);
 	signal wav4u            : std_logic_vector(7 downto 0);
 	signal ay_we            : std_logic;
+	-- Jr. Pac-Man program ROM (mod_jr)
+	signal jr_rom_data      : std_logic_vector(7 downto 0);
+	signal jr_rom_sel       : std_logic;
+	signal jr_rom_wait_l    : std_logic;
+	-- Jr. Pac-Man latch2 (5070) + scroll (5080)
+	signal jr_latch2        : std_logic_vector(7 downto 0);
+	signal jr_scroll        : std_logic_vector(7 downto 0);
+	signal jr_latch2_l      : std_logic;
+	signal jr_scroll_l      : std_logic;
+	signal jr_palbank       : std_logic;
+	signal jr_colortabbank  : std_logic;
+	signal jr_bgpriority    : std_logic;
+	signal jr_charbank      : std_logic;
+	signal jr_spritebank    : std_logic;
+	-- Jr. Pac-Man video RAM address
+	signal jr_mc            : std_logic_vector(5 downto 0);
+	signal jr_mr            : std_logic_vector(5 downto 0);
+	signal jr_vy            : std_logic_vector(8 downto 0);
+	signal jr_hud           : std_logic;
+	signal jr_pf_scan       : std_logic_vector(11 downto 0);
+	signal jr_hud_scan      : std_logic_vector(11 downto 0);
+	signal jr_code_addr     : std_logic_vector(11 downto 0);
+	signal jr_color_addr    : std_logic_vector(11 downto 0);
+	signal jr_vram_addr     : std_logic_vector(11 downto 0);
+
 
 	component ym2149 is port
 	(
@@ -350,7 +383,7 @@ port map (
 	RESET_n => watchdog_reset_l and (not reset),
 	CLK_n   => clk,
 	CLKEN   => hcnt(0) and ena_6,
-	WAIT_n  => sync_bus_wreq_l and (not pause),
+	WAIT_n  => sync_bus_wreq_l and jr_rom_wait_l and (not pause),
 	INT_n   => cpu_int_l or     mod_van,
 	NMI_n   => cpu_int_l or not mod_van,
 	BUSRQ_n => '1',
@@ -371,7 +404,13 @@ port map (
 -- primary addr decode
 --
 -- syncbus 0x4000 - 0x7FFF
-sync_bus_cs_l   <= '0' when cpu_mreq_l = '0' and cpu_rfsh_l = '1' and cpu_addr(14) = '1' else '1';
+-- Pac-Man uses cpu_addr(14)=1 as shorthand for the VRAM/IO sync-bus region (4000-7FFF),
+-- valid only because Pac-Man ROM never has A14=1. Jr's program ROM extends to C000-DFFF
+-- (A14=1), so for Jr the sync bus must be restricted to 4000-7FFF (A15:14="01"); otherwise
+-- C000-DFFF fetches return sync_bus_reg (VRAM) instead of jr_rom_data + inject WAITs.
+sync_bus_cs_l   <= '0' when cpu_mreq_l = '0' and cpu_rfsh_l = '1' and
+                       ( (mod_jr = '0' and cpu_addr(14) = '1') or
+                         (mod_jr = '1' and cpu_addr(15 downto 14) = "01") ) else '1';
 sync_bus_wreq_l <= '0' when sync_bus_cs_l = '0' and hcnt(1) = '1' and cpu_rd_l = '0' else '1';
 sync_bus_stb    <= '0' when sync_bus_cs_l = '0' and hcnt(1) = '0' else '1';
 sync_bus_r_w_l  <= '0' when sync_bus_stb  = '0' and cpu_rd_l = '1' else '1';
@@ -423,7 +462,35 @@ port map (
 
 hp <= hcnt(7 downto 3) when c_flip = '0' else not hcnt(7 downto 3);
 vp <= vcnt(7 downto 3) when c_flip = '0' else not vcnt(7 downto 3);
-vram_addr <= vram_addr_ab when mod_alib = '0' and mod_ponp = '0' else '0' & hcnt(2) & vp & hp when hcnt(8)='1' else
+-- Jr. Pac-Man video RAM address (mod_jr) — faithful jrpacman_scan_rows (pacman_v.cpp:607; 36x54 map,
+-- per-column scroll) + per-column colour.
+-- FIXED 2026-06-25 (origin bug): hcnt resets to 0x080, so hcnt(8:3) is 16-based and the visible line WRAPS
+-- across the 256H bit (hcnt(8)); vcnt likewise. MAME's col-=2 / row+=2 therefore land on the 256H/256V
+-- boundary (0x20), NOT 0x02. The old -0x02 put the HUD/playfield split on the wrong columns -> the scrolling
+-- maze was rendered into the non-scrolling band (edge strips -> corners after 90deg rot) while the HUD region
+-- (videoram 0x700+) filled the middle as garbage. Subtracting 0x20 realigns: playfield = cols 2..33,
+-- HUD = cols 0,1,34,35; HUD off-screen test (mr&0x20) now stays 0 over the visible rows instead of always 1.
+--   mc = map col = (hcnt 8:3) - 0x20   (== MAME col-2, wrap-correct); HUD edges when mc & 0x20.
+--   mr = map row = ((vcnt[+scroll]) 8:3) - 0x20  (== MAME row+2; scroll applied to PLAYFIELD only).
+--   code: playfield -> mc + mr*32 ; HUD -> mr + (((mc&3)|0x38)<<5) ; off-screen (HUD & mr&0x20) -> 0x77F.
+--   colour: playfield -> videoram[mc & 0x1f] ; HUD -> code_addr + 0x80.   phase: hcnt(2)=0 code, =1 colour.
+--   STILL TODO (separate from this fix): c_flip not applied to mc/mr (cf. hp/vp line 482-483); far-scroll mr
+--   has no mod-54 wrap. Neither affects the un-flipped, near-zero-scroll boot/attract screen.
+jr_mc <= hcnt(8 downto 3) - "100000";                                       -- was -"000010" (0x02); 0x20 = 256H origin
+jr_hud <= jr_mc(5);
+jr_vy <= vcnt + ('0' & jr_scroll);                                          -- scrolled pixel-Y (scroll is in PIXELS)
+jr_mr <= (jr_vy(8 downto 3) - "100000") when jr_hud = '0'                    -- was jr_vy(8:3) / vcnt(8:3) (no -0x20)
+    else (vcnt(8 downto 3)  - "100000");                                    -- tile row - 0x20 (256V origin); playfield scrolled
+jr_pf_scan  <= ("000000" & jr_mc) + ('0' & jr_mr & "00000");
+jr_hud_scan <= ("000000" & jr_mr) + ('0' & "1110" & jr_mc(1 downto 0) & "00000");
+jr_code_addr  <= x"77F"      when (jr_hud = '1' and jr_mr(5) = '1')   -- off-screen
+            else jr_hud_scan when  jr_hud = '1'                       -- HUD top/bottom rows
+            else jr_pf_scan;                                          -- playfield
+jr_color_addr <= ("0000000" & jr_mc(4 downto 0)) when jr_hud = '0'    -- playfield: col & 0x1f
+            else (jr_code_addr + x"080");                             -- HUD: scan + 0x80
+jr_vram_addr  <= jr_code_addr when hcnt(2) = '0' else jr_color_addr;
+vram_addr <= jr_vram_addr when mod_jr = '1' and hblank = '0' else  -- Jr tile scan on visible line; hblank falls through to vram_addr_ab for sprite-RAM fetch (0x3F0-0x3FF)
+             vram_addr_ab when mod_alib = '0' and mod_ponp = '0' else '0' & hcnt(2) & vp & hp when hcnt(8)='1' else
              x"FF" & hcnt(6 downto 4) & hcnt(2) when hblank = '1' and mod_ponp = '1' else
              x"EF" & hcnt(6 downto 4) & hcnt(2) when hblank = '1' else
              '0' & hcnt(2) & hp(3) & hp(3) & hp(3) & hp(3) & hp(0) & vp;
@@ -570,7 +637,8 @@ inj <= in0(3 downto 0) when control_reg(5 downto 4) = "01" or mod_club = '0' els
 cpu_data_in <=	cpu_vec_reg               when cpu_iorq_l = '0' and cpu_m1_l = '0' else 
                sync_bus_reg              when sync_bus_wreq_l = '0' else
                ram2_data                 when ram2_cs = '1'         else
-               rom_data                  when cpu_addr(14) = '0'    else -- ROM at 0000 - 3fff / 8000 - bfff
+               jr_rom_data               when mod_jr = '1' and jr_rom_sel = '1' else -- Jr ROM: 0000-3FFF + 8000-DFFF
+               rom_data                  when mod_jr = '0' and cpu_addr(14) = '0'  else -- ROM at 0000 - 3fff / 8000 - bfff
                in0(7 downto 4) & inj     when iodec_in0_l = '0'     else
                in1                       when iodec_in1_l = '0'     else
                dipsw1                    when iodec_dipsw1_l = '0'  else
@@ -581,6 +649,48 @@ cpu_data_in <=	cpu_vec_reg               when cpu_iorq_l = '0' and cpu_m1_l = '0
                ram_data;
 
 -- game20k: Altera dpram replaced by g20k_dpram
+-- Jr. Pac-Man program ROM, 0000-3FFF and 8000-DFFF, gated on mod_jr (game20k: outside the core).
+jr_rom_sel  <= '1' when (cpu_addr(15 downto 14) = "00") or
+                        (cpu_addr(15) = '1' and cpu_addr(15 downto 13) /= "111") else '0';
+jr_rom_addr <= cpu_addr;
+jr_rom_cs   <= mod_jr and jr_rom_sel and cpu_rfsh_l;
+jr_rom_data <= jr_rom_din;
+-- game20k: a memory read of the ROM holds the CPU in T2 until the byte is there
+jr_rom_wait_l <= '0' when mod_jr = '1' and jr_rom_sel = '1' and cpu_mreq_l = '0' and
+                          cpu_rfsh_l = '1' and cpu_rd_l = '0' and jr_rom_ok = '0' else '1';
+
+-- Jr. Pac-Man latch2 (0x5070-0x5077, LS259 1H) and scroll (0x5080), gated on mod_jr.
+jr_latch2_l <= '0' when mod_jr='1' and sync_bus_stb='0' and sync_bus_r_w_l='0' and cpu_addr(12)='1' and ab(7 downto 3)="01110" else '1';
+jr_scroll_l <= '0' when mod_jr='1' and sync_bus_stb='0' and sync_bus_r_w_l='0' and cpu_addr(12)='1' and ab(7 downto 0)=x"80" else '1';
+
+p_jr_latch2 : process begin
+	wait until rising_edge(clk);
+	if ena_6 = '1' then
+		if watchdog_reset_l = '0' then
+			jr_latch2 <= (others => '0');
+		elsif jr_latch2_l = '0' then
+			jr_latch2(to_integer(unsigned(cpu_addr(2 downto 0)))) <= cpu_data_out(0);
+		end if;
+	end if;
+end process;
+
+p_jr_scroll : process begin
+	wait until rising_edge(clk);
+	if ena_6 = '1' then
+		if watchdog_reset_l = '0' then
+			jr_scroll <= (others => '0');
+		elsif jr_scroll_l = '0' then
+			jr_scroll <= cpu_data_out;
+		end if;
+	end if;
+end process;
+
+jr_palbank      <= jr_latch2(0);
+jr_colortabbank <= jr_latch2(1);
+jr_bgpriority   <= jr_latch2(3);
+jr_charbank     <= jr_latch2(4);
+jr_spritebank   <= jr_latch2(5);
+
 u_rams : entity work.g20k_dpram generic map (AW => 12, DW => 8)
 port map
 (
@@ -680,7 +790,16 @@ port map (
 	CLK       => clk,
 	flip_screen => flip_screen,
 	mir_sxy_addr => mir_sxy_addr, -- game20k
-	mir_sxy_data => mir_sxy_data  -- game20k
+	mir_sxy_data => mir_sxy_data, -- game20k
+
+	mod_jr          => mod_jr,
+	jr_scroll       => jr_scroll,
+	jr_charbank     => jr_charbank,
+	jr_spritebank   => jr_spritebank,
+	jr_palbank      => jr_palbank,
+	jr_colortabbank => jr_colortabbank,
+	jr_bgpriority   => jr_bgpriority,
+	jr_hud          => jr_hud
 );
 
 O_HSYNC   <= hSync;
@@ -693,14 +812,18 @@ O_HSYNC   <= hSync;
 -- flip_screen in), because FBNeo stores bit 0 of the write to 0x5003.
 -- mir_frame_go: the ena_6 cycle with hcnt 0x09E and vcnt 0x1E7 lies 3089 pixels before
 -- the one with hcnt 0x0AF and vcnt 0x1EF at which p_irq_req_watchdog asserts the
--- interrupt and p_sync raises vblank (17 pixels to hcnt 0x0AF, then 8 lines of 384).
+-- interrupt and p_sync raises vblank (17 pixels to hcnt 0x0AF, then 8 lines of 384). With
+-- mod_jr the mirror runs 4112 rounds, so its tap is hcnt 0x11F, vcnt 0x1E5: 272 pixels to
+-- hcnt 0x0AF (vcnt advances only after it, do_vcnt_check), then 10 lines of 384.
 mir_flip     <= control_reg(3);
 mir_we_ram   <= not sync_bus_r_w_l and not vram_l and ena_6;
 mir_we_sxy   <= not wr2_l and ena_6;
 mir_we_flip  <= ena_6 when iodec_out_l = '0' and cpu_addr(2 downto 0) = "011" else '0';
 mir_wr_addr  <= ab(11 downto 0);
 mir_wr_data  <= cpu_data_out;
-mir_frame_go <= ena_6 when hcnt = "010011110" and vcnt = "111100111" else '0'; -- 09E, 1E7
+mir_frame_go <= ena_6 when mod_jr = '0' and hcnt = "010011110" and vcnt = "111100111" else  -- 09E, 1E7
+                ena_6 when mod_jr = '1' and hcnt = "100011111" and vcnt = "111100101" else  -- 11F, 1E5
+                '0';
 O_VSYNC   <= vSync;
 O_VBLANK  <= vblank;
 
@@ -718,6 +841,7 @@ port map (
 	I_WR1_L       => wr1_l,
 	I_WR0_L       => wr0_l,
 	I_SOUND_ON    => c_sound,
+	mod_jr        => mod_jr,
 	--
 	dn_addr       => dn_addr,
 	dn_data       => dn_data,

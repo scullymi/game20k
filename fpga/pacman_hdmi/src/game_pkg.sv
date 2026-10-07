@@ -3,8 +3,9 @@
 //! @file game_pkg.sv
 //! @brief What the platform top (fpga/common/src/game20k_top.sv) needs to know about Pac-Man.
 //!
-//! Every game folder has a package of this name with these constants. The ROM layout is
-//! not here: it comes from the manifest as gen/rom_map_pkg.sv.
+//! Every game folder has a package of this name with these constants. The ROM layout and
+//! the screen (upright, cw, ccw) are not here: they come from the manifest as
+//! gen/rom_map_pkg.sv.
 package game_pkg;
     //! visible raster of the core, MAME pacman.cpp: 288 x 224 of 384 x 264, 6.1875 MHz pixel
     localparam int W = 288;
@@ -22,8 +23,6 @@ package game_pkg;
     //! section PAL_SEC of the manifest (see 1942). 0: they carry the colour.
     localparam bit PALETTE = 0;
     localparam int PAL_SEC = 0;
-    //! MAME ROT90 (the monitor is turned clockwise for portrait): 0. ROT270: 1.
-    localparam bit ROT_CCW = 0;
     //! the name in the HDMI source product description, 16 bytes
     localparam logic [127:0] PRODUCT_DESCRIPTION = {"Pac-Man", 72'd0};
     //! game signals on the input test bar, two characters each, signal 0 in the lowest 16

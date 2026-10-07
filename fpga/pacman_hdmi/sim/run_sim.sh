@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 # Simulation of the Pac-Man RAM mirror with nvc (VHDL-2008): the mirror alone against a core
-# emulator and a platform model (tb_mirror_unit), then the whole core with the mirror and a
-# hand-assembled Z80 program (tb_pacman). Both end with one line PASS or a severity failure;
-# this script exits nonzero on failure. game_core.sv is not covered: nvc cannot elaborate a
-# SystemVerilog parent over a VHDL entity, the wrapper is checked by the Gowin build only.
+# emulator and a platform model (tb_mirror_unit, in Pac-Man's and in Jr. Pac-Man's layout),
+# then the whole core with the mirror and a hand-assembled Z80 program (tb_pacman), and the
+# position of the core's mirror tap in both layouts (tb_framego). Each ends
+# with one line PASS or a severity failure; this script exits nonzero on failure. game_core.sv
+# is not covered: nvc cannot elaborate a SystemVerilog parent over a VHDL entity, the wrapper
+# is checked by the Gowin build only.
 #
 # Usage: sh fpga/pacman_hdmi/sim/run_sim.sh [unit|core]     (default: both)
 # The work library goes to $WORK (default ${TMPDIR:-/tmp}/nvc_pacman), never into the tree.
@@ -27,10 +29,15 @@ cd "$D"
   src/rtl_pacman/pacman_vram_addr.vhd src/rtl_pacman/pacman_video.vhd \
   src/rtl_pacman/pacman_audio.vhd src/rtl_pacman/pacman_rom_descrambler.vhd \
   src/rtl_pacman/pacman.vhd src/rtl_pacman/pacman_mirror.vhd \
-  sim/tb_mirror_unit.vhd sim/tb_pacman.vhd
+  sim/tb_mirror_unit.vhd sim/tb_pacman.vhd sim/tb_framego.vhd
 if [ "$what" = all ] || [ "$what" = unit ]; then
   "$NVC" --std=2008 --ieee-warnings=off --work=work:"$W" -e tb_mirror_unit -r
+  # the same checks in Jr. Pac-Man's layout
+  "$NVC" --std=2008 --ieee-warnings=off --work=work:"$W" -e -gJR=true tb_mirror_unit -r
 fi
 if [ "$what" = all ] || [ "$what" = core ]; then
   "$NVC" --std=2008 --ieee-warnings=off --work=work:"$W" -e tb_pacman -r
+  # where the core's mirror tap lies, for Pac-Man and for Jr. Pac-Man
+  "$NVC" --std=2008 --ieee-warnings=off --work=work:"$W" -e tb_framego -r
+  "$NVC" --std=2008 --ieee-warnings=off --work=work:"$W" -e -gJR=true tb_framego -r
 fi

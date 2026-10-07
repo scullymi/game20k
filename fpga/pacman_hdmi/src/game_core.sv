@@ -3,7 +3,7 @@
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a
                        // silent one-bit net.
 //! @file game_core.sv
-//! @brief Pac-Man behind the game interface of the platform top (game20k).
+//! @brief Pac-Man, Ms. Pac-Man and Jr. Pac-Man behind the game interface of the platform top (game20k).
 //!
 //! The platform top (fpga/common/src/game20k_top.sv) knows only this module and game_pkg.
 //! Every game folder has a game_core with exactly these ports. Here it wraps MikeJ's Pac-Man
@@ -131,11 +131,11 @@ module game_core #(
     // reads 4-way. The rule the player wants is "the direction pressed last wins": moving up
     // and pressing into up+left turns left, left alone stays left, left+down turns down. A
     // hat switch pressed into a corner chatters, though: the marginal switch opens and closes
-    // while the firm one holds, from 2 ms bounces to on and off for seconds (logs of
-    // 01.10.2026: up, up+left, up, ... eleven changes over 3.5 s, half the gaps under 8 ms,
+    // while the firm one holds, from 2 ms bounces to on and off for seconds (a logged
+    // example: up, up+left, up, ... eleven changes over 3.5 s, half the gaps under 8 ms,
     // two thirds under 50 ms).
-    // Taken literally, every gap handed the game back the old direction and every close
-    // counted as a new press, so Pac-Man saw a direction that flipped at the junction.
+    // Taken literally, every gap hands the game back the old direction and every close
+    // counts as a new press, so Pac-Man sees a direction that flips at the junction.
     //
     // So: a press counts as new only after its direction was released for HOLD_MS, else it is
     // the switch chattering and changes nothing. The direction in effect stays while it is
@@ -143,13 +143,13 @@ module game_core #(
     // which is the corner chattering. Releasing everything is neutral at once. Two new
     // directions in one clock take the first in the order up, down, left, right. HOLD_MS is
     // a compromise: longer bridges more of the slow chatter, but a direction released and
-    // pressed again within it does not take over while the old one is held, which with
-    // 200 ms already felt late in play. Back from a corner to the old direction takes
-    // BACK_MS (50 ms) to show, and a gap in the corner longer than that leaks.
+    // pressed again within it does not take over while the old one is held, which at 200 ms
+    // feels late in play. Back from a corner to the old direction takes BACK_MS (50 ms) to
+    // show, and a gap in the corner longer than that leaks.
     // p1_dir/p2_dir are clk_core registers of the top.
     localparam int HOLD_MS = 100;
     // the gap in the corner bridged before the direction still held takes over again: shorter
-    // than HOLD_MS, so leaving a corner for the old direction shows sooner (test 02.10.2026)
+    // than HOLD_MS, so leaving a corner for the old direction shows sooner
     localparam int BACK_MS = 50;
     wire [3:0] raw_dir = p1_dir | p2_dir;      // {up, down, left, right}
     logic [14:0] ms_div = 15'd0;               // 18.5625 MHz / 18563 = 1 kHz
@@ -197,6 +197,10 @@ module game_core #(
     // where nothing listens, as on MiSTer. The timing PROM (section 5) is in the file for the
     // digest only, the core generates its timing itself. Section 6 is Ms. Pac-Man's second
     // program bank (0x4000..0x7FFF), only mspacman.rom has it, see mspacman.manifest.
+    // Sections 7 and up are Jr. Pac-Man's, only jrpacman.rom has them (jrpacman.manifest):
+    // 7 the program, which goes to SDRAM and never reaches this decoder, then the sprites and
+    // the PROMs at the addresses of MiSTer's Jr. Pac-Man.mra (sprites 0xC000, the second half
+    // of the graphics at 0xA000, 9e 0xE000, 9f 0xE100, 9p 0xE200, 7p 0xE300).
     logic [15:0] dn_addr;
     logic        dn_wr;
     always_comb begin
@@ -206,18 +210,57 @@ module game_core #(
         else if (rom_wr_en[3]) dn_addr = 16'hC100 | {8'd0, rom_wr_addr[7:0]};     // col_rom_4a
         else if (rom_wr_en[4]) dn_addr = 16'hC000 | {8'd0, rom_wr_addr[7:0]};     // audio_rom_1m
         else if (rom_wr_en[6]) dn_addr = {2'b01, rom_wr_addr[13:0]};              // u_program_rom1
+        else if (rom_wr_en[8]) dn_addr = 16'hC000 | {3'd0, rom_wr_addr[12:0]};    // char_rom_5ef, Jr.
+        else if (rom_wr_en[9]) dn_addr = 16'hE000 | {8'd0, rom_wr_addr[7:0]};     // jr_pal_lo
+        else if (rom_wr_en[10]) dn_addr = 16'hE100 | {8'd0, rom_wr_addr[7:0]};    // jr_pal_hi
+        else if (rom_wr_en[11]) dn_addr = 16'hE200 | {8'd0, rom_wr_addr[7:0]};    // col_rom_4a, Jr.
+        else if (rom_wr_en[12]) dn_addr = 16'hE300 | {8'd0, rom_wr_addr[7:0]};    // audio_rom_1m, Jr.
         else                   dn_addr = 16'h0000;
-        dn_wr = |rom_wr_en[4:0] | rom_wr_en[6];
+        dn_wr = |rom_wr_en[4:0] | rom_wr_en[6] | |rom_wr_en[12:8];
     end
 
-    // Which game the file is: a file with the second bank is Ms. Pac-Man. The first program
-    // byte of every load clears the flag, a byte of the bank sets it. The core stays in
-    // reset until the whole file is in (game20k_top), so it never runs with a stale flag.
-    logic is_ms = 1'b0;
+    // Which game the file is: a file with the second bank is Ms. Pac-Man, one with Jr.'s
+    // program is Jr. Pac-Man (it has the bank's place too, as zeros). The first program byte
+    // of every load clears both flags, a byte of the bank or of Jr.'s program sets one. Jr.'s
+    // program comes before its sprites and PROMs, whose download addresses need mod_jr. The
+    // core stays in reset until the whole file is in (game20k_top), so it never runs with a
+    // stale flag.
+    logic is_ms = 1'b0, is_jr = 1'b0;
     always_ff @(posedge clk_core) begin
-        if (rom_wr_en[0] && rom_wr_addr == 16'd0) is_ms <= 1'b0;
-        else if (rom_wr_en[6])                     is_ms <= 1'b1;
+        if (rom_wr_en[0] && rom_wr_addr == 16'd0) begin
+            is_ms <= 1'b0;
+            is_jr <= 1'b0;
+        end else begin
+            if (rom_wr_en[6]) is_ms <= 1'b1;
+            if (rom_wr_en[7]) is_jr <= 1'b1;
+        end
     end
+
+    // ---------------- Jr. Pac-Man's program ROM in SDRAM ----------------
+    // The CPU sees the program at 0x0000-0x3FFF and 0x8000-0xDFFF, section 7 holds it
+    // without the gap, and rom_sdram keeps a section at its file offset. One rom_slots slot
+    // keeps the last 32-bit word, so straight-line code costs one SDRAM read per four bytes.
+    // jr_rom_cs is low during the refresh half of M1, so the refresh address does not evict
+    // that word. jr_rom_ok low holds the CPU in T2 (pacman.vhd, WAIT_n). Pac-Man and Ms.
+    // Pac-Man never ask.
+    localparam logic [21:0] JR_PROG = 22'(rom_map_pkg::ROM_OFFSETS[7 * rom_map_pkg::ROM_AW +: rom_map_pkg::ROM_AW]);
+    logic [15:0] jr_rom_addr;
+    logic [7:0]  jr_rom_din;
+    logic        jr_rom_ok, jr_rom_cs;
+    wire  [21:0] jr_off = JR_PROG + 22'(jr_rom_addr[15] ? jr_rom_addr - 16'h4000 : jr_rom_addr);
+    logic [0:0][31:0] slot_data;
+    logic [0:0]       slot_ok;
+    logic [31:0]      rom_miss;
+    rom_slots #(.N(1), .AW(22)) u_slots (
+        .clk(clk_core), .reset(reset),
+        .slot_addr(jr_off[21:2]), .slot_cs(is_jr && jr_rom_cs), .slot_hold(1'b0),
+        .slot_ok(slot_ok), .slot_data(slot_data),
+        .rd_addr(rom_rd_addr), .rd_push(rom_rd_push), .rd_ready(rom_rd_ready),
+        .rd_valid(rom_rd_valid), .rd_data(rom_rd_data),
+        .miss(rom_miss)
+    );
+    assign jr_rom_din = slot_data[0][8*jr_off[1:0] +: 8];
+    assign jr_rom_ok  = slot_ok[0];
 
     // ---------------- Core nets ----------------
     logic [2:0]  core_r, core_g;
@@ -234,7 +277,8 @@ module game_core #(
     logic [1:0]  blankn_q = 2'b00;
 
     // ---------------- The core ----------------
-    // Every mod_* input but mod_ms is 0: Pac-Man and Ms. Pac-Man, the other games' decoders
+    // Every mod_* input but mod_ms and mod_jr is 0: Pac-Man, Ms. Pac-Man and Jr. Pac-Man (a
+    // Jr. file also loads the bank's zeros, so mod_ms only without Jr.), the other games' decoders
     // and sound chips are swept. hs_access_read and hs_access_write must stay 0: any 1
     // silently drops all CPU RAM writes (pacman.vhd, u_rams). The high score port B is the
     // mirror's read port.
@@ -257,7 +301,7 @@ module game_core #(
         .mod_jmpst   (1'b0),
         .mod_bird    (1'b0),
         .mod_mrtnt   (1'b0),
-        .mod_ms      (is_ms),
+        .mod_ms      (is_ms && !is_jr),
         .mod_woodp   (1'b0),
         .mod_eeek    (1'b0),
         .mod_glob    (1'b0),
@@ -266,6 +310,11 @@ module game_core #(
         .mod_van     (1'b0),
         .mod_dshop   (1'b0),
         .mod_club    (1'b0),
+        .mod_jr      (is_jr),
+        .jr_rom_addr (jr_rom_addr),
+        .jr_rom_cs   (jr_rom_cs),
+        .jr_rom_din  (jr_rom_din),
+        .jr_rom_ok   (jr_rom_ok),
         .flip_screen (1'b0),
         .h_offset    (3'd0),
         .v_offset    (3'd0),
@@ -302,6 +351,7 @@ module game_core #(
         .clk        (clk_core),
         .ena_6      (ena_6),
         .reset      (reset),
+        .jr         (is_jr),
         .frame_go   (mir_frame_go),
         .ram_addr   (hs_address),
         .ram_q      (hs_data_out),
@@ -344,9 +394,6 @@ module game_core #(
     assign video_g  = {core_g, 1'b0};
     assign video_b  = {core_b, 2'b00};
     assign video_ce = 1'b0;
-    // the ROM lives in block RAM, nothing is read from SDRAM
-    assign rom_rd_addr = '0;
-    assign rom_rd_push = 1'b0;
     // O_VSYNC is an active high 8-line pulse 16 lines before the first visible line; the
     // scaler wants it active low. O_HSYNC has no consumer.
     assign video_vs = ~core_vs;

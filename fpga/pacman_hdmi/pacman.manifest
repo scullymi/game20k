@@ -19,6 +19,11 @@
 #                     the fork repeats it
 #   mirror <bytes>    game RAM bytes in the RAM mirror before the oracle log (MIRROR_DATA), a
 #                     multiple of 128 and at most 22528; header byte 14 = mirror / 128
+#   screen upright|cw|ccw
+#                     how the core's raster stands: upright on a landscape monitor, or turned
+#                     for a portrait monitor clockwise (cw) or counter-clockwise (ccw). The
+#                     core decides, MAME's ROT90 and ROT270 are only a hint. The files of a
+#                     board share it, unless they carry it in a header section (1942.manifest)
 #   section <name> <offset> <bytes>
 #                     one ROM memory of the core. Sections follow each other in file order,
 #                     in MAME chip order; offsets need not be aligned, the parser only checks
@@ -40,6 +45,8 @@ zip     pacman.zip
 total   25376
 board   2
 mirror  6272
+# MAME ROT90, the raster turned clockwise
+screen  cw
 
 section program     0x0000 16384
 chip    pacman.6e   4096 e87e059c5be45753f7e9f33dff851f16d6751181

@@ -2,7 +2,7 @@
 -- Copyright (C) 2026 scullymi
 --! @file g20k_dpram.vhd
 --! @brief Inferred dual-port RAM for Gowin. Replaces the Altera dpram (altsyncram) of the
---!        MiSTer Pac-Man core. Written from scratch for the synthesis spike.
+--!        MiSTer Pac-Man core. Written from scratch.
 --!
 --! Port A reads and writes, port B only reads. Both ports run on the same clock, each with its
 --! own clock enable. Reads are synchronous: the address is taken at the rising edge and the

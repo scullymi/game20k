@@ -206,7 +206,7 @@ begin
 
   u_mirror : entity work.pacman_mirror
     port map (
-      clk => clk, ena_6 => ena_6, reset => rst, frame_go => mir_frame_go,
+      clk => clk, ena_6 => ena_6, reset => rst, jr => '0', frame_go => mir_frame_go,
       ram_addr => hs_address, ram_q => hs_data_out, sxy_addr => mir_sxy_addr, sxy_q => mir_sxy_data,
       flip => mir_flip, we_ram => mir_we_ram, we_sxy => mir_we_sxy, we_flip => mir_we_flip,
       wr_addr => mir_wr_addr, wr_data => mir_wr_data,
@@ -399,7 +399,8 @@ begin
     alias cu_we    is << signal .tb_pacman.u_mirror.cu_we : std_logic >>;
     alias cu_addr  is << signal .tb_pacman.u_mirror.cu_addr : std_logic_vector(11 downto 0) >>;
     alias hw_we    is << signal .tb_pacman.u_mirror.hw_we : std_logic >>;
-    alias hidx_d   is << signal .tb_pacman.u_mirror.hidx_d : unsigned(11 downto 0) >>;
+    alias cu_kind  is << signal .tb_pacman.u_mirror.cu_kind : std_logic_vector(1 downto 0) >>;
+    alias hidx_d   is << signal .tb_pacman.u_mirror.hidx_d : unsigned(12 downto 0) >>;
     variable read_done : std_logic_vector(0 to 4095) := (others => '0');
     variable hm_d : std_logic := '0';
     variable a : natural;
@@ -410,10 +411,13 @@ begin
         cu_total <= 0; cu_zero_after <= 0; cu_fff_before <= 0; cu_c10_after <= 0;
       end if;
       if hw_we = '1' then
-        read_done(to_integer(hidx_d)) := '1';    -- this index was read at the previous edge
+        read_done(to_integer(hidx_d(11 downto 0))) := '1';    -- this index was read at the previous edge
       end if;
       if cu_we = '1' then
         assert snap_harv = '1' report "T3: cu_we outside the window" severity failure;
+      end if;
+      -- only RAM catch-ups carry a RAM index; the sprite x/y ones carry 0..15
+      if cu_we = '1' and cu_kind = "00" then
         a := to_integer(unsigned(cu_addr));
         cu_total <= cu_total + 1;
         if a = 0       and read_done(a) = '1' then cu_zero_after <= cu_zero_after + 1; end if;

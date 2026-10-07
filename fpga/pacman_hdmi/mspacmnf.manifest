@@ -1,30 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
-# ROM manifest of Ms. Pac-Man on the Pac-Man board. The format is described in the head of
-# pacman.manifest.
-#
-# The file is pacman.rom's layout plus the second program bank at the end, so pacman.rom and
-# puckman.rom are a prefix of it and keep their layout and digests. jrpacman.manifest continues
-# this layout, build.tcl writes the loader's section table from it and takes this size and
-# pacman.rom's as further sizes (ROM_TOTAL_SHORT, ROM_TOTAL_SHORT2). This is why the bank
-# comes last here, not in MAME's chip order.
-#
-# The bank is the core's 0x4000..0x7FFF of the download (CPU 0x8000..0xBFFF), laid out as
-# MiSTer's Ms. Pac-Man.mra does: u5 twice, u6, u7 twice. The core decrypts at run time from
-# the places MAME's ROM_LOAD names, u5 at 0x8000, u6 at 0x9000, u7 at 0xB000. The core sees a
-# loaded bank as Ms. Pac-Man (mod_ms), see game_core.sv.
+# ROM manifest of Ms. Pac-Man with the speedup hack (MAME clone mspacmnf). The layout is
+# mspacman.manifest's, see there: pacfast.6f takes the place of pacman.6f, the rest as in
+# mspacman. pacfast.6f is not in mspacman.zip and comes from puckman.zip (folder pacmanf).
 
-set     mspacman
-title   Ms. Pac-Man (Midway)
+set     mspacmnf
+title   Ms. Pac-Man (speedup hack)
 zip     mspacman.zip
 total   41760
 board   2
 mirror  6272
 screen  cw
+# the file make_rom.py builds from roms/mspacman.zip and puckman.zip, the candidate for the firmware's digest list
+known   00bf508e3d7f62bf6df9440dae05d0343a6fbf268df3fdba4849c0660c032d24 MAME mspacmnf
 
 section program     0x0000 16384
 chip    pacman.6e   4096 e87e059c5be45753f7e9f33dff851f16d6751181
-chip    pacman.6f   4096 674d3a7f00d8be5e38b1fdc208ebef5a92d38329
+chip    pacfast.6f  4096 7224d7acfa0144b681c71d7734a7337189835361 zip=puckman.zip
 chip    pacman.6h   4096 8e47e8c2c4d6117d174cdac150392042d3e0a881
 chip    pacman.6j   4096 d4a70d56bb01d27d094d73db8667ffb00ca69cb9
 section gfx         0x4000 8192
@@ -44,5 +36,3 @@ chip    u5          2048 b26cc1c8ee18e9b1daa97956d2159b954703a0ec
 chip    u6          4096 e4df96f1db753533f7d770aa62ae1973349ea4cf
 chip    u7          4096 1d8ac7ad03db2dc4c8c18ade466e12032673f874
 chip    u7          4096 1d8ac7ad03db2dc4c8c18ade466e12032673f874
-
-known   d6d7cfdbd89153b572ceb6ddc2a1322f1f481eb608e84c5fdee7319c4c05bae0 MAME mspacman

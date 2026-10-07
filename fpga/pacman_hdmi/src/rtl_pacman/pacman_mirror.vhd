@@ -1,16 +1,22 @@
 -- SPDX-License-Identifier: GPL-3.0-only
 -- Copyright (C) 2026 scullymi
 --! @file pacman_mirror.vhd
---! @brief The RAM mirror of Pac-Man for RetroAchievements: harvest, catch-up and delivery.
+--! @brief The RAM mirror of Pac-Man and Jr. Pac-Man for RetroAchievements: harvest, catch-up and delivery.
 --!
---! Once per frame the mirror copies everything FBNeo's "All Ram" block holds for Pac-Man out
---! of the core into a shadow RAM, and on request streams that shadow to the platform in
---! FBNeo's order: work RAM, sprite x/y, colour RAM, video RAM and the flip bit, with zeros
---! in the gaps, 6272 bytes (MIRROR_DATA of the manifest, 6165 of them data). The shadow uses
---! the core's own RAM index as its address, so harvest and catch-up need no arithmetic:
---!   0x000-0x3FF video RAM, 0x400-0x7FF colour RAM, 0x800-0x80F sprite x/y, 0x810 flip,
---!   0xC00-0xFFF work RAM; 0x811-0xBFF unused (never written, never read).
---! Only the delivery translates, with a second pointer loaded at every region boundary.
+--! Once per frame the mirror copies everything FBNeo's "All Ram" block holds for the game out
+--! of the core into a shadow, and on request streams that shadow to the platform in FBNeo's
+--! order, with zeros in the gaps and up to 6272 bytes (MIRROR_DATA of the manifest):
+--!   Pac-Man (jr = 0)  work RAM, sprite x/y, colour RAM, video RAM and the flip bit, 6165 of
+--!                     the bytes data (d_pacman.cpp)
+--!   Jr. (jr = 1)      sprite x/y, video RAM 0x4000-0x47FF, Z80 RAM 0x4800-0x4FFF, 4112 bytes
+--!                     data (d_jrpacman.cpp, DrvSprRAM2, DrvVidRAM, DrvZ80RAM)
+--! The shadow RAM uses the core's own RAM index as its address, so harvest and catch-up need
+--! no arithmetic: Pac-Man 0x000-0x3FF video RAM, 0x400-0x7FF colour RAM, 0xC00-0xFFF work
+--! RAM (0x800-0xBFF is RAM only in the core, never written, never read), Jr. 0x000-0x7FF
+--! video RAM and 0x800-0xFFF Z80 RAM. The sprite x/y and the flip bit have registers of
+--! their own. Only the delivery translates, with a second pointer loaded at every region
+--! boundary. jr may change only while no harvest and no transfer runs (it follows the file,
+--! and the core is in reset while a file loads).
 --!
 --! Phases. The core steps on ena_6, one clock in three. P0 is the cycle in which ena_6 is 1:
 --! every core register keyed to ENA_6 (u_rams port A, control_reg, the sprite x/y RAMs)
@@ -29,11 +35,12 @@
 --! the end of the window, which is what the Pico's oracle demands: the last logged value per
 --! address.
 --!
---! Window: frame_go is the core's tap for the P0 cycle with hcnt 0x09E and vcnt 0x1E7, 3089
---! pixels before the P0 cycle in which the core asserts the Z80 interrupt and raises vblank
---! (17 pixels to hcnt 0x0AF, then 8 lines of 384). The harvest starts at the P1 edge after
---! it, idles for P2 and P0, then runs 3089 rounds of which the last has no P0: 2 + 3 x 3089 -
---! 1 = 9268 clocks, ending at the P2 edge two clocks after the interrupt edge. A write in the
+--! Window: frame_go is the core's tap for the P0 cycle 3089 pixels (Pac-Man) or 4112 pixels
+--! (Jr.) before the P0 cycle in which the core asserts the Z80 interrupt and raises vblank,
+--! one round per pixel: Pac-Man 0x000-0x80F, the flip bit, 0xC00-0xFFF, Jr. 0x000-0xFFF and
+--! the 16 sprite x/y bytes. The harvest starts at the P1 edge after it, idles for P2 and P0,
+--! then runs its rounds of which the last has no P0: 2 + 3 x 3089 - 1 = 9268 clocks, for
+--! Jr. 2 + 3 x 4112 - 1 = 12337, ending at the P2 edge two clocks after the interrupt edge. A write in the
 --! interrupt's own P0 cycle is still logged and caught up; the handler's first write comes 66
 --! clocks later at the earliest and lies outside. The snapshot is therefore the state at the
 --! frame boundary before the interrupt handler runs, the instant FBNeo shows to
@@ -46,9 +53,9 @@
 --! turns that into one pulse per write, whichever slot cycle is the first with a strobe. The
 --! T80 sets A at the end of the previous M cycle and DO at the end of T1, both before the
 --! first strobe cycle, so either strobe cycle may be logged: both carry the same address and
---! data. A write to the core-only RAM 0x800-0xBFF (absent on the board and in FBNeo) is
---! never logged, never caught up and never harvested; its FBNeo position is delivered as
---! zeros.
+--! data. On Pac-Man a write to the core-only RAM 0x800-0xBFF (absent on the board and in
+--! FBNeo) is never logged, never caught up and never harvested. On Jr. that RAM is the
+--! board's, and the flip bit is not in FBNeo's block, so a flip write is the one left out.
 --!
 --! Delivery, against the platform contract of game20k_top.sv: snap_run rises at the verdict
 --! byte, the top resets its FIFO at the end of the second snap_run cycle with priority over a
@@ -58,8 +65,8 @@
 --! delivery while a harvest runs (dl_go). The catch-up never writes the shadow while the
 --! delivery reads it: cu_we exists only inside the window, dl_go needs harv_run = 0.
 --!
---! Log bound: 9268 clocks are 1545 T states, the fastest Z80 write sequence is PUSH (11 T
---! for 2 bytes), so at most 281 entries per window against the platform's 512.
+--! Log bound: 12337 clocks (Jr.) are 2057 T states, the fastest Z80 write sequence is PUSH
+--! (11 T for 2 bytes), so at most 374 entries per window against the platform's 512.
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -69,6 +76,7 @@ entity pacman_mirror is
     clk        : in  std_logic;                       --! clk_core, 18.5625 MHz
     ena_6      : in  std_logic;                       --! the core's pixel enable, high in P0
     reset      : in  std_logic;                       --! blocks harvest starts only
+    jr         : in  std_logic;                       --! 1: Jr. Pac-Man's layout, steady while running
     frame_go   : in  std_logic;                       --! mir_frame_go of the core, one P0 per frame
     --! read side: the core's free read ports, one clock of latency, no enable
     ram_addr   : out std_logic_vector(11 downto 0);   --! hs_address (u_rams port B)
@@ -98,13 +106,20 @@ end entity pacman_mirror;
 architecture rtl of pacman_mirror is
   constant MIRROR_BYTES : natural := 6272;   --! pushes per transfer, MIRROR_DATA of the manifest
 
+  -- what a write or a harvest round goes to
+  constant K_RAM  : std_logic_vector(1 downto 0) := "00";
+  constant K_SXY  : std_logic_vector(1 downto 0) := "01";
+  constant K_FLIP : std_logic_vector(1 downto 0) := "10";
+  constant K_ZERO : std_logic_vector(1 downto 0) := "11";   -- delivery only
+
   -- phase: ena_6 delayed by one and two clocks, frame_go delayed by one
   signal p1, p2, go_d : std_logic := '0';
 
   -- game write decode
   signal seen     : std_logic := '0';              -- a strobe was high in the previous P0
   signal gw_raw, gw_ok, gw_pulse : std_logic;
-  signal gw_sidx  : std_logic_vector(11 downto 0); -- shadow index of the write
+  signal gw_kind  : std_logic_vector(1 downto 0);
+  signal gw_idx   : std_logic_vector(11 downto 0); -- RAM index, or the sprite x/y index
   signal gw_data  : std_logic_vector(7 downto 0);
   signal gw_flat  : unsigned(12 downto 0);         -- its FBNeo position
   signal wr_lo    : unsigned(9 downto 0);
@@ -112,31 +127,52 @@ architecture rtl of pacman_mirror is
 
   -- harvest
   signal harv_run, hw_we, harv_last : std_logic := '0';
-  signal hidx, hidx_d : unsigned(11 downto 0) := (others => '0');
+  signal hidx, hidx_d : unsigned(12 downto 0) := (others => '0');
+  signal h_kind   : std_logic_vector(1 downto 0);
   signal frame_no : unsigned(15 downto 0) := (others => '0');
 
   -- catch-up capture
   signal cu_we   : std_logic := '0';
+  signal cu_kind : std_logic_vector(1 downto 0) := K_RAM;
   signal cu_addr : std_logic_vector(11 downto 0) := (others => '0');
   signal cu_data : std_logic_vector(7 downto 0) := (others => '0');
 
-  -- shadow port A (harvest and catch-up, by phase) and port B (delivery)
+  -- shadow RAM port A (harvest and catch-up, by phase) and port B (delivery), and the
+  -- registers of the sprite x/y and the flip bit
   signal sh_we   : std_logic;
   signal sh_addr : std_logic_vector(11 downto 0);
   signal sh_din, sh_q : std_logic_vector(7 downto 0);
+  type t_sxy is array (0 to 15) of std_logic_vector(7 downto 0);
+  signal sxy_sh  : t_sxy := (others => (others => '0'));
+  signal flip_sh : std_logic := '0';
 
   -- delivery
   signal run_s : std_logic_vector(1 downto 0) := "00";
   signal rise, dl_go : std_logic;
-  signal dl_busy, dl_pend, dl_zero : std_logic := '0';
-  signal dl_f  : unsigned(12 downto 0) := (others => '0');   -- FBNeo position of the next read
-  signal dl_sp : unsigned(11 downto 0) := (others => '0');   -- its shadow address
+  signal dl_busy, dl_pend : std_logic := '0';
+  signal dl_src : std_logic_vector(1 downto 0) := K_ZERO;   -- source of the byte read last
+  signal dl_now : std_logic_vector(1 downto 0);
+  signal dl_f   : unsigned(12 downto 0) := (others => '0');  -- FBNeo position of the next read
+  signal dl_sp  : unsigned(11 downto 0) := (others => '0');  -- its shadow RAM address
+  signal sx_q   : std_logic_vector(7 downto 0) := (others => '0');
+  signal fl_q   : std_logic := '0';
 
-  --! FBNeo positions that carry data: work RAM 0x0400-0x07FF, sprite x/y, colour and video
-  --! RAM 0x1000-0x180F, flip 0x1814. Everything else is delivered as zeros.
-  function populated(f : unsigned(12 downto 0)) return boolean is
+  --! Where FBNeo position f comes from. Pac-Man: work RAM 0x0400-0x07FF, sprite x/y
+  --! 0x1000-0x100F, colour and video RAM 0x1010-0x180F, flip 0x1814. Jr.: sprite x/y
+  --! 0x0000-0x000F, video and Z80 RAM 0x0010-0x100F. Everything else is zeros.
+  function source(f : unsigned(12 downto 0); j : std_logic) return std_logic_vector is
   begin
-    return f(12 downto 10) = "001" or (f >= 16#1000# and f <= 16#180F#) or f = 16#1814#;
+    if j = '1' then
+      if f < 16#0010# then return K_SXY;
+      elsif f < 16#1010# then return K_RAM;
+      else return K_ZERO;
+      end if;
+    elsif f(12 downto 10) = "001" then return K_RAM;
+    elsif f >= 16#1000# and f <= 16#100F# then return K_SXY;
+    elsif f >= 16#1010# and f <= 16#180F# then return K_RAM;
+    elsif f = 16#1814# then return K_FLIP;
+    else return K_ZERO;
+    end if;
   end function;
 begin
 
@@ -144,15 +180,20 @@ begin
   wr_lo <= unsigned(wr_addr(9 downto 0));
   wr_sx <= unsigned(wr_addr(3 downto 0));
   gw_raw <= we_ram or we_sxy or we_flip;
-  -- a RAM write to index 0x800-0xBFF is core-only and stays out
-  gw_ok  <= '0' when we_ram = '1' and wr_addr(11 downto 10) = "10" else gw_raw;
+  -- Pac-Man: a RAM write to index 0x800-0xBFF is core-only and stays out. Jr.: the flip
+  -- bit is not in FBNeo's block and stays out.
+  gw_ok  <= '0' when jr = '0' and we_ram = '1' and wr_addr(11 downto 10) = "10" else
+            '0' when jr = '1' and we_flip = '1' and we_ram = '0' and we_sxy = '0' else
+            gw_raw;
   gw_pulse <= gw_ok and not seen;
-  gw_sidx <= wr_addr                    when we_ram = '1' else
-             x"80" & wr_addr(3 downto 0) when we_sxy = '1' else
-             x"810";
+  gw_kind <= K_RAM when we_ram = '1' else K_SXY when we_sxy = '1' else K_FLIP;
+  gw_idx  <= wr_addr when we_ram = '1' else x"00" & wr_addr(3 downto 0);
   gw_data <= wr_data when we_flip = '0' else "0000000" & wr_data(0);
   -- the FBNeo position of the write, the same constants as the region loads of dl_sp
-  gw_flat <= "001" & wr_lo              when we_ram = '1' and wr_addr(11 downto 10) = "11" else  -- work   0x0400 + i
+  gw_flat <= resize(unsigned(wr_addr), 13) + 16 when jr = '1' and we_ram = '1' else            -- Jr. RAM 0x0010 + i
+             "000000000" & wr_sx            when jr = '1' and we_sxy = '1' else              -- Jr. sprite 0x0000 + i
+             (others => '0')                when jr = '1' else
+             "001" & wr_lo              when we_ram = '1' and wr_addr(11 downto 10) = "11" else  -- work   0x0400 + i
              ("100" & wr_lo) + 16       when we_ram = '1' and wr_addr(11 downto 10) = "01" else  -- colour 0x1010 + i
              ("101" & wr_lo) + 16       when we_ram = '1' and wr_addr(11 downto 10) = "00" else  -- video  0x1410 + i
              "1000000" & "00" & wr_sx   when we_sxy = '1' else                                    -- sprite 0x1000 + i
@@ -174,9 +215,10 @@ begin
       end if;
 
       -- catch-up capture at every edge: cu_we is 1 only in a P1 that follows a P0 with a
-      -- mirrored game write inside the window, and port A takes it at that P1's edge
+      -- mirrored game write inside the window, and the write lands at that P1's edge
       cu_we   <= ena_6 and gw_pulse and harv_run;
-      cu_addr <= gw_sidx;
+      cu_kind <= gw_kind;
+      cu_addr <= gw_idx;
       cu_data <= gw_data;
 
       if p1 = '1' then
@@ -191,14 +233,16 @@ begin
         else
           hidx_d <= hidx;
           hw_we  <= '1';
-          if hidx = x"FFF" then
+          if (jr = '0' and hidx = 16#0FFF#) or (jr = '1' and hidx = 16#100F#) then
             harv_last <= '1';
           else
             harv_last <= '0';
           end if;
-          -- 0x000..0x810, then 0xC00..0xFFF: 3089 rounds
-          if hidx = x"810" then
-            hidx <= x"C00";
+          -- Pac-Man 0x000..0x810 (0x800..0x80F the sprite x/y, 0x810 the flip bit), then
+          -- 0xC00..0xFFF: 3089 rounds. Jr. 0x000..0xFFF, then 0x1000..0x100F the sprite
+          -- x/y: 4112 rounds.
+          if jr = '0' and hidx = 16#0810# then
+            hidx <= to_unsigned(16#0C00#, 13);
           else
             hidx <= hidx + 1;
           end if;
@@ -212,16 +256,17 @@ begin
     end if;
   end process;
 
-  ram_addr <= std_logic_vector(hidx);
+  ram_addr <= std_logic_vector(hidx(11 downto 0));
   sxy_addr <= std_logic_vector(hidx(3 downto 0));
+  h_kind   <= K_SXY  when jr = '1' and hidx_d(12) = '1' else
+              K_SXY  when jr = '0' and hidx_d(12 downto 4) = "010000000" else
+              K_FLIP when jr = '0' and hidx_d = 16#0810# else
+              K_RAM;
 
-  -- port A: the catch-up in P1, the harvest in P2; the two never meet in one clock
-  sh_we   <= cu_we or hw_we;
-  sh_addr <= cu_addr when cu_we = '1' else std_logic_vector(hidx_d);
-  sh_din  <= cu_data            when cu_we = '1' else
-             sxy_q              when hidx_d(11 downto 4) = x"80" else
-             "0000000" & flip   when hidx_d = x"810" else
-             ram_q;
+  -- shadow RAM port A: the catch-up in P1, the harvest in P2; the two never meet in one clock
+  sh_we   <= '1' when (cu_we = '1' and cu_kind = K_RAM) or (hw_we = '1' and h_kind = K_RAM) else '0';
+  sh_addr <= cu_addr when cu_we = '1' else std_logic_vector(hidx_d(11 downto 0));
+  sh_din  <= cu_data when cu_we = '1' else ram_q;
 
   u_shadow : entity work.g20k_dpram
     generic map (AW => 12, DW => 8)
@@ -236,9 +281,30 @@ begin
       b_dout => sh_q
     );
 
+  -- the sprite x/y and flip registers, written like the shadow RAM: catch-up in P1, harvest in P2
+  p_regs : process (clk)
+  begin
+    if rising_edge(clk) then
+      if cu_we = '1' then
+        if cu_kind = K_SXY then
+          sxy_sh(to_integer(unsigned(cu_addr(3 downto 0)))) <= cu_data;
+        elsif cu_kind = K_FLIP then
+          flip_sh <= cu_data(0);
+        end if;
+      elsif hw_we = '1' then
+        if h_kind = K_SXY then
+          sxy_sh(to_integer(hidx_d(3 downto 0))) <= sxy_q;
+        elsif h_kind = K_FLIP then
+          flip_sh <= flip;
+        end if;
+      end if;
+    end if;
+  end process;
+
   -- ---------------- delivery ----------------
-  rise  <= run_s(0) and not run_s(1);
-  dl_go <= dl_busy and snap_run and not harv_run and not snap_full;
+  rise   <= run_s(0) and not run_s(1);
+  dl_go  <= dl_busy and snap_run and not harv_run and not snap_full;
+  dl_now <= source(dl_f, jr);
 
   p_deliver : process (clk)
   begin
@@ -260,20 +326,22 @@ begin
           dl_busy <= '0';
         else
           dl_pend <= '1';
-          if populated(dl_f) then
-            dl_zero <= '0';
+          dl_src  <= dl_now;
+          sx_q    <= sxy_sh(to_integer(dl_f(3 downto 0)));
+          fl_q    <= flip_sh;
+          dl_f    <= dl_f + 1;
+          -- the shadow RAM address of byte dl_f + 1: a region start, the next byte of the
+          -- region, or don't care outside the RAM regions
+          if jr = '1' then
+            if    dl_f + 1 = 16#0010# then dl_sp <= x"000";
+            elsif dl_now = K_RAM      then dl_sp <= dl_sp + 1;
+            end if;
           else
-            dl_zero <= '1';
-          end if;
-          dl_f <= dl_f + 1;
-          -- the shadow address of byte dl_f + 1: a region start, the next byte of the
-          -- region, or don't care inside a zero region
-          if    dl_f + 1 = 16#0400# then dl_sp <= x"C00";
-          elsif dl_f + 1 = 16#1000# then dl_sp <= x"800";
-          elsif dl_f + 1 = 16#1010# then dl_sp <= x"400";
-          elsif dl_f + 1 = 16#1410# then dl_sp <= x"000";
-          elsif dl_f + 1 = 16#1814# then dl_sp <= x"810";
-          elsif populated(dl_f)     then dl_sp <= dl_sp + 1;
+            if    dl_f + 1 = 16#0400# then dl_sp <= x"C00";
+            elsif dl_f + 1 = 16#1010# then dl_sp <= x"400";
+            elsif dl_f + 1 = 16#1410# then dl_sp <= x"000";
+            elsif dl_now = K_RAM      then dl_sp <= dl_sp + 1;
+            end if;
           end if;
         end if;
       end if;
@@ -281,7 +349,10 @@ begin
   end process;
 
   snap_push  <= dl_pend and dl_go;
-  snap_byte  <= x"00" when dl_zero = '1' else sh_q;
+  snap_byte  <= sh_q             when dl_src = K_RAM  else
+                sx_q             when dl_src = K_SXY  else
+                "0000000" & fl_q when dl_src = K_FLIP else
+                x"00";
   snap_frame <= std_logic_vector(frame_no);
   snap_harv  <= harv_run;
 

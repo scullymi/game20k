@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Pac-Man with the speedup hack (MAME clone pacmanf of puckman). The layout is
+# pacman.manifest's, see there: pacfast.6f takes the place of pacman.6f, the rest as in
+# pacman. The merged puckman.zip holds all its chips.
+
+set     pacmanf
+title   Pac-Man (Midway, speedup hack)
+zip     puckman.zip
+total   25376
+board   2
+mirror  6272
+screen  cw
+# the file make_rom.py builds from roms/puckman.zip, the candidate for the firmware's digest list
+known   a15e0aca973d1fa470735948799fca15ab97b3b5bd3785c4d926566092bfce3e MAME pacmanf
+
+section program     0x0000 16384
+chip    pacman.6e   4096 e87e059c5be45753f7e9f33dff851f16d6751181
+chip    pacfast.6f  4096 7224d7acfa0144b681c71d7734a7337189835361
+chip    pacman.6h   4096 8e47e8c2c4d6117d174cdac150392042d3e0a881
+chip    pacman.6j   4096 d4a70d56bb01d27d094d73db8667ffb00ca69cb9
+section gfx         0x4000 8192
+chip    pacman.5e   4096 06ef227747a440831c9a3a613b76693d52a2f0a9
+chip    pacman.5f   4096 4a937ac02216ea8c96477d4a15522070507fb599
+section palette_7f  0x6000 32
+chip    82s123.7f   32   8d0268dee78e47c712202b0ec4f1f51109b1f2a5
+section colour_4a   0x6020 256
+chip    82s126.4a   256  19097b5f60d1030f8b82d9f1d3a241f93e5c75d6
+section wave_1m     0x6120 256
+chip    82s126.1m   256  bbcec0570aeceb582ff8238a4bc8546a23430081
+section timing_3m   0x6220 256
+chip    82s126.3m   256  0c4d0bee858b97632411c440bea6948a74759746

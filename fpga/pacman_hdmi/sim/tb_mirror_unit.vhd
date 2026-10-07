@@ -29,6 +29,9 @@
 --!   (f) a frame_go while snap_run = 1 starts no harvest and leaves frame_no unchanged
 --!   (g) exactly one log entry per emulated write, with the address of the table, whichever
 --!       cycle of the strobe pair comes first relative to the rounds
+--! The generic JR runs the same checks in Jr. Pac-Man's layout (d_jrpacman.cpp: sprite x/y,
+--! video RAM, Z80 RAM), 4112 rounds and a window of 12337 clocks; there the core RAM
+--! 0x800-0xBFF is the board's and is mirrored, and the flip bit is the one never logged.
 --! Ends with one line PASS, or a severity failure.
 library ieee;
 use ieee.std_logic_1164.all;
@@ -36,18 +39,29 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 entity tb_mirror_unit is
+  generic (JR : boolean := false);
 end entity tb_mirror_unit;
 
 architecture sim of tb_mirror_unit is
   constant T        : time    := 53.872 ns;   -- 18.5625 MHz
   constant N_MIRROR : natural := 6272;        -- pushes per transfer
-  constant N_WINDOW : natural := 9268;        -- clocks per harvest
+  -- clocks per harvest: 2 + 3 x rounds - 1, Pac-Man 3089 rounds, Jr. 4112
+  function window_clocks return natural is
+  begin
+    if JR then return 12337; else return 9268; end if;
+  end function;
+  constant N_WINDOW : natural := window_clocks;
 
   type byte_arr is array (natural range <>) of std_logic_vector(7 downto 0);
   type nat_arr  is array (natural range <>) of natural;
   type kind_t   is (K_RAM, K_SXY, K_FLIP);
 
   signal clk   : std_logic := '0';
+  function to_sl(b : boolean) return std_logic is
+  begin
+    if b then return '1'; else return '0'; end if;
+  end function;
+  constant jr_sl : std_logic := to_sl(JR);
   signal done  : boolean   := false;
   signal ph    : unsigned(1 downto 0) := "00";
   signal ena_6 : std_logic;
@@ -101,6 +115,13 @@ architecture sim of tb_mirror_unit is
   --! written as subtractions so that it shares no constant expression with the mirror.
   function flat_addr(k : kind_t; idx : natural) return integer is
   begin
+    if JR then
+      case k is
+        when K_RAM  => return 16#0010# + idx;     -- video RAM 0x000-0x7FF, Z80 RAM 0x800-0xFFF
+        when K_SXY  => return idx;
+        when K_FLIP => return -1;                 -- not in FBNeo's block, never
+      end case;
+    end if;
     case k is
       when K_RAM =>
         if    idx >= 16#C00# then return 16#0400# + (idx - 16#C00#);   -- work RAM
@@ -117,6 +138,12 @@ architecture sim of tb_mirror_unit is
   function flat_of(ram : byte_arr(0 to 4095); sxy : byte_arr(0 to 15); fl : std_logic;
                    f : natural) return std_logic_vector is
   begin
+    if JR then
+      if    f <= 16#000F# then return sxy(f);
+      elsif f <= 16#100F# then return ram(f - 16#0010#);
+      else                     return x"00";
+      end if;
+    end if;
     if    f >= 16#0400# and f <= 16#07FF# then return ram(16#C00# + (f - 16#0400#));
     elsif f >= 16#1000# and f <= 16#100F# then return sxy(f - 16#1000#);
     elsif f >= 16#1010# and f <= 16#140F# then return ram(16#400# + (f - 16#1010#));
@@ -169,7 +196,7 @@ begin
   -- ---------------- the device under test ----------------
   u_mirror : entity work.pacman_mirror
     port map (
-      clk => clk, ena_6 => ena_6, reset => reset, frame_go => frame_go,
+      clk => clk, ena_6 => ena_6, reset => reset, jr => jr_sl, frame_go => frame_go,
       ram_addr => ram_addr, ram_q => ram_q, sxy_addr => sxy_addr, sxy_q => sxy_q, flip => flip,
       we_ram => we_ram, we_sxy => we_sxy, we_flip => we_flip, wr_addr => wr_addr, wr_data => wr_data,
       snap_run => snap_run, snap_full => snap_full, snap_push => snap_push, snap_byte => snap_byte,
@@ -450,15 +477,27 @@ begin
           end if;
         end loop;
       end if;
-      -- (d): nothing from the core-only RAM, nothing in the zero regions
+      -- (d): nothing from the core-only RAM, nothing in the zero regions (Jr.: nothing past
+      -- the Z80 RAM, which is where a flip entry would have to go)
       for i in 0 to log_n - 1 loop
-        assert not (log_a(i) < 16#0400# or (log_a(i) >= 16#0800# and log_a(i) < 16#1000#))
-          report what & ": log entry at zero region 0x" & hex(log_a(i)) severity failure;
+        if JR then
+          assert log_a(i) <= 16#100F#
+            report what & ": log entry at zero region 0x" & hex(log_a(i)) severity failure;
+        else
+          assert not (log_a(i) < 16#0400# or (log_a(i) >= 16#0800# and log_a(i) < 16#1000#))
+            report what & ": log entry at zero region 0x" & hex(log_a(i)) severity failure;
+        end if;
       end loop;
     end procedure;
 
     procedure check_zero_regions(what : string) is
     begin
+      if JR then
+        for f in 16#1010# to N_MIRROR - 1 loop
+          assert deliv(f) = x"00" report what & ": flat 0x" & hex(f) & " not zero" severity failure;
+        end loop;
+        return;
+      end if;
       for f in 0 to 16#03FF# loop
         assert deliv(f) = x"00" report what & ": flat 0x" & hex(f) & " not zero" severity failure;
       end loop;
@@ -482,14 +521,19 @@ begin
       variable idx  : natural;
       variable data : std_logic_vector(7 downto 0);
     begin
-      if k <= 16#810# then r := k; else r := 16#811# + (k - 16#C00#); end if;
+      -- the round that harvests k: Pac-Man 0x000..0x810 then 0xC00.., Jr. 0x000..0xFFF then
+      -- the sprite x/y, which this sweep names 0x1000 + i
+      if JR then r := k;
+      elsif k <= 16#810# then r := k; else r := 16#811# + (k - 16#C00#); end if;
       -- P0 edges lie at offsets 1 mod 3 from a P2 edge: the nearest one to d
       m := integer(round(real(d - 1) / 3.0));
       o := 1 + 3 * m;
       cg := 6;                         -- the frame_go P0 is cycle 6 from t0
       cw := cg + 5 + 3 * r + o;        -- the first strobe cycle
       assert cw >= 0 and cw mod 3 = 0 report "race_case: bad cycle arithmetic" severity failure;
-      if k = 16#810# then kind := K_FLIP; idx := 0; data := x"00"; data(0) := not exp_flip;
+      if JR and k >= 16#1000# then kind := K_SXY; idx := k - 16#1000#; data := std_logic_vector(to_unsigned((seq * 29 + 17) mod 256, 8));
+      elsif JR then kind := K_RAM; idx := k; data := std_logic_vector(to_unsigned((seq * 29 + 17) mod 256, 8));
+      elsif k = 16#810# then kind := K_FLIP; idx := 0; data := x"00"; data(0) := not exp_flip;
       elsif k >= 16#800# then kind := K_SXY; idx := k - 16#800#; data := std_logic_vector(to_unsigned((seq * 29 + 17) mod 256, 8));
       else kind := K_RAM; idx := k; data := std_logic_vector(to_unsigned((seq * 29 + 17) mod 256, 8));
       end if;
@@ -522,7 +566,16 @@ begin
       cases := cases + 1;
     end procedure;
 
-    constant SWEEP_K : nat_arr(0 to 9) := (16#000#, 16#001#, 16#3FF#, 16#400#, 16#7FF#, 16#800#, 16#80F#, 16#810#, 16#C00#, 16#FFF#);
+    -- the shadow indices of the race sweep (Jr.: the sprite x/y as 0x1000 + i)
+    function sweep_list return nat_arr is
+    begin
+      if JR then
+        return (16#000#, 16#001#, 16#7FF#, 16#800#, 16#BFF#, 16#C00#, 16#FFF#, 16#1000#, 16#1007#, 16#100F#);
+      else
+        return (16#000#, 16#001#, 16#3FF#, 16#400#, 16#7FF#, 16#800#, 16#80F#, 16#810#, 16#C00#, 16#FFF#);
+      end if;
+    end function;
+    constant SWEEP_K : nat_arr(0 to 9) := sweep_list;
     variable kind : kind_t;
     variable idx  : natural;
     variable data : std_logic_vector(7 downto 0);

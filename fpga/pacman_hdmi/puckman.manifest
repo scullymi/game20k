@@ -13,6 +13,7 @@ zip     puckman.zip
 total   25376
 board   2
 mirror  6272
+screen  cw
 
 section program     0x0000 16384
 chip    pm1_prg1.6e 2048 813cecf44bf5464b1aed64b36f5047e4c79ba176
