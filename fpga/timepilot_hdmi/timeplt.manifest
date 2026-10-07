@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Time Pilot: which chips of the MAME set go where in timeplt.rom. The format
+# is described in the head of fpga/galaga_hdmi/galaga.manifest.
+#
+# The layout is the download image of Ace's core (rtl/ram_rom/rom_loader.sv, MRA "Time
+# Pilot"): program tm1-tm3, characters tm6, sprites tm4 and tm5, sound tm7, then the
+# character and sprite lookup PROMs and the two palette PROMs. The program goes to SDRAM,
+# the rest to the core's write port, where game_core adds 0x6000 to the section address.
+# SHA-1 from MAME src/mame/konami/timeplt.cpp.
+
+set     timeplt
+title   Time Pilot
+zip     timeplt.zip
+total   53824
+board   5
+mirror  2048
+# MAME ROT90: turned clockwise it stands
+screen  cw
+# the file make_rom.py builds from roms/timeplt.zip, the candidate for the firmware's digest list
+known   dd1089b868ade9f656fda4a5d41330f90bdde8077003972165f96db9141dbf74 MAME timeplt
+
+section main        0x0000 24576 sdram
+chip    tm1         8192  c72f30988ac00cbe6549b71c3bcb414511e8b997
+chip    tm2         8192  ab517efa93ae7be780af55faea82a6e83edd828c
+chip    tm3         8192  ef98a1abb45b22d7498a0aca520f43bbee248b22
+section gfx         0x6000 29248
+chip    tm6         8192  07221875e3f81d9def67c57a7ccd82d52ce65e01
+chip    tm4         8192  cbe2ccd2cd503af62f009cd5aab73aa7366230b1
+chip    tm5         8192  5dd30d3fb9fd8cf9e6a8e37e7ea858c7fd038a7e
+chip    tm7         4096  408fca4515e8af84211df3e204c8776b2f8adb23
+chip    timeplt.e12 256   151bd2dff4e4ef76d6438c1ab2cae71f987b9dad
+chip    timeplt.e9  256   678433b21aae1daa938e32d3293eeed529a42ef9
+chip    timeplt.b5  32    9ad275365eba4869f94749f39ff8705d92056a10
+chip    timeplt.b4  32    f62e279e21fce171231d3139be7adabe1f4b8c2e
