@@ -40,6 +40,14 @@
 //! text runs from the frame bottom upwards, so that it reads left to right on the
 //! turned monitor. Again 52 px below the picture. 2x magnification (14 px line
 //! height) in both modes.
+//! A game whose raster stands upright (land) is always shown in landscape on an upright
+//! monitor. Its banner runs along x as in portrait, in the band below the picture, which is
+//! only 24 px high: at (LX, LY), 5 px below the picture. 1942's raster: picture x 256..1024,
+//! y 24..696, text 384 x 14 px from x 448, y 701.
+//! A raster that fills the height (OVL, Pang's 384 x 240: x 64..1216, y 0..720) leaves no
+//! band: the banner lies over the picture at (LX, LY) on a dark box (dim, the top halves the
+//! picture there), 424 x 18 px from 20 px left of the text and 2 px above it, the mark
+//! inside. The challenge marker goes into the band right of the picture, at (CX, CY).
 //!
 //! The OSD is not suited for this: it draws a 512x256 box into the middle of the
 //! picture with a darkened background (osd_u8g2.v, active/sactive/tactive).
@@ -52,13 +60,23 @@ module ra_overlay #(
     //! Banner position in landscape 3x: the text field spans x RX..RX+14 and y RY..RY+384.
     //! Galaga: in the band right of the picture at x 208..1072, y 24..696.
     parameter int RX = 1124,
-    parameter int RY = 168
+    parameter int RY = 168,
+    //! Banner position in landscape for a game that stands upright (land): top left corner
+    //! of the text, the text runs along x as in portrait.
+    parameter int LX = 448,
+    parameter int LY = 701,
+    //! With land: the banner lies over the picture on a dark box, the challenge marker at
+    //! (CX, CY), its top left corner
+    parameter bit OVL = 0,
+    parameter int CX = 1242,
+    parameter int CY = 695
 )(
     input  wire         clk,          //!< clk_pixel
     input  wire  [10:0] cx,
     input  wire  [9:0]  cy,
     input  wire         rotate,       //!< 1 = landscape 3x, banner rotated in the band right of the picture
     input  wire         flip,         //!< with rotate: the monitor turns the other way (ROT270), all turned 180 degrees
+    input  wire         land,         //!< without rotate: landscape, game upright, banner at (LX, LY) instead of (BX, BY)
     input  wire         txt_we,       //!< write one character
     input  wire  [4:0]  txt_addr,     //!< 0..23
     input  wire  [7:0]  txt_data,
@@ -67,7 +85,8 @@ module ra_overlay #(
     input  wire         banner_new,   //!< 1 = new, is sent (green mark), 0 = already had (grey)
     input  wire         challenge_on, //!< a challenge is on: the gold marker shows, with or without banner
     output logic        on,
-    output logic [23:0] color
+    output logic [23:0] color,
+    output logic        dim           //!< with OVL: the dark box behind the banner, darken the picture
 );
     // ---- Text buffer. 24 characters as registers, NOT as BSRAM: the device
     // ---- is at 45 of 46 blocks used, registers are at 31 percent. The attribute
@@ -93,10 +112,12 @@ module ra_overlay #(
     // the 1280x720 frame, in the band left of the picture, upside down. The picture is
     // centred in the frame, so the distances to it stay the same. Raster positions
     // outside the frame wrap around and fall outside every area below.
+    // A game that stands upright (land) moves the frame instead, so that the portrait
+    // position (BX, BY) lands on (LX, LY).
     logic [10:0] px;
     logic [9:0]  py;
-    assign px = (rotate && flip) ? 11'd1279 - cxa : cxa;
-    assign py = (rotate && flip) ? 10'd719  - cy  : cy;
+    assign px = (rotate && flip) ? 11'd1279 - cxa : (!rotate && land) ? cxa - 11'(LX - BX) : cxa;
+    assign py = (rotate && flip) ? 10'd719  - cy  : (!rotate && land) ? cy  - 10'(LY - BY) : cy;
 
     // Stage 1: position. tx runs along the text (0..383), ty across it (0..13),
     // whichever way the text lies. Outside the banner both are meaningless, the
@@ -115,6 +136,11 @@ module ra_overlay #(
             in_chal = (px >= RX + 1) && (px < RX + 13) && (py >= RY - 20) && (py < RY - 8);
             mx = px - (RX + 1);
             my = py - (RY - 20);
+        end else if (land && OVL) begin
+            // in the band beside the picture, in the raster as it is
+            in_chal = (cxa >= CX) && (cxa < CX + 12) && (cy >= CY) && (cy < CY + 12);
+            mx = cxa - CX;
+            my = cy - CY;
         end else begin
             in_chal = (px >= BX + 384 + 8) && (px < BX + 384 + 20) && (py >= BY + 1) && (py < BY + 13);
             mx = px - (BX + 384 + 8);
@@ -230,6 +256,18 @@ module ra_overlay #(
         else if (in_mark3) color <= banner_new  ? 24'h00C000 : 24'h707070;
         else               color <= banner_gold ? 24'hFFD000 : 24'hFFFFFF;
     end
+
+    // The dark box of OVL, through the same four stages as the banner. Without OVL there is
+    // no box and no register for it.
+    generate if (OVL) begin : g_box
+        logic [3:0] box_q = 4'd0;
+        always_ff @(posedge clk)
+            box_q <= {box_q[2:0], banner_on && land && !rotate &&
+                                  (px >= BX - 20) && (px < BX + 404) && (py >= BY - 2) && (py < BY + 16)};
+        assign dim = box_q[3];
+    end else begin : g_nobox
+        assign dim = 1'b0;
+    end endgenerate
 endmodule
 
 `default_nettype wire

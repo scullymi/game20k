@@ -41,6 +41,7 @@ add_file $common/src/rom_slots.sv
 add_file $common/src/sdram_share.sv
 add_file $common/src/input_test_bar.sv
 add_file $common/src/ra_overlay.sv
+add_file $common/src/screen_sel.sv
 
 # The menu ROM reads the game's menu_xml.hex relative to its own location (see the file
 # head), so it is compiled from a copy in the game's gen/ folder.
@@ -100,6 +101,14 @@ if {![regexp {localparam int CORE_HZ = ([0-9_]+);} $pkg -> core_hz]} {
     error "src/game_pkg.sv: CORE_HZ not found"
 }
 set core_period [format %.3f [expr {1e9 / [string map {_ {}} $core_hz]}]]
+# The scanline counter of the top counts HDMI lines modulo 3 from cy 0, the 3x picture keeps
+# its pattern only when the frame has a multiple of 3 lines (768, 786, 816).
+if {![regexp {localparam int FRAME_H = ([0-9_]+);} $pkg -> frame_h]} {
+    error "src/game_pkg.sv: FRAME_H not found"
+}
+if {[string map {_ {}} $frame_h] % 3 != 0} {
+    error "src/game_pkg.sv: FRAME_H $frame_h is not a multiple of 3, the scanlines would drift"
+}
 set clk_line {create_clock -name clk_core  -period 53.872 [get_nets {clk_core}]}
 if {[string first $clk_line $sdc] < 0} {
     error "board.sdc: clk_core line not found"

@@ -19,7 +19,10 @@
 //! from the arcade stick via the Companion, not from S2.
 //!
 //! Video: landscape through arcade_scaler (3x), portrait through the SDRAM frame buffer
-//! with fb_read_rotated (2x). Switched at run time from the menu, not at synthesis.
+//! with fb_read_rotated (2x). Switched at run time from the menu, not at synthesis. A game
+//! whose raster stands upright always comes through the scaler. Which way the game stands
+//! comes from the manifest, at run time from the ROM file's header (screen_sel.sv). A board
+//! whose games all stand upright (rom_map_pkg::FB_BUILD 0) has no frame buffer.
 //!
 //! Audio: embedded in the HDMI stream and, in addition, as sigma-delta on pwm_audio_l.
 //!
@@ -37,7 +40,10 @@ module game20k_top #(
     parameter bit FBTEST    = 0,   //!< 1: write path plus cross-check (fb_check)
     parameter bit FBSHOW    = 0,   //!< 1: picture from the SDRAM, not rotated
     parameter bit FBROT     = 0,   //!< 1: picture from the SDRAM, ROTATED 2x
-    parameter bit RAMDIAG   = 0    //!< 1: the game's RAM mirror result bar (Galaga: ram_diag)
+    parameter bit RAMDIAG   = 0,   //!< 1: the game's RAM mirror result bar (Galaga: ram_diag)
+    //! 1: HDMI runs free with 816 lines a frame (57.44 Hz, Pang's rate), not locked to the
+    //! core: the picture rolls. A probe whether monitor and capture card take the rate.
+    parameter bit RATEPROBE = 0
 ) (
     input  wire        sys_clk,      //!< 27 MHz crystal
     input  wire        s1,           //!< reset (pressed = 1)
@@ -83,6 +89,12 @@ module game20k_top #(
     // the picture turned, so its height is W. The banner (ra_overlay) sits 52 px below the
     // picture: in portrait along the bottom edge, in landscape in the band right of it,
     // rotated like the OSD. Galaga: landscape 208..1072 x 24..696, portrait 416..864 x 72..648.
+    // A game that stands upright has its banner 5 px below the landscape picture, in the
+    // band of Y0_L lines (24 for a raster 224 high, the 14 px of text need at least 19).
+    // Without that band (Pang: 384 x 240 fills the height) the banner lies over the top of
+    // the picture, on a box that halves the picture, and the challenge marker in the band
+    // right of the picture. Pang's score and lives are at the bottom.
+    // Pang without a frame buffer: Y0_P is negative, only the portrait parameters use it.
     localparam int X0_L = (1280 - 3 * W) / 2;
     localparam int Y0_L = (720 - 3 * H) / 2;
     localparam int X0_P = (1280 - 2 * H) / 2;
@@ -93,6 +105,16 @@ module game20k_top #(
     localparam int BANNER_BY = Y0_P + 2 * W + 52;
     localparam int BANNER_RX = X0_L + 3 * W + 52;
     localparam int BANNER_RY = (720 - 384) / 2;
+    localparam bit BANNER_OVL = (Y0_L < 19);
+    localparam int BANNER_LX = (1280 - 384) / 2;
+    localparam int BANNER_LY = BANNER_OVL ? Y0_L + 4 : Y0_L + 3 * H + 5;
+    localparam int BANNER_CX = X0_L + 3 * W + (X0_L - 12) / 2;
+    localparam int BANNER_CY = BANNER_LY + 1;
+    // HDMI frame: core and HDMI frame are locked, the scaler's sync pulse (start of the first
+    // visible core line) sets cy to SYNC_Y. Its read side starts at Y0_L, 4 HDMI lines later,
+    // when the core line is written: 20 for the rasters 224 high, FRAME_H - 4 for Pang.
+    localparam int FRAME_HDMI = RATEPROBE ? 816 : FRAME_H;
+    localparam int SYNC_Y = (Y0_L - 4 + FRAME_HDMI) % FRAME_HDMI;
     // ---------------- Clocks ----------------
     logic clk_x5, clk_pixel, clk_core, pll_lock;
     // clk_core = 371.25 MHz / SDIV: 20 gives 18.5625 MHz (Galaga, Pac-Man), 10 gives 37.125
@@ -126,7 +148,7 @@ module game20k_top #(
     //! Header byte 9 of the RAM mirror: one bit per diagnostic parameter, 0 in a release
     //! build. The Pico allows no hardcore on a core built for measurements. TESTBAR is
     //! left out, it only adds a display aid.
-    localparam logic [7:0] BUILD_FLAGS = {1'b0, RAMDIAG, FBROT, FBSHOW, FBTEST, SDRAMCL3, SDRAMTEST, ROMVIEW};
+    localparam logic [7:0] BUILD_FLAGS = {RATEPROBE, RAMDIAG, FBROT, FBSHOW, FBTEST, SDRAMCL3, SDRAMTEST, ROMVIEW};
 
     // ---------------- S2: OSD button, reported to the Companion ----------------
     logic [1:0]  s2_s = 0;
@@ -255,7 +277,8 @@ module game20k_top #(
     // Distributes the bytes of the game's ROM file to the core's ROM memories, as the
     // manifest lays them out. The file arrives from the SD card via the Companion,
     // rom_loaded reports completion to the LEDs.
-    rom_loader #(.SLOT(0), .TOTAL(ROM_TOTAL), .TOTAL_SHORT(ROM_TOTAL_SHORT), .SECTIONS(ROM_SECTIONS),
+    rom_loader #(.SLOT(0), .TOTAL(ROM_TOTAL), .TOTAL_SHORT(ROM_TOTAL_SHORT),
+                 .TOTAL_SHORT2(ROM_TOTAL_SHORT2), .SECTIONS(ROM_SECTIONS),
                  .AW(ROM_AW), .OFFSETS(ROM_OFFSETS)) loader (
         .clk(clk_core), .reset(!pll_lock),
         .sel_strobe(rom_selection_strobe), .sel_index(rom_selected), .image_size(sd_img_size),
@@ -265,6 +288,7 @@ module game20k_top #(
         .wr_ready(rom_wr_ready),
         .loaded(rom_loaded), .busy(rom_busy), .count(rom_count)
     );
+
 
     // ---------------- FPGA Companion: SPI, HID, system control ----------------
     logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start;
@@ -430,8 +454,36 @@ module game20k_top #(
         scr_s1 <= scr_s0;
         if (cx == 11'd0 && cy == 10'd760) screen_p <= scr_s1;
     end
-    wire screen_rot = (screen_p != 2'd0);
-    wire   use_fb = FBSHOW || FBROT || screen_rot;
+    // The game's screen (rom_map_pkg::SCREEN_*): 0 upright, 1 cw, 2 ccw, see screen_sel.sv.
+    // A board whose files carry a header section (SCREEN_RT, 1942 with Vulgus and Higemaru)
+    // sets it at run time: every accepted file starts with SCREEN_DEFAULT, the screen of the
+    // file without header, and byte 2 of the header section overrides it. It changes only
+    // while a file loads, with the core in reset, so two registers carry it into clk_pixel,
+    // and it is taken over at cy 760 like the screen mode. Without SCREEN_RT it is the
+    // constant SCREEN_DEFAULT, with no register for the synthesis to keep.
+    logic [1:0] lay_p;
+    generate if (SCREEN_RT) begin : g_screen_rt
+        logic [1:0] screen_c = SCREEN_DEFAULT;
+        always_ff @(posedge clk_core)
+            if (rom_accepted)                                    screen_c <= SCREEN_DEFAULT;
+            else if (rom_wr_en[HDR_SEC] && rom_wr_addr == 16'd2) screen_c <= rom_wr_data[1:0];
+        logic [1:0] lay_s0 = SCREEN_DEFAULT, lay_s1 = SCREEN_DEFAULT, lay_q = SCREEN_DEFAULT;
+        always_ff @(posedge clk_pixel) begin
+            lay_s0 <= screen_c;
+            lay_s1 <= lay_s0;
+            if (cx == 11'd0 && cy == 10'd760) lay_q <= lay_s1;
+        end
+        assign lay_p = lay_q;
+    end else begin : g_screen_fixed
+        assign lay_p = SCREEN_DEFAULT;
+    end endgenerate
+    // picture path, scanline pattern, OSD and banner position, see the table in screen_sel.sv
+    logic use_fb, sel_portrait, sel_rotate, sel_flip, sel_land;
+    screen_sel screen_sel_i (
+        .screen(lay_p), .mode(screen_p), .fb_force(FBSHOW || FBROT),
+        .use_fb(use_fb), .portrait(sel_portrait), .rotate(sel_rotate), .flip(sel_flip),
+        .land(sel_land)
+    );
     assign rgb_pic = use_fb ? rgb_fb : rgb_scaler;
     assign pic     = use_fb ? pic_fb : pic_sc;
 
@@ -516,23 +568,25 @@ module game20k_top #(
         hdmi_vs_n <= !(cy >= 10'd725 && cy < 10'd730);
     end
     // OSD data path from clk_core to clk_pixel: the strobe is a single clk_core pulse,
-    // data and start flag stay stable until the next SPI byte.
-    logic [2:0] osd_strobe_s = 0;
+    // data and start flag stay stable until the next SPI byte. They change in the same
+    // clk_core edge as the strobe, and the two clocks are asynchronous (board.sdc): a
+    // clk_pixel edge right after it may take the strobe but still the old byte. So the
+    // byte is used one clk_pixel clock after the strobe was first seen.
+    logic [3:0] osd_strobe_s = 0;
     logic [1:0] osd_start_s = 0;
     logic [7:0] osd_data_s0, osd_data_s1;
     always_ff @(posedge clk_pixel) begin
-        osd_strobe_s <= {osd_strobe_s[1:0], mcu_osd_strobe};
+        osd_strobe_s <= {osd_strobe_s[2:0], mcu_osd_strobe};
         osd_start_s  <= {osd_start_s[0], mcu_start};
         osd_data_s0  <= mcu_data_out;
         osd_data_s1  <= osd_data_s0;
     end
     logic osd_strobe_p;
-    // The OSD and the RA banner turn with the picture: in landscape 3x the monitor is
-    // turned, so both are drawn rotated by 90 degrees. In portrait 2x they stay upright.
-    // screen_rot changes only in the blanking interval (screen_p above), so no extra
-    // register stage is needed.
-    wire rot90 = ~screen_rot;
-    assign osd_strobe_p = osd_strobe_s[1] & ~osd_strobe_s[2];
+    // The OSD and the RA banner turn with the picture: for a turned game in landscape 3x the
+    // monitor is turned, so both are drawn rotated by 90 degrees (sel_rotate). In portrait
+    // 2x and for a game that stands upright they stay upright. The selection changes only in
+    // the blanking interval (screen_p, lay_p above), so no extra register stage is needed.
+    assign osd_strobe_p = osd_strobe_s[2] & ~osd_strobe_s[3];
 
     /* ---------------- Scanlines ----------------------------------------
        Imitates the dark gaps between the lines of a CRT. Mixed in here,
@@ -542,13 +596,13 @@ module game20k_top #(
 
        Which line is darkened depends on the magnification:
          portrait  2x from y=72  -> every second line. 72 is even, cy[0] suffices.
-         landscape 3x from y=24  -> every third. 24 is divisible by 3, so
+         landscape 3x from y=24  -> every third, also for a game that stands upright. 24 is divisible by 3, so
                                     cy mod 3 == 2 suffices, the last of the triple.
        At 3x one line in three is dark instead of every second. That looks
        different from a CRT, but it is the best that can be done there.
 
-       The counter stays aligned across frames because FRAME_H (768, 786) is
-       divisible by 3 and it is reset at cy == 0.
+       The counter stays aligned across frames because FRAME_H (768, 786, 816) is
+       divisible by 3 (files.tcl checks it) and it is reset at cy == 0.
 
        Price: at 50 percent about half the brightness. Hence adjustable in
        steps and off by default. */
@@ -564,7 +618,7 @@ module game20k_top #(
     end
 
     logic sl_dark;
-    assign sl_dark = screen_rot ? cy[0] : (sl_row3 == 2'd2);
+    assign sl_dark = sel_portrait ? cy[0] : (sl_row3 == 2'd2);
 
     function automatic logic [7:0] sl_dim(input logic [7:0] v, input logic [1:0] level);
         case (level)
@@ -585,7 +639,7 @@ module game20k_top #(
     logic [5:0] osd_r, osd_g, osd_b;
     logic       osd_visible;
     osd_u8g2 osd (
-        .clk(clk_pixel), .reset(!pll_lock), .rotate(rot90), .flip(ROT_CCW),
+        .clk(clk_pixel), .reset(!pll_lock), .rotate(sel_rotate), .flip(sel_flip),
         .data_in_strobe(osd_strobe_p), .data_in_start(osd_start_s[1]), .data_in(osd_data_s1),
         .hs(hdmi_hs_n), .vs(hdmi_vs_n),
         .r_in(rgb_sl[23:18]), .g_in(rgb_sl[15:10]), .b_in(rgb_sl[7:2]),
@@ -650,24 +704,30 @@ module game20k_top #(
 
     logic        ra_on;
     logic [23:0] ra_col;
-    ra_overlay #(.BX(BANNER_BX), .BY(BANNER_BY), .RX(BANNER_RX), .RY(BANNER_RY)) ra_overlay_i (
-        .clk(clk_pixel), .cx(cx), .cy(cy), .rotate(rot90), .flip(ROT_CCW),
+    logic        ra_dim;
+    ra_overlay #(.BX(BANNER_BX), .BY(BANNER_BY), .RX(BANNER_RX), .RY(BANNER_RY),
+                 .LX(BANNER_LX), .LY(BANNER_LY), .OVL(BANNER_OVL), .CX(BANNER_CX), .CY(BANNER_CY)) ra_overlay_i (
+        .clk(clk_pixel), .cx(cx), .cy(cy), .rotate(sel_rotate), .flip(sel_flip), .land(sel_land),
         .txt_we(txt_we_p), .txt_addr(txt_addr_p), .txt_data(txt_data_p),
         .banner_on(banner_p), .banner_gold(gold_p), .banner_new(new_p),
         .challenge_on(chal_p),
-        .on(ra_on), .color(ra_col)
+        .on(ra_on), .color(ra_col), .dim(ra_dim)
     );
+    // over the picture (BANNER_OVL) the banner has a dark box: the picture at half
     logic [23:0] rgb_ra;
-    assign rgb_ra = ra_on ? ra_col : rgb_osd;
+    assign rgb_ra = ra_on ? ra_col : ra_dim ? {1'b0, rgb_osd[23:17], 1'b0, rgb_osd[15:9], 1'b0, rgb_osd[7:1]}
+                                            : rgb_osd;
 
     logic [23:0] rgb_dbg;
     assign rgb_dbg = dbg_on ? dbg_col : rgb_ra;
 
     // ---------------- SDRAM frame buffer: controller, write path, read path ----------------
-    // Four generate branches, chosen by the diagnostic parameters (all 0 in the normal build):
+    // Five generate branches, chosen by the diagnostic parameters (all 0 in the normal build):
     //   SDRAMTEST     sdram_fb plus the phase self test
     //   FBTEST        write path, fb_check reads every frame back
     //   FBSHOW/FBROT  picture from SDRAM, flat or rotated, always
+    //   !FB_BUILD     g_fb_none: a board whose games all stand upright has no frame buffer,
+    //                 the controller serves the ROM alone
     //   none          g_fb_live, the production path: the frame buffer runs alongside
     //                 the scaler and the menu switches between them at run time.
     // Shared by the three frame buffer branches below (FBTEST, FBSHOW/FBROT and the
@@ -719,18 +779,25 @@ module game20k_top #(
             .rd_dout(fb_rd_dout), .rd_valid(fb_rd_valid),
             .rd_hint(ROM_IN_SDRAM && rs_rd_hint)
         );
-        fb_pack #(.W(W), .H(H), .CPP(CPP)) pack_i (
-            .clk_core(clk_core),
-            .r_in(video_r[3:1]), .g_in(video_g[3:1]), .b_in(video_b[3:2]),   // 3/3/2 only
-            .pix_ce(video_ce), .blankn(video_blankn), .vs(video_vs),
-            .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .clear(s1 | system_reset[0]),
-            .wr_addr(fu_wr_addr), .wr_din(fu_wr_din), .wr_bank(fu_wr_bank),
-            .wr_req(fu_wr_req), .wr_ack(fu_wr_ack),
-            .wbuf(fb_wbuf),            // consumed by the read path (fb_read_flat / fb_read_rotated)
-            .frame_done(fb_frame_done), .done_bank(fb_done_bank),
-            .done_words(fb_done_words), .done_sum(fb_done_sum), .done_nz(fb_done_nz),
-            .err_overflow(fb_ovf), .err_addr(fb_eaddr)
-        );
+        if (FB_BUILD || FBTEST || FBSHOW || FBROT) begin : g_pack
+            fb_pack #(.W(W), .H(H), .CPP(CPP)) pack_i (
+                .clk_core(clk_core),
+                .r_in(video_r[3:1]), .g_in(video_g[3:1]), .b_in(video_b[3:2]),   // 3/3/2 only
+                .pix_ce(video_ce), .blankn(video_blankn), .vs(video_vs),
+                .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .clear(s1 | system_reset[0]),
+                .wr_addr(fu_wr_addr), .wr_din(fu_wr_din), .wr_bank(fu_wr_bank),
+                .wr_req(fu_wr_req), .wr_ack(fu_wr_ack),
+                .wbuf(fb_wbuf),            // consumed by the read path (fb_read_flat / fb_read_rotated)
+                .frame_done(fb_frame_done), .done_bank(fb_done_bank),
+                .done_words(fb_done_words), .done_sum(fb_done_sum), .done_nz(fb_done_nz),
+                .err_overflow(fb_ovf), .err_addr(fb_eaddr)
+            );
+        end else begin : g_nopack
+            // no frame buffer: sdram_share's port B never asks, the ROM keeps the controller
+            assign {fu_wr_addr, fu_wr_din, fu_wr_bank, fu_wr_req} = '0;
+            assign {fb_wbuf, fb_frame_done, fb_done_bank, fb_done_words, fb_done_sum, fb_done_nz} = '0;
+            assign {fb_ovf, fb_eaddr} = 2'b00;
+        end
         if (ROM_IN_SDRAM) begin : g_share
             sdram_share share_i (
                 .clk(clk_sdram),
@@ -844,7 +911,7 @@ module game20k_top #(
         // ---- measurement builds: FBSHOW (not rotated) and FBROT (rotated) ----
         // FBSHOW shows the picture unrotated (proof of the path), FBROT rotated.
         if (FBROT) begin : g_rot
-            fb_read_rotated #(.W(W), .H(H), .X0(X0_P - PAL_LAT), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
+            fb_read_rotated #(.W(W), .H(H), .X0(X0_P - PAL_LAT), .Y0(Y0_P), .ROT_CCW(FB_CCW)) rot_i (
                 .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
                 .wbuf(fb_wbuf), .frame_done(fb_frame_done),
                 .rd_addr(fu_rd_addr), .rd_bank(fu_rd_bank),
@@ -876,10 +943,18 @@ module game20k_top #(
         assign st_on  = 1'b0;
         assign st_col = 24'h000000;
         assign st_led = {|fb_done_nz, sdram_ready, fb_late, fb_ovf, fb_eaddr, fb_active};
+    end else if (!FB_BUILD) begin : g_fb_none
+        // ---- g_fb_none: every game of the board stands upright and comes through the
+        // scaler (screen_sel never picks the frame buffer), so there is none to read.
+        assign {fu_rd_addr, fu_rd_bank, fu_rd_req} = '0;
+        assign {rgb_fb, pic_fb, fb_active, fb_late} = '0;
+        assign st_on  = 1'b0;
+        assign st_col = 24'h000000;
+        assign st_led = 6'd0;
     end else begin : g_fb_live
         // ---- g_fb_live, the normal case. Both picture paths are built, the menu
         // chooses. The frame buffer always runs along so that switching takes effect at once.
-        fb_read_rotated #(.W(W), .H(H), .X0(X0_P - PAL_LAT), .Y0(Y0_P), .ROT_CCW(ROT_CCW)) rot_i (
+        fb_read_rotated #(.W(W), .H(H), .X0(X0_P - PAL_LAT), .Y0(Y0_P), .ROT_CCW(FB_CCW)) rot_i (
             .clk_sdram(clk_sdram), .sdram_ready(sdram_ready),
             .wbuf(fb_wbuf), .frame_done(fb_frame_done),
             .rd_addr(fu_rd_addr), .rd_bank(fu_rd_bank),
@@ -1003,14 +1078,14 @@ module game20k_top #(
     hdmi #(
         .VIDEO_ID_CODE(4), .DVI_OUTPUT(0), .VIDEO_REFRESH_RATE(60), .IT_CONTENT(1),
         .AUDIO_RATE(48000), .AUDIO_BIT_WIDTH(16), .START_X(0), .START_Y(0),
-        .FRAME_W(1584), .FRAME_H(FRAME_H), .SYNC_X(0), .SYNC_Y(20),
+        .FRAME_W(1584), .FRAME_H(FRAME_HDMI), .SYNC_X(0), .SYNC_Y(SYNC_Y),
         .VENDOR_NAME({"game20k", 8'd0}), .PRODUCT_DESCRIPTION(PRODUCT_DESCRIPTION)
     ) hdmi_i (
         .clk_pixel_x5     (clk_x5),
         .clk_pixel        (clk_pixel),
         .clk_audio        (clk_audio),
         .reset            (1'b0),
-        .sync             (sync),
+        .sync             (sync && !RATEPROBE),   // the rate probe runs free
         .rgb              (rgb_hdmi),
         .audio_sample_word(audio_sample_word),
         .tmds             (tmds),

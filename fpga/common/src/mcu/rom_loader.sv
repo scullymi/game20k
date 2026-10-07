@@ -26,9 +26,10 @@
 module rom_loader #(
     parameter int SLOT = 0,            //!< image slot this loader accepts
     parameter int TOTAL = 38944,       //!< expected file size in bytes
-    //! a second accepted size, 0 for none: a file that is a prefix of the layout, so the
-    //! sections from TOTAL_SHORT on stay unwritten (Pac-Man next to Ms. Pac-Man)
+    //! two more accepted sizes, 0 for none: a file that is a prefix of the layout, so the
+    //! sections from its end on stay unwritten (Pac-Man and Ms. Pac-Man next to Jr. Pac-Man)
     parameter int TOTAL_SHORT = 0,
+    parameter int TOTAL_SHORT2 = 0,
     parameter int SECTIONS = 11,       //!< ROM memories of the core, 1..16, one wr_en bit each
     parameter int AW = 16,             //!< width of the byte counter and the offsets, 16..24
     //! start of every section in the file, section 0 in the lowest AW bits, in file order:
@@ -62,7 +63,8 @@ module rom_loader #(
 );
     // Only slot SLOT and only the exact file sizes are accepted. A wrong size is reported by
     // the Companion as "Core has rejected image".
-    wire size_ok = (image_size == TOTAL) || (TOTAL_SHORT != 0 && image_size == TOTAL_SHORT);
+    wire size_ok = (image_size == TOTAL) || (TOTAL_SHORT != 0 && image_size == TOTAL_SHORT)
+                   || (TOTAL_SHORT2 != 0 && image_size == TOTAL_SHORT2);
     assign accepted = sel_strobe && (sel_index == SLOT[2:0]) && size_ok;
 
     logic [AW-1:0] cnt;
