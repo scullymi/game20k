@@ -6,7 +6,7 @@
 # jotego's core in src/jtcores (jtcores 548b87b), jt12 (YM2203 as jt03) in src/jt12 and jt49 in
 # src/jt49, all GPL-3.0-or-later, the T80 BSD-style. Changed files carry "game20k" in the text:
 # jtframe_dual_ram (Gowin write mode, as for 1942), jt12_rst and jtgng_sound (reset on the
-# rising edge, spikes/1943/README.md), jt1943_main, _game, _video, _colmix (mirror taps, palette
+# rising edge), jt1943_main, _game, _video, _colmix (mirror taps, palette
 # index, sound ROM from SDRAM). The RAM mirror g1943_mirror.sv is 1942's with a 1943 layout.
 set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
 

@@ -5,18 +5,20 @@
 # fpga/g1942_hdmi/sim/run_sim.sh: ten seconds of the game, a coin and a start, every 30th
 # frame written out, late ROM data counted.
 #
-# Usage: sh fpga/g1943_hdmi/sim/run_sim.sh [port|path|fb]       (default: port)
+# Usage: [SET=1943|1943mii] sh fpga/g1943_hdmi/sim/run_sim.sh [port|path|fb]
+#   (default: SET=1943, port)
 #   port   the ROM buses read through a model of rom_sdram's read stream
 #   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model (tb define ROM_PATH)
 #   fb     path, and the upright picture: sdram_share.sv puts the frame buffer next to the ROM
 #
-# Needs roms/1943.zip and network access once for jtframe's T80s.v (Verilog Z80), checked by
-# its git blob hash. Everything generated goes to $WORK (default ${TMPDIR:-/tmp}/verilator_1943).
+# Needs roms/<SET>.zip and network access once for jtframe's T80s.v (Verilog Z80), checked by
+# its git blob hash. Everything generated goes to $WORK (default ${TMPDIR:-/tmp}/verilator_<SET>).
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 G="$HERE/.."
-W="${WORK:-${TMPDIR:-/tmp}/verilator_1943}"
+SET="${SET:-1943}"
+W="${WORK:-${TMPDIR:-/tmp}/verilator_$SET}"
 mode="${1:-port}"
 JTCORES=548b87b32a1b528a16cb41f689accb179e85d1a8
 T80S_BLOB=6baa20633ae0d8bf389290b7252b74490bba62bd
@@ -27,14 +29,18 @@ case "$mode" in
   diag) define="+define+ROM_PATH +define+FB_PATH +define+DIAG" ;;
   *) echo "usage: $0 [port|path|fb|diag]" >&2; exit 2 ;;
 esac
+case "$SET" in
+  1943|1943mii) ;;
+  *) echo "SET is 1943 or 1943mii" >&2; exit 2 ;;
+esac
 mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 # the ROM image, as words for the SDRAM side, and the PROM and palette sections as bytes
-python3 "$ROOT/scripts/make_rom.py" "$G/1943.manifest" "$W/1943.rom"
-python3 - "$W" <<'EOF'
+python3 "$ROOT/scripts/make_rom.py" "$G/$SET.manifest" "$W/$SET.rom"
+python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]
-b = open(w + "/1943.rom", "rb").read()
+b = open(w + "/" + sys.argv[2] + ".rom", "rb").read()
 with open(w + "/rom32.hex", "w") as f:
     for i in range(0, len(b), 4):
         f.write("%08x\n" % int.from_bytes(b[i:i + 4], "little"))

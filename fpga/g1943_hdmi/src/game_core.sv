@@ -175,7 +175,7 @@ module game_core #(
         .dip_pause  (1'b1),         .dip_test   (1'b1),
         .service    (1'b1),         .tilt       (1'b1),
         // dip_flip turns the video by 180 degrees, the game itself does not see it: 1943
-        // then lies like 1942 (ROT_CCW in game_pkg)
+        // then lies like 1942 (screen line of the manifest)
         .dip_flip   (1'b1),         .dip_fxlevel(2'd0),
         .gfx_en     (4'hf),         .debug_bus  (8'd0),        .debug_view (),
         .cen1p5     (cen1p5),       .cen3       (cen3),        .cen6 (cen6),  .cen8 (cen8),

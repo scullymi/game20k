@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of 1943: The Battle of Midway Mark II (US), MAME 1943mii. The same board and
+# layout as 1943.manifest, see there: MAME lists every region with the same chip sizes and
+# offsets, and the protection MCU bm.7k is the same chip.
+
+set     1943mii
+title   1943: The Battle of Midway Mark II (US)
+zip     1943mii.zip
+total   892672
+board   6
+mirror  8832
+# MAME lists 1943 as ROT270, game_core turns the video by 180 degrees with jotego's dip_flip:
+# turned clockwise it stands, like 1942
+screen  cw
+
+section main        0x00000 163840 sdram
+chip    01.12d      32768 ed67992d2cf7dcba72bc9525fbce6d2cb03d78c4
+chip    02.13d      65536 c4a2cea51c1326f7e60e404ae4d66e567abc4c96
+chip    03.14d      65536 d95ff1773cdc566203befd84e1ba961a7dc8f69b
+section sound       0x28000 32768 sdram
+chip    05.4k       32768 1e50c2a920eb3b5c881843686db857e9fee5ba1d
+section chars       0x30000 32768 sdram swap16
+chip    04.5h       32768 17ca0fa8e61cc6f478d4807262a0333fdb3e4f94
+section maps        0x38000 65536 sdram swap16 gfx_sort=hvvvx
+chip    14.5f       32768 0f094d925a6e38e922eb487af80da9c9ee7613aa
+chip    23.8k       32768 c223ae136f67e5f9910cbfa49b9827e5122e018e
+section scr1        0x48000 262144 sdram interleave=16
+chip    bm19.10j    32768 1c7be905f53c63bad25fbbd9b3cf82d2c7749bc3
+chip    bm15.10f    32768 32337c840ccd6815fd5844c194365c58d708f6dc
+chip    bm20.11j    32768 62dd277bc1fa54cfe168ae2380bc147bd17f4205
+chip    bm16.11f    32768 42b83ff5781be9181802a21ff1b23c17ab1bc5a2
+chip    21.12j      32768 8846b57d7f47c10ab1f505c359ecf36dcbacb011
+chip    17.12f      32768 887d45b648fda952ae2137579f383ab8ede1facd
+chip    22.14j      32768 2e42b1fbbfe823a33740a56d1334657db56d24d2
+chip    18.14f      32768 1926109a2ab2f550ca87b0d2af73abd2b4a7498d
+section scr2        0x88000 65536 sdram interleave=16
+chip    25.14l      32768 06db7b812cf51b3e4476a56bca410ba04e55b925
+chip    24.14k      32768 c219de2253d1964ae3e3daf60c5f9a563b94b4eb
+section sprites     0x98000 262144 sdram interleave=16 gfx_sort=hvvvvxx
+chip    10.10c      32768 957ab527032e19e57ab1afa5e5e08763104d4c9a
+chip    06.10a      32768 4f249c213d2853b8a524baba148730fd4dd1536f
+chip    11.11c      32768 97cf3d00d23e062e15bcba7914e184b249f2c714
+chip    07.11a      32768 f97a08dbdb57de01c21821ddcc30ebe2d57edb17
+chip    12.12c      32768 0e6367d3f0ba39a00ee0fa6e42ae9d43d12da23d
+chip    08.12a      32768 746aa49b18aff0eaf2fb875c573d455416d45a1d
+chip    13.14c      32768 d45b3a7ce306b3dc7b2ccea2484c13c1ff08a0f7
+chip    09.14a      32768 c8d1d3ab4d8baca7fbb5b1d9b3de72c46af5bbd7
+# the i8751 program: unused with JT1943_MCU_HLE, kept so the PROMs stay where jotego has them
+section mcu         0xD8000 4096
+chip    bm.7k       4096  4d63da5bf39a892499c02a79c7daf33d3a94234a optional
+note    bm.7k       nothing, the protection runs as a table (JT1943_MCU_HLE)
+# the PROMs go to the core's write port, the address inside the section is prog_addr
+section proms       0xD9000 3072
+chip    10.7l       256   e3e3a3c262acc628541afa512cfa4ed0c6fc547f
+chip    11.12l      256   91a84f7138c373da0b50d4833de36f17db9a553e
+chip    bmk1.12a    256   4204bdf87820ac84bab2a1b5571a2ee28c4cdfc5
+chip    12.12m      256   6a46c2048637770acd3f3d791e1b831e8caf8c99
+chip    bmk2.13a    256   94bc6514c980fdd1cb013ff0819d6f32464c581c
+chip    bmk3.14a    256   e1f58368fe0bd9b53f6c286ce5009b218a5197dc
+chip    4.12c       256   9583c87eff876f04bc2ccf7218cd8081f1bcdb94
+chip    5.7f        256   8f28210ab1d409c89600169a136b74a706001cdf
+chip    6.4b        256   bafd4108708f66cd7b280e47152b108f3e254fc9
+chip    7.7c        256   8d655e2a5c50541795316d924b2f18b55f4b9571
+chip    8.8c        256   fdb18ddc7574153bb7e27ba08b04b9dc87061c02
+chip    9.6l        256   2f04236e7635583fe096c11165fa0a8a0e121d70
+# the colour PROMs once more, for the platform's palette after the frame buffer (game_pkg)
+section palette     0xD9C00 768
+chip    bmk1.12a    256   4204bdf87820ac84bab2a1b5571a2ee28c4cdfc5
+chip    bmk2.13a    256   94bc6514c980fdd1cb013ff0819d6f32464c581c
+chip    bmk3.14a    256   e1f58368fe0bd9b53f6c286ce5009b218a5197dc
+
+known   456c531ceb242253bb29e92a24420190b0f158485be1ab4f59b115203fbc90bd MAME 1943mii

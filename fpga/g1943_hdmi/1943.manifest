@@ -25,6 +25,9 @@ zip     1943.zip
 total   892672
 board   6
 mirror  8832
+# MAME lists 1943 as ROT270, game_core turns the video by 180 degrees with jotego's dip_flip:
+# turned clockwise it stands, like 1942
+screen  cw
 
 section main        0x00000 163840 sdram
 chip    bme01.12d   32768 f9125745ce85282aa487f744cbf509f335dc3e85

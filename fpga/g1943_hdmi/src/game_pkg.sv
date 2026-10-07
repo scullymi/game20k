@@ -3,8 +3,9 @@
 //! @file game_pkg.sv
 //! @brief What the platform top (fpga/common/src/game20k_top.sv) needs to know about 1943.
 //!
-//! Every game folder has a package of this name with these constants. The ROM layout is
-//! not here: it comes from the manifest as gen/rom_map_pkg.sv.
+//! Every game folder has a package of this name with these constants. The ROM layout and
+//! the screen (upright, cw, ccw) are not here: they come from the manifest as
+//! gen/rom_map_pkg.sv.
 package game_pkg;
     //! visible raster of the core, jtgng_timer.v: 256 x 224 of 384 x 262, 6 MHz pixel
     localparam int W = 256;
@@ -25,10 +26,6 @@ package game_pkg;
     //! at 0x100, blue at 0x200 (bm1.12a, bm2.13a, bm3.14a, section palette).
     localparam bit PALETTE = 1;
     localparam int PAL_SEC = 9;
-    //! MAME lists 1943 as ROT270 (monitor turned anticlockwise). game_core turns the picture
-    //! by 180 degrees with jotego's dip_flip, so it lies like 1942 (ROT90) and takes the
-    //! same rotation, menu and banner.
-    localparam bit ROT_CCW = 0;
     //! the name in the HDMI source product description, 16 bytes
     localparam logic [127:0] PRODUCT_DESCRIPTION = {"1943", 96'd0};
     //! game signals on the input test bar, two characters each, signal 0 in the lowest 16

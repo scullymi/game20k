@@ -191,7 +191,7 @@ module tb_1943;
         .wbuf(fb_wbuf), .frame_done(fb_done), .done_bank(), .done_words(), .done_sum(), .done_nz(),
         .err_overflow(fb_ovf), .err_addr(fb_eaddr)
     );
-    fb_read_rotated #(.W(256), .H(224), .X0(416), .Y0(104), .ROT_CCW(game_pkg::ROT_CCW)) rot (
+    fb_read_rotated #(.W(256), .H(224), .X0(416), .Y0(104), .ROT_CCW(rom_map_pkg::FB_CCW)) rot (
         .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .wbuf(fb_wbuf), .frame_done(fb_done),
         .rd_addr(f_rd_addr), .rd_bank(f_rd_bank), .rd_req(f_rd_req), .rd_ack(f_rd_ack),
         .rd_dout(sd_rd_dout), .rd_valid(f_rd_valid), .err_late(fb_late),
