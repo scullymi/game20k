@@ -3,7 +3,14 @@
 Captured from the HDMI output of the Tang Nano 20K with a USB capture card, unedited apart from
 cropping. The game graphics belong to their publishers.
 
-## The games
+## All games
+
+The fifteen games, by core. The regional and speedup sets look like their main game, see
+[games.md](../games.md).
+
+![Galaga, Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, 1942, Vulgus, Pirate Ship Higemaru, 1943, 1943 Mark II, Time Pilot, Ghosts'n Goblins, Dig Dug, Pang and Super Pang](gallery.png)
+
+## In play
 
 Galaga with an achievement banner, Pac-Man, Ms. Pac-Man and the achievement list in the menu.
 

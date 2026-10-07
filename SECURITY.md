@@ -8,7 +8,7 @@ open the **Security** tab of this repository and choose **Report a vulnerability
 Useful reports include, for example:
 
 - a way to read or change the SD card over the network beyond what
-  [the README](README.md#known-issues) already lists
+  [the known issues](docs/status.md#known-issues) already list
 - a way to leak the WiFi password or the RetroAchievements token
 - a way to fake hardcore unlocks or get around the hardcore checks
 
@@ -21,4 +21,4 @@ Only the latest release receives fixes.
 ## Known limitations
 
 The FTP server accepts any login, and telnet shows the debug log to anyone on the local
-network. Both are listed under [Known issues](README.md#known-issues) and need no report.
+network. Both are listed under [Known issues](docs/status.md#known-issues) and need no report.

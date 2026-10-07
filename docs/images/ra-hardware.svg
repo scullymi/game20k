@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 230" width="960" height="230" role="img" aria-labelledby="t d">
+<title id="t">RetroAchievements on real arcade hardware</title>
+<desc id="d">The Tang Nano 20K runs the arcade board rebuilt in logic and sends the game RAM to the Pico 2 W every frame. rcheevos on the Pico checks the achievement conditions and sends unlocks over HTTPS and WiFi to retroachievements.org. The unlock banner goes back to the FPGA and appears on the screen over HDMI.</desc>
+<style>text{font-family:-apple-system,Helvetica,Arial,sans-serif;fill:#0b0b0b} .h{font-size:15px;font-weight:700} .s{font-size:12px;fill:#52514e} .a{font-size:11px;fill:#52514e} .big{font-size:13px;font-weight:700;fill:#c0392b;letter-spacing:1px}</style>
+<rect width="100%" height="100%" rx="8" fill="#fff"/>
+<defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="#8a8984"/></marker></defs>
+<rect x="20" y="40" width="250" height="120" rx="10" fill="#eaf2fc" stroke="#2a78d6" stroke-width="2"/>
+<text x="40" y="70" class="h">Tang Nano 20K (FPGA)</text>
+<text x="40" y="92" class="s">the arcade board rebuilt in logic:</text>
+<text x="40" y="110" class="s">CPUs, video, sound chips</text>
+<text x="40" y="140" class="big">NO EMULATION</text>
+<line x1="270" y1="80" x2="380" y2="80" stroke="#8a8984" stroke-width="2" marker-end="url(#m)"/>
+<text x="325" y="70" class="a" text-anchor="middle">game RAM,</text>
+<text x="325" y="100" class="a" text-anchor="middle">every frame</text>
+<rect x="385" y="40" width="230" height="120" rx="10" fill="#fdf3e6" stroke="#eb6834" stroke-width="2"/>
+<text x="405" y="70" class="h">Pico 2 W</text>
+<text x="405" y="92" class="s">rcheevos checks the</text>
+<text x="405" y="110" class="s">achievement conditions</text>
+<text x="405" y="140" class="s">hardcore, offline queue</text>
+<line x1="615" y1="80" x2="725" y2="80" stroke="#8a8984" stroke-width="2" marker-end="url(#m)"/>
+<text x="670" y="70" class="a" text-anchor="middle">unlocks</text>
+<text x="670" y="100" class="a" text-anchor="middle">HTTPS / WiFi</text>
+<rect x="730" y="40" width="210" height="120" rx="10" fill="#fff8d6" stroke="#c79a1e" stroke-width="2"/>
+<text x="750" y="70" class="h">retroachievements.org</text>
+<text x="750" y="92" class="s">your profile, points,</text>
+<text x="750" y="110" class="s">leaderboards</text>
+<path d="M500,160 L500,195 L145,195 L145,165" fill="none" stroke="#8a8984" stroke-width="2" marker-end="url(#m)"/>
+<text x="322" y="215" class="a" text-anchor="middle">unlock banner on the screen, over HDMI</text>
+<text x="20" y="25" class="h">RetroAchievements on real arcade hardware</text>
+</svg>

@@ -51,7 +51,7 @@ SHA-1 of every chip against MAME. If a set fails the check, it names the chip an
 to the card. The device silently rejects a ROM file of the wrong size, which is why the check
 happens here.
 For WiFi and RetroAchievements, fill in `sdcard/config.ini` first, see
-[README, RetroAchievements](../README.md#retroachievements).
+[retroachievements.md](retroachievements.md#account).
 
 ## 3. FPGA: build and flash
 
