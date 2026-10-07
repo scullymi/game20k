@@ -8,7 +8,7 @@ building the bitstreams and the firmware yourself, and debugging.
 | Tool | Version | Note |
 |---|---|---|
 | Gowin EDA **Education** | 1.9.11.03 | free download, **no licence file needed** |
-| openFPGALoader | | to flash the Pac-Man, 1942 and 1943 cores: `brew install openfpgaloader` or `apt install openfpgaloader` |
+| openFPGALoader | | to flash every core except Galaga: `brew install openfpgaloader` or `apt install openfpgaloader` |
 | Arm GNU Toolchain | 14.2 | |
 | git, curl, CMake, make, Python 3, gzip, unzip, a C compiler | | |
 
@@ -161,12 +161,19 @@ Example: `RAMDIAG=1 scripts/build_fpga.sh galaga_hdmi`
 fpga/common/        the platform shared by all games: top level, HDMI, scaler, SDRAM frame
                     buffer, SPI to the Pico, RAM mirror, pins and clocks
 fpga/galaga_hdmi/   Galaga: Dar's core, its wrapper, the menu and the ROM manifest
-fpga/pacman_hdmi/   Pac-Man, Puck Man and Ms. Pac-Man: MikeJ's core, its wrapper, the menu,
-                    the ROM manifests and testbenches for nvc
-fpga/g1942_hdmi/    1942: jotego's core and sound chips, its wrapper, the menu, the ROM
-                    manifest and a simulation with Verilator
+fpga/pacman_hdmi/   Pac-Man, Puck Man, Ms. Pac-Man and Jr. Pac-Man: MikeJ's core, its wrapper,
+                    the menu, the ROM manifests and testbenches for nvc
+fpga/g1942_hdmi/    1942, Vulgus and Higemaru: jotego's core and sound chips, its wrapper, the
+                    menu, the ROM manifests and a simulation with Verilator
 fpga/g1943_hdmi/    1943: the same for jotego's jt1943, plus the prefetch of scroll and map
                     words from the SDRAM
+fpga/timepilot_hdmi/ Time Pilot: Ace's core, its wrapper, the menu and the ROM manifest
+fpga/gng_hdmi/      Ghosts'n Goblins: jotego's jtgng, its wrapper, the menu, the ROM manifest
+                    and a simulation with Verilator
+fpga/digdug_hdmi/   Dig Dug: MiSTer-X's core on one clock, its wrapper, the menu, the ROM
+                    manifest and a simulation with Verilator
+fpga/pang_hdmi/     Pang and Super Pang: jotego's jtpang, its wrapper, the menu, the ROM
+                    manifests and a simulation with Verilator
 external/           the submodules FPGA-Companion, pico-sdk and tinyusb
 roms/               your ROM zips, not under version control
 sdcard/             what goes on the SD card, including the template for config.ini
@@ -186,8 +193,10 @@ graphics in it, CC BY-SA 3.0.
 
 Not ours, and kept with their original headers: the HDMI files (MIT OR Apache-2.0, see
 `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, derived from NESTang, with both copyright notices),
-the T80 cores (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, jotego's 1942
-and 1943 cores, JTFRAME, JT12 and JT49 files (GPL-3.0-or-later), WangXuan95's SD card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
+the T80 cores (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, jotego's 1942,
+1943, Ghosts'n Goblins and Pang cores, JTFRAME, JT12, JT49, JTOPL, JT6295 and JTEEPROM files
+(GPL-3.0-or-later), Greg Miller's 6809 core (BSD), Ace's Time Pilot core and Guy Hutchison's
+TV80 (MIT), MiSTer-X's Dig Dug core (GPL-3.0), WangXuan95's SD card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
 also applies to our changes in them).
 
 The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) are

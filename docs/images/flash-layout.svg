@@ -1,41 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 180" width="960" height="180" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 246" width="960" height="246" role="img" aria-labelledby="t d">
   <title id="t">SPI flash of the Tang Nano 20K</title>
-  <desc id="d">An 8 MB flash split into 1 MB slots. Galaga at 0x000000, the Pac-Man core at 0x100000, 1942 at 0x200000 and 1943 at 0x300000 each use 886 KB of their slot. The rest, from 0x400000 to 0x800000, is free.</desc>
+  <desc id="d">An 8 MB flash split into 1 MB slots, all eight taken, each core using 886 KB of its slot: the Galaga core at 0x000000 with Galaga; the Pac-Man core at 0x100000 with Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man; the 1942 core at 0x200000 with 1942, Vulgus, Higemaru; the 1943 core at 0x300000 with 1943; the GnG core at 0x400000 with Ghosts'n Goblins; the Dig Dug core at 0x500000 with Dig Dug; the Pang core at 0x600000 with Pang, Super Pang; the Time Pilot core at 0x700000 with Time Pilot.</desc>
   <style>
     text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b0b0b; }
     .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; fill: #52514e; }
     .name { font-size: 14px; font-weight: 600; }
+    .core-in { font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .label { font-size: 9px; font-weight: 600; letter-spacing: 1px; fill: #8a8984; }
     .sub { font-size: 12px; fill: #52514e; }
     .tick { stroke: #c9c8c2; stroke-width: 1; }
-    .used-galaga { fill: #2a78d6; }
-    .used-pacman { fill: #eb6834; }
-    .used-1942 { fill: #1baf7a; }
-    .used-1943 { fill: #8a5cd6; }
     .rest { fill: none; stroke-width: 2; }
+    .used-galaga { fill: #2a78d6; }
     .rest-galaga { stroke: #2a78d6; }
+    .used-pacman { fill: #eb6834; }
     .rest-pacman { stroke: #eb6834; }
+    .used-1942 { fill: #1baf7a; }
     .rest-1942 { stroke: #1baf7a; }
+    .used-1943 { fill: #8a5cd6; }
     .rest-1943 { stroke: #8a5cd6; }
-    .free { fill: none; stroke: #8a8984; stroke-width: 1.5; stroke-dasharray: 2 4; }
+    .used-gng { fill: #c79a1e; }
+    .rest-gng { stroke: #c79a1e; }
+    .used-digdug { fill: #d6455d; }
+    .rest-digdug { stroke: #d6455d; }
+    .used-pang { fill: #1f9fb8; }
+    .rest-pang { stroke: #1f9fb8; }
+    .used-timeplt { fill: #6b7a8f; }
+    .rest-timeplt { stroke: #6b7a8f; }
     @media (prefers-color-scheme: dark) {
       text { fill: #ffffff; }
       .addr, .sub { fill: #c3c2b7; }
+      .label { fill: #8f8e88; }
       .tick { stroke: #4a4a47; }
       .used-galaga { fill: #3987e5; }
-      .used-pacman { fill: #d95926; }
-      .used-1942 { fill: #199e70; }
-      .used-1943 { fill: #9a6ee6; }
       .rest-galaga { stroke: #3987e5; }
+      .used-pacman { fill: #d95926; }
       .rest-pacman { stroke: #d95926; }
+      .used-1942 { fill: #199e70; }
       .rest-1942 { stroke: #199e70; }
+      .used-1943 { fill: #9a6ee6; }
       .rest-1943 { stroke: #9a6ee6; }
-      .free { stroke: #8f8e88; }
+      .used-gng { fill: #d9ad33; }
+      .rest-gng { stroke: #d9ad33; }
+      .used-digdug { fill: #e65c73; }
+      .rest-digdug { stroke: #e65c73; }
+      .used-pang { fill: #2bb3cc; }
+      .rest-pang { stroke: #2bb3cc; }
+      .used-timeplt { fill: #8494aa; }
+      .rest-timeplt { stroke: #8494aa; }
     }
   </style>
 
   <!-- address ticks: 110 px per MB, from x = 40 -->
   <g>
-    <line class="tick" x1="40"  y1="44" x2="40"  y2="54"/><text class="addr" x="40"  y="38" text-anchor="start">0x000000</text>
+    <line class="tick" x1="40" y1="44" x2="40" y2="54"/><text class="addr" x="40" y="38" text-anchor="start">0x000000</text>
     <line class="tick" x1="150" y1="44" x2="150" y2="54"/><text class="addr" x="150" y="38" text-anchor="middle">0x100000</text>
     <line class="tick" x1="260" y1="44" x2="260" y2="54"/><text class="addr" x="260" y="38" text-anchor="middle">0x200000</text>
     <line class="tick" x1="370" y1="44" x2="370" y2="54"/><text class="addr" x="370" y="38" text-anchor="middle">0x300000</text>
@@ -46,32 +63,73 @@
     <line class="tick" x1="920" y1="44" x2="920" y2="54"/><text class="addr" x="920" y="38" text-anchor="end">0x800000</text>
   </g>
 
-  <!-- Galaga, slot 0: 886 KB of 1 MB = 95.2 of 110 px -->
+  <!-- slot 0: Galaga -->
   <rect class="rest rest-galaga" x="42" y="57" width="106" height="54" rx="4"/>
   <rect class="used-galaga" x="43" y="58" width="94" height="52" rx="3"/>
-  <text class="name" x="44" y="146">Galaga</text>
-  <text class="sub"  x="44" y="164">886 KB</text>
+  <text class="label" x="44" y="132">CORE</text>
+  <text class="name" x="44" y="148">Galaga</text>
+  <line class="rest-galaga" x1="44" y1="156" x2="140" y2="156" stroke-width="2"/>
+  <text class="sub"  x="44" y="174">Galaga</text>
 
-  <!-- Pac-Man core, slot 1 -->
+  <!-- slot 1: Pac-Man -->
   <rect class="rest rest-pacman" x="152" y="57" width="106" height="54" rx="4"/>
   <rect class="used-pacman" x="153" y="58" width="94" height="52" rx="3"/>
-  <text class="name" x="154" y="146">Pac-Man</text>
-  <text class="sub"  x="154" y="164">886 KB, 3 games</text>
+  <text class="label" x="154" y="132">CORE</text>
+  <text class="name" x="154" y="148">Pac-Man</text>
+  <line class="rest-pacman" x1="154" y1="156" x2="250" y2="156" stroke-width="2"/>
+  <text class="sub"  x="154" y="174">Pac-Man</text>
+  <text class="sub"  x="154" y="190">Puck Man</text>
+  <text class="sub"  x="154" y="206">Ms. Pac-Man</text>
+  <text class="sub"  x="154" y="222">Jr. Pac-Man</text>
 
-  <!-- 1942, slot 2 -->
+  <!-- slot 2: 1942 -->
   <rect class="rest rest-1942" x="262" y="57" width="106" height="54" rx="4"/>
   <rect class="used-1942" x="263" y="58" width="94" height="52" rx="3"/>
-  <text class="name" x="264" y="146">1942</text>
-  <text class="sub"  x="264" y="164">886 KB</text>
+  <text class="label" x="264" y="132">CORE</text>
+  <text class="name" x="264" y="148">1942</text>
+  <line class="rest-1942" x1="264" y1="156" x2="360" y2="156" stroke-width="2"/>
+  <text class="sub"  x="264" y="174">1942</text>
+  <text class="sub"  x="264" y="190">Vulgus</text>
+  <text class="sub"  x="264" y="206">Higemaru</text>
 
-  <!-- 1943, slot 3 -->
+  <!-- slot 3: 1943 -->
   <rect class="rest rest-1943" x="372" y="57" width="106" height="54" rx="4"/>
   <rect class="used-1943" x="373" y="58" width="94" height="52" rx="3"/>
-  <text class="name" x="374" y="146">1943</text>
-  <text class="sub"  x="374" y="164">886 KB</text>
+  <text class="label" x="374" y="132">CORE</text>
+  <text class="name" x="374" y="148">1943</text>
+  <line class="rest-1943" x1="374" y1="156" x2="470" y2="156" stroke-width="2"/>
+  <text class="sub"  x="374" y="174">1943</text>
 
-  <!-- free, 0x400000 to 0x800000 -->
-  <rect class="free" x="482" y="57" width="436" height="54" rx="4"/>
-  <text class="sub" x="700" y="89" text-anchor="middle">free, room for four more cores</text>
+  <!-- slot 4: GnG -->
+  <rect class="rest rest-gng" x="482" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-gng" x="483" y="58" width="94" height="52" rx="3"/>
+  <text class="label" x="484" y="132">CORE</text>
+  <text class="name" x="484" y="148">GnG</text>
+  <line class="rest-gng" x1="484" y1="156" x2="580" y2="156" stroke-width="2"/>
+  <text class="sub"  x="484" y="174">Ghosts'n Goblins</text>
 
+  <!-- slot 5: Dig Dug -->
+  <rect class="rest rest-digdug" x="592" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-digdug" x="593" y="58" width="94" height="52" rx="3"/>
+  <text class="label" x="594" y="132">CORE</text>
+  <text class="name" x="594" y="148">Dig Dug</text>
+  <line class="rest-digdug" x1="594" y1="156" x2="690" y2="156" stroke-width="2"/>
+  <text class="sub"  x="594" y="174">Dig Dug</text>
+
+  <!-- slot 6: Pang -->
+  <rect class="rest rest-pang" x="702" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-pang" x="703" y="58" width="94" height="52" rx="3"/>
+  <text class="label" x="704" y="132">CORE</text>
+  <text class="name" x="704" y="148">Pang</text>
+  <line class="rest-pang" x1="704" y1="156" x2="800" y2="156" stroke-width="2"/>
+  <text class="sub"  x="704" y="174">Pang</text>
+  <text class="sub"  x="704" y="190">Super Pang</text>
+
+  <!-- slot 7: Time Pilot -->
+  <rect class="rest rest-timeplt" x="812" y="57" width="106" height="54" rx="4"/>
+  <rect class="used-timeplt" x="813" y="58" width="94" height="52" rx="3"/>
+  <text class="label" x="814" y="132">CORE</text>
+  <text class="name" x="814" y="148">Time Pilot</text>
+  <line class="rest-timeplt" x1="814" y1="156" x2="910" y2="156" stroke-width="2"/>
+  <text class="sub"  x="814" y="174">Time Pilot</text>
 </svg>

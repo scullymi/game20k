@@ -21,12 +21,20 @@ More screenshots and a photo of the setup: [docs/images](docs/images/README.md).
 
 | Game | Core | MAME set | RetroAchievements |
 |---|---|---|---|
-| Galaga | Dar's Galaga core | `galaga` (+ `namco54` for the explosions) | [Galaga](https://retroachievements.org/game/12138) |
+| Galaga | Dar's Galaga core | `galaga` + `namco51` (+ `namco54` for the explosions) | [Galaga](https://retroachievements.org/game/12138) |
 | Pac-Man | MikeJ's Pac-Man core | `pacman` | [Pac-Man](https://retroachievements.org/game/12192) |
 | Puck Man | MikeJ's Pac-Man core | `puckman` | [Perfect Pac subset](https://retroachievements.org/game/24933) |
 | Ms. Pac-Man | MikeJ's Pac-Man core | `mspacman` | [Ms. Pac-Man](https://retroachievements.org/game/11800) |
+| Jr. Pac-Man | MikeJ's Pac-Man core | `jrpacman` | [Jr. Pac-Man](https://retroachievements.org/game/12191) |
 | 1942 | jotego's jt1942 core | `1942` | [1942](https://retroachievements.org/game/11960) |
+| Vulgus | jotego's jt1942 core | `vulgus` | none |
+| Pirate Ship Higemaru | jotego's jt1942 core | `higemaru` | none |
 | 1943: The Battle of Midway | jotego's jt1943 core | `1943` | [1943](https://retroachievements.org/game/11961) |
+| Time Pilot | Ace's Time Pilot core | `timeplt` | [Time Pilot](https://retroachievements.org/game/11902) |
+| Ghosts'n Goblins | jotego's jtgng core | `gng` with the "gg" chips, see [roms/README.md](roms/README.md) | [Ghosts'n Goblins](https://retroachievements.org/game/12149) |
+| Dig Dug | MiSTer-X's Dig Dug core | `digdug` + `namco51` + `namco53` | [Dig Dug](https://retroachievements.org/game/12091) |
+| Pang | jotego's jtpang core | `pang` | [Pang](https://retroachievements.org/game/11996) |
+| Super Pang | jotego's jtpang core | `spang` | [Super Pang](https://retroachievements.org/game/12239) |
 
 Choose a game under `ROM set` in the menu. A game on the same core restarts straight into it, and
 a game on another core first loads that core from the board's flash.
@@ -40,11 +48,13 @@ a game on another core first loads that core from the board's flash.
   there. Unlocks are sent over HTTPS, queued on the SD card while offline, and appear as a banner
   in the game. Rich Presence, leaderboards and an achievement list with progress in the menu are
   included too.
-- **Upright or rotated.** 2x upright on a regular monitor, or 3x rotated through an SDRAM frame
-  buffer for a monitor turned on its side, which fills the screen as in the original cabinet.
-  Both are selectable in the menu (`Upright 2x`, `Landscape 3x`), as are scanlines.
-- **Six games, four cores, one flash.** All cores are stored in the board's flash, and the menu
-  switches between them in seconds.
+- **Upright or rotated.** A game with a vertical monitor runs 2x upright on a regular monitor, or
+  3x rotated through an SDRAM frame buffer for a monitor turned on its side, which fills the
+  screen as in the original cabinet. Both are selectable in the menu (`Upright 2x`,
+  `Landscape 3x`), as are scanlines. A game with a horizontal monitor always runs 3x, with the
+  menu and the banner upright.
+- **Fourteen games, eight cores, one flash.** All cores are stored in the board's flash, and the
+  menu switches between them in seconds.
 - **No game data in the bitstream.** The ROMs are loaded from the SD card at power-on, and every
   chip is checked against MAME's checksums when the card is prepared.
 - **Ready-made releases.** One image for the Nano and one file for the Pico.
@@ -69,16 +79,15 @@ flowchart LR
 
 All cores live side by side in the Tang Nano's 8 MB flash, each in its own 1 MB slot:
 
-![The flash: Galaga at 0x000000, the Pac-Man core at 0x100000, 1942 at 0x200000, 1943 at 0x300000, the rest free](docs/images/flash-layout.svg)
+![The flash: Galaga at 0x000000, the Pac-Man core at 0x100000, the 1942 core at 0x200000, 1943 at 0x300000, Ghosts'n Goblins at 0x400000, Dig Dug at 0x500000, the Pang core at 0x600000, Time Pilot at 0x700000](docs/images/flash-layout.svg)
 
-Every core takes 886 KB of its slot, because a bitstream always configures the whole FPGA,
-whatever the game. At power-on the FPGA loads the core at 0x000000, and the menu switches to the
-others.
+Every core takes 886 KB of its 1 MB slot, the full configuration size of this FPGA. At power-on
+the FPGA loads the core at 0x000000, and the menu switches to the others.
 
 ## Quick start
 
 **You need** a Tang Nano 20K, a Raspberry Pi Pico 2 W, a microSD card, a micro USB OTG adapter,
-a USB arcade stick, an HDMI monitor that accepts 1280x720 at 61.03 Hz and 59.64 Hz, and seven wires. See
+a USB arcade stick, an HDMI monitor that accepts 1280x720 at 61.03 Hz, 59.64 Hz and 57.44 Hz, and seven wires. See
 [Hardware](#hardware) for details.
 
 1. **Wire the boards** as shown in [docs/wiring.md](docs/wiring.md). The 5 V supply goes to
@@ -87,7 +96,7 @@ a USB arcade stick, an HDMI monitor that accepts 1280x720 at 61.03 Hz and 59.64 
    Python 3:
    ```sh
    git clone https://github.com/scullymi/game20k.git && cd game20k
-   # copy galaga.zip (and namco54.zip), pacman.zip, puckman.zip, mspacman.zip, 1942.zip, 1943.zip into roms/
+   # copy your MAME sets into roms/, roms/README.md lists the files each game needs
    scripts/make_sdcard.sh /Volumes/YOUR_CARD
    ```
    To use WiFi and RetroAchievements, fill in `sdcard/config.ini` first (see
@@ -111,15 +120,16 @@ On the Nano, **S1** resets the game and **S2** opens and closes the menu.
 
 Default stick layout:
 
-| | Galaga, Pac-Man | 1942 | 1943 |
-|---|---|---|---|
-| Fire | any button | 1 | 1 |
-| Loop | | 2 | |
-| Bomb | | | 2 |
-| Coin | 9 | 9 | 9 |
-| Start player 1 | 10 | 10 | 10 |
-| Start player 2 | off | off | off |
-| Volume | menu, Settings | menu, Settings | menu, Settings |
+| | Galaga, Pac-Man, Dig Dug | 1942, Vulgus, Higemaru | 1943 | Ghosts'n Goblins | Time Pilot, Pang |
+|---|---|---|---|---|---|
+| Fire (Dig Dug: pump) | any button | 1 | 1 | 1 | 1 |
+| Loop (1942), bomb (Vulgus) | | 2 | | | |
+| Bomb | | | 2 | | |
+| Jump | | | | 2 | |
+| Coin | 9 | 9 | 9 | 9 | 9 |
+| Start player 1 | 10 | 10 | 10 | 10 | 10 |
+| Start player 2 | off | off | off | off | off |
+| Volume | menu, Settings | menu, Settings | menu, Settings | menu, Settings | menu, Settings |
 
 The button numbers come from the **input test**, a bar at the top of the picture with a labelled
 box for every button and direction that lights up while you press it. Switch it on in the menu
@@ -198,7 +208,7 @@ confirmed email address is all you need.
 | Raspberry Pi Pico 2 W | stepping **A3 or A4**, printed on the chip as `RP2350A0A3` or `RP2350A0A4`, see [docs/hardware.md](docs/hardware.md#rp2350-stepping-and-erratum-e9) |
 | microSD card | FAT32, see [sdcard/README.md](sdcard/README.md) |
 | Micro USB to USB A OTG adapter | for the stick on the Pico |
-| HDMI monitor | must accept 1280x720 at **61.03 Hz**, and at **59.64 Hz** for 1942 and 1943 |
+| HDMI monitor | must accept 1280x720 at **61.03 Hz**, at **59.64 Hz** for the 1942 core, 1943 and Ghosts'n Goblins, and at **57.44 Hz** for Pang |
 | USB arcade stick (HID) | |
 | Perfboard, wire | seven connections, see [docs/wiring.md](docs/wiring.md) |
 
@@ -231,12 +241,12 @@ goes onto the card.
   sigma-delta output on pin 77 with an external filter and amplifier, see
   [docs/hardware.md](docs/hardware.md#analogue-sound-optional).
 - **More games.** Every arcade board needs its own core, which is shared by all the games that
-  ran on that board. Candidates:
-  - Namco: Galaxian, Dig Dug, Xevious, Bosconian
-  - Capcom, from jotego's jtcores: Vulgus and Pirate Ship Higemaru on the 1942 core, Commando,
-    Gun.Smoke
-  - games with an existing Tang Nano port: Donkey Kong, Defender, Time Pilot, Centipede,
-    Pooyan, Bagman, Crazy Climber
+  ran on that board. The eight flash slots are taken, so a further core needs a smaller
+  bitstream or has to load from the SD card. Candidates:
+  - Namco: Galaxian, Xevious, Bosconian
+  - Capcom, from jotego's jtcores: Commando, Gun.Smoke, Black Tiger
+  - games with an existing Tang Nano port: Donkey Kong, Defender, Centipede, Pooyan, Bagman,
+    Crazy Climber
 - **Hardcore unlocks and leaderboard entries on RetroAchievements,** once RetroAchievements
   approves this client.
 
@@ -263,14 +273,22 @@ game20k builds on the work of others:
 
 - **Dar** (darfpga) for the Galaga core, via
   [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga)
-- **MikeJ** for the Pac-Man core, via
+- **MikeJ** for the Pac-Man core and **Rodimus Prime** for its Jr. Pac-Man support, via
   [MiSTer-devel/Arcade-Pacman_MiSTer](https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer)
-- **Jose Tejada Gomez** (jotego) for the 1942 and 1943 cores and their JTFRAME modules, via
-  [jotego/jtcores](https://github.com/jotego/jtcores), and the sound chips
-  [jotego/jt12](https://github.com/jotego/jt12) (YM2203) and
-  [jotego/jt49](https://github.com/jotego/jt49) (AY-3-8910)
-- **Daniel Wallner** for the T80, the Z80 CPU in all four cores, included in the core
-  repositories above
+- **Jose Tejada Gomez** (jotego) for the 1942, 1943, Ghosts'n Goblins and Pang cores and their
+  JTFRAME modules, via [jotego/jtcores](https://github.com/jotego/jtcores), and the sound chips
+  [jotego/jt12](https://github.com/jotego/jt12) (YM2203),
+  [jotego/jt49](https://github.com/jotego/jt49) (AY-3-8910),
+  [jotego/jtopl](https://github.com/jotego/jtopl) (YM2413) and
+  [jotego/jt6295](https://github.com/jotego/jt6295) (OKI M6295), and the EEPROM
+  [jotego/jteeprom](https://github.com/jotego/jteeprom)
+- **Ace** for the Time Pilot core, via
+  [MiSTer-devel/Arcade-TimePilot_MiSTer](https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer)
+- **MiSTer-X** for the Dig Dug core, via
+  [MiSTer-devel/Arcade-DigDug_MiSTer](https://github.com/MiSTer-devel/Arcade-DigDug_MiSTer)
+- **Daniel Wallner** for the T80, the Z80 CPU in every core except Dig Dug, **Guy Hutchison**
+  for the TV80 in Dig Dug and **Greg Miller** for the 6809 in Ghosts'n Goblins, included in the
+  core repositories above
 - **Till Harbaum** for [MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano),
   [Nanomig](https://github.com/MiSTle-Dev/Nanomig) and
   [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion): the SPI link, the menu, SD card
