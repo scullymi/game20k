@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 /** @file test_games.c
- *  @brief ra_games.c: ra_games_by_file(), the file name that starts the core switch.
+ *  @brief ra_games.c: ra_games_by_file(), the file name that starts the core switch, and
+ *         ra_games_row()/ra_games_at(), the row the restart mark keeps.
  *
  *  ra_games.c is included as it is, with rcheevos' md5 for ra_games_name_hash().
  *  A ROM file picked in the menu switches the core when it is the set name of a
@@ -54,10 +55,24 @@ static void test_by_file_near_misses(void) {
   TEST_MESSAGE(msg);
 }
 
+/** The restart mark keeps the row, not the id: makaimurg shares 12149 with gng, and the
+ *  id would bring back gng. Every row must come back as itself. */
+static void test_row_tells_shared_ids_apart(void) {
+  const ra_game_t *m = ra_games_by_file("makaimurg.rom");
+  TEST_ASSERT_NOT_NULL(m);
+  TEST_ASSERT_EQUAL_STRING("gng", ra_games_by_id(m->id)->set);
+  TEST_ASSERT_EQUAL_PTR(m, ra_games_at(ra_games_row(m)));
+  unsigned row = 0;
+  for(const ra_game_t *g; (g = ra_games_at(row)) != NULL; row++)
+    TEST_ASSERT_EQUAL_UINT(row, ra_games_row(g));
+  TEST_ASSERT_EQUAL_UINT(GAMES_N, row);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_by_file_names_the_set);
   RUN_TEST(test_by_file_ignores_case);
   RUN_TEST(test_by_file_near_misses);
+  RUN_TEST(test_row_tells_shared_ids_apart);
   return UNITY_END();
 }
