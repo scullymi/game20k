@@ -111,16 +111,48 @@ COMPONENTS = [
         "copyrights": True,
     },
     {
-        "name": "T80 Ver 350, the Z80 core by Daniel Wallner, in the 1942 and 1943 cores",
+        "name": "T80 Ver 350, the Z80 core by Daniel Wallner, in the 1942, 1943, Ghosts'n Goblins "
+                "and Pang cores",
         "short": "BSD-like, the notice below",
-        "url": "https://github.com/jotego/jtcores at 0b197ca (1942) and 548b87b (1943), folder "
+        "url": "https://github.com/jotego/jtcores at 0b197ca (1942) and 548b87b (the others), folder "
                "modules/jtframe/hdl/cpu/t80, the same files at both commits",
-        "match": r"^fpga/g194[23]_hdmi/src/jtcores/modules/jtframe/hdl/cpu/t80/(T80|T80_ALU|T80_MCode|"
-                 r"T80_Reg|T80s)\.vhd$",
+        "match": r"^fpga/(g1942|g1943|gng|pang)_hdmi/src/jtcores/modules/jtframe/hdl/cpu/t80/(T80|"
+                 r"T80_ALU|T80_MCode|T80_Reg|T80s)\.vhd$",
         "licence": "BSD-like, three conditions, the notice below",
         "note": "",
         "show": [("lines", "fpga/g1942_hdmi/src/jtcores/modules/jtframe/hdl/cpu/t80/T80.vhd",
                   "Copyright (c)", "SUCH DAMAGE.")],
+        "copyrights": True,
+    },
+    {
+        "name": "T80 Ver 350, the Z80 core by Daniel Wallner, in the Time Pilot core",
+        "short": "BSD-like, the notice below",
+        "url": "https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer at 5a148e2, folder "
+               "rtl/cpu/T80",
+        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/cpu/T80/(T80|T80_ALU|T80_MCode|T80_Pack|"
+                 r"T80_Reg|T80s)\.vhd$",
+        "licence": "BSD-like, three conditions, the notice below",
+        "note": "game20k writes one bit string literal in T80.vhd with its full width and "
+                "instantiates the T80 in T80s.vhd as entity work.T80. Neither change is marked.",
+        "show": [("lines", "fpga/timepilot_hdmi/src/rtl_timepilot/cpu/T80/T80.vhd",
+                  "Copyright (c)", "SUCH DAMAGE.")],
+        "copyrights": True,
+    },
+    {
+        "name": "mc6809i, the 6809 core by Greg Miller, in jotego's copy",
+        "short": "BSD-like, the notice below",
+        "url": "https://github.com/jotego/jtcores at 548b87b, modules/jtframe/hdl/cpu/mc6809i.v, "
+               "jotego's changed copy of mc6809i.v from https://github.com/cavnex/mc6809",
+        "match": r"^fpga/gng_hdmi/src/jtcores/modules/jtframe/hdl/cpu/mc6809i\.v$",
+        "licence": "the standard BSD licence of the author's LICENSE.md, three clauses, the notice "
+                   "below",
+        "note": "The file carries only the author's copyright line. His LICENSE.md (cavnex/mc6809 "
+                "at 17e94a6, documentation/LICENSE.md, copied beside the file as "
+                "mc6809i_LICENSE.md) offers the standard BSD licence or a binary-only variant. "
+                "game20k distributes the source and so uses the standard BSD licence. Unchanged "
+                "from jotego's copy.",
+        "show": [("lines", "fpga/gng_hdmi/src/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md",
+                  "Copyright (c) 2016, Greg Miller", "SOFTWARE, EVEN IF ADVISED")],
         "copyrights": True,
     },
     {
@@ -160,10 +192,43 @@ COMPONENTS = [
         "show": [],
     },
     {
+        "name": "jtgng and JTFRAME by Jose Tejada Gomez (jotego)",
+        "short": "GPL-3.0-or-later",
+        "url": "https://github.com/jotego/jtcores at 548b87b, folders cores/gng/hdl and "
+               "modules/jtframe/hdl",
+        # every file of these folders except the T80 and mc6809i.v, which components above claim
+        "match": r"^fpga/gng_hdmi/src/jtcores/(cores/gng/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "jtframe_dual_ram.v writes in Gowin's normal mode, jtgng_sound.v takes its reset on "
+                "the rising clock edge, jtgng_game.v takes its clock enables from outside, "
+                "jtgng_main.v and jtgng_game.v bring out the CPU writes for the RAM mirror, all "
+                "marked game20k. The ROMs of Ghosts'n Goblins come from the SD card at run time. "
+                "The RAM modules read data files only in simulation or through a SYN* parameter, "
+                "which no instance sets.",
+        "show": [],
+    },
+    {
+        "name": "jtpang and JTFRAME by Jose Tejada Gomez (jotego)",
+        "short": "GPL-3.0-or-later",
+        "url": "https://github.com/jotego/jtcores at 548b87b, folders cores/pang/hdl and "
+               "modules/jtframe/hdl",
+        # every file of these folders except the T80, which a component above claims first
+        "match": r"^fpga/pang_hdmi/src/jtcores/(cores/pang/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "jtpang_main.v takes the program decrypted ahead instead of through jtframe_kabuki, "
+                "leaves out a VRAM wait block that never stops the CPU and brings out the work RAM "
+                "for the RAM mirror, jtframe_z80wait.v keeps the CPU's clock enables a minimum "
+                "number of clocks apart, jtframe_dual_ram.v writes in Gowin's normal mode, all "
+                "marked game20k. The ROMs of Pang and Super Pang and the EEPROM content come from "
+                "the SD card at run time. The RAM modules read data files only in simulation or "
+                "through a SYN* parameter, which no instance sets.",
+        "show": [],
+    },
+    {
         "name": "JT12 by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jt12 at dc9be7c, folder hdl",
-        "match": r"^fpga/g1943_hdmi/src/jt12/hdl/(adpcm/(jt10_adpcm|jt10_adpcm_acc|jt10_adpcm_cnt|"
+        "match": r"^fpga/(g1943|gng)_hdmi/src/jt12/hdl/(adpcm/(jt10_adpcm|jt10_adpcm_acc|jt10_adpcm_cnt|"
                  r"jt10_adpcm_div|jt10_adpcm_drvA|jt10_adpcm_drvB|jt10_adpcm_gain|jt10_adpcma_lut|"
                  r"jt10_adpcmb|jt10_adpcmb_cnt|jt10_adpcmb_gain|jt10_adpcmb_interpol)|jt03|jt03_acc|"
                  r"jt10_acc|jt12_acc|jt12_csr|jt12_div|jt12_dout|jt12_eg|jt12_eg_cnt|jt12_eg_comb|"
@@ -179,10 +244,120 @@ COMPONENTS = [
         "name": "JT49 by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jt49 at 7f6abfd, folder hdl",
-        "match": r"^fpga/g194[23]_hdmi/src/jt49/hdl/(jt49|jt49_bus|jt49_cen|jt49_div|jt49_eg|jt49_exp|"
-                 r"jt49_noise)\.v$",
+        "match": r"^fpga/(g1942|g1943|gng)_hdmi/src/jt49/hdl/(jt49|jt49_bus|jt49_cen|jt49_div|jt49_eg|"
+                 r"jt49_exp|jt49_noise)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "Unchanged.",
+        "show": [],
+    },
+    {
+        "name": "JT49 by Jose Tejada Gomez (jotego), in the Time Pilot core",
+        "short": "GPL-3.0-or-later",
+        "url": "https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer at 5a148e2, folder "
+               "rtl/sound/jt49/hdl, a copy of https://github.com/jotego/jt49",
+        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/sound/jt49/hdl/(jt49|jt49_bus|jt49_cen|"
+                 r"jt49_div|jt49_eg|jt49_exp|jt49_noise|filter/jt49_dcrm2)\.v$",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "Unchanged from the Time Pilot repository. Its README says Ace changed the volume "
+                "scale.",
+        "show": [],
+    },
+    {
+        "name": "JTOPL by Jose Tejada Gomez (jotego)",
+        "short": "GPL-3.0-or-later",
+        "url": "https://github.com/jotego/jtopl at 7ac0c81, folder hdl",
+        "match": r"^fpga/pang_hdmi/src/jtopl/hdl/(jt2413|jtopl_acc|jtopl_csr|jtopl_div|jtopl_eg|"
+                 r"jtopl_eg_cnt|jtopl_eg_comb|jtopl_eg_ctrl|jtopl_eg_final|jtopl_eg_pure|"
+                 r"jtopl_eg_step|jtopl_exprom|jtopl_lfo|jtopl_logsin|jtopl_noise|jtopl_op|jtopl_pg|"
+                 r"jtopl_pg_comb|jtopl_pg_inc|jtopl_pg_rhy|jtopl_pg_sum|jtopl_pm|jtopl_sh|"
+                 r"jtopl_sh_rst|jtopl_single_acc|jtopl_slot_cnt|jtopl_timers|jtopll_mmr|jtopll_reg|"
+                 r"jtopll_reg_ch)\.v$",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "Unchanged.",
+        "show": [],
+    },
+    {
+        "name": "JT6295 by Jose Tejada Gomez (jotego)",
+        "short": "GPL-3.0-or-later",
+        "url": "https://github.com/jotego/jt6295 at 7d76b0b, folder hdl",
+        "match": r"^fpga/pang_hdmi/src/jt6295/hdl/(jt12_comb|jt12_interpol|jt6295|jt6295_acc|"
+                 r"jt6295_adpcm|jt6295_ctrl|jt6295_rom|jt6295_serial|jt6295_sh_rst|"
+                 r"jt6295_timing)\.v$",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "Unchanged.",
+        "show": [],
+    },
+    {
+        "name": "JTEEPROM by Jose Tejada Gomez (jotego)",
+        "short": "GPL-3.0-or-later",
+        "url": "https://github.com/jotego/jteeprom at 9c68ce8, folder hdl",
+        "match": r"^fpga/pang_hdmi/src/jteeprom/hdl/(jt9346|jt9346_16b8b)\.v$",
+        "licence": "GPL-3.0-or-later, see the GPL text at the end",
+        "note": "jt9346.v writes its RAM in Gowin's normal mode, marked game20k.",
+        "show": [],
+    },
+    {
+        "name": "Dig Dug core by MiSTer-X",
+        "short": "GPL-3.0",
+        "url": "https://github.com/MiSTer-devel/Arcade-DigDug_MiSTer at 3022bcc, folder rtl",
+        "match": r"^fpga/digdug_hdmi/src/rtl_digdug/(FPGA_DIGDUG|DIGDUG_CORES|DIGDUG_IODEV|"
+                 r"DIGDUG_SPRITE|DIGDUG_VIDEO|HVGEN|cpucore|dprams|wsg)\.v$",
+        "licence": "GPL-3.0 by the repository's LICENSE, see the GPL text at the end",
+        "note": "The files carry MiSTer-X's copyright line and no licence text, cpucore.v carries no "
+                "header. The repository's LICENSE is GPL-3.0 and names no version choice. game20k "
+                "runs the core on one clock with enables, reads the program of the main CPU from "
+                "SDRAM, replaces the imitation of the custom I/O chips by the 06XX with the 51XX "
+                "and 53XX running their own programs (our namco_io.sv), sets the raster and the "
+                "sound divider for its clock and brings out the RAM writes for the RAM mirror, all "
+                "marked game20k. The ROMs of Dig Dug, its PROMs and the programs of the 51XX and "
+                "53XX included, come from the SD card at run time.",
+        "show": [],
+    },
+    {
+        "name": "TV80, the Z80 core by Guy Hutchison, in the Dig Dug core",
+        "short": "MIT, the notice below",
+        "url": "https://github.com/MiSTer-devel/Arcade-DigDug_MiSTer at 3022bcc, folder rtl/cpu",
+        "match": r"^fpga/digdug_hdmi/src/rtl_digdug/cpu/(tv80_alu|tv80_core|tv80_mcode|tv80_reg|"
+                 r"tv80s)\.v$",
+        "licence": "MIT, the notice below",
+        "note": "The headers say the core is based on the VHDL T80 by Daniel Wallner. tv80s.v takes "
+                "a clock enable, marked game20k.",
+        "show": [("lines", "fpga/digdug_hdmi/src/rtl_digdug/cpu/tv80_core.v",
+                  "Copyright (c) 2004 Guy Hutchison", "SOFTWARE OR THE USE OR OTHER DEALINGS")],
+        "copyrights": True,
+    },
+    {
+        "name": "Time Pilot core by Ace, with the ROM loader by Kitrinx",
+        "short": "MIT, the notice below",
+        "url": "https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer at 5a148e2, folder rtl",
+        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/(TimePilot|TimePilot_CPU|TimePilot_SND|"
+                 r"custom/(k082|k083|k501|k502|k503|k526|k528)|ram_rom/rom_loader)\.sv$",
+        "licence": "MIT, the notice below",
+        "note": "Each file carries the MIT notice with its own copyright line, listed below. "
+                "k526.sv and k528.sv describe the address decoding PLAs of the board (82S153) as "
+                "logic, converted from dumps in the PLD Archive. game20k reads the program from "
+                "SDRAM, sets the clock dividers for its clock, uses one switchable low-pass filter "
+                "per channel (our tp_lpf_sel.sv, with the coefficients of Ace's filters) and "
+                "brings out the work RAM writes for the RAM mirror, marked game20k. In "
+                "rom_loader.sv game20k swaps the two ports of each RAM, without a mark. The ROMs "
+                "of Time Pilot, its PROMs included, come from the SD card at run time.",
+        "show": [("lines", "fpga/timepilot_hdmi/src/rtl_timepilot/TimePilot.sv",
+                  "Permission is hereby granted", "DEALINGS IN THE SOFTWARE.")],
+        "copyrights": True,
+    },
+    {
+        "name": "jtframe_frac_cen.v and spram.vhd from the Time Pilot repository",
+        "short": "no licence statement, see the note",
+        "url": "https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer at 5a148e2, "
+               "rtl/jtframe_frac_cen.v and rtl/ram_rom/spram.vhd",
+        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/(jtframe_frac_cen\.v|ram_rom/spram\.vhd)$",
+        "licence": "none stated, see the note",
+        "note": "Neither file has a header, and the repository has no licence file. "
+                "jtframe_frac_cen.v is an earlier version of a module of jotego's JTFRAME, which "
+                "jtcores carries as modules/jtframe/hdl/clocking/jtframe_frac_cen.v under "
+                "GPL-3.0-or-later. spram.vhd is a generic single-port RAM whose author is not "
+                "named. game20k declares its memory as a signal instead of a shared variable, "
+                "marked game20k.",
         "show": [],
     },
     {
@@ -195,7 +370,8 @@ COMPONENTS = [
         "note": "MiSTer and MiST publish bitstreams of Dar's cores. game20k reads the condition "
                 "the strict way: a bitstream without any ROM image may be passed on, ROMs never, "
                 "in any form. This bitstream holds no ROM image, all ROMs of the game, its PROMs "
-                "included, come from the SD card at run time. The star table in stars.vhd comes "
+                "and the programs of the 51XX and 54XX included, come from the SD card at run "
+                "time. The star table in stars.vhd comes "
                 "from MAME's recording of the 05xx starfield chip (MAME 0.190, "
                 "src/mame/video/galaga.cpp, BSD-3-Clause, copyright holder Nicola Salmoria).",
         "show": [("lines", "fpga/galaga_hdmi/src/rtl_dar/galaga.vhd", "Galaga Midway by Dar",
@@ -206,12 +382,16 @@ COMPONENTS = [
     {
         "name": "Pac-Man core by MikeJ",
         "short": "BSD-like, the notice below",
-        "url": "https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer at 648172d, folder rtl",
+        "url": "https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer at 6b5ccb0, folder rtl",
         "match": r"^fpga/pacman_hdmi/src/rtl_pacman/(pacman|pacman_video|pacman_audio|"
                  r"pacman_vram_addr|pacman_rom_descrambler)\.vhd$",
         "licence": "BSD-like, three conditions, the notice below",
         "note": "The ROM descrambler is by d18c7db, pacman_vram_addr.vhd by MikeJ and CarlW, later "
-                "changes by Alexey Melnikov and Alan Steremberg. pacman_audio.vhd holds the whole "
+                "changes by Alexey Melnikov and Alan Steremberg, the Jr. Pac-Man support in "
+                "pacman.vhd, pacman_video.vhd and pacman_audio.vhd by Rodimus Prime (upstream "
+                "9bcb0b6, no copyright line of its own). game20k reads Jr. Pac-Man's program, "
+                "decrypted ahead, from SDRAM instead of decrypting it into block RAM, marked "
+                "game20k. pacman_audio.vhd holds the whole "
                 "content of the sound timing PROM 3M (82s126, 256x4, its upper half empty) as a "
                 "16-case logic table, inverted, as MiSTer's port does. The other ROMs come from "
                 "the SD card at run time.",
@@ -238,7 +418,8 @@ COMPONENTS = [
         "short": "GPL-3.0-only",
         "url": REPO_URL,
         # our files: everything else under fpga/ that carries our SPDX line, see own_file()
-        "match": r"^fpga/(common|galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi)/",
+        "match": r"^fpga/(common|galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi|gng_hdmi|digdug_hdmi|"
+                 r"pang_hdmi|timepilot_hdmi)/",
         "licence": "GPL-3.0-only, see the GPL text at the end",
         "note": "Copyright (C) 2026 scullymi. The generated files gen/menu_rom.v and "
                 "gen/rom_map_pkg.sv come from fpga/common/src/mcu/menu_rom.v and from the game's "
@@ -259,7 +440,8 @@ FILE_READ = re.compile(r"\$readmem|`include|\$fopen|\$fread|textio|file_open", r
 MENU_READ = '$readmemh("../menu_xml.hex", menu_xml);'
 # generated files of ours without an SPDX line, with the line that proves where they come from
 GENERATED = {
-    r"^fpga/(galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi)/gen/rom_map_pkg\.sv$": "// Generated by scripts/make_rom.py from",
+    r"^fpga/(galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi|gng_hdmi|digdug_hdmi|pang_hdmi|"
+    r"timepilot_hdmi)/gen/rom_map_pkg\.sv$": "// Generated by scripts/make_rom.py from",
 }
 
 
@@ -577,7 +759,7 @@ def main():
     out += textwrap.wrap(
         "THE BITSTREAMS HOLD NO ROM IMAGE, WITH ONE EXCEPTION. The cores load the ROMs of their "
         "game from the SD card at run time, from files each user makes from their own ROM sets, "
-        "Galaga all eleven, its PROMs included. The exception is in third-party code: MikeJ's "
+        "PROMs and the programs of the Namco MCUs included. The exception is in third-party code: MikeJ's "
         "Pac-Man core reproduces the sound timing PROM 3M (82s126, 256x4, its upper half empty) "
         "in pacman_audio.vhd as a 16-case logic table, inverted, as MiSTer's port does. The "
         "star table of Dar's Galaga core in stars.vhd comes from MAME's recording of the "

@@ -5,8 +5,12 @@
 # address of the next line, the last line points back to the first: the core switch (a low
 # pulse on RECONFIG_N, see game20k_top.sv) loads that one.
 # Read by fpga/common/files.tcl (the jump address) and scripts/flash_fpga.sh (the offset).
-# core        flash address
-galaga_hdmi   0x000000
-pacman_hdmi   0x100000
-g1942_hdmi    0x200000
-g1943_hdmi    0x300000
+# core         flash address
+galaga_hdmi    0x000000
+pacman_hdmi    0x100000
+g1942_hdmi     0x200000
+g1943_hdmi     0x300000
+gng_hdmi       0x400000
+digdug_hdmi    0x500000
+pang_hdmi      0x600000
+timepilot_hdmi 0x700000

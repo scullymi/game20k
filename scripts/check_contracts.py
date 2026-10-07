@@ -8,8 +8,10 @@
   rom-sha  SHA-256 and label of the known ROM files: each ROM manifest against its table
            roms_<set>[] in ra_games.c, in order
   game     the games[] row of each set in ra_games.c: an id, the md5 of the set name as its
-           hash, the board of the manifest; and the manifest's mirror size within the
-           bounds of ram_mirror_pkg.sv
+           hash, the board of the manifest; the manifest's mirror size within the bounds of
+           ram_mirror_pkg.sv; and each board in one core folder only
+A manifest without a known line is a set RetroAchievements has no achievements for (Vulgus,
+Higemaru): it must have neither a table nor a row in ra_games.c.
 
 Each contract prints how many values it compared ("N of N agree") and fails when it matched
 nothing: a check that found nothing to compare is blind, not green.
@@ -118,6 +120,10 @@ def contract_rom_sha(t):
     n = 0
     for m in t.manifests():
         s = m["set"]
+        if not m["known"]:
+            need(not re.search(r"\broms_%s\s*\[" % re.escape(s), src),
+                 "%s: no known line, but ra_games.c has roms_%s[]" % (m["path"], s))
+            continue
         table = re.search(r"\broms_%s\s*\[\s*\]\s*=\s*\{(.*?)\}\s*;" % re.escape(s), src, re.S)
         need(table, "no table roms_%s[] in %s" % (s, t.path(F_RAGAMES)))
         fw = []
@@ -125,7 +131,6 @@ def contract_rom_sha(t):
             b = re.findall(r"0[xX]([0-9a-fA-F]{2})\b", row)
             need(len(b) == 32, "a row of roms_%s has %d bytes, not 32" % (s, len(b)))
             fw.append(("".join(b).lower(), label))
-        need(m["known"], "%s: no known line" % m["path"])
         need(fw, "roms_%s in ra_games.c is empty" % s)
         need(m["known"] == fw, "%s: manifest %s, ra_games.c %s" % (
             s, [(d[:12], l) for d, l in m["known"]], [(d[:12], l) for d, l in fw]))
@@ -145,10 +150,18 @@ def contract_game(t):
         need(name in core, "no %s in %s" % (name, t.path(F_PKG)))
     data_max, page = value(core, "RAM_MIRROR_DATA_MAX"), value(core, "RAM_MIRROR_PAGE")
     n = 0
+    folders = {}
     for m in t.manifests():
         s = m["set"]
+        # rom_loader and the firmware tell the cores apart by the board alone
+        folders.setdefault(m["board"], set()).add(os.path.dirname(m["path"]))
+        need(len(folders[m["board"]]) == 1, "board %d in more than one core folder: %s"
+             % (m["board"], ", ".join(sorted(os.path.basename(f) for f in folders[m["board"]]))))
         rows = re.findall(r"\{\s*\"%s\"\s*,\s*\"[^\"]*\"\s*,\s*(\d+)u?\s*,\s*\"([0-9a-f]{32})\"\s*,\s*(\d+)"
                           % re.escape(s), src)
+        if not m["known"]:
+            need(not rows, "%s: no known line, but a games[] row for set %s" % (m["path"], s))
+            continue
         need(len(rows) == 1, "%d games[] rows for set %s in %s, not 1" % (len(rows), s, t.path(F_RAGAMES)))
         gid, ghash, board = int(rows[0][0]), rows[0][1], int(rows[0][2])
         want = hashlib.md5(s.encode()).hexdigest()
