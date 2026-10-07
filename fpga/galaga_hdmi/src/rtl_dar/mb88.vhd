@@ -4,9 +4,16 @@
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
 -- MODIFIED VERSION, not Dar's original.
--- game20k change in this file: ol_port_out and oh_port_out, the DAC nibbles of the 54XX,
--- are cleared in the reset branch. Scope: seven lines, marked "game20k" in the text.
--- The README in this folder gives the reason and names the upstream commit to diff against.
+-- game20k changes in this file, all marked "game20k" in the text:
+--  - ol_port_out and oh_port_out, the DAC nibbles of the 54XX, are cleared on reset.
+--  - Timer: TL/TH count rising edges of tc_n while PIO bit 6 is set, overflow sets VF
+--    and requests the timer interrupt (vector $004).
+--  - Interrupts as in MAME's mb88xx.cpp: a request waits until PIO enables it and no
+--    interrupt is in service, entry sets ST and takes three more cycles, RTI ends the
+--    service.
+--  - o_we pulses when outO writes port O. inR selects R(Y & 3).
+--  - Generic data_6bit for the MB8843/MB8844 (64 nibbles of RAM, X & 3).
+-- The README in this folder gives the reasons and names the upstream commit to diff against.
 --
 -- Dar's condition in the header below applies unchanged: educational use only, no
 -- redistribution of synthesized files with ROMs, no redistribution of ROMs.
@@ -40,6 +47,9 @@ use ieee.std_logic_unsigned.all;
 use ieee.numeric_std.all;
 
 entity mb88 is
+generic(
+ data_6bit : boolean := false  -- game20k: 64 nibbles of RAM (MB8843/MB8844), X & 3
+);
 port(
  clock     : in std_logic;
  ena       : in std_logic;
@@ -56,6 +66,7 @@ port(
  k_port_in   : in  std_logic_vector(3 downto 0);
  ol_port_out : out std_logic_vector(3 downto 0);
  oh_port_out : out std_logic_vector(3 downto 0);
+ o_we        : out std_logic;  -- game20k: one clock after outO, ol/oh hold the new value
  p_port_out  : out std_logic_vector(3 downto 0);
 
  stby_n    : in std_logic;
@@ -105,8 +116,16 @@ architecture struct of mb88 is
  signal r_sb    : std_logic_vector(3 downto 0) := (others=>'0'); 
  signal r_sbcnt : std_logic_vector(3 downto 0) := (others=>'0'); 
 
- signal interrupt_pending : std_logic := '0'; 
- signal irq_n_r           : std_logic := '0'; 
+ signal irq_n_r           : std_logic := '0';
+
+ -- game20k: interrupt and timer state as in mb88xx.cpp
+ signal pend_ext : std_logic := '0';  -- external request, latched on the irq_n edge
+ signal pend_tmr : std_logic := '0';  -- timer request, latched on the TH overflow
+ signal in_irq   : std_logic := '0';  -- an interrupt is in service until RTI
+ signal tc_n_r   : std_logic := '0';
+ signal tc_tick  : std_logic := '0';  -- a counted tc_n edge, applied in the next ena cycle
+ signal burn     : std_logic_vector(1 downto 0) := "00";  -- cycles an interrupt entry still takes
+ signal ram_x2   : std_logic;
 
  subtype stack_size is integer range 0 to 3;
  type    stack_def  is array(stack_size) of std_logic_vector(15 downto 0);
@@ -205,7 +224,9 @@ reset   <= not reset_n;
 
 rom_addr <= r_pa & r_pc;
 
-ram_addr <= X"0" & rom_data(2 downto 0) when ((rom_data >= X"50") and (rom_data <= X"57")) else r_x(2 downto 0) & r_y;
+-- game20k: with 64 nibbles of RAM, X selects one of four rows (X = 4..7 mirror 0..3)
+ram_x2 <= '0' when data_6bit else r_x(2);
+ram_addr <= X"0" & rom_data(2 downto 0) when ((rom_data >= X"50") and (rom_data <= X"57")) else ram_x2 & r_x(1 downto 0) & r_y;
 
 ram_we <= '1' when(( (rom_data = X"1D")  or  (rom_data = X"1A") or
                      (rom_data = X"0A")  or  (rom_data = X"0B") or
@@ -213,7 +234,7 @@ ram_we <= '1' when(( (rom_data = X"1D")  or  (rom_data = X"1A") or
                      (rom_data = X"19")  or  (rom_data = X"09") or 
 									  ((rom_data >= X"30") and (rom_data <= X"37") ) or
 									  ((rom_data >= X"50") and (rom_data <= X"57") )
-									 ) and (single_byte_op = '1')and ena = '1')
+									 ) and (single_byte_op = '1')and ena = '1' and burn = "00") -- game20k: not while an entry takes its cycles
 							else '0';
 
 with rom_data select
@@ -365,11 +386,9 @@ begin
 --	if ram_do = X"0" then mem_z <= '1'; else mem_z <= '0'; end if;
 
 	irq_n_r <= irq_n;
+	tc_n_r  <= tc_n;
 	r_nf <= not irq_n;
-	if irq_n = '0' and irq_n_r = '1' and r_pio(2) = '1' then 
-		interrupt_pending <= '1'; 
-	end if;
-	
+
   if reset = '1' then
 		r_pc    <= (others=>'0');
 		r_pa    <= (others=>'0');
@@ -390,7 +409,12 @@ begin
 		r_ctr   <= (others=>'0');
 		r_sb    <= (others=>'0');
 		r_sbcnt <= (others=>'0');
-		interrupt_pending <= '0';
+		pend_ext <= '0';
+		pend_tmr <= '0';
+		in_irq   <= '0';
+		tc_tick  <= '0';
+		burn     <= "00";
+		o_we     <= '0';
 		stack <= (others=>(others=>'0'));
 		single_byte_op <= '1';
 		-- game20k: clear the DAC nibbles of the Namco 54XX. Without this, ol_port_out and
@@ -401,8 +425,13 @@ begin
 		ol_port_out <= (others=>'0');
 		oh_port_out <= (others=>'0');
  else
-		if ena = '1' then 
-		
+		o_we <= '0';
+		if ena = '1' and burn /= "00" then
+			-- game20k: an interrupt entry takes three cycles more than the jump, as mb88xx.cpp
+			-- counts it. The handler's first instruction runs that much later.
+			burn <= burn - "01";
+		elsif ena = '1' then
+
 			op_code <= rom_data;
   		single_byte_op <= '1';
 
@@ -414,16 +443,23 @@ begin
 			end if;
 			
 			if single_byte_op = '1' then
-				if interrupt_pending = '1' then
+				-- game20k: as mb88xx.cpp. A request is taken only while PIO enables its source
+				-- and no interrupt is in service. Entry sets ST and drops all requests, the
+				-- external one goes to $002, the timer to $004.
+				if in_irq = '0' and ((pend_ext and r_pio(2)) or (pend_tmr and r_pio(1))) = '1' then
 					stack(to_integer(unsigned(r_si)))(13 downto 0) <= (r_cf & r_zf & r_stf & r_pa & r_pc);
-					r_pc <= "000010";
+					if (pend_ext and r_pio(2)) = '1' then r_pc <= "000010"; else r_pc <= "000100"; end if;
 					r_pa <= "00000";
 					r_si <= r_si + "01";
-					interrupt_pending <= '0';
+					r_stf <= '1';
+					burn     <= "11";
+					in_irq   <= '1';
+					pend_ext <= '0';
+					pend_tmr <= '0';
 				else -- no irq
 			  case rom_data is
 					when X"00"  => r_stf <='1';                                         -- nop
-					when X"01"  => r_stf <='1';                                         -- outO    portO <- A //!PLA todo
+					when X"01"  => r_stf <='1'; o_we <= '1';                            -- outO    portO <- A //!PLA todo
 						if r_cf = '0' then ol_port_out <= r_a; end if;
 						if r_cf = '1' then oh_port_out <= r_a; end if;
 					when X"02"  => r_stf <='1'; p_port_out  <= r_a;                     -- outP    portP <-  A
@@ -452,10 +488,10 @@ begin
 						else                r_stf <= '1';                    r_cf <= '0'; end if;
 					when X"12"  => r_stf <='1'; r_a <= k_port_in; r_zf <= k_port_in_z;    -- inK   A <- K       
 					when X"13"  => r_stf <='1';                                           -- inR   A <- R(Y) 
-						if r_y = X"0" then r_a <= r0_port_in; r_zf <= r0_port_in_z; end if; 
-						if r_y = X"1" then r_a <= r1_port_in; r_zf <= r1_port_in_z; end if;
-						if r_y = X"2" then r_a <= r2_port_in; r_zf <= r2_port_in_z; end if;
-						if r_y = X"3" then r_a <= r3_port_in; r_zf <= r3_port_in_z; end if;
+						if r_y(1 downto 0) = "00" then r_a <= r0_port_in; r_zf <= r0_port_in_z; end if; 
+						if r_y(1 downto 0) = "01" then r_a <= r1_port_in; r_zf <= r1_port_in_z; end if;
+						if r_y(1 downto 0) = "10" then r_a <= r2_port_in; r_zf <= r2_port_in_z; end if;
+						if r_y(1 downto 0) = "11" then r_a <= r3_port_in; r_zf <= r3_port_in_z; end if;
 					when X"14"  => r_stf <='1'; r_a <= r_y;  r_zf <= y_z;                  -- tya   A <- Y
 					when X"15"  => r_stf <='1'; r_a <= r_th; r_zf <= th_z;                 -- ttha  A <- TH
 					when X"16"  => r_stf <='1'; r_a <= r_tl; r_zf <= tl_z;                 -- ttla  A <- TH
@@ -509,6 +545,7 @@ begin
 						r_zf  <= stack(to_integer(unsigned(r_si-"01")))(12);
 						r_cf  <= stack(to_integer(unsigned(r_si-"01")))(13);
 						r_si  <= r_si - "01";
+						in_irq <= '0';  -- game20k: the service ends, a waiting request may enter
 					when X"3D" => single_byte_op <= '0';                                   -- jpa
 					when X"3E" => single_byte_op <= '0';                                   -- en 
 					when X"3F" => single_byte_op <= '0';                                   -- dis
@@ -575,8 +612,27 @@ begin
 					when others => r_stf <='1';
 				end case;
 			end if;
-			
+
+			-- game20k: a counted tc_n edge steps the timer between two instructions, as in
+			-- mb88xx.cpp. In the same cycle it wins over tath/tatl, which no Namco program uses.
+			if tc_tick = '1' then
+				tc_tick <= '0';
+				r_tl <= r_tl + "0001";
+				if r_tl = X"F" then
+					r_th <= r_th + "0001";
+					if r_th = X"F" then
+						r_vf     <= '1';
+						pend_tmr <= '1';
+					end if;
+				end if;
+			end if;
 		end if;
+
+		-- game20k: requests come from edges and are latched only while PIO enables the
+		-- source at that moment. Last in the process, so an edge in the cycle of an
+		-- interrupt entry is kept.
+		if irq_n = '0' and irq_n_r = '1' and r_pio(2) = '1' then pend_ext <= '1'; end if;
+		if tc_n = '1' and tc_n_r = '0' and r_pio(6) = '1' then tc_tick <= '1'; end if;
 	end if;
  end if;
 end process;

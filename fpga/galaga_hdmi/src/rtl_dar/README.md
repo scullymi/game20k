@@ -4,7 +4,8 @@ Six files by Dar (darfpga@aol.fr), copied from
 [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga) at commit
 `e06ba91d713702f8cde229ace2eacd7ad0f89855`, folder `rtl_dar/`. The core's RAMs and the ROMs it
 loads at run time are our own files in `src/` (`g20k_spram.vhd`, `g20k_lutram.vhd`,
-`g20k_promram.vhd`). The files keep their original headers. `galaga.vhd` and `mb88.vhd` carry
+`g20k_promram.vhd`, `g20k_promram2.vhd`), and so is the Namco 06XX with the 51XX
+(`namco_io.vhd`). The files keep their original headers. `galaga.vhd` and `mb88.vhd` carry
 Dar's condition:
 
 ```
@@ -21,7 +22,7 @@ time.
 | File | Author | Changed here |
 |---|---|---|
 | `galaga.vhd` | Dar | yes, most of the changes below |
-| `mb88.vhd` | Dar | yes, one reset |
+| `mb88.vhd` | Dar | yes, timer, interrupts, port O strobe, RAM size, one reset |
 | `gen_video.vhd` | Dar | yes, a reset input |
 | `sound_machine.vhd` | Dar | yes, the load side of the two sound ROMs |
 | `stars.vhd`, `stars_machine.vhd` | Dar | no |
@@ -64,16 +65,39 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
 - The background character RAM is `entity work.g20k_lutram`, our file with an asynchronous
   read.
 
-**Coin and start**
+**Coin and start: the original 51XX**
 
-- The 51XX leaves credit mode only when a credit is really consumed. Upstream cleared
-  `cs51XX_credit_mode` on every one-player start press, before checking whether a credit was
-  there. The two-player branch already did it inside the credit check, the one-player branch now
-  does the same. In credit mode the chip does not report the start button at all, the game
-  learns of a press only through the credit decrement. Leaving credit mode on a press without
-  credit disarmed the chip: start stayed dead until the CPU sent command 2 again, so a player
-  who pressed start after a game over and inserted the coin afterwards could not start a new
-  game. The comment above the check in `galaga.vhd` gives the full reasoning.
+- Dar's core imitates the Namco 51XX with a few registers: a credit counter, the coin and
+  start logic and the joystick bytes. The imitation differs from the chip. In credit mode it
+  reports the joystick and the fire button live, so a player could steer the ship during the
+  attract demo. It also ignores the coinage the game sends.
+- The 51XX is an MB88 that runs the chip's own program, `51xx.bin` from MAME's
+  `namco51.zip`, behind a Namco 06XX built after MAME's `namco06.cpp`. Both live in our file
+  `src/namco_io.vhd`. In `galaga.vhd` the 06XX and 51XX logic is gone, the core instantiates
+  `namco_io` and keeps only the wiring and the command latch of the 54XX.
+- The 06XX also drives the 54XX, as on the board: its IRQ is chip select 3, not a pulse on
+  each write as in Dar's core.
+- Both MCUs run at the board's rate, one instruction cycle every 72 clocks (18.432 MHz / 12 / 6).
+  Dar's core ran the 54XX every 48 clocks.
+- The chip selects follow the NMI by 192 clocks (10.4 us). In MAME both come at once, and the
+  MCUs then read the byte the main CPU's NMI handler writes only 5 to 15 us after it is
+  written. A handler a few us slower than MAME's leaves them the old byte, and the 54XX takes
+  wrong explosion parameters until the next reset (seen on the board, reproduced with
+  `sim/tb_namco54.vhd`).
+- The programs of the 51XX and the 54XX share one block RAM (`src/g20k_promram2.vhd`). The ROM
+  manifest loads them as one section of 2048 bytes.
+
+**MB88**
+
+- Timer: TL/TH count rising edges of `tc_n` while PIO bit 6 is set. An overflow sets VF and
+  requests the timer interrupt. The 51XX counts vertical blanks this way.
+- Interrupts as MAME's `mb88xx.cpp` describes them: a request waits until PIO enables its
+  source and no interrupt is in service, the entry sets ST and takes three cycles more than a
+  jump, `rti` ends the service. The external interrupt goes to $002, the timer to $004.
+- `o_we` pulses after `outO`, so that the 06XX latch takes the 51XX's answer.
+- `inR` selects R(Y & 3), as MAME does.
+- Generic `data_6bit` for the MB8843 and MB8844 with 64 nibbles of RAM (X & 3). The 51XX uses
+  it, the 54XX keeps Dar's 128 nibbles, its program does not tell the difference.
 
 **Sound**
 
@@ -83,5 +107,5 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
 
 ## Line endings
 
-Upstream uses CRLF, and so do all nine files here. Keep it that way, otherwise a diff against
+Upstream uses CRLF, and so do the six VHDL files here. Keep it that way, otherwise a diff against
 upstream shows every line as changed.

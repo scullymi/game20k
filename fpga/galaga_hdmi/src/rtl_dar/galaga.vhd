@@ -6,8 +6,9 @@
 -- MODIFIED VERSION, not Dar's original.
 -- game20k changes this file: DIP switches as ports, one clock of delay in the tile
 -- path (Gowin specific!), all PROMs loadable at run time instead of fixed in the
--- bitstream, a defined slot phase after reset, a 51XX that leaves credit mode only
--- when a credit is consumed, and the RAM mirror for RetroAchievements.
+-- bitstream, a defined slot phase after reset, the Namco 51XX running its own program
+-- (51xx.bin) behind a 06XX after MAME's namco06.cpp, and the RAM mirror for
+-- RetroAchievements.
 -- The README in this folder gives the reason for each change and names the upstream
 -- commit to diff against. THIRD-PARTY.md covers licensing.
 -- Some places are marked "game20k" in the text, not all: the diff is the complete list.
@@ -89,10 +90,10 @@
 --      full emulation in vhdl
 --
 --    Namco 06XX for 51/54XX control 
---      simplified emulation in vhdl
+--      game20k: clock, NMI and chip selects after MAME's namco06.cpp
 --
 --    Namco 51XX for coin/credit management 
---      simplified emulation in vhdl : 1coin/1credit, 1 or 2 players start
+--      game20k: mb88 running the original program 51xx.bin
 --
 --    Namco 54XX for sound effects 
 --      m88 ok
@@ -304,16 +305,18 @@ signal nz_w1, nz_w2, nz_w3 : std_logic;  -- drain write enable per wram
  signal cs06XX_do      : std_logic_vector( 7 downto 0);
  signal cs06XX_di      : std_logic_vector( 7 downto 0);
 
- signal cs51XX_data_cnt           : std_logic_vector( 1 downto 0) := "00";
- signal cs51XX_coin_mode_cnt      : std_logic_vector( 2 downto 0) := "000";
- signal cs51XX_switch_mode        : std_logic := '0';
- signal cs51XX_credit_mode        : std_logic := '1';
- signal cs51XX_do                 : std_logic_vector( 7 downto 0);
- signal cs51XX_switch_mode_do     : std_logic_vector( 7 downto 0);
- signal cs51XX_non_switch_mode_do : std_logic_vector( 7 downto 0);
- signal change_next               : std_logic;
- signal credit_bcd_0              : std_logic_vector( 3 downto 0);
- signal credit_bcd_1              : std_logic_vector( 3 downto 0);
+ -- game20k: Namco 06XX and 51XX in namco_io.vhd, the 54XX on its chip select 3
+ signal n06_nmi         : std_logic;
+ signal n06_cs          : std_logic_vector(3 downto 1);
+ signal n06_we          : std_logic_vector(3 downto 1);
+ signal n06_wdata       : std_logic_vector(7 downto 0);
+ signal cs51xx_ena      : std_logic := '0';
+ signal cs51xx_ena_div  : std_logic_vector(3 downto 0) := "0000";
+ signal cs51xx_in       : std_logic_vector(15 downto 0);
+ signal cs51xx_vblank   : std_logic;
+ signal cs51xx_rom_addr : std_logic_vector( 9 downto 0);
+ signal cs51xx_rom_do   : std_logic_vector( 7 downto 0);
+ signal cs54xx_cmd      : std_logic_vector( 7 downto 0);         -- byte from the 06XX, K and R0 of the 54XX
  
 -- signal cs54xx_cmd        : std_logic_vector( 3 downto 0);
  signal cs54xx_do         : std_logic_vector( 7 downto 0);
@@ -326,9 +329,6 @@ signal nz_w1, nz_w2, nz_w3 : std_logic;  -- drain write enable per wram
  signal cs54xx_rom_do   : std_logic_vector( 7 downto 0); 
  
  signal cs54xx_irq_n      : std_logic := '1'; 
- signal cs54xx_irq_cnt    : std_logic_vector( 3 downto 0); 
- signal cs54xx_k_port_in  : std_logic_vector( 3 downto 0); 
- signal cs54xx_r0_port_in : std_logic_vector( 3 downto 0); 
  signal cs54xx_audio_1    : std_logic_vector( 3 downto 0); 
  signal cs54xx_audio_2    : std_logic_vector( 3 downto 0); 
  signal cs54xx_audio_3    : std_logic_vector( 3 downto 0); 
@@ -413,14 +413,6 @@ signal nz_w1, nz_w2, nz_w3 : std_logic;  -- drain write enable per wram
  signal snd_ram_1_we : std_logic;
  signal snd_audio    : std_logic_vector(9 downto 0);
 
- signal coin_r   : std_logic;
- signal start1_r : std_logic;
- signal start2_r : std_logic;
- 
- signal fire1_r   : std_logic;
- signal fire2_r   : std_logic;
- signal fire1_mem : std_logic;
- signal fire2_mem : std_logic;
  
 
 begin
@@ -456,15 +448,20 @@ begin
   cpu2_ena   <= '0';
   cpu3_ena   <= '0';
   cs54xx_ena <= '0';
+  cs51xx_ena <= '0';
 
   -- game20k: reset puts the slot counter into a defined phase, the same as its power-up
   -- value, otherwise the phase between slot and hcnt depends on how the clock starts up
   if reset = '1' then
    slot <= (others => '0');
    cs54xx_ena_div <= (others => '0');
+   cs51xx_ena_div <= (others => '0');
   elsif slot = "101" then
    slot <= (others => '0');
 	cs54xx_ena_div <= cs54xx_ena_div +'1';
+	-- game20k: the 51XX and the 54XX run at 18.432 MHz / 12 / 6 as on the board, one
+	-- instruction cycle every 12 slot rounds
+	if cs51xx_ena_div = "1011" then cs51xx_ena_div <= "0000"; else cs51xx_ena_div <= cs51xx_ena_div + '1'; end if;
   else
 		slot <= std_logic_vector(unsigned(slot) + 1);
   end if;   
@@ -475,7 +472,10 @@ begin
 	if slot = "000" then cpu2_ena <= '1';	end if;	
 	if slot = "001" then cpu3_ena <= '1';	end if;
 	
-	if slot = "000" and cs54xx_ena_div = "000" then cs54xx_ena <= '1'; end if;
+	-- game20k: the 54XX on the board clock too. Faster, it takes the 06XX byte before the
+	-- main CPU has written it (cs54xx_ena_div is no longer used)
+	if slot = "000" and cs51xx_ena_div = "0000" then cs54xx_ena <= '1'; end if;
+	if slot = "000" and cs51xx_ena_div = "0000" then cs51xx_ena <= '1'; end if;
 		
  end if;
 end process;
@@ -1089,7 +1089,6 @@ snd_ram_0_we <= '1' when mux_cpu_we = '1' and mux_addr(15 downto 11) = "01101"  
 snd_ram_1_we <= '1' when mux_cpu_we = '1' and mux_addr(15 downto 11) = "01101"  and mux_addr(5 downto 4) = "01" else '0';
 
 process (reset, clock_18n, io_we) 
-	variable cs06XX_nmi_cnt : natural range 0 to 1000;
 begin
  if reset='1' then
 			irq1_clr_n  <= '0';
@@ -1098,14 +1097,9 @@ begin
 			reset_cpu_n <= '0';
 			cpu1_irq_n  <= '1';
 			cpu2_irq_n  <= '1';
-			cs51XX_coin_mode_cnt <= "000";
-			cs51XX_data_cnt <= "00";
-			cs51XX_switch_mode <= '0';
-			cs51XX_credit_mode <= '1';
 			cs05XX_ctrl <= "000000";
 			flip_h <= '0';
-			cs54xx_irq_n <= '1';
-			cs54xx_irq_cnt <= X"0";
+			cs54xx_cmd  <= X"00";  -- game20k
 			
  else 
   if rising_edge(clock_18n) then 
@@ -1130,196 +1124,49 @@ begin
 		elsif vcnt = std_logic_vector(to_unsigned(240,9)) then cpu2_irq_n <= '0';
 		end if;
 		
-		if cs54xx_irq_cnt = X"0" then 
-		  cs54xx_irq_n <= '1';
-		else 
-			if cs54xx_ena = '1' then
-				cs54xx_irq_cnt <= cs54xx_irq_cnt - '1';
-			end if;
-		end if;
-		
-		-- write to cs06XX
-		if io_we = '1' then 
-			-- write to data register (0x7000)
-		  if mux_addr(8) = '0' then
-				-- write data to device#4 (cs54XX)
-				if cs06XX_control(3 downto 0) = "1000" then
-						-- write data for k and r#0 port and launch irq to advice cs50xx
-						cs54xx_k_port_in <= mux_cpu_do(7 downto 4);
-						cs54xx_r0_port_in <= mux_cpu_do(3 downto 0);
-						cs54xx_irq_n <= '0';
-						cs54xx_irq_cnt <= X"7";						
-				end if;		  
-				-- write data to device#1 (cs51XX)
-				if cs06XX_control(3 downto 0) = "0001" then
-					-- when not in coin mode
-					if cs51XX_coin_mode_cnt = "000" then
-						-- if data = 1 enter coin mode for next 4 write operations
-						if mux_cpu_do(2 downto 0) = "001" then
-							cs51XX_coin_mode_cnt <= "100";
-						end if;
-						-- if data = 2 enter credit mode
-						if mux_cpu_do(2 downto 0) = "010" then
-							cs51XX_switch_mode <= '0';
-							cs51XX_credit_mode <= '1';
-							cs51XX_data_cnt <= "00";
-						end if;
-						-- if data = 5 enter switch mode 
-						if mux_cpu_do(2 downto 0) = "101" then
-							cs51XX_switch_mode <= '1';
-							cs51XX_credit_mode <= '0';
-							cs51XX_data_cnt <= "00";
-						end if;
-					-- when in coin mode	
-					else
-						-- written coin/credit data are ignored atm 
-						-- only count down to exit coin_mode (request 4 write operations)
-						cs51XX_coin_mode_cnt <= cs51XX_coin_mode_cnt - "001";
-					end if;	
-				end if;
-			end if;
-			
-			-- write to control register (0x7100) 
-			if mux_addr(8) = '1' then
-				cs06XX_control <= mux_cpu_do;
-			  -- start/stop nmi timer
-				if mux_cpu_do(3 downto 0) = "0000" then
-					cs06XX_nmi_cnt := 0;
-					cpu1_nmi_n <= '1';
-				else
-					cs06XX_nmi_cnt := 1;
-				end if;
-			end if;
-		end if;	
-		
-		-- generate periodic nmi when timer is on
-		if cs06XX_nmi_cnt >= 1 then
-			if cpu1_ena = '1' then  -- to get 333ns tick
-				-- 600 * 333ns = 200µs
-				if cs06XX_nmi_cnt < 600 then  
-					cs06XX_nmi_cnt := cs06XX_nmi_cnt + 1;
-					cpu1_nmi_n <= '1';
-				else
-					cs06XX_nmi_cnt := 1;
-					cpu1_nmi_n <= '0';
-				end if;	
-			end if;
-		end if;
-		
-		-- manage cs06XX data read
-		change_next <= '0';
-		if mux_cpu_mreq = '1' and mux_cpu_we ='0' and mux_addr(15 downto 11) = "01110" then
-			if mux_addr(8) = '0' then
-				change_next <= '1';
-			end if;
-		end if ;
-		-- cycle data_cnt at each read and clear firex_mem in switch mode
-		if change_next = '1' then
-			if cs06XX_control(3 downto 0) = "0001" then
-			
-				if cs51XX_data_cnt = "10" then cs51XX_data_cnt <= "00"; 
-				else cs51XX_data_cnt <= cs51XX_data_cnt + "01"; end if;
-				
-				if cs51XX_data_cnt = "10" then 
-					fire1_mem <= '0';
-					fire2_mem <= '0';
-				end if;
-				
-			end if;				
-		end if;
-		-- manage fire button rising edge detection
-		fire1_r <= fire1;
-		fire2_r <= fire2;
-		if fire1_r ='0' and fire1 ='1' then fire1_mem <= '1'; end if;
-		if fire2_r ='0' and fire2 ='1' then fire2_mem <= '1'; end if;
-		
-		-- manage credit count (bcd)
-		--   increase at each coin up to 99
-		coin_r <= coin;
-		start1_r <= start1;
-		start2_r <= start2;
-		if coin = '1' and coin_r = '0' then 
-			if credit_bcd_0 = "1001" then 
-				if credit_bcd_1 /= "1001" then
-					credit_bcd_1 <= credit_bcd_1 + "0001";
-					credit_bcd_0 <= "0000";
-				end if;
-			else
-				credit_bcd_0 <= credit_bcd_0 + "0001";
-			end if; 
-		end if;
-		
-	   --   decrease only when in credit mode
-		if cs51XX_credit_mode = '1' then
-			-- game20k: credit mode is left only when a credit is really consumed. The
-			-- assignment sits inside the credit check, here for start1 and below for
-			-- start2, so a start press without credit leaves the mode unchanged.
-			--
-			-- Why it matters: in credit mode the 51XX does not report the start button at
-			-- all (see cs51XX_non_switch_mode_do), the game learns of a press only through
-			-- the credit decrement. Leaving credit mode on a press without credit would
-			-- disarm the chip: start would stay dead until the CPU sends command 2 again,
-			-- and a player who presses start after a game over and inserts the coin
-			-- afterwards could not start a new game.
-			--
-			-- The start2 branch below applies the same rule, the two branches differ only
-			-- in the number of credits a two player start consumes.
-			if (start1 = '1' and start1_r = '0') then
-				if credit_bcd_0 = "0000" then 
-					if credit_bcd_1 /= "0000" then
-						cs51XX_credit_mode <= '0';
-						credit_bcd_1 <= credit_bcd_1 - "0001";
-						credit_bcd_0 <= "1001";
-					end if;
-				else
-					cs51XX_credit_mode <= '0';
-					credit_bcd_0 <= credit_bcd_0 - "0001";
-				end if; 		
-			end if;
-			
-			if (start2 = '1' and start2_r = '0') then
-				if credit_bcd_0 = "0000" or credit_bcd_0 = "0001" then
- 					if credit_bcd_1 /= "0000" then
-						cs51XX_credit_mode <= '0';
-						credit_bcd_1 <= credit_bcd_1 - "0001";
-						if credit_bcd_0 = "0000" then 
-							credit_bcd_0 <= "1000";
-						else
-							credit_bcd_0 <= "1001";
-						end if;
-					end if;
-				else
-					cs51XX_credit_mode <= '0';
-					credit_bcd_0 <= credit_bcd_0 - "0010";					
-				end if;
-			end if;
-		end if;
+		-- game20k: the 54XX takes the bytes the 06XX writes to it
+		if n06_we(3) = '1' then cs54xx_cmd <= n06_wdata; end if;
 		
   end if;
  end if;
 end process;
 
-with cs51XX_data_cnt select
-cs51XX_switch_mode_do <= 	not (left2 & '0' & right2 & '0' & left1 & '0' & right1 & '0' )       when "00",
-									not (b_test & b_svce & '0' & coin & start2 & start1 & fire2_mem & fire1_mem) when "01",
-									X"00" when others;	
+-- game20k: Namco 06XX and 51XX, see namco_io.vhd. The 54XX sits on chip select 3 and gives
+-- nothing back.
+namco : entity work.namco_io
+port map(
+ clk         => clock_18,
+ reset       => reset,
+ mcu_reset_n => reset_cpu_n,
+ mcu_ena     => cs51xx_ena,
+ cpu_we      => io_we,
+ cpu_sel     => mux_addr(8),
+ cpu_di      => mux_cpu_do,
+ cpu_do      => cs06XX_do,
+ nmi         => n06_nmi,
+ cs          => n06_cs,
+ dev_we      => n06_we,
+ dev_data    => n06_wdata,
+ dev_do      => X"FF",
+ in_r        => cs51xx_in,
+ vblank      => cs51xx_vblank,
+ rom_addr    => cs51xx_rom_addr,
+ rom_data    => cs51xx_rom_do,
+ p_out       => open           -- coin counters and lamps, not used
+);
 
-with cs51XX_data_cnt select
-cs51XX_non_switch_mode_do <= 	credit_bcd_1 & credit_bcd_0 when "00", -- credits (cpu spy this)
-										not ("110" & fire1_mem & left1 & '0' & right1 & '0' ) when "01",
-										not ("110" & fire2_mem & left2 & '0' & right2 & '0' ) when "10",
-										X"00" when "11"; -- N.U.	
+cpu1_nmi_n   <= not n06_nmi;
+cs54xx_irq_n <= not n06_cs(3);
 
-cs51XX_do <= cs51XX_switch_mode_do when cs51XX_switch_mode = '1' else cs51XX_non_switch_mode_do;
-
-cs54XX_do <= X"FF"; -- no data from CS54XX
-
-with cs06XX_control(3 downto 0) select
-cs06XX_di <= cs51XX_do when "0001",
-				 cs54XX_do when "1000",
-				 X"00" when others;
-
-cs06XX_do <= cs06XX_di when mux_addr(8)= '0' else cs06XX_control;
+-- game20k: inputs of the 51XX as on the board (MAME galaga.cpp IN0, IN1), active low.
+-- R0/R1: joysticks of player 1 and 2, R2: fire and start, R3: coin 1. Coin 2, service
+-- and test stay off.
+cs51xx_in <= "111" & (not coin) &
+             (not start2) & (not start1) & (not fire2) & (not fire1) &
+             (not left2) & '1' & (not right2) & '1' &
+             (not left1) & '1' & (not right1) & '1';
+-- the 51XX timer counts vertical blanks, from line 240 where the CPUs get their IRQ
+cs51xx_vblank <= '1' when vcnt >= 240 or vcnt < 16 else '0';
 
 process (clock_18, nmion_n)
 begin
@@ -1466,7 +1313,7 @@ port map(
  clock      => clock_18,
  ena        => cs54xx_ena,
 
- r0_port_in  => cs54xx_r0_port_in, -- pin 12,13,15,16
+ r0_port_in  => cs54xx_cmd(3 downto 0), -- pin 12,13,15,16
  r1_port_in  => X"0",
  r2_port_in  => X"0",
  r3_port_in  => X"0",
@@ -1474,9 +1321,10 @@ port map(
  r1_port_out => cs54xx_audio_3,   -- pin 17,18,19,20 (resistor divider )
  r2_port_out => open,
  r3_port_out => open,
- k_port_in   => cs54xx_k_port_in, -- pin 24,25,26,27
+ k_port_in   => cs54xx_cmd(7 downto 4), -- pin 24,25,26,27
  ol_port_out => cs54xx_audio_1,   -- pin  4, 5, 6, 7 (resistor divider 150K/22K)
  oh_port_out => cs54xx_audio_2,   -- pin  8, 9,10,11 (resistor divider  47K/10K)
+ o_we        => open,
  p_port_out  => open,
 
  stby_n    => '0',
@@ -1492,15 +1340,18 @@ port map(
  rom_data  => cs54xx_rom_do
 );
 
--- cs54xx program ROM
-cs54xx_prog : entity work.g20k_promram
+-- game20k: program ROMs of the 54XX (lower half) and the 51XX (upper half) in one block,
+-- loaded as one section of 2048 bytes
+cs5xxx_prog : entity work.g20k_promram2
 generic map(aWidth => 10)
 port map(
  clk     => clock_18n,
- addr    => cs54xx_rom_addr(9 downto 0),
- data    => cs54xx_rom_do,
+ addr_a  => cs54xx_rom_addr(9 downto 0),
+ data_a  => cs54xx_rom_do,
+ addr_b  => cs51xx_rom_addr,
+ data_b  => cs51xx_rom_do,
  wr_clk  => rom_wr_clk,
- wr_addr => rom_wr_addr(9 downto 0),
+ wr_addr => rom_wr_addr(10 downto 0),
  wr_data => rom_wr_data,
  wr_en   => rom_wr_en(5)
 );
