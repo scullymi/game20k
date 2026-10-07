@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# Host tests of four pieces of the firmware, with Unity from the submodule external/unity:
+# Host tests of five pieces of the firmware, with Unity from the submodule external/unity:
 #   make -C tests/host          build and run all, exit status 1 when one fails
 #   make -C tests/host SAN=0    without AddressSanitizer and UndefinedBehaviorSanitizer
 #   make -C tests/host V=1      print the compiler lines and every test line
@@ -49,8 +49,8 @@ FORWARD := FreeRTOS.h queue.h semphr.h task.h pico/time.h lwip/sockets.h lwip/ne
 STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)' | cksum | cut -d' ' -f1).stamp
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
-OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c
-TESTS   := test_dechunk test_ftp_guard test_queue_lines test_games
+OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c $(FORK)/ra_slim.c
+TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c and
 # test_games ra_games.c
