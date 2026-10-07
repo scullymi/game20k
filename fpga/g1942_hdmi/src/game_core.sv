@@ -3,13 +3,13 @@
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a
                        // silent one-bit net.
 //! @file game_core.sv
-//! @brief 1942 behind the game interface of the platform top (game20k).
+//! @brief 1942, Vulgus and Higemaru behind the game interface of the platform top (game20k).
 //!
 //! The platform top (fpga/common/src/game20k_top.sv) knows only this module and game_pkg.
 //! Here it wraps jotego's jt1942_game (src/jtcores, see its README.md) and stands in for
 //! what JTFRAME's generated top would put around it: the clock enables, the tmap block RAM
-//! and the five ROM buses. It also holds what is 1942's alone: the DIP switches, the
-//! controls and the audio mix.
+//! and the five ROM buses. It also holds what is the games' own: the game selection, the
+//! DIP switches, the controls and the audio mix.
 //!
 //! Four ROM buses read the ROM image in SDRAM through rom_slots (fpga/common). The
 //! character ROM and the PROMs come over the loader's write port into block RAM.
@@ -89,6 +89,28 @@ module game_core #(
     wire clk = clk_core;
     wire rst = reset;
 
+    // sections of the manifests that reach this module over the write port
+    localparam int SEC_CHARS = 2;
+    localparam int SEC_ID    = 6;
+
+    // ---------------- Which game: 1942, Vulgus or Higemaru ----------------
+    // jt1942_game takes game_id and the flip XOR from jotego's header bytes 0 and 1 (header
+    // and prog_we together). vulgus.rom and higemaru.rom carry them in section 6, behind
+    // 1942's sections. 1942.rom ends before it, so the first two bytes of the character
+    // section write zeros there: every load starts as 1942, and the id section, the last one
+    // in the file, sets the game. The PROMs load before it and are therefore decoded as
+    // 1942's, which is how the manifests place them. prog_data carries the zeros only during
+    // the character section, which jt1942_game does not take. Only the first four bytes of the
+    // id section are header writes: jt1942_game decodes ioctl_addr[1:0] alone, as jotego's
+    // header is four bytes long, and byte 4 would write game_id again.
+    wire       hdr_clr   = rom_wr_en[SEC_CHARS] && rom_wr_addr[15:1] == '0;
+    wire       hdr_we    = (rom_wr_en[SEC_ID] && rom_wr_addr[15:2] == '0) || hdr_clr;
+    wire [7:0] prog_data = rom_wr_en[SEC_CHARS] ? 8'd0 : rom_wr_data;
+    // game20k's copy of game_id, for the DIP switches
+    logic [1:0] game_id = 2'd0;
+    always_ff @(posedge clk)
+        if (hdr_we && rom_wr_addr[1:0] == 2'd0) game_id <= prog_data[1:0];
+
     // ---------------- DIP switches from the menu ----------------
     // The ids are the ones menu.xml uses, the values are the raw bits of MAME 1942.cpp. The
     // defaults are MAME's and the menu's: 1 coin 1 credit, bonus 20K 80K 80K+, 3 lives,
@@ -110,14 +132,20 @@ module game_core #(
         endcase
 
     // DIP switches reach the core only while it is in reset: every DIP list in menu.xml
-    // carries action="reset", and the top holds reset for at least 255 clocks.
+    // carries action="reset", and the top holds reset for at least 255 clocks. The menu sets
+    // 1942's. Vulgus and Higemaru get the defaults of jotego's MRA files, which are MAME's:
+    // Vulgus FF 7F (1 coin 1 credit, 3 lives, upright), Higemaru FF FE (the same, upright).
     logic [7:0] dsw_a = 8'hF7;
     logic [7:0] dsw_b = 8'hFF;
     always_ff @(posedge clk)
-        if (reset) begin
-            dsw_a <= {lives, bonus, 1'b0, coinage};
-            dsw_b <= {1'b1, difficulty, 1'b1, 1'b1, coinage};
-        end
+        if (reset) case (game_id)
+            2'd1:    begin dsw_a <= 8'hFF; dsw_b <= 8'h7F; end
+            2'd2:    begin dsw_a <= 8'hFF; dsw_b <= 8'hFE; end
+            default: begin
+                dsw_a <= {lives, bonus, 1'b0, coinage};
+                dsw_b <= {1'b1, difficulty, 1'b1, 1'b1, coinage};
+            end
+        endcase
 
     // ---------------- Controls, JTFRAME convention: active low ----------------
     // joystick {button 2, button 1, up, down, left, right}. Button 1 fires (the platform's
@@ -188,7 +216,8 @@ module game_core #(
         .joyana_l1  (16'd0), .joyana_l2 (16'd0), .joyana_l3 (16'd0), .joyana_l4 (16'd0),
         .joyana_r1  (16'd0), .joyana_r2 (16'd0), .joyana_r3 (16'd0), .joyana_r4 (16'd0),
         .snd_en     (6'h3f),        .snd_vol    (8'hff),
-        .status     (32'd0),        .dipsw      ({16'hFFFF, dsw_b, dsw_a}),
+        // bit 16 is Vulgus's extra flip switch, off
+        .status     (32'd0),        .dipsw      ({16'hFFFE, dsw_b, dsw_a}),
         // dip_pause, dip_test, service and tilt are active low: 1 = not pressed
         .dip_pause  (1'b1),         .dip_test   (1'b1),
         .service    (1'b1),         .tilt       (1'b1),
@@ -197,11 +226,10 @@ module game_core #(
         .cen1p5     (cen1p5),       .cen3       (cen3),
         .cen6       (cen6),         .cen12      (cen12),
         .psg0       (psg0),         .psg1       (psg1),
-        .prog_addr  (prog_addr),    .prog_data  (rom_wr_data),
-        .prog_we    (1'b0),         .prog_ba    (2'd0),
+        .prog_addr  (prog_addr),    .prog_data  (prog_data),
+        .prog_we    (hdr_we),       .prog_ba    (2'd0),
         .ioctl_addr ({10'd0, rom_wr_addr}), .prom_we (prom_we),
-        // no header byte: game_id stays 0, which is 1942 (not Vulgus, not Higemaru)
-        .header     (1'b0),
+        .header     (hdr_we),
         .ioctl_ram  (1'b0),         .ioctl_cart (1'b0),
         .not_higemaru(),
         .tmap_addr  (tmap_addr),    .tmap_dout  (tmap_dout),
@@ -236,7 +264,6 @@ module game_core #(
     // slot order, 121 with them behind), and jt1942 then draws an empty character: parts of
     // the score digits flickered on the device. From block RAM the word is there one clock
     // after the address, ok follows the address one clock later.
-    localparam int SEC_CHARS = 2;
     logic [7:0]  chr_lo [0:4095];
     logic [7:0]  chr_hi [0:4095];
     logic [7:0]  chr_lo_q, chr_hi_q;

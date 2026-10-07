@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
-# 1942 with HDMI. Invocation: scripts/build_fpga.sh g1942_hdmi
+# 1942, Vulgus and Higemaru with HDMI. Invocation: scripts/build_fpga.sh g1942_hdmi
 #
 # The platform (HDMI, SDRAM, Companion, RAM mirror) comes from ../common, see
 # ../common/files.tcl. This folder holds the game: jotego's core, the wrapper game_core, the
-# package game_pkg, the menu and the ROM manifest. Third-party HDL, copied into src/ with its
+# package game_pkg, the menu and the ROM manifests. Third-party HDL, copied into src/ with its
 # original headers and the upstream folder layout, with a README.md on where it comes from,
 # at which commit, and what game20k changed:
 #   src/jtcores/  jt1942 and the parts of JTFRAME it uses (jotego, GPL-3.0-or-later; the T80
 #                 inside JTFRAME by Daniel Wallner, BSD-style)
 #   src/jt49/     two AY-3-8910 (jotego, GPL-3.0-or-later), unchanged
-# The diagnostic variants of the other games (ROMVIEW, RAMDIAG, SDRAMTEST, FB*) are not
-# offered here yet.
+# Of the diagnostic variants of the other games (ROMVIEW, RAMDIAG, SDRAMTEST, FB*) only
+# RATEPROBE is offered here, see below.
 set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
 
 # jotego's global macros first: Gowin compiles all files as one unit, so the defines of
@@ -41,15 +41,31 @@ add_file src/g1942_mirror.sv
 add_file src/game_pkg.sv
 add_file src/game_core.sv
 
-# The ROM layout for rom_loader, from the manifest
+# The ROM layout for rom_loader and the screen, from the manifests: Vulgus and Higemaru have
+# 1942's sections plus the header section id, 1942.rom is the shorter file
 file mkdir gen
-if {[catch {exec python3 ../../scripts/make_rom.py --package 1942.manifest gen/rom_map_pkg.sv} msg]} {
+if {[catch {exec python3 ../../scripts/make_rom.py --package vulgus.manifest gen/rom_map_pkg.sv 1942.manifest higemaru.manifest} msg]} {
     error "rom_map_pkg.sv: $msg"
 }
 add_file gen/rom_map_pkg.sv
 
 source ../common/files.tcl
-add_file $top_src
+# RATEPROBE=1: the rate probe of the top (HDMI free running with 816 lines, 57.44 Hz), to check
+# whether a monitor or capture card takes Pang's rate. The search string must match
+# ../common/src/game20k_top.sv verbatim and occur once.
+if {[info exists ::env(RATEPROBE)]} {
+    set fin [open $top_src r]; set src [read $fin]; close $fin
+    set from "parameter bit RATEPROBE = 0"
+    if {[llength [regexp -all -inline -- $from $src]] != 1} {
+        error "$top_src: \"$from\" not found exactly once"
+    }
+    set fout [open gen/game20k_top_gen.sv w]
+    puts $fout [string map [list $from "parameter bit RATEPROBE = 1"] $src]; close $fout
+    add_file gen/game20k_top_gen.sv
+    puts "build.tcl: RATEPROBE build"
+} else {
+    add_file $top_src
+}
 
 set_option -synthesis_tool gowinsynthesis
 set_option -output_base_name g1942_hdmi

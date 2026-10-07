@@ -1,20 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
-// game20k, 1942: simulation of game_core (jotego's jt1942 behind our wrapper) with its ROM.
+// game20k, 1942, Vulgus and Higemaru: simulation of game_core (jotego's jt1942 behind our
+// wrapper) with the ROM file of one of them.
 // Two ways to serve the five ROM buses, chosen at build time:
 //   default   a model of rom_sdram's read port with the latency measured in path mode:
 //             mostly 10 to 13 core clocks, one read in 40 meets a refresh and takes 14 to 20
 //   ROM_PATH  the real path: rom_sdram.sv, sdram_fb.v at 64.8 MHz unrelated to the core
 //             clock, and an SDR SDRAM model; the image is first written through rom_sdram's
 //             write side, as rom_loader does on the device
-// The character ROM and the PROMs come over the loader's write port while the core is in
-// reset. A coin and a start follow, so the frames show the game itself. Every FRAME_EVERY-th frame is written as
-// frames/fNNNN.ppm, the raw raster (256 x 224, the game turned on its side). Run by
-// run_sim.sh, which reads the ROM image from rom32.hex and proms.hex in its work folder.
+// The character ROM, the PROMs and the id section of Vulgus and Higemaru come over the
+// loader's write port while the core is in reset. A coin and a start follow, so the frames
+// show the game itself. Every FRAME_EVERY-th frame is written as frames/fNNNN.ppm, the raw
+// raster (256 x 224, as the core sends it). Run by run_sim.sh, which writes rom32.hex,
+// proms.hex and id.hex into its work folder.
 `timescale 1ns/1ps
 module tb_1942;
     parameter int FRAMES      = 600;
     parameter int FRAME_EVERY = 30;
+    // PLAN 1: the input plan of a MAME recording for the RetroAchievements checks, counted in
+    // frames: coin at COIN_F, start at START_F, from PLAY_F fire in bursts, the stick swept,
+    // button 2 every 240 frames. PLAN 0: the coin and the start at fixed times.
+    parameter int PLAN        = 0;
+    parameter int COIN_F      = 600;
+    parameter int START_F     = 700;
+    parameter int PLAY_F      = 760;
+    // DUMP 1: every snapshot's main RAM part (flat 0x0000-0x0FFF) as one line of
+    // mirror_main.txt: the frame, the snapshot's frame number and 4096 bytes in hex
+    parameter int DUMP        = 0;
 
     logic clk = 1'b0;
     always #13.468 clk = ~clk;          // 37.125 MHz
@@ -36,7 +48,9 @@ module tb_1942;
     logic        ce, blankn, vs, hs;
     logic signed [15:0] audio;
     logic [15:0] map_bits;
-    logic        coin = 1'b0, start1 = 1'b0;
+    logic        coin = 1'b0, start1 = 1'b0, p1_fire = 1'b0;
+    logic [3:0]  p1_dir = 4'd0;           // {up, down, left, right}
+    logic [11:0] p1_btns = 12'd0;         // button 2 is the menu's default K = 2
 
     game_core dut (
         .clk_core(clk), .reset(reset),
@@ -47,8 +61,8 @@ module tb_1942;
         .rom_rd_addr(rom_rd_addr), .rom_rd_push(rom_rd_push), .rom_rd_ready(rom_rd_ready),
         .rom_rd_valid(rom_rd_valid), .rom_rd_data(rom_rd_data),
         .cfg_we(1'b0), .cfg_id(8'd0), .cfg_val(8'd0),
-        .p1_dir(4'd0), .p2_dir(4'd0), .p1_fire(1'b0), .p2_fire(1'b0),
-        .p1_btns(12'd0), .p2_btns(12'd0),
+        .p1_dir(p1_dir), .p2_dir(4'd0), .p1_fire(p1_fire), .p2_fire(1'b0),
+        .p1_btns(p1_btns), .p2_btns(12'd0),
         .coin(coin), .start1(start1), .start2(1'b0),
         .map_bits(map_bits),
         .snap_run(snap_run), .snap_full(1'b0), .snap_push(snap_push), .snap_byte(snap_byte),
@@ -61,11 +75,15 @@ module tb_1942;
     );
 
     // ---------------- ROM image and PROMs ----------------
-    logic [31:0] rom  [0:60031];
+    logic [31:0] rom  [0:60095];          // 1942.rom, or vulgus.rom and higemaru.rom with the id section
     logic [7:0]  prom [0:2559];
+    logic [7:0]  idsec [0:255];
     initial begin
         $readmemh("rom32.hex", rom);
         $readmemh("proms.hex", prom);
+`ifdef ID_SECTION
+        $readmemh("id.hex", idsec);
+`endif
     end
     // the colour of a palette index, as the platform's palette stage makes it
     // (game_pkg::PALETTE): red, green and blue PROM at 0x000, 0x100, 0x200 of the section
@@ -184,7 +202,7 @@ module tb_1942;
         .wbuf(fb_wbuf), .frame_done(fb_done), .done_bank(), .done_words(), .done_sum(), .done_nz(),
         .err_overflow(fb_ovf), .err_addr(fb_eaddr)
     );
-    fb_read_rotated #(.W(256), .H(224), .X0(416), .Y0(104), .ROT_CCW(game_pkg::ROT_CCW)) rot (
+    fb_read_rotated #(.W(256), .H(224), .X0(416), .Y0(104), .ROT_CCW(rom_map_pkg::FB_CCW)) rot (
         .clk_sdram(clk_sdram), .sdram_ready(sdram_ready), .wbuf(fb_wbuf), .frame_done(fb_done),
         .rd_addr(f_rd_addr), .rd_bank(f_rd_bank), .rd_req(f_rd_req), .rd_ack(f_rd_ack),
         .rd_dout(sd_rd_dout), .rd_valid(f_rd_valid), .err_late(fb_late),
@@ -284,6 +302,17 @@ module tb_1942;
             rom_wr_en   <= '0;
             @(posedge clk);
         end
+`ifdef ID_SECTION
+        // section 6 of Vulgus and Higemaru, last in the file as on the device: game_id and flip
+        for (int i = 0; i < 256; i++) begin
+            rom_wr_addr <= 16'(i);
+            rom_wr_data <= idsec[i];
+            rom_wr_en   <= 16'h0040;
+            @(posedge clk);
+            rom_wr_en   <= '0;
+            @(posedge clk);
+        end
+`endif
         repeat (300) @(posedge clk);
         reset <= 1'b0;
     end
@@ -338,6 +367,11 @@ module tb_1942;
             repeat (9344 + 50) @(posedge clk);
             snap_run <= 1'b0;
             snaps++;
+            if (DUMP != 0) begin
+                $fwrite(fd_dump, "%0d %0d ", nframe, snap_frame);
+                for (int i = 0; i < 4096; i++) $fwrite(fd_dump, "%02x", got[i]);
+                $fwrite(fd_dump, "\n");
+            end
             if (got_n != 9344) begin
                 mir_bad++;
                 $display("mirror: snapshot %0d has %0d bytes, expected 9344", snaps, got_n);
@@ -392,7 +426,8 @@ module tb_1942;
         if (dut.u_game.u_video.u_scroll.genblk1.u_tile3.pxl_cen &&
             dut.u_game.u_video.u_scroll.genblk1.u_tile3.HS[2:0] == 3'd2) begin
             scr_seen <= 1'b0;
-            if (!scr_seen && visible) scr_late <= scr_late + 1;
+            // Higemaru has no tile layer: jt1942_colmix shows only characters and sprites
+            if (!scr_seen && visible && dut.game_id != 2'd2) scr_late <= scr_late + 1;
         end
         lhbl_q <= dut.u_game.u_video.u_obj.u_timing.LHBL;
         if (dut.u_game.u_video.u_obj.u_timing.LHBL && !lhbl_q && dut.u_game.LVBL) begin
@@ -400,6 +435,17 @@ module tb_1942;
             if (!dut.u_game.u_video.u_obj.u_timing.over) obj_short <= obj_short + 1;
         end
     end
+
+    // which values Vulgus's palette bank (C805, scr_br) took while the picture was visible
+    logic [7:0] br_seen = '0;
+    always @(posedge clk) if (blankn) br_seen[dut.u_game.scr_br] <= 1'b1;
+`ifdef BANKLOG
+    logic [2:0] br_q = '0;
+    always @(posedge clk) begin
+        br_q <= dut.u_game.scr_br;
+        if (dut.u_game.scr_br != br_q) $display("BANKLOG frame %0d bank %0d", nframe, dut.u_game.scr_br);
+    end
+`endif
 
     // ---------------- frames ----------------
     logic [11:0] frame [0:223][0:255];
@@ -427,6 +473,15 @@ module tb_1942;
                          lat_n, real'(lat_sum) / lat_n, lat_max, lat_over, fly_max);
                 $display("mirror: %0d snapshots, %0d bytes differ from the core, %0d against the oracle; most log entries in a window %0d",
                          snaps, mir_bad, ora_bad, lg_max);
+                $display("palette bank values seen (bit per value) %b", br_seen);
+                // which game ran: without the id section 1942, with it the game of its byte 0
+                $display("game_id %0d, flip_xor %0d", dut.u_game.game_id, dut.u_game.flip_xor);
+`ifdef ID_SECTION
+                if (dut.u_game.game_id != idsec[0][1:0] || dut.game_id != idsec[0][1:0])
+                    $fatal(1, "FAIL: game_id %0d, the id section says %0d", dut.u_game.game_id, idsec[0][1:0]);
+`else
+                if (dut.u_game.game_id != 2'd0) $fatal(1, "FAIL: game_id %0d without id section", dut.u_game.game_id);
+`endif
                 if (char_late + scr_late + obj_short != 0) $fatal(1, "FAIL: ROM data late in the picture");
                 if (snaps == 0 || mir_bad != 0 || ora_bad != 0 || lg_max >= 512) $fatal(1, "FAIL: RAM mirror");
                 $display("PASS");
@@ -434,6 +489,30 @@ module tb_1942;
             end
         end
     end
+
+`ifdef HIGEDBG
+    // diagnosis: palette indices in frame 180, char lookup PROM and object PROM against the file
+    int idx_hist [0:255];
+    initial for (int i = 0; i < 256; i++) idx_hist[i] = 0;
+    always @(posedge clk)
+        if (nframe == 180 && ce && blankn) idx_hist[dut.pal_idx] <= idx_hist[dut.pal_idx] + 1;
+    always @(posedge clk)
+        if (nframe == 181 && x == 0 && y == 0) begin
+            int bad_c, bad_o;
+            bad_c = 0; bad_o = 0;
+            for (int i = 0; i < 256; i++) begin
+                if (dut.u_game.u_video.u_chprom.mem[i] != prom[768 + i][3:0]) bad_c++;
+                if (dut.u_game.u_video.u_obj.u_draw.u_prom_k3.mem[i] != prom[1280 + i][3:0]) bad_o++;
+            end
+            $display("HIGEDBG char prom differs %0d, obj prom differs %0d", bad_c, bad_o);
+            $display("HIGEDBG game_id %0d, game hige %0d, main game_id %0d, video hige %0d, colmix game_id %0d hige %0d vulgus %0d",
+                     dut.u_game.game_id, dut.u_game.hige, dut.u_game.u_main.game_id,
+                     dut.u_game.u_video.hige, dut.u_game.u_video.u_colmix.game_id,
+                     dut.u_game.u_video.u_colmix.hige, dut.u_game.u_video.u_colmix.vulgus);
+            for (int i = 0; i < 256; i++)
+                if (idx_hist[i] != 0) $display("HIGEDBG idx %0d: %0d", i, idx_hist[i]);
+        end
+`endif
 
     task automatic dump(input int n);
         int fd;
@@ -451,10 +530,28 @@ module tb_1942;
     endtask
 
     // a coin and a start later on, to see the game itself
-    initial begin
+    initial if (PLAN == 0) begin
         #(64'd420_000_000);                   // 420 ms after time 0, after the loading
         coin <= 1'b1; #(64'd50_000_000); coin <= 1'b0;
         #(64'd500_000_000);
         start1 <= 1'b1; #(64'd50_000_000); start1 <= 1'b0;
     end
+
+    // the input plan, set at each frame boundary for the frame that starts (as a MAME script
+    // sets it in frame_done)
+    always @(posedge clk) if (PLAN != 0 && !vs && vs_d) begin
+        int n, k, ph;
+        n = nframe + 1;
+        coin   <= n >= COIN_F  && n < COIN_F + 6;
+        start1 <= n >= START_F && n < START_F + 6;
+        if (n >= PLAY_F) begin
+            k  = n - PLAY_F;
+            ph = (k / 45) % 4;
+            p1_fire    <= (k % 16) < 8;
+            p1_btns[1] <= (k % 240) < 4;
+            p1_dir     <= {ph == 1 && (k % 90) < 20, ph == 3 && (k % 90) < 20, ph == 0, ph == 2};
+        end
+    end
+    integer fd_dump = 0;
+    initial if (DUMP != 0) fd_dump = $fopen("mirror_main.txt", "w");
 endmodule

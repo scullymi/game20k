@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Pirate Ship Higemaru, the third game of the 1942 core: jotego's jt1942 runs
+# it with game_id 2. Format and section options as in vulgus.manifest.
+#
+# Contents after jotego's MRA "Pirate Ship Higemaru" for jt1942 (MAME 0282, jtbin c6deab30):
+# main CPU, characters swapped, sprites 16 bits wide in the order hg1/hg2 and not sorted (the
+# obj bus of jt1942 sorts only for the other two games), everything else FF. There is no sound
+# CPU and no tile layer, those sections are filler.
+# The PROMs differ from the MRA. 1942's section table stays, and the id section comes last, so
+# while the PROMs load the core still decodes them as 1942's: hgb5 (characters) at 3, hgb1
+# (sprites) at 5 and hgb4 (interrupts) at 9 land in the PROMs that jt1942 reads for
+# Higemaru. 0..2 are the platform's colour tables (game_pkg::PALETTE), derived from the
+# 32-byte palette hgb3 the way jt1942_colmix.v widens it to 4/4/4. hgb2 is unused, as in MAME.
+# The id section sets game_id 2 and the flip XOR 1 of jotego's header, and the screen code:
+# Higemaru's raster stands upright (MAME ROT0).
+
+set     higemaru
+title   Pirate Ship Higemaru
+zip     higemaru.zip
+total   240384
+board   3
+mirror  9344
+screen  upright
+
+section main        0x00000 81920 sdram
+chip    hg4.p12     8192  701875e2e85efbe84bf66515117861563f3883c0
+chip    hg5.m12     8192  687d46406de389c8bad6cc052a2516135db93d4a
+chip    hg6.p11     8192  410ee1df63492e488b3578b9c4cfbfbd2f41c888
+chip    hg7.m11     8192  7d253d6680d35943792746da11d91d7be57367cc
+fill    49152
+section sound       0x14000 16384 sdram
+fill    16384
+section chars       0x18000 8192 swap16
+chip    hg3.m1      8192  7933270969806154f0774d31fda75a5352cf26ad
+section sprites     0x1A000 65536 sdram interleave=16
+chip    hg1.c14     8192  247ce819cdc4ed4ec99c25c9006bac1911354bc8
+chip    hg2.e14     8192  93661c028709a7134537321e52da85e3c0f917ba
+fill    49152
+section tiles       0x2A000 65536 sdram
+fill    65536
+section proms       0x3A000 2560
+chip    hgb3.l6     32    c28cd0f341f4f1c7be97f4d8c289860db8ac0857 derive=r332
+chip    hgb3.l6     32    c28cd0f341f4f1c7be97f4d8c289860db8ac0857 derive=g332
+chip    hgb3.l6     32    c28cd0f341f4f1c7be97f4d8c289860db8ac0857 derive=b332
+chip    hgb5.m4     256   cca2f9b187abd735f2309b38570edcd745042b3e
+fill    256
+chip    hgb1.h7     256   c048602d62f47129152bbc7ccd38627d78a4392f
+fill    512
+chip    hgb2.k7     256   aee37d6cdc36acf0f11ff5f93e7b16e4b12f6c39
+chip    hgb4.l9     256   5349d722ab6733afdda65f6e0a98322f0d515e86
+# game_id 2 (Higemaru), flip XOR 1, byte 2 the screen code
+section id          0x3AA00 256 header
+data    02 01
+fill    254 0

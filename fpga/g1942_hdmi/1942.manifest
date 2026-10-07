@@ -9,6 +9,10 @@
 #                     a bus with this gfx_sort in mem.yaml (jtframe_dwnld.v, gfx16c)
 #   sdram             the section goes to SDRAM bank 2 at its file offset (rom_sdram.sv),
 #                     not to the core's write port
+#   header            jotego's header with one byte of the platform: bytes 0 and 1 go to the
+#                     core (game_id, flip XOR), byte 2 is the screen code 0 upright, 1 cw,
+#                     2 ccw, which make_rom.py writes from the screen line and the top reads
+#                     at run time. A fill line covers byte 2. No other option, one per file
 #
 # The layout is jotego's (jtcores cores/1942/cfg/mame2mra.toml at 0b197caeae15): the regions
 # in that order, srb-06 twice so the bank windows of the main CPU line up, gfx1 swapped,
@@ -27,6 +31,9 @@ zip     1942.zip
 total   240128
 board   3
 mirror  9344
+# MAME lists 1942 as ROT270, but jt1942 sends its raster the other way round (with flip XOR
+# 0, as in jotego's MRA): turned clockwise it stands. Seen in the simulation.
+screen  cw
 
 section main        0x00000 81920 sdram
 chip    srb-03.m3   16384 a089a9bc55fb7d6d0ac53f91b258396d5d62677a

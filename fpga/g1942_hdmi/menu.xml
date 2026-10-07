@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 1942 (game20k) configuration for the FPGA Companion -->
+<!-- 1942, Vulgus and Higemaru (game20k) configuration for the FPGA Companion -->
 <config name="1942" version="0">
   <actions>
     <!-- game20k: deliberately WITHOUT commands. The Pico answers these four
@@ -201,6 +201,7 @@
       </list>
       <list label="Screen:" id="G" default="0">
         <listentry label="Landscape 3x" value="0"/>
+        <!-- game20k: Higemaru stands upright and always comes in landscape, the entry does nothing there -->
         <listentry label="Upright 2x" value="1"/>
       </list>
       <button label="Save settings" action="save"/>

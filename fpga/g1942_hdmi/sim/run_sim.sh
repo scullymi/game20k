@@ -5,25 +5,27 @@
 # game, attract mode, a coin and a start, every 30th frame written out, at the end one PNG
 # sheet of the frames, turned upright. Takes about six minutes (port), ten (path).
 #
-# Usage: sh fpga/g1942_hdmi/sim/run_sim.sh [port|path|fb]       (default: port)
+# Usage: [SET=1942|vulgus|higemaru] sh fpga/g1942_hdmi/sim/run_sim.sh [port|path|fb]
+#   (default: SET=1942, port). EXTRA adds Verilator options, such as +define+HIGEDBG
 #   port   the ROM buses read through a model of rom_sdram's read port, latency as measured
 #   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model (tb define ROM_PATH)
 #   fb     path, and the upright picture as on the device: sdram_share.sv puts the frame
 #          buffer (fb_pack.sv, fb_read_rotated.sv) next to the ROM on the controller
 #
-# Needs roms/1942.zip (the ROM file is built from it with make_rom.py, as for the SD card)
+# Needs roms/<SET>.zip (the ROM file is built from it with make_rom.py, as for the SD card)
 # and network access once: the Z80 in Verilog, jtframe's T80s.v, comes from jtcores at the
 # commit our copy is from and is checked by its git blob hash. It is a machine translation
 # of the T80 without its licence header, so it is fetched, not kept in this tree.
 # Everything generated, the ROM image included, goes to $WORK (default
-# ${TMPDIR:-/tmp}/verilator_1942), never into the tree.
+# ${TMPDIR:-/tmp}/verilator_<SET>), never into the tree.
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 G="$HERE/../src"
 J="$G/jtcores"
 FW="$J/modules/jtframe/hdl"
-W="${WORK:-${TMPDIR:-/tmp}/verilator_1942}"
+SET="${SET:-1942}"
+W="${WORK:-${TMPDIR:-/tmp}/verilator_$SET}"
 mode="${1:-port}"
 JTCORES=0b197caeae1596380863b8388552b125e7e1b208
 T80S_BLOB=6baa20633ae0d8bf389290b7252b74490bba62bd
@@ -38,17 +40,25 @@ mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 
 # the ROM image, as words for the SDRAM side and as bytes for the PROMs
-python3 "$ROOT/scripts/make_rom.py" "$ROOT/fpga/g1942_hdmi/1942.manifest" "$W/1942.rom"
-python3 - "$W" <<'EOF'
+python3 "$ROOT/scripts/make_rom.py" "$ROOT/fpga/g1942_hdmi/$SET.manifest" "$W/$SET.rom"
+python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]
-b = open(w + "/1942.rom", "rb").read()
+b = open(w + "/" + sys.argv[2] + ".rom", "rb").read()
 with open(w + "/rom32.hex", "w") as f:
     for i in range(0, len(b), 4):
         f.write("%08x\n" % int.from_bytes(b[i:i + 4], "little"))
 with open(w + "/proms.hex", "w") as f:
     f.writelines("%02x\n" % x for x in b[0x3A000:0x3AA00])
+# the id section of Vulgus and Higemaru, none for 1942
+with open(w + "/id.hex", "w") as f:
+    f.writelines("%02x\n" % x for x in b[0x3AA00:0x3AB00])
 EOF
+id=""
+[ -s "$W/id.hex" ] && id="+define+ID_SECTION"
+# the package the build makes from the manifests (build.tcl), for FB_CCW
+python3 "$ROOT/scripts/make_rom.py" --package "$HERE/../vulgus.manifest" "$W/rom_map_pkg.sv" \
+  "$HERE/../1942.manifest" "$HERE/../higemaru.manifest"
 
 # the Verilog Z80 for simulation, once
 if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ]; then
@@ -61,7 +71,7 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
 fi
 
 # the sources in the order of build.tcl, the VHDL T80 replaced by T80s.v
-verilator --binary --timing -j 8 -O3 --top-module tb_1942 -Mdir "$W/obj_$mode" $define \
+verilator --binary --timing -j 8 -O3 --top-module tb_1942 -Mdir "$W/obj_$mode" $define $id ${EXTRA:-} \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
   +define+TV80S +incdir+"$G/inc" +incdir+"$FW/inc" +incdir+"$J/cores/1942/hdl" \
   "$G/jt1942_defs.v" \
@@ -83,7 +93,7 @@ verilator --binary --timing -j 8 -O3 --top-module tb_1942 -Mdir "$W/obj_$mode" $
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \
-  "$G/g1942_mirror.sv" "$G/game_pkg.sv" "$G/game_core.sv" "$HERE/tb_1942.sv" \
+  "$G/g1942_mirror.sv" "$W/rom_map_pkg.sv" "$G/game_pkg.sv" "$G/game_core.sv" "$HERE/tb_1942.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 
 cd "$W"

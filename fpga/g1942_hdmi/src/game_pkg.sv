@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 //! @file game_pkg.sv
-//! @brief What the platform top (fpga/common/src/game20k_top.sv) needs to know about 1942.
+//! @brief What the platform top (fpga/common/src/game20k_top.sv) needs to know about 1942,
+//! Vulgus and Higemaru.
 //!
-//! Every game folder has a package of this name with these constants. The ROM layout is
-//! not here: it comes from the manifest as gen/rom_map_pkg.sv.
+//! Every game folder has a package of this name with these constants. The ROM layout and
+//! the screen (upright, cw, ccw) are not here: they come from the manifests as
+//! gen/rom_map_pkg.sv.
 package game_pkg;
     //! visible raster of the core, jtgng_timer.v: 256 x 224 of 384 x 262, 6 MHz pixel
     localparam int W = 256;
@@ -22,13 +24,9 @@ package game_pkg;
     //! the game delivers its palette index, the platform applies the colour PROMs after the
     //! scaler and the frame buffer: the frame buffer keeps 8 bits a pixel, the picture keeps
     //! all 4/4/4 colours. The PROMs are section PAL_SEC of the manifest, red at 0x000, green
-    //! at 0x100, blue at 0x200 (sb-5.e8, sb-6.e9, sb-7.e10).
+    //! at 0x100, blue at 0x200 (1942: sb-5.e8, sb-6.e9, sb-7.e10).
     localparam bit PALETTE = 1;
     localparam int PAL_SEC = 5;
-    //! MAME lists 1942 as ROT270, but jt1942 sends its raster the other way round (with
-    //! flip_xor 0, as in jotego's MRA): turned clockwise it stands, as a ROT90 game does.
-    //! Seen in the simulation, where ROT_CCW 1 gave an upside-down picture.
-    localparam bit ROT_CCW = 0;
     //! the name in the HDMI source product description, 16 bytes
     localparam logic [127:0] PRODUCT_DESCRIPTION = {"1942", 96'd0};
     //! game signals on the input test bar, two characters each, signal 0 in the lowest 16
