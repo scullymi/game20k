@@ -23,18 +23,24 @@ More screenshots and a photo of the setup: [docs/images](docs/images/README.md).
 |---|---|---|---|
 | Galaga | Dar's Galaga core | `galaga` + `namco51` (+ `namco54` for the explosions) | [Galaga](https://retroachievements.org/game/12138) |
 | Pac-Man | MikeJ's Pac-Man core | `pacman` | [Pac-Man](https://retroachievements.org/game/12192) |
+| Pac-Man (speedup hack) | MikeJ's Pac-Man core | `pacmanf` | [Pac-Man (speedup)](https://retroachievements.org/game/24885) |
 | Puck Man | MikeJ's Pac-Man core | `puckman` | [Perfect Pac subset](https://retroachievements.org/game/24933) |
 | Ms. Pac-Man | MikeJ's Pac-Man core | `mspacman` | [Ms. Pac-Man](https://retroachievements.org/game/11800) |
+| Ms. Pac-Man (speedup hack) | MikeJ's Pac-Man core | `mspacmnf` | [Ms. Pac-Man (speedup)](https://retroachievements.org/game/24949) |
 | Jr. Pac-Man | MikeJ's Pac-Man core | `jrpacman` | [Jr. Pac-Man](https://retroachievements.org/game/12191) |
 | 1942 | jotego's jt1942 core | `1942` | [1942](https://retroachievements.org/game/11960) |
 | Vulgus | jotego's jt1942 core | `vulgus` | none |
 | Pirate Ship Higemaru | jotego's jt1942 core | `higemaru` | none |
 | 1943: The Battle of Midway | jotego's jt1943 core | `1943` | [1943](https://retroachievements.org/game/11961) |
+| 1943: The Battle of Midway Mark II | jotego's jt1943 core | `1943mii` | [1943 Mark II](https://retroachievements.org/game/11962) |
 | Time Pilot | Ace's Time Pilot core | `timeplt` | [Time Pilot](https://retroachievements.org/game/11902) |
 | Ghosts'n Goblins | jotego's jtgng core | `gng` with the "gg" chips, see [roms/README.md](roms/README.md) | [Ghosts'n Goblins](https://retroachievements.org/game/12149) |
+| Makaimura (Japan) | jotego's jtgng core | `makaimurg` | the [Ghosts'n Goblins](https://retroachievements.org/game/12149) set |
 | Dig Dug | MiSTer-X's Dig Dug core | `digdug` + `namco51` + `namco53` | [Dig Dug](https://retroachievements.org/game/12091) |
 | Pang | jotego's jtpang core | `pang` | [Pang](https://retroachievements.org/game/11996) |
+| Buster Bros. (US) | jotego's jtpang core | `bbros` | the [Pang](https://retroachievements.org/game/11996) set |
 | Super Pang | jotego's jtpang core | `spang` | [Super Pang](https://retroachievements.org/game/12239) |
+| Super Buster Bros. (US) | jotego's jtpang core | `sbbros` | the [Super Pang](https://retroachievements.org/game/12239) set |
 
 Choose a game under `ROM set` in the menu. A game on the same core restarts straight into it, and
 a game on another core first loads that core from the board's flash.
@@ -53,8 +59,8 @@ a game on another core first loads that core from the board's flash.
   screen as in the original cabinet. Both are selectable in the menu (`Upright 2x`,
   `Landscape 3x`), as are scanlines. A game with a horizontal monitor always runs 3x, with the
   menu and the banner upright.
-- **Fourteen games, eight cores, one flash.** All cores are stored in the board's flash, and the
-  menu switches between them in seconds.
+- **Fifteen games plus five regional or speedup sets, eight cores, one flash.** All cores are
+  stored in the board's flash, and the menu switches between them in seconds.
 - **No game data in the bitstream.** The ROMs are loaded from the SD card at power-on, and every
   chip is checked against MAME's checksums when the card is prepared.
 - **Ready-made releases.** One image for the Nano and one file for the Pico.
@@ -266,6 +272,10 @@ goes onto the card.
   constraints for both paths so that the report covers them, then fix the violations.
 - **WiFi.** The firmware only connects via WPA2 and gives up after the attempts at power-on.
   Plan: allow WPA3 networks and keep retrying in the background.
+- **Pang's achievement sets are too large.** The sets of Pang and Super Pang, which Buster Bros.
+  and Super Buster Bros. share, are larger than the firmware can hold. Pang runs without
+  achievements, Super Pang with 64 of its 91, both in softcore. Plan: strip the fields the
+  firmware does not need while the set arrives, and make room for 128 achievements.
 
 ## Credits
 
