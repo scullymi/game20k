@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 246" width="960" height="246" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 256" width="960" height="256" role="img" aria-labelledby="t d">
   <title id="t">SPI flash of the Tang Nano 20K</title>
-  <desc id="d">An 8 MB flash split into 1 MB slots, all eight taken, each core using 886 KB of its slot: the Galaga core at 0x000000 with Galaga; the Pac-Man core at 0x100000 with Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man; the 1942 core at 0x200000 with 1942, Vulgus, Higemaru; the 1943 core at 0x300000 with 1943; the GnG core at 0x400000 with Ghosts'n Goblins; the Dig Dug core at 0x500000 with Dig Dug; the Pang core at 0x600000 with Pang, Super Pang; the Time Pilot core at 0x700000 with Time Pilot.</desc>
+  <desc id="d">An 8 MB flash split into 1 MB slots, all eight taken, each core using 886 KB of its slot: the Galaga core at 0x000000 with Galaga; the Pac-Man core at 0x100000 with Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man and two speedup hacks; the 1942 core at 0x200000 with 1942, Vulgus, Higemaru; the 1943 core at 0x300000 with 1943, 1943 Mark II; the GnG core at 0x400000 with Ghosts'n Goblins, Makaimura; the Dig Dug core at 0x500000 with Dig Dug; the Pang core at 0x600000 with Pang, Super Pang, Buster Bros., Super Buster Bros.; the Time Pilot core at 0x700000 with Time Pilot.</desc>
   <style>
     text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b0b0b; }
     .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; fill: #52514e; }
@@ -81,6 +81,7 @@
   <text class="sub"  x="154" y="190">Puck Man</text>
   <text class="sub"  x="154" y="206">Ms. Pac-Man</text>
   <text class="sub"  x="154" y="222">Jr. Pac-Man</text>
+  <text class="sub"  x="154" y="238">two speedup hacks</text>
 
   <!-- slot 2: 1942 -->
   <rect class="rest rest-1942" x="262" y="57" width="106" height="54" rx="4"/>
@@ -99,6 +100,7 @@
   <text class="name" x="374" y="148">1943</text>
   <line class="rest-1943" x1="374" y1="156" x2="470" y2="156" stroke-width="2"/>
   <text class="sub"  x="374" y="174">1943</text>
+  <text class="sub"  x="374" y="190">1943 Mark II</text>
 
   <!-- slot 4: GnG -->
   <rect class="rest rest-gng" x="482" y="57" width="106" height="54" rx="4"/>
@@ -107,6 +109,7 @@
   <text class="name" x="484" y="148">GnG</text>
   <line class="rest-gng" x1="484" y1="156" x2="580" y2="156" stroke-width="2"/>
   <text class="sub"  x="484" y="174">Ghosts'n Goblins</text>
+  <text class="sub"  x="484" y="190">Makaimura</text>
 
   <!-- slot 5: Dig Dug -->
   <rect class="rest rest-digdug" x="592" y="57" width="106" height="54" rx="4"/>
@@ -124,6 +127,8 @@
   <line class="rest-pang" x1="704" y1="156" x2="800" y2="156" stroke-width="2"/>
   <text class="sub"  x="704" y="174">Pang</text>
   <text class="sub"  x="704" y="190">Super Pang</text>
+  <text class="sub"  x="704" y="206">Buster Bros.</text>
+  <text class="sub"  x="704" y="222">Super Buster Bros.</text>
 
   <!-- slot 7: Time Pilot -->
   <rect class="rest rest-timeplt" x="812" y="57" width="106" height="54" rx="4"/>
