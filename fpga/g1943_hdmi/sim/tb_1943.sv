@@ -408,6 +408,7 @@ module tb_1943;
     int scr1_wrong = 0, scr2_wrong = 0;
     // samples the slot calls ok whose word is not the word at the layer's address
     int scr1_okbad = 0, scr2_okbad = 0;
+`endif
     // pixel in the line, counted from the start of the visible part (LHBL rising)
     int hpix = 0;
     logic hp_lhbl_q = 0;
@@ -415,7 +416,6 @@ module tb_1943;
         hp_lhbl_q <= dut.LHBL;
         hpix <= (dut.LHBL && !hp_lhbl_q) ? 0 : hpix + 1;
     end
-`endif
     // what-if: a small cache of the last 4 and 8 distinct words per scroll slot; counted are
     // the late scroll-2 samples whose word such a cache would still have held
     logic [21:2] c2 [0:7];

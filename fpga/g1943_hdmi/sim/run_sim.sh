@@ -37,6 +37,8 @@ mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 # the ROM image, as words for the SDRAM side, and the PROM and palette sections as bytes
 python3 "$ROOT/scripts/make_rom.py" "$G/$SET.manifest" "$W/$SET.rom"
+# FB_CCW for the testbench's fb_read_rotated, as build.tcl makes it
+python3 "$ROOT/scripts/make_rom.py" --package "$G/1943.manifest" "$W/rom_map_pkg.sv"
 python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]
@@ -68,7 +70,7 @@ verilator --binary --timing -j 8 -O3 --top-module tb_1943 -Mdir "$W/obj_$mode" $
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \
-  "$G/src/g1943_mirror.sv" "$G/src/tile_prefetch.sv" "$G/src/map_prefetch.sv" "$G/src/game_pkg.sv" "$G/src/game_core.sv" \
+  "$G/src/g1943_mirror.sv" "$G/src/tile_prefetch.sv" "$G/src/map_prefetch.sv" "$W/rom_map_pkg.sv" "$G/src/game_pkg.sv" "$G/src/game_core.sv" \
   "$HERE/tb_1943.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 
