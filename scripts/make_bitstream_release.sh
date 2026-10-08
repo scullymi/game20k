@@ -12,6 +12,8 @@
 # for a trial run, the files then carry the version git describe gives). Every core of
 # fpga/common/slots.txt is built by this run, its timing report has to pass (build_fpga.sh), and
 # bitstream_notice.py checks that every source file belongs to a component of the NOTICE.
+# The cores build at the same time, at most as many as the machine has processors (JOBS=n for
+# fewer), each into a log of its own, which is printed in the ring's order afterwards.
 # Rebuilds of the same sources with the same Gowin version gave the same .bin byte for byte on
 # the build machine, also in a fresh clone at another path, the NOTICE records its SHA-256.
 #
@@ -81,9 +83,17 @@ NAME="game20k-$VERSION-tangnano20k"
 CORES=$(awk '!/^#/ && NF == 2 { print $1 }' fpga/common/slots.txt)
 [ -n "$CORES" ] || { echo "fpga/common/slots.txt names no core"; exit 1; }
 STAMP=$(mktemp "${TMPDIR:-/tmp}/bitstream_release.XXXXXX")
-trap 'rm -f "$STAMP"' EXIT
+LOGS=$(mktemp -d "${TMPDIR:-/tmp}/bitstream_logs.XXXXXX")
+trap 'rm -f "$STAMP"; rm -rf "$LOGS"' EXIT
+# never more builds at once than processors, a smaller JOBS is taken
+CPUS=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+if [ -n "$JOBS" ] && [ "$JOBS" -ge 1 ] && [ "$JOBS" -lt "$CPUS" ]; then CPUS=$JOBS; fi
+echo "building $(echo $CORES | wc -w | tr -d ' ') cores, $CPUS at a time"
+printf '%s\n' $CORES | xargs -P "$CPUS" -I{} sh -c \
+  'scripts/build_fpga.sh "$1" > "$2/$1.log" 2>&1 || touch "$2/$1.failed"' sh {} "$LOGS"
 for c in $CORES; do
-  scripts/build_fpga.sh "$c"
+  cat "$LOGS/$c.log"
+  [ ! -e "$LOGS/$c.failed" ] || { echo "the build of $c failed, its log is above"; exit 1; }
 done
 
 # --- the bitstreams come from this run, from the commit it started on, outside the window ---
