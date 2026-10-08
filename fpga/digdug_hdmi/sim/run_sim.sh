@@ -32,7 +32,7 @@ case "$mode" in
   *) echo "usage: $0 [port|late|path] [plusargs]" >&2; exit 2 ;;
 esac
 mkdir -p "$W/$mode"
-python3 "$ROOT/scripts/make_rom.py" "$ROOT/fpga/digdug_hdmi/digdug.manifest" "$W/digdug.rom"
+python3 "$ROOT/scripts/make_rom.py" --no-footer "$ROOT/fpga/digdug_hdmi/digdug.manifest" "$W/digdug.rom"
 python3 -c "
 import sys
 b = open(sys.argv[1], 'rb').read()

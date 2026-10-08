@@ -5,7 +5,10 @@
 @brief Builds the ROM file of a game from its MAME set, as a ROM manifest describes it.
 
 Usage:
-  scripts/make_rom.py <manifest> [output]        build, default output sdcard/<set>.rom
+  scripts/make_rom.py [--no-footer] <manifest> [output]
+                                                 build, default output sdcard/<set>.rom.
+                                                 --no-footer leaves out the footer (for the
+                                                 simulations, which load the file as a whole)
   scripts/make_rom.py --package <manifest> <out> [<manifest> ...]
                                                  write the section table for rom_loader
                                                  as a SystemVerilog package (build.tcl),
@@ -24,6 +27,19 @@ lists it, the order in the file and the finished size, plus the board id and the
 size the core announces to the firmware. The format is described in the head of
 fpga/galaga_hdmi/galaga.manifest. Normally scripts/make_sdcard.sh calls this script.
 
+The file ends with a footer of FOOTER_SIZE bytes that names the game, so the firmware can
+list the games on the card from one sector per file (its Games page). The firmware sends only
+the content before it to the core, and the content's SHA-256 is the digest of known lines and of
+the firmware's table. Layout, little-endian:
+  0  4  "G20K"                 76 32  SHA-256 of the content
+  4  1  format version (1)    108 16  zero
+  5  1  board id              124  4  CRC-32 (zlib) of bytes 0 to 123
+  6  1  screen code (SCREEN)
+  7  1  zero
+  8  4  size of the content
+ 12 16  set name, ASCII, padded with zeros
+ 28 48  title, ASCII, padded with zeros, cut to 48 bytes
+
 Sources live in roms/ (gitignored), the result in sdcard/ (*.rom is gitignored too). Both
 contain ROM data and never leave this machine, except onto the card.
 
@@ -37,8 +53,10 @@ import glob
 import hashlib
 import os
 import re
+import struct
 import sys
 import zipfile
+import zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # the RAM mirror package of the FPGA platform: the unit and the bound of a game's mirror size
@@ -47,6 +65,9 @@ PKG = os.path.join(ROOT, "fpga", "common", "src", "mcu", "ram_mirror_pkg.sv")
 # of V bits). The x suffixes are the bits below, which stay. jtframe_dwnld.v: hvvvx is gfx4
 # with GFX8B0=1, hvvvvxx is gfx16c with GFX16B0=2.
 GFX_SORT = {"hvvvx": (1, 3), "hvvvvxx": (2, 4)}
+# the footer behind the content, see the head of this file
+FOOTER_SIZE = 128
+FOOTER_VERSION = 1
 # derive= of a chip: one 4-bit colour table of 256 entries from a palette PROM with one byte
 # in 3/3/2 per colour, repeated to fill the table. The bits are the ones jt1942_colmix.v
 # widens Higemaru's palette with: red {b2,b1,b0,b2}, green {b5,b4,b3,b5}, blue {b7,b6,b7,b6}.
@@ -427,8 +448,18 @@ def arrange(s, datas):
     return bytes(out)
 
 
-def build(m, out):
-    """Assemble the file, checking every chip. Returns (sha256, known label or None, warnings)."""
+def footer(m, blob):
+    """The footer of a file with the content blob, see the head of this file."""
+    title = m.get("title", m["set"]).encode("ascii", "replace")[:48]
+    head = struct.pack("<4sBBBBI16s48s32s16s", b"G20K", FOOTER_VERSION, m["board"], m["screen"], 0,
+                       len(blob), m["set"].encode("ascii")[:16], title,
+                       hashlib.sha256(blob).digest(), bytes(16))
+    return head + struct.pack("<I", zlib.crc32(head))
+
+
+def build(m, out, with_footer=True):
+    """Assemble the file, checking every chip, with the footer unless with_footer is False.
+    Returns (sha256 of the content, known label or None, warnings)."""
     zips, parts, warnings = {}, [], []
     for s in m["sections"]:
         datas = []
@@ -470,7 +501,7 @@ def build(m, out):
         raise ManifestError("assembled %d bytes, expected %d" % (len(blob), m["total"]))
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     with open(out, "wb") as fh:
-        fh.write(blob)
+        fh.write(blob + (footer(m, blob) if with_footer else b""))
     digest = hashlib.sha256(blob).hexdigest()
     label = next((lbl for sha, lbl in m["known"] if sha == digest), None)
     return digest, label, warnings
@@ -588,6 +619,9 @@ def main(argv):
             print("make_rom.py: %s" % e, file=sys.stderr)
             return 1
         return 0
+    with_footer = "--no-footer" not in argv[1:2]
+    if not with_footer:
+        argv = argv[:1] + argv[2:]
     if len(argv) not in (2, 3) or argv[1].startswith("-"):
         print(__doc__)
         return 2
@@ -596,13 +630,14 @@ def main(argv):
         out = argv[2] if len(argv) == 3 else os.path.join(ROOT, "sdcard", m["set"] + ".rom")
         if not os.path.isfile(os.path.join(ROOT, "roms", m["zip"])):
             raise ManifestError("missing: roms/%s (MAME set %s, as a merged set)" % (m["zip"], m["set"]))
-        digest, label, warnings = build(m, out)
+        digest, label, warnings = build(m, out, with_footer)
     except (ManifestError, OSError, zipfile.BadZipFile) as e:
         print("make_rom.py: %s" % e, file=sys.stderr)
         return 1
     for w in warnings:
         print("WARNING: %s" % w, file=sys.stderr)
-    print("written: %s (%d bytes)" % (out, m["total"]))
+    print("written: %s (%d bytes%s)" % (out, m["total"],
+                                          ", and the footer" if with_footer else ""))
     # The firmware allows hardcore only for a file it knows (ra_patch.c, ROM digests).
     if label:
         print("known ROM file, %s: hardcore possible" % label)

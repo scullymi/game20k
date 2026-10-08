@@ -11,8 +11,9 @@ scripts/make_sdcard.sh in the repository prepares the card, see the repository's
 - galaga.rom, pacman.rom, puckman.rom, mspacman.rom, jrpacman.rom, pacplus.rom, ponpoko.rom,
   1942.rom, vulgus.rom, higemaru.rom, 1943.rom, timeplt.rom, gng.rom, digdug.rom, pang.rom,
   spang.rom: the games.
-  make_sdcard.sh builds them from your own MAME sets in a layout of its own, so ROM files from anywhere else do not work. They
-  are never shipped. Without them, the screen stays dark.
+  make_sdcard.sh builds them from your own MAME sets in a layout of its own, with a footer that
+  names the game and holds a checksum, so ROM files from anywhere else do not work. They are
+  never shipped. Without them, no game starts.
 - config.ini: WiFi and RetroAchievements account. Optional: without it, the machine plays
   offline and without achievements.
 - galaga.ini, pacman.ini, 1942.ini, 1943.ini, timeplt.ini, gng.ini, digdug.ini, pang.ini: one
@@ -20,6 +21,8 @@ scripts/make_sdcard.sh in the repository prepares the card, see the repository's
   Jr. Pac-Man, Pac-Man Plus and Ponpoko, 1942.ini covers Vulgus and Higemaru, pang.ini covers Super Pang, and each holds
   the chosen ROM. make_sdcard.sh creates them, and
   "Save settings" saves your current settings into them.
+- games.ini: the game that starts at power-on, written by "Save settings". Optional: without
+  it, Galaga starts.
 - ra_pending.txt, ra_parked.txt and the folder ra: written by the machine. Unlocks waiting to
   be sent, and the achievement set and unlocks of each game. Do not edit.
 - README.md: this file.

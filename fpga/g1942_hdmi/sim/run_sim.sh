@@ -40,7 +40,7 @@ mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 
 # the ROM image, as words for the SDRAM side and as bytes for the PROMs
-python3 "$ROOT/scripts/make_rom.py" "$ROOT/fpga/g1942_hdmi/$SET.manifest" "$W/$SET.rom"
+python3 "$ROOT/scripts/make_rom.py" --no-footer "$ROOT/fpga/g1942_hdmi/$SET.manifest" "$W/$SET.rom"
 python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]

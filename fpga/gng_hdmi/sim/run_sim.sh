@@ -38,7 +38,7 @@ esac
 mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 # the ROM image, as words for the SDRAM side
-python3 "$ROOT/scripts/make_rom.py" "$G/$SET.manifest" "$W/$SET.rom"
+python3 "$ROOT/scripts/make_rom.py" --no-footer "$G/$SET.manifest" "$W/$SET.rom"
 python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]

@@ -36,7 +36,7 @@ esac
 mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 # the ROM image, as words for the SDRAM side, and the PROM and palette sections as bytes
-python3 "$ROOT/scripts/make_rom.py" "$G/$SET.manifest" "$W/$SET.rom"
+python3 "$ROOT/scripts/make_rom.py" --no-footer "$G/$SET.manifest" "$W/$SET.rom"
 # FB_CCW for the testbench's fb_read_rotated, as build.tcl makes it
 python3 "$ROOT/scripts/make_rom.py" --package "$G/1943.manifest" "$W/rom_map_pkg.sv"
 python3 - "$W" "$SET" <<'EOF'

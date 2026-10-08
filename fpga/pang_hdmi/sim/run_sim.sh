@@ -48,7 +48,7 @@ mkdir -p "$W/frames_$mode" "$W/mame"
 rm -f "$W/frames_$mode"/*.ppm
 
 # the ROM file, as words for the SDRAM side and as bytes for the two write port sections
-python3 "$ROOT/scripts/make_rom.py" "$HERE/../$SET.manifest" "$W/$SET.rom"
+python3 "$ROOT/scripts/make_rom.py" --no-footer "$HERE/../$SET.manifest" "$W/$SET.rom"
 python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]
