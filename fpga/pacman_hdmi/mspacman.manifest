@@ -5,8 +5,8 @@
 #
 # The file is pacman.rom's layout plus the second program bank at the end, so pacman.rom and
 # puckman.rom are a prefix of it and keep their layout and digests. jrpacman.manifest continues
-# this layout, build.tcl writes the loader's section table from it and takes this size and
-# pacman.rom's as further sizes (ROM_TOTAL_SHORT, ROM_TOTAL_SHORT2). This is why the bank
+# this layout and pacplus.manifest that one. build.tcl writes the loader's section table
+# from pacplus.manifest, and the loader takes any file up to its size. This is why the bank
 # comes last here, not in MAME's chip order.
 #
 # The bank is the core's 0x4000..0x7FFF of the download (CPU 0x8000..0xBFFF), laid out as

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 256" width="960" height="256" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 288" width="960" height="288" role="img" aria-labelledby="t d">
   <title id="t">SPI flash of the Tang Nano 20K</title>
-  <desc id="d">An 8 MB flash split into 1 MB slots, all eight taken, each core using 886 KB of its slot: the Galaga core at 0x000000 with Galaga; the Pac-Man core at 0x100000 with Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man and two speedup hacks; the 1942 core at 0x200000 with 1942, Vulgus, Higemaru; the 1943 core at 0x300000 with 1943, 1943 Mark II; the GnG core at 0x400000 with Ghosts'n Goblins, Makaimura; the Dig Dug core at 0x500000 with Dig Dug; the Pang core at 0x600000 with Pang, Super Pang, Buster Bros., Super Buster Bros.; the Time Pilot core at 0x700000 with Time Pilot.</desc>
+  <desc id="d">An 8 MB flash split into 1 MB slots, all eight taken, each core using 886 KB of its slot: the Galaga core at 0x000000 with Galaga; the Pac-Man core at 0x100000 with Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, Pac-Man Plus, Ponpoko and two speedup hacks; the 1942 core at 0x200000 with 1942, Vulgus, Higemaru; the 1943 core at 0x300000 with 1943, 1943 Mark II; the GnG core at 0x400000 with Ghosts'n Goblins, Makaimura; the Dig Dug core at 0x500000 with Dig Dug; the Pang core at 0x600000 with Pang, Super Pang, Buster Bros., Super Buster Bros.; the Time Pilot core at 0x700000 with Time Pilot.</desc>
   <style>
     text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b0b0b; }
     .addr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; fill: #52514e; }
@@ -81,7 +81,9 @@
   <text class="sub"  x="154" y="190">Puck Man</text>
   <text class="sub"  x="154" y="206">Ms. Pac-Man</text>
   <text class="sub"  x="154" y="222">Jr. Pac-Man</text>
-  <text class="sub"  x="154" y="238">two speedup hacks</text>
+  <text class="sub"  x="154" y="238">Pac-Man Plus</text>
+  <text class="sub"  x="154" y="254">Ponpoko</text>
+  <text class="sub"  x="154" y="270">two speedup hacks</text>
 
   <!-- slot 2: 1942 -->
   <rect class="rest rest-1942" x="262" y="57" width="106" height="54" rx="4"/>

@@ -161,8 +161,9 @@ Example: `RAMDIAG=1 scripts/build_fpga.sh galaga_hdmi`
 fpga/common/        the platform shared by all games: top level, HDMI, scaler, SDRAM frame
                     buffer, SPI to the Pico, RAM mirror, pins and clocks
 fpga/galaga_hdmi/   Galaga: Dar's core, its wrapper, the menu and the ROM manifest
-fpga/pacman_hdmi/   Pac-Man, Puck Man, Ms. Pac-Man and Jr. Pac-Man: MikeJ's core, its wrapper,
-                    the menu, the ROM manifests and testbenches for nvc
+fpga/pacman_hdmi/   Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, Pac-Man Plus and Ponpoko:
+                    MikeJ's core, its wrapper, the menu, the ROM manifests and testbenches
+                    for nvc
 fpga/g1942_hdmi/    1942, Vulgus and Higemaru: jotego's core and sound chips, its wrapper, the
                     menu, the ROM manifests and a simulation with Verilator
 fpga/g1943_hdmi/    1943: the same for jotego's jt1943, plus the prefetch of scroll and map

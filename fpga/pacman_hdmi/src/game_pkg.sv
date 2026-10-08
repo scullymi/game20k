@@ -26,7 +26,8 @@ package game_pkg;
     //! the name in the HDMI source product description, 16 bytes
     localparam logic [127:0] PRODUCT_DESCRIPTION = {"Pac-Man", 72'd0};
     //! game signals on the input test bar, two characters each, signal 0 in the lowest 16
-    //! bits: what game_core reports on map_bits (the filtered 4-way direction, coin, starts)
-    localparam int MAP_N = 7;
-    localparam logic [255:0] MAP_LABELS = 256'({"S2", "S1", "C ", "R ", "L ", "D ", "U "});
+    //! bits: what game_core reports on map_bits (the filtered 4-way direction, coin, starts,
+    //! Ponpoko's fire button)
+    localparam int MAP_N = 8;
+    localparam logic [255:0] MAP_LABELS = 256'({"F ", "S2", "S1", "C ", "R ", "L ", "D ", "U "});
 endpackage

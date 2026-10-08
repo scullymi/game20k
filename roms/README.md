@@ -11,6 +11,8 @@ Put your own MAME sets here. Nothing in this folder is committed, `.gitignore` e
 | Ms. Pac-Man | `mspacman.zip` |
 | Ms. Pac-Man (speedup hack) | `mspacman.zip`, the MAME clone `mspacmnf`, with `pacfast.6f` from the merged `puckman.zip` |
 | Jr. Pac-Man | `jrpacman.zip`, the MAME set `jrpacman` (Bally Midway) |
+| Pac-Man Plus | `pacplus.zip`, the MAME set `pacplus` |
+| Ponpoko | `ponpoko.zip`, the MAME set `ponpoko` (Sigma), merged |
 | 1942 | `1942.zip`, the MAME set `1942` (parent, Revision B) |
 | Vulgus | `vulgus.zip`, the MAME set `vulgus` (set 1) |
 | Pirate Ship Higemaru | `higemaru.zip`, the MAME set `higemaru` |

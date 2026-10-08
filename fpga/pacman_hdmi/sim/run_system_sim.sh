@@ -4,7 +4,7 @@
 # System simulation of the Pac-Man core with a real ROM set (tb_system.vhd, nvc, VHDL-2008),
 # its frames compared with MAME's (mame_ref.lua, compare_frames.py).
 #
-# Usage: [SET=pacman|jrpacman] [FRAMES=n] [EVERY=n] [COIN_F=n] [START_F=n] [JOY_F=n] [SEED=n]
+# Usage: [SET=pacman|jrpacman|pacplus|ponpoko] [FRAMES=n] [EVERY=n] [COIN_F=n] [START_F=n] [JOY_F=n] [SEED=n]
 #        [MOD_JR=0|1] [PROG=dec|plain] [LAT=0|1] [DUMP_F=n] [SKIP_SIM=1] WORK=<dir> ROMS=<dir>
 #        sh fpga/pacman_hdmi/sim/run_system_sim.sh
 #   FRAMES   frames from the reset release (default 600), every EVERY-th written (default 5)
@@ -16,13 +16,15 @@
 #   LAT      0 answers Jr.'s program fetches at once (default 1: the latency model)
 #   DUMP_F   writes the priority map of that frame (tb_system.vhd)
 #   SKIP_SIM 1 keeps the frames of an earlier run in WORK and only compares again
+# pacplus and ponpoko run with MAME's default DIP switches and without inputs (COIN_F,
+# START_F and JOY_F are for pacman and jrpacman).
 #
 # The simulation's frame k is MAME's frame k + d. Without inputs d follows the run (--track).
 # With inputs align_inputs.py fits a d per input change and feeds MAME the inputs at those
 # frames, because Jr.'s ROM waits make the simulation fall behind MAME where the game is not
 # tied to the frame.
 #
-# ROMS holds pacman.zip and jrpacman.zip, MAME's sets. Chips are found by their SHA-1, as
+# ROMS holds pacman.zip, jrpacman.zip, pacplus.zip and ponpoko.zip, MAME's sets. Chips are found by their SHA-1, as
 # make_rom.py does, so older chip names work. Jr.'s decryption is imported from
 # scripts/make_rom.py, the image is assembled here. Everything generated goes to WORK, ROM
 # images included, never into the tree; a run that is compared with another one needs its own
@@ -44,10 +46,18 @@ DUMP_F="${DUMP_F:-0}"
 ROMS="${ROMS:-$ROOT/roms}"
 W="${WORK:-${TMPDIR:-/tmp}/nvc_system_$SET}"
 NVC="${NVC:-nvc}"
+# the core's mod inputs, MAME's default DIP switches and the idle inputs of each set
+GEN=""
 case "$SET" in
   pacman)   MOD_JR="${MOD_JR:-0}"; PORTS="IN0 IN1" ;;
   jrpacman) MOD_JR="${MOD_JR:-1}"; PORTS="P1 P2" ;;
-  *) echo "SET is pacman or jrpacman" >&2; exit 2 ;;
+  pacplus)  MOD_JR=0; PORTS="IN0 IN1"; GEN="-gMOD_PLUS=1" ;;
+  ponpoko)  MOD_JR=0; PORTS="IN0 IN1"
+            GEN="-gMOD_PONP=1 -gDSW1=225 -gDSW2=177 -gIN0_IDLE=224 -gIN1_IDLE=0" ;;
+  *) echo "SET is pacman, jrpacman, pacplus or ponpoko" >&2; exit 2 ;;
+esac
+case "$SET" in pacplus|ponpoko)
+  if [ "$COIN_F$START_F$JOY_F" != 000 ]; then echo "$SET runs without inputs" >&2; exit 2; fi ;;
 esac
 mkdir -p "$W"
 mrun() {   # <name> <last>: MAME without inputs
@@ -112,6 +122,46 @@ if game == "pacman":
     section(0xC300, c[6], 0x1F)
     section(0xC100, c[7], 0xFF)
     section(0xC000, c[8], 0xFF)
+elif game == "pacplus":
+    # game_core.sv for Pac-Man Plus: as Pac-Man, the program encrypted (mod_plus decrypts)
+    c = chips("pacplus.zip", [
+        ("pacplus.6e", "8531c54ca6b0de0ea4ccc34e0e801ba9847e75bc"),
+        ("pacplus.6f", "8ba97215bdb75f0e70eb8d3223847efe4dc4fb48"),
+        ("pacplus.6h", "4e8613d51a80cf106f883db79685e1e22541da45"),
+        ("pacplus.6j", "b956ae5d66683aab74b90469ad36b5bb361d677e"),
+        ("pacplus.5e", "57d7d723c7b029e3415801f4ce83469ec97bb8a1"),
+        ("pacplus.5f", "9c0699204484be819b77f0b212c792fe9e9fae5d"),
+        ("pacplus.7f", "2e43b46ec3b101d1babab87cdaddfa944116ec06"),
+        ("pacplus.4a", "cf006536215a7a1d488eebc1d8a2e2a8134ce1a6"),
+        ("82s126.1m", "bbcec0570aeceb582ff8238a4bc8546a23430081")])
+    section(0x0000, b"".join(c[0:4]))
+    section(0x8000, b"".join(c[4:6]))
+    section(0xC300, c[6], 0x1F)
+    section(0xC100, c[7], 0xFF)
+    section(0xC000, c[8], 0xFF)
+elif game == "ponpoko":
+    # game_core.sv for Ponpoko: program 0x0000, second bank 0x4000 (CPU 0x8000), graphics
+    # 0x8000, Pac-Man's PROMs
+    c = chips("ponpoko.zip", [
+        ("ppokoj1.bin", "d9e3186dcd4eb94d02bd24ad56030b248721537f"),
+        ("ppokoj2.bin", "4b8bd13e58040c30ca032b54fb47d889677e8c6f"),
+        ("ppokoj3.bin", "1a57767557c13fa3d08e4451fb9fb1f7219b26ef"),
+        ("ppokoj4.bin", "d4835ee97c9b3c63504d8b576a11f0a3a97057ec"),
+        ("ppoko5.bin", "b54299b00573fbd6d3278586df0c12c09235615d"),
+        ("ppoko6.bin", "ab3fb9c8846effdcea0569d08a84c5fa19057a8f"),
+        ("ppoko7.bin", "577c79c016be26a9fc7895cef0f30bf3f0b15097"),
+        ("ppokoj8.bin", "9b86ae34aaefa2813d29a4f7b24cee40eadcc6a1"),
+        ("ppoko9.bin", "f1229e804eb15827b71f0e769a8c9e496c6d1de7"),
+        ("ppoko10.bin", "1b58ad1c2cc2d12f4e492fdd665b726d50c80364"),
+        ("82s123.7f", "8d0268dee78e47c712202b0ec4f1f51109b1f2a5"),
+        ("82s126.4a", "19097b5f60d1030f8b82d9f1d3a241f93e5c75d6"),
+        ("82s126.1m", "bbcec0570aeceb582ff8238a4bc8546a23430081")])
+    section(0x0000, b"".join(c[0:4]))
+    section(0x4000, b"".join(c[4:8]))
+    section(0x8000, b"".join(c[8:10]))
+    section(0xC300, c[10], 0x1F)
+    section(0xC100, c[11], 0xFF)
+    section(0xC000, c[12], 0xFF)
 else:
     # game_core.sv for Jr. Pac-Man: graphics 0xA000, 9e 0xE000, 9f 0xE100, 9p 0xE200,
     # 7p 0xE300; the program goes through jr_rom_*
@@ -185,7 +235,7 @@ S="$W/src"
   "$S/rtl_pacman/pacman.vhd" "$S/tb_system.vhd" > "$W/build.log" 2>&1 || { cat "$W/build.log"; exit 1; }
 "$NVC" --std=2008 --ieee-warnings=off --work=work:"$W/lib/work" -e tb_system \
   -gMOD_JR="$MOD_JR" -gFRAMES="$FRAMES" -gEVERY="$EVERY" -gSEED="$SEED" -gLAT="$LAT" \
-  -gDUMP_F="$DUMP_F" -gDIR="$W" \
+  -gDUMP_F="$DUMP_F" -gDIR="$W" $GEN \
   >> "$W/build.log" 2>&1 || { cat "$W/build.log"; exit 1; }
 t1=$(date +%s)
 "$NVC" --ieee-warnings=off --work=work:"$W/lib/work" -r tb_system --exit-severity=failure > "$W/sim.log" 2>&1 || {

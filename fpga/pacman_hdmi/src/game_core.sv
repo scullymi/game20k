@@ -3,13 +3,15 @@
 `default_nettype none   // game20k: a typo in a signal name must be an error, not a
                        // silent one-bit net.
 //! @file game_core.sv
-//! @brief Pac-Man, Ms. Pac-Man and Jr. Pac-Man behind the game interface of the platform top (game20k).
+//! @brief The games of the Pac-Man board behind the game interface of the platform top (game20k).
 //!
 //! The platform top (fpga/common/src/game20k_top.sv) knows only this module and game_pkg.
 //! Every game folder has a game_core with exactly these ports. Here it wraps MikeJ's Pac-Man
 //! core (src/rtl_pacman, MiSTer 648172de with our taps) and holds what is Pac-Man's alone:
 //! the pixel enable, the DIP switches, the joystick of an upright cabinet with a 4-way
-//! filter, the ROM decode, the video sample phase and the audio scale. The RAM mirror itself
+//! filter, the ROM decode, the video sample phase and the audio scale. One bitstream runs
+//! Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, Pac-Man Plus and Ponpoko, the loaded file
+//! picks the game (see "Which game"). The RAM mirror itself
 //! is a VHDL entity beside the core (src/rtl_pacman/pacman_mirror.vhd) so that nvc can
 //! simulate it; this file only wires it.
 //!
@@ -97,6 +99,33 @@ module game_core #(
     always_ff @(posedge clk_core) ph <= (ph == 2'd2) ? 2'd0 : ph + 2'd1;
     wire ena_6 = (ph == 2'd0);
 
+    // ---------------- Which game ----------------
+    // The files of the board are prefixes of one layout. A file with the second bank is Ms.
+    // Pac-Man, one with Jr.'s program is Jr. Pac-Man (it has the bank's place too, as zeros).
+    // A file with the header (section 13) is the game its byte 0 names, 1 Pac-Man Plus,
+    // 2 Ponpoko; it carries all earlier sections, so the header overrides both flags. The
+    // first program byte of every load clears all three, a byte of the bank, of Jr.'s program
+    // or of the header sets one. Jr.'s program comes before its sprites and PROMs, whose
+    // download addresses need mod_jr. The core stays in reset until the whole file is in
+    // (game20k_top), so it never runs with a stale flag.
+    logic       is_ms = 1'b0, is_jr = 1'b0;
+    logic [1:0] hdr_game = 2'd0;
+    always_ff @(posedge clk_core) begin
+        if (rom_wr_en[0] && rom_wr_addr == 16'd0) begin
+            is_ms    <= 1'b0;
+            is_jr    <= 1'b0;
+            hdr_game <= 2'd0;
+        end else begin
+            if (rom_wr_en[6]) is_ms <= 1'b1;
+            if (rom_wr_en[7]) is_jr <= 1'b1;
+            if (rom_wr_en[13] && rom_wr_addr == 16'd0) hdr_game <= rom_wr_data[1:0];
+        end
+    end
+    wire jr   = is_jr && hdr_game == 2'd0;
+    wire ms   = is_ms && !is_jr && hdr_game == 2'd0;
+    wire plus = (hdr_game == 2'd1);
+    wire ponp = (hdr_game == 2'd2);
+
     // ---------------- DIP switches from the menu ----------------
     // The ids are the ones menu.xml uses, the values are the raw DSW1 bits (MAME pacman.cpp):
     // 1:0 coinage, 3:2 lives, 5:4 bonus, 6 difficulty (1 normal), 7 ghost names (1 normal).
@@ -119,11 +148,18 @@ module game_core #(
         endcase
 
     // DIP switches reach the core only while it is in reset: every DIP list in menu.xml
-    // carries action="reset", and the top holds reset for at least 255 clocks. DSW2 is
-    // unused by Pac-Man, 0xFF is MiSTer's value.
-    logic [7:0] dipsw1;
+    // carries action="reset", and the top holds reset for at least 255 clocks. The menu sets
+    // Pac-Man's DSW1, which Puck Man, Ms. Pac-Man, Jr. Pac-Man and Pac-Man Plus share. DSW2 is
+    // unused by them, 0xFF is MiSTer's value. Ponpoko has switches of its own and gets
+    // FBNeo's defaults, the emulator RetroAchievements uses (d_pacman.cpp, ponpokoDIPList):
+    // DSW1 0xD1 (bonus 10000 as MAME names the bits, 3 lives, upright), DSW2 0xB1 (1 coin 1
+    // credit, demo sounds on). MAME's default DSW1 is 0xE1, with 4 lives.
+    logic [7:0] dipsw1, dipsw2;
     always_ff @(posedge clk_core)
-        if (reset) dipsw1 <= {ghost, difficulty, bonus, lives, coinage};
+        if (reset) begin
+            dipsw1 <= ponp ? 8'hD1 : {ghost, difficulty, bonus, lives, coinage};
+            dipsw2 <= ponp ? 8'hB1 : 8'hFF;
+        end
 
     // ---------------- Controls ----------------
     // An upright cabinet: both players take turns on one stick, so both controllers feed the
@@ -178,16 +214,25 @@ module game_core #(
         else                                          dir4 <= first(raw_dir);  // released for good
     end
 
-    // The core's ports are active low, bit order 0 up, 1 left, 2 right, 3 down. Hardcore
-    // needs the rack test (in0 bit 4) and the service mode (in1 bit 4) off, so no fire
-    // button is wired; p1_fire, p2_fire, p1_btns and p2_btns stay unused. The P2 bits of
-    // in1 are unused with the cabinet bit at upright, fed for a later cocktail option.
-    wire [7:0] in0 = {1'b1, 1'b1, ~coin, 1'b1, ~dir4[2], ~dir4[0], ~dir4[1], ~dir4[3]};
-    wire [7:0] in1 = {1'b1, ~start2, ~start1, 1'b1, ~dir4[2], ~dir4[0], ~dir4[1], ~dir4[3]};
+    // The core's ports are the bytes the CPU reads, bit order 0 up, 1 left, 2 right, 3 down.
+    // Pac-Man's are active low. Hardcore needs the rack test (in0 bit 4) and the service mode
+    // (in1 bit 4) off, so no fire button is wired. The P2 bits of in1 are unused with the
+    // cabinet bit at upright, fed for a later cocktail option. Ponpoko's (MAME pacman.cpp,
+    // INPUT_PORTS ponpoko) are active high but the coins and the service switch: in0 bit 4 is
+    // player 1's button, bits 5 and 6 the coins; in1 holds player 2's stick and button, which
+    // the game reads even upright, and the starts in bits 5 and 6. Both players get both
+    // controllers as in Pac-Man; p1_btns and p2_btns stay unused.
+    wire       fire   = p1_fire | p2_fire;
+    wire [3:0] stick  = {dir4[2], dir4[0], dir4[1], dir4[3]};     // {down, right, left, up}
+    wire [7:0] in0 = ponp ? {1'b1, 1'b1, ~coin, fire, stick}
+                          : {1'b1, 1'b1, ~coin, 1'b1, ~stick};
+    wire [7:0] in1 = ponp ? {1'b0, start2, start1, fire, stick}
+                          : {1'b1, ~start2, ~start1, 1'b1, ~stick};
 
     // The test bar shows the filtered direction, what the game sees: bit 0 up, 1 down,
-    // 2 left, 3 right, 4 coin, 5 start 1, 6 start 2, as MAP_LABELS of game_pkg names them.
-    assign map_bits = {9'd0, start2, start1, coin, dir4[0], dir4[1], dir4[2], dir4[3]};
+    // 2 left, 3 right, 4 coin, 5 start 1, 6 start 2, 7 fire (Ponpoko only), as MAP_LABELS of
+    // game_pkg names them.
+    assign map_bits = {8'd0, ponp && fire, start2, start1, coin, dir4[0], dir4[1], dir4[2], dir4[3]};
 
     // ---------------- ROM download ----------------
     // rom_loader gives one clock of rom_wr_en[i] per byte of section i with the offset
@@ -200,7 +245,11 @@ module game_core #(
     // Sections 7 and up are Jr. Pac-Man's, only jrpacman.rom has them (jrpacman.manifest):
     // 7 the program, which goes to SDRAM and never reaches this decoder, then the sprites and
     // the PROMs at the addresses of MiSTer's Jr. Pac-Man.mra (sprites 0xC000, the second half
-    // of the graphics at 0xA000, 9e 0xE000, 9f 0xE100, 9p 0xE200, 7p 0xE300).
+    // of the graphics at 0xA000, 9e 0xE000, 9f 0xE100, 9p 0xE200, 7p 0xE300). Section 13 is
+    // the header of pacplus.rom and ponpoko.rom, read above and never written into the core.
+    // Section 14 holds their PROMs at the download addresses of MiSTer's Pac-Man Plus.mra
+    // (1m 0xC000, 4a 0xC100, 3m 0xC200, 7f 0xC300): Jr.'s sections before it, zeros in those
+    // files, write the same addresses.
     logic [15:0] dn_addr;
     logic        dn_wr;
     always_comb begin
@@ -215,25 +264,9 @@ module game_core #(
         else if (rom_wr_en[10]) dn_addr = 16'hE100 | {8'd0, rom_wr_addr[7:0]};    // jr_pal_hi
         else if (rom_wr_en[11]) dn_addr = 16'hE200 | {8'd0, rom_wr_addr[7:0]};    // col_rom_4a, Jr.
         else if (rom_wr_en[12]) dn_addr = 16'hE300 | {8'd0, rom_wr_addr[7:0]};    // audio_rom_1m, Jr.
+        else if (rom_wr_en[14]) dn_addr = 16'hC000 | {6'd0, rom_wr_addr[9:0]};    // the PROMs, Plus and Ponpoko
         else                   dn_addr = 16'h0000;
-        dn_wr = |rom_wr_en[4:0] | rom_wr_en[6] | |rom_wr_en[12:8];
-    end
-
-    // Which game the file is: a file with the second bank is Ms. Pac-Man, one with Jr.'s
-    // program is Jr. Pac-Man (it has the bank's place too, as zeros). The first program byte
-    // of every load clears both flags, a byte of the bank or of Jr.'s program sets one. Jr.'s
-    // program comes before its sprites and PROMs, whose download addresses need mod_jr. The
-    // core stays in reset until the whole file is in (game20k_top), so it never runs with a
-    // stale flag.
-    logic is_ms = 1'b0, is_jr = 1'b0;
-    always_ff @(posedge clk_core) begin
-        if (rom_wr_en[0] && rom_wr_addr == 16'd0) begin
-            is_ms <= 1'b0;
-            is_jr <= 1'b0;
-        end else begin
-            if (rom_wr_en[6]) is_ms <= 1'b1;
-            if (rom_wr_en[7]) is_jr <= 1'b1;
-        end
+        dn_wr = |rom_wr_en[4:0] | rom_wr_en[6] | |rom_wr_en[12:8] | rom_wr_en[14];
     end
 
     // ---------------- Jr. Pac-Man's program ROM in SDRAM ----------------
@@ -253,7 +286,7 @@ module game_core #(
     logic [31:0]      rom_miss;
     rom_slots #(.N(1), .AW(22)) u_slots (
         .clk(clk_core), .reset(reset),
-        .slot_addr(jr_off[21:2]), .slot_cs(is_jr && jr_rom_cs), .slot_hold(1'b0),
+        .slot_addr(jr_off[21:2]), .slot_cs(jr && jr_rom_cs), .slot_hold(1'b0),
         .slot_ok(slot_ok), .slot_data(slot_data),
         .rd_addr(rom_rd_addr), .rd_push(rom_rd_push), .rd_ready(rom_rd_ready),
         .rd_valid(rom_rd_valid), .rd_data(rom_rd_data),
@@ -277,11 +310,10 @@ module game_core #(
     logic [1:0]  blankn_q = 2'b00;
 
     // ---------------- The core ----------------
-    // Every mod_* input but mod_ms and mod_jr is 0: Pac-Man, Ms. Pac-Man and Jr. Pac-Man (a
-    // Jr. file also loads the bank's zeros, so mod_ms only without Jr.), the other games' decoders
-    // and sound chips are swept. hs_access_read and hs_access_write must stay 0: any 1
-    // silently drops all CPU RAM writes (pacman.vhd, u_rams). The high score port B is the
-    // mirror's read port.
+    // Every mod_* input but mod_ms, mod_jr, mod_plus and mod_ponp is 0 (see "Which game"),
+    // the other games' decoders and sound chips are swept. hs_access_read and hs_access_write
+    // must stay 0: any 1 silently drops all CPU RAM writes (pacman.vhd, u_rams). The high
+    // score port B is the mirror's read port.
     // Fallback if Gowin does not bind the entity PACMAN from here: lowercase 'pacman core'
     // or a VHDL shell, see src/rtl_pacman/README.md.
     PACMAN core (
@@ -297,20 +329,20 @@ module game_core #(
         .in1         (in1),
         .dipsw1      (dipsw1),
         .dipsw2      (8'hFF),
-        .mod_plus    (1'b0),
+        .mod_plus    (plus),
         .mod_jmpst   (1'b0),
         .mod_bird    (1'b0),
         .mod_mrtnt   (1'b0),
-        .mod_ms      (is_ms && !is_jr),
+        .mod_ms      (ms),
         .mod_woodp   (1'b0),
         .mod_eeek    (1'b0),
         .mod_glob    (1'b0),
         .mod_alib    (1'b0),
-        .mod_ponp    (1'b0),
+        .mod_ponp    (ponp),
         .mod_van     (1'b0),
         .mod_dshop   (1'b0),
         .mod_club    (1'b0),
-        .mod_jr      (is_jr),
+        .mod_jr      (jr),
         .jr_rom_addr (jr_rom_addr),
         .jr_rom_cs   (jr_rom_cs),
         .jr_rom_din  (jr_rom_din),
@@ -351,7 +383,7 @@ module game_core #(
         .clk        (clk_core),
         .ena_6      (ena_6),
         .reset      (reset),
-        .jr         (is_jr),
+        .jr         (jr),
         .frame_go   (mir_frame_go),
         .ram_addr   (hs_address),
         .ram_q      (hs_data_out),

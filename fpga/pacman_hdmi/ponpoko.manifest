@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Ponpoko (Sigma) on the Pac-Man board, with the sections of
+# pacplus.manifest, which explains the layout. Ponpoko's program fills both banks, the CPU
+# reads 0x0000-0x3FFF from program and 0x8000-0xBFFF from bank1 (mod_ponp, game_core.sv).
+# The graphics load as they are in MAME's set, the core reads them in Ponpoko's order. The
+# PROMs are Pac-Man's. Header byte 0 is 2, the game, and the screen is upright (MAME ROT0),
+# which make_rom.py writes into header byte 2.
+
+set     ponpoko
+title   Ponpoko (Sigma)
+zip     ponpoko.zip
+total   92964
+board   2
+mirror  6272
+screen  upright
+known   782e594e38d197c9b582ea495b25a05d81bf26c45e76118daf24d648688e7c5b MAME ponpoko
+
+section program     0x0000 16384
+chip    ppokoj1.bin 4096 d9e3186dcd4eb94d02bd24ad56030b248721537f
+chip    ppokoj2.bin 4096 4b8bd13e58040c30ca032b54fb47d889677e8c6f
+chip    ppokoj3.bin 4096 1a57767557c13fa3d08e4451fb9fb1f7219b26ef
+chip    ppokoj4.bin 4096 d4835ee97c9b3c63504d8b576a11f0a3a97057ec
+section gfx         0x4000 8192
+chip    ppoko9.bin  4096 f1229e804eb15827b71f0e769a8c9e496c6d1de7
+chip    ppoko10.bin 4096 1b58ad1c2cc2d12f4e492fdd665b726d50c80364
+section palette_7f  0x6000 32 zeros
+section colour_4a   0x6020 256 zeros
+section wave_1m     0x6120 256 zeros
+section timing_3m   0x6220 256 zeros
+section bank1       0x6320 16384
+chip    ppoko5.bin  4096 b54299b00573fbd6d3278586df0c12c09235615d
+chip    ppoko6.bin  4096 ab3fb9c8846effdcea0569d08a84c5fa19057a8f
+chip    ppoko7.bin  4096 577c79c016be26a9fc7895cef0f30bf3f0b15097
+chip    ppokoj8.bin 4096 9b86ae34aaefa2813d29a4f7b24cee40eadcc6a1
+section jr_program  0xA320 40960 zeros sdram
+section jr_gfx_hi   0x14320 8192 zeros
+section jr_pal_9e   0x16320 256 zeros
+section jr_pal_9f   0x16420 256 zeros
+section jr_col_9p   0x16520 256 zeros
+section jr_wave_7p  0x16620 256 zeros
+section id          0x16720 4 header
+data    02 00
+fill    2 0
+section proms       0x16724 1024
+chip    82s126.1m   256  bbcec0570aeceb582ff8238a4bc8546a23430081
+chip    82s126.4a   256  19097b5f60d1030f8b82d9f1d3a241f93e5c75d6
+chip    82s126.3m   256  0c4d0bee858b97632411c440bea6948a74759746
+chip    82s123.7f   32   8d0268dee78e47c712202b0ec4f1f51109b1f2a5
+fill    224 0

@@ -751,6 +751,7 @@ port map(
 	GLOB     => mod_glob,
 	PLUS     => mod_plus,
 	JMPST		=> mod_jmpst,
+	HI_BANK  => mod_ponp, -- game20k: Ponpoko's program at 0x8000-0xBFFF
 	dcnt     => dcnt,
 	cpu_m1_l => cpu_m1_l, 
 	addr     => cpu_addr,

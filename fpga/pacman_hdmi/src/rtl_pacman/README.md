@@ -48,8 +48,9 @@ done
 - `library UNISIM` is removed (unused, unknown to Gowin), and instances of the form
   `label : work.X` read `label : entity work.X`.
 - A generic `G_HI_BANK`, default `true`: the second 16 KB program bank for Ms. Pac-Man (8
-  block RAMs). Only with `MSPACMAN` does the CPU read it, every other game sees 0x8000 to
-  0xBFFF mirror bank 0 as on the Pac-Man board. `false` leaves the bank out.
+  block RAMs). Only with `MSPACMAN` or the new input `HI_BANK` (Ponpoko, `mod_ponp` in
+  `pacman.vhd`) does the CPU read it, every other game sees 0x8000 to 0xBFFF mirror bank 0 as
+  on the Pac-Man board. `false` leaves the bank out.
 
 **Jr. Pac-Man**
 

@@ -15,6 +15,8 @@ Every core recreates one arcade board, and the games that ran on the same board 
 | Ms. Pac-Man | MikeJ's Pac-Man core | `mspacman` | [Ms. Pac-Man](https://retroachievements.org/game/11800) |
 | Ms. Pac-Man (speedup hack) | MikeJ's Pac-Man core | `mspacmnf` | [Ms. Pac-Man (speedup)](https://retroachievements.org/game/24949) |
 | Jr. Pac-Man | MikeJ's Pac-Man core | `jrpacman` | [Jr. Pac-Man](https://retroachievements.org/game/12191) |
+| Pac-Man Plus | MikeJ's Pac-Man core | `pacplus` | [Pac-Man Plus](https://retroachievements.org/game/11919) |
+| Ponpoko | MikeJ's Pac-Man core | `ponpoko` | [Ponpoko](https://retroachievements.org/game/11918) |
 | 1942 | jotego's jt1942 core | `1942` | [1942](https://retroachievements.org/game/11960) |
 | Vulgus | jotego's jt1942 core | `vulgus` | none |
 | Pirate Ship Higemaru | jotego's jt1942 core | `higemaru` | none |
@@ -37,7 +39,7 @@ Default stick layout:
 
 | | Galaga, Pac-Man, Dig Dug | 1942, Vulgus, Higemaru | 1943 | Ghosts'n Goblins | Time Pilot, Pang |
 |---|---|---|---|---|---|
-| Fire (Dig Dug: pump) | any button | 1 | 1 | 1 | 1 |
+| Fire (Dig Dug: pump, Ponpoko: jump) | any button | 1 | 1 | 1 | 1 |
 | Loop (1942), bomb (Vulgus) | | 2 | | | |
 | Bomb | | | 2 | | |
 | Jump | | | | 2 | |

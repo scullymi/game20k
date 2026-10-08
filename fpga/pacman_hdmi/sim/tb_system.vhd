@@ -5,8 +5,9 @@
 --!        every EVERY-th frame written out for the comparison with MAME (run_system_sim.sh).
 --!
 --! The testbench does the wrapper's job as game_core.sv does it: the ena_6 divider, the
---! download port with RESET = 1 at the dn addresses of the game folder, dipsw1 = C9 and
---! dipsw2 = FF, every mod_* 0 but mod_jr = MOD_JR, the blankn delay (BLANK_DLY = 1) and the
+--! download port with RESET = 1 at the dn addresses of the game folder, dipsw1 = DSW1 and
+--! dipsw2 = DSW2, every mod_* 0 but mod_jr = MOD_JR, mod_plus = MOD_PLUS and mod_ponp =
+--! MOD_PONP, the idle inputs IN0_IDLE and IN1_IDLE, the blankn delay (BLANK_DLY = 1) and the
 --! scaler's sample phase (the third clock of a pixel, as tb_pacman.vhd T8 measures it).
 --!
 --! Files, all in DIR (written by run_system_sim.sh):
@@ -14,7 +15,7 @@
 --!   prog.txt    with MOD_JR = 1: Jr.'s program as the CPU sees it, 40960 bytes one per line
 --!               (CPU 0x0000-0x3FFF, then 0x8000-0xDFFF)
 --!   inputs.txt  "F IN0 IN1" per line, F the frame from which the two bytes hold (decimal,
---!               ascending), the bytes active low in hex
+--!               ascending), the bytes as the CPU reads them, in hex
 --! Out: DIR/frames/fNNNN.ppm (P6, 288 x 224, the core raster unrotated, the colours at the
 --! levels of MAME's resistor network) and one report line per 100 frames.
 --!
@@ -42,6 +43,12 @@ use std.textio.all;
 entity tb_system is
   generic (
     MOD_JR : natural := 0;          --!< 1: Jr. Pac-Man
+    MOD_PLUS : natural := 0;        --!< 1: Pac-Man Plus
+    MOD_PONP : natural := 0;        --!< 1: Ponpoko
+    DSW1   : natural := 16#C9#;     --!< dipsw1
+    DSW2   : natural := 16#FF#;     --!< dipsw2
+    IN0_IDLE : natural := 16#FF#;   --!< in0 with nothing pressed
+    IN1_IDLE : natural := 16#FF#;   --!< in1 with nothing pressed
     FRAMES : natural := 100;        --!< frames from the reset release
     EVERY  : positive := 1;         --!< write every EVERY-th frame
     SEED   : positive := 1;         --!< seed of the latency model
@@ -67,11 +74,14 @@ architecture sim of tb_system is
   signal ena_6 : std_logic;
   signal rst   : std_logic := '1';
   signal mjr   : std_logic := '0';
+  signal mplus : std_logic := '0';
+  signal mponp : std_logic := '0';
 
   signal dn_addr : std_logic_vector(15 downto 0) := (others => '0');
   signal dn_data : std_logic_vector(7 downto 0)  := (others => '0');
   signal dn_wr   : std_logic := '0';
-  signal in0, in1 : std_logic_vector(7 downto 0) := x"FF";
+  signal in0 : std_logic_vector(7 downto 0) := std_logic_vector(to_unsigned(IN0_IDLE, 8));
+  signal in1 : std_logic_vector(7 downto 0) := std_logic_vector(to_unsigned(IN1_IDLE, 8));
 
   signal o_r, o_g : std_logic_vector(2 downto 0);
   signal o_b      : std_logic_vector(1 downto 0);
@@ -133,6 +143,8 @@ architecture sim of tb_system is
 begin
   clk <= not clk after T / 2 when not done;
   mjr <= '1' when MOD_JR = 1 else '0';
+  mplus <= '1' when MOD_PLUS = 1 else '0';
+  mponp <= '1' when MOD_PONP = 1 else '0';
 
   -- ---------------- the wrapper's clock enable ----------------
   p_ph : process (clk)
@@ -149,9 +161,11 @@ begin
       O_VIDEO_R => o_r, O_VIDEO_G => o_g, O_VIDEO_B => o_b,
       O_HSYNC => o_hs, O_VSYNC => o_vs, O_HBLANK => o_hb, O_VBLANK => o_vb,
       O_AUDIO => o_audio,
-      in0 => in0, in1 => in1, dipsw1 => x"C9", dipsw2 => x"FF",
-      mod_plus => '0', mod_jmpst => '0', mod_bird => '0', mod_mrtnt => '0', mod_ms => '0',
-      mod_woodp => '0', mod_eeek => '0', mod_glob => '0', mod_alib => '0', mod_ponp => '0',
+      in0 => in0, in1 => in1,
+      dipsw1 => std_logic_vector(to_unsigned(DSW1, 8)),
+      dipsw2 => std_logic_vector(to_unsigned(DSW2, 8)),
+      mod_plus => mplus, mod_jmpst => '0', mod_bird => '0', mod_mrtnt => '0', mod_ms => '0',
+      mod_woodp => '0', mod_eeek => '0', mod_glob => '0', mod_alib => '0', mod_ponp => mponp,
       mod_van => '0', mod_dshop => '0', mod_club => '0',
       flip_screen => '0', h_offset => "000", v_offset => "000",
       mod_jr => mjr, jr_rom_addr => jr_addr, jr_rom_cs => jr_cs, jr_rom_din => jr_din,

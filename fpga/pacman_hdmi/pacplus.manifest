@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# ROM manifest of Pac-Man Plus on the Pac-Man board. The format is described in the head of
+# pacman.manifest, the section options in jrpacman.manifest, header in
+# ../g1942_hdmi/1942.manifest.
+#
+# One bitstream runs every set of the board, and rom_loader has one section table, so this
+# file continues jrpacman.manifest's layout (sections 0 to 12) and build.tcl writes the table
+# from this manifest. Pac-Man Plus fills the program and the graphics as Pac-Man does, the
+# other sections up to 12 are zeros. ponpoko.manifest has the same sections.
+#
+# Two sections follow. id is the header the core reads (game_core.sv): byte 0 is the game, 1
+# Pac-Man Plus, 2 Ponpoko, and byte 2 the screen code. The earlier files of the board end
+# before it, so a load without it is Pac-Man, Ms. Pac-Man or Jr. Pac-Man. proms holds the
+# four PROMs at the download addresses of MiSTer's Pac-Man Plus.mra (1m 0xC000, 4a 0xC100,
+# 3m 0xC200, 7f 0xC300): the zeros of Jr.'s sections reach the same addresses, so the PROMs
+# come last. The core decrypts the program at run time (mod_plus).
+
+set     pacplus
+title   Pac-Man Plus (Midway)
+zip     pacplus.zip
+total   92964
+board   2
+mirror  6272
+# MAME ROT90, as Pac-Man
+screen  cw
+known   f5bd31c1caeba45073ae03b4aef6639e6e24ff727839d8e408c21595454f43a5 MAME pacplus
+
+section program     0x0000 16384
+chip    pacplus.6e  4096 8531c54ca6b0de0ea4ccc34e0e801ba9847e75bc
+chip    pacplus.6f  4096 8ba97215bdb75f0e70eb8d3223847efe4dc4fb48
+chip    pacplus.6h  4096 4e8613d51a80cf106f883db79685e1e22541da45
+chip    pacplus.6j  4096 b956ae5d66683aab74b90469ad36b5bb361d677e
+section gfx         0x4000 8192
+chip    pacplus.5e  4096 57d7d723c7b029e3415801f4ce83469ec97bb8a1
+chip    pacplus.5f  4096 9c0699204484be819b77f0b212c792fe9e9fae5d
+section palette_7f  0x6000 32 zeros
+section colour_4a   0x6020 256 zeros
+section wave_1m     0x6120 256 zeros
+section timing_3m   0x6220 256 zeros
+section bank1       0x6320 16384 zeros
+section jr_program  0xA320 40960 zeros sdram
+section jr_gfx_hi   0x14320 8192 zeros
+section jr_pal_9e   0x16320 256 zeros
+section jr_pal_9f   0x16420 256 zeros
+section jr_col_9p   0x16520 256 zeros
+section jr_wave_7p  0x16620 256 zeros
+section id          0x16720 4 header
+data    01 00
+fill    2 0
+section proms       0x16724 1024
+chip    82s126.1m   256  bbcec0570aeceb582ff8238a4bc8546a23430081
+chip    pacplus.4a  256  cf006536215a7a1d488eebc1d8a2e2a8134ce1a6
+chip    82s126.3m   256  0c4d0bee858b97632411c440bea6948a74759746
+chip    pacplus.7f  32   2e43b46ec3b101d1babab87cdaddfa944116ec06
+fill    224 0

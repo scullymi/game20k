@@ -29,6 +29,8 @@ static void test_by_file_names_the_set(void) {
   TEST_ASSERT_EQUAL_UINT(12192u, id_of("pacman.rom"));
   TEST_ASSERT_EQUAL_UINT(24933u, id_of("puckman.rom"));
   TEST_ASSERT_EQUAL_UINT(11800u, id_of("mspacman.rom"));
+  TEST_ASSERT_EQUAL_UINT(11919u, id_of("pacplus.rom"));
+  TEST_ASSERT_EQUAL_UINT(11918u, id_of("ponpoko.rom"));
   TEST_ASSERT_EQUAL_UINT(11960u, id_of("1942.rom"));
   TEST_ASSERT_EQUAL_UINT(11961u, id_of("1943.rom"));
 }

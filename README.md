@@ -15,7 +15,7 @@ and shows each unlock as a banner on the screen.
 
 ![Galaga with an unlock banner, 1943 and Super Pang, below them twelve more games](docs/images/games-overview.png)
 
-Fifteen games and five regional or speedup sets on eight cores: [docs/games.md](docs/games.md)
+Seventeen games and five regional or speedup sets on eight cores: [docs/games.md](docs/games.md)
 lists them with their controls, [docs/images](docs/images/README.md) shows them all.
 
 > **ROMs are not included and never will be.** You need your own, legally obtained ROM sets.
