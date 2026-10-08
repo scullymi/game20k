@@ -33,7 +33,8 @@
 
   <menu label="Pang">
     <!-- game20k: the board has no DIP switches, its settings live in the EEPROM and are set
-         in the game's test menu, which button 2 of player 2 confirms. The test switch is
+         under Game Information in the game's test menu. Pang and Buster Bros. confirm there
+         with start 2, Super Pang and Super Buster Bros. with button 1. The test switch is
          read at power-on, so the list resets. -->
     <menu label="Service">
       <list label="Test mode:" id="X" default="0" action="reset">

@@ -52,6 +52,10 @@ under `Controller`, `Input test: On`. Everything can be changed under `Controlle
 `Save settings` under `Settings`. Otherwise the changes last until power-off. For 1942, `Sound`
 under `Settings` offers `Soft`, which tones down the shrill high notes of the original.
 
+Pang and Super Pang ignore button 2 in the game, as on the arcade board. The Pang core keeps its
+settings in the game's test menu (`Service`, `Test mode`). Pang and Buster Bros. confirm there
+with start 2, so give `Start 2P` under `Controller` a button first.
+
 A stick button can open the menu too: set `GAMEPAD_TRIGGER` under `[MENU]` in `config.ini`, see
 [sdcard/config.ini.example](../sdcard/config.ini.example). This setting counts buttons from 0,
 while the input test numbers them from 1, so enter the number shown there minus one (button 1

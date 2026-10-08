@@ -103,8 +103,8 @@ module game_core #(
 
     // ---------------- Controls, JTFRAME convention: active low ----------------
     // joystick {button 2, button 1, up, down, left, right}. Button 1 fires (the platform's
-    // fire, menu id A). Button 2 serves only the test menu: the raw HID button the menu names
-    // under K, 1..12, 0 for none. The test switch (menu id X) is read at power-on, its list
+    // fire, menu id A). Button 2 ("Shot B") does nothing in the game, only some test screens
+    // read it: the raw HID button the menu names under K, 1..12, 0 for none. The test switch (menu id X) is read at power-on, its list
     // resets. Two coin slots on the board, the platform has one coin.
     logic [3:0] b2_btn = 4'd2;
     logic       test_on = 1'b0;
