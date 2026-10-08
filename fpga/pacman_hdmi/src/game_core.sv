@@ -266,7 +266,7 @@ module game_core #(
     logic [2:0]  core_r, core_g;
     logic [1:0]  core_b;
     logic        core_hs, core_vs, core_hb, core_vb;
-    logic [9:0]  audio_u10;        // unipolar, silence = 0, at most 900 (225 << 2)
+    logic [9:0]  audio_u10;        // every slot centred on 480 (120 << 2), 0 to 900
     logic [11:0] hs_address;       // the mirror's read port on the main RAM
     logic [7:0]  hs_data_out;
     logic [3:0]  mir_sxy_addr;
@@ -409,7 +409,8 @@ module game_core #(
     //
     // Stage 1 sums exactly one frame, 20*v0 + 20*v1 + 24*v2, the board's weights, with nothing
     // of the multiplex left. Any 64 consecutive ena_6 steps hold each slot once, so the frame
-    // counter needs no phase from the core. At most 64 * 900 = 57600, 16 bits.
+    // counter needs no phase from the core. At most 64 * 900 = 57600, 16 bits. Every slot is
+    // centred on 480 (pacman_audio.vhd), so silence is 64 * 480 = 30720, which frm_c takes off.
     logic [5:0]  frm     = 6'd0;       // ena_6 step within the frame
     logic [15:0] frm_acc = 16'd0;      // running sum of the current frame
     logic [15:0] frm_sum = 16'd0;      // sum of the last complete frame
@@ -422,20 +423,18 @@ module game_core #(
             if (frm == 6'd63) frm_sum <= frm_nx;
         end
 
-    // Stage 2, one pole at the ena_6 rate: lp += (64 * frm_sum - lp) / 64, -3 dB at
+    // Stage 2, one pole at the ena_6 rate: lp += (64 * frm_c - lp) / 64, -3 dB at
     // 6.1875 MHz / (2 pi 64) = 15.5 kHz. It smooths the steps of the held frame value, whose
     // images near 96.7 kHz the sample point would fold to 0.63 kHz above and below every
-    // tone. lp settles at 64 * frm_sum, at most 3686400 < 2^22.
-    logic [21:0] lp = 22'd0;
+    // tone. lp settles at 64 * frm_c, -1966080 to 1720320, inside 23 bits signed.
+    wire  signed [16:0] frm_c = $signed({1'b0, frm_sum}) - 17'sd30720;
+    logic signed [22:0] lp = 23'sd0;
     always_ff @(posedge clk_core)
-        if (ena_6) lp <= lp - {6'd0, lp[21:6]} + {6'd0, frm_sum};
+        if (ena_6) lp <= lp - (lp >>> 6) + 23'(frm_c);
 
-    // lp / 128 = frm_sum / 2 = 32 * the frame mean, the scale of the earlier 32 * O_AUDIO:
-    // at most 28800, no clipping, and silence stays 0 so the top's volume gain does not
-    // shift the idle level. If the device says too quiet, Galaga's x64 with clipping is the
-    // fallback:
-    //   assign audio = (lp[21:6] > 16'd32767) ? 16'd32767 : lp[21:6];
-    assign audio = {1'b0, lp[21:7]};
+    // lp / 128 = frm_c / 2, the scale of the earlier 32 * O_AUDIO: -15360 to 13440, no
+    // clipping, and silence is 0 so the top's volume gain does not shift the idle level.
+    assign audio = lp[22:7];
 
     // ---------------- No diagnostics in this folder ----------------
     assign diag_on    = 1'b0;

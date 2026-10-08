@@ -428,14 +428,14 @@ begin
     end if;
   end process;
 
-  -- ---------------- audio: silent without a sound write ----------------
+  -- ---------------- audio: silent without a sound write (every slot at its centre, 480) ----------------
   p_audio : process (clk)
     variable n : natural := 0;
   begin
     if rising_edge(clk) then
       if rst = '0' then
         if n < 100 then n := n + 1;
-        else assert o_audio = "0000000000" report "audio not silent" severity failure;
+        else assert o_audio = "0111100000" report "audio not silent" severity failure;
         end if;
       end if;
     end if;

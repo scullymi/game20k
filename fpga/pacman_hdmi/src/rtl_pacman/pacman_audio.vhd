@@ -215,12 +215,17 @@ begin
   p_original_output_reg : process
   begin
     -- 2m used to use async clear
+    -- game20k: every voice is centred on 120: vol * (sample - 8) + 120, 0 to 225, as MAME
+    -- (namco.cpp) centres the 4-bit sample on 8. With vol * sample the baseline of a voice
+    -- moves with its volume, so a short note sits on a pulse that the AC coupling of the
+    -- monitor turns into a thump (Jr. Pac-Man's dot sound). Sound off is 120 as well. The
+    -- 8-bit sum wraps on the way, the result does not.
     wait until rising_edge(CLK);
     if (ENA_6 = '1') then
       if (I_SOUND_ON = '0') then
-			O_AUDIO <= "00000000";
+			O_AUDIO <= x"78";
       elsif (rom3m(2) = '1') then
-			O_AUDIO <= vol_ram_dout(3 downto 0) * rom1m_data(3 downto 0);
+			O_AUDIO <= vol_ram_dout(3 downto 0) * rom1m_data(3 downto 0) + x"78" - (vol_ram_dout(3 downto 0) & "000");
       end if;
     end if;
   end process;

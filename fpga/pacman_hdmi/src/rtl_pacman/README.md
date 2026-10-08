@@ -12,7 +12,7 @@ the Z80 in `../rtl_T80`.
 |---|---|---|
 | `pacman.vhd` | MikeJ, later changes by Alexey Melnikov (Sorgelig), Alan Steremberg and Rodimus Prime | yes, see below |
 | `pacman_video.vhd` | MikeJ, later changes by the same three | yes, RAM primitives and the sprite x/y shadow |
-| `pacman_audio.vhd` | MikeJ, later changes by the same three | yes, RAM primitives only |
+| `pacman_audio.vhd` | MikeJ, later changes by the same three | yes, RAM primitives and the centred output |
 | `pacman_rom_descrambler.vhd` | d18c7db, later changes by Sorgelig | yes, RAM primitives and the second bank |
 | `pacman_vram_addr.vhd` | MikeJ and CarlW, later changes by Sorgelig | no |
 | `g20k_dpram.vhd` | game20k | new: the dual-port RAM the core uses, in a form Gowin places |
@@ -78,6 +78,14 @@ done
   FBNeo shows to RetroAchievements.
 - The flip latch is cleared by the core's watchdog reset without a CPU write. A harvest that
   runs into a reset may deliver the flip bit from before it, the next harvest is right again.
+
+**Sound output**
+
+- `pacman_audio.vhd` centres every voice on 120: the output register takes
+  `vol * (sample - 8) + 120` instead of `vol * sample`, as MAME centres the 4-bit sample on 8.
+  Uncentred, a voice's baseline moves with its volume, and a short note sits on a pulse that the
+  monitor's AC coupling turns into a thump. `game_core.sv` takes the constant off again, so
+  silence stays 0.
 
 **Sound chips**
 
