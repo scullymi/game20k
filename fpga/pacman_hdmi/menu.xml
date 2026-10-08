@@ -2,7 +2,7 @@
 <!-- Pac-Man (game20k) configuration for the FPGA Companion -->
 <config name="Pac-Man" version="0">
   <actions>
-    <!-- game20k: deliberately WITHOUT commands. The Pico answers these four
+    <!-- game20k: deliberately WITHOUT commands. The Pico answers these five
          buttons itself (menu.c catches them by name) and does not pass them on
          to the core. They must be listed all the same: config_get_action()
          resolves an unknown name to NULL, and the button then does nothing. -->
@@ -10,6 +10,7 @@
     <action name="rainfo"/>
     <action name="verinfo"/>
     <action name="ralist"/>
+    <action name="games"/>
     <action name="init">
       <load file="pacman.ini"/>
       <set id="R" value="1"/>
@@ -32,6 +33,7 @@
   </actions>
 
   <menu label="Pac-Man">
+    <button label="Games" action="games"/>
     <!-- game20k: the values are the raw DSW1 bits of MAME pacman.cpp, the wrapper does no
          translation. Every list resets: the switches reach the core only in reset. -->
     <menu label="DIP switches">

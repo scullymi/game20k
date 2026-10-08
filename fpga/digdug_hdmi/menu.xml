@@ -2,7 +2,7 @@
 <!-- Dig Dug (game20k) configuration for the FPGA Companion. -->
 <config name="Dig Dug" version="0">
   <actions>
-    <!-- game20k: deliberately WITHOUT commands. The Pico answers these four
+    <!-- game20k: deliberately WITHOUT commands. The Pico answers these five
          buttons itself (menu.c catches them by name) and does not pass them on
          to the core. They must be listed all the same: config_get_action()
          resolves an unknown name to NULL, and the button then does nothing. -->
@@ -10,6 +10,7 @@
     <action name="rainfo"/>
     <action name="verinfo"/>
     <action name="ralist"/>
+    <action name="games"/>
     <action name="init">
       <load file="digdug.ini"/>
       <set id="R" value="1"/>
@@ -32,6 +33,7 @@
   </actions>
 
   <menu label="Dig Dug">
+    <button label="Games" action="games"/>
     <menu label="DIP switches">
       <list label="Lives:" id="L" default="2" action="reset">
         <listentry label="1" value="0"/>

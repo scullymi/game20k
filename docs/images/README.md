@@ -35,10 +35,10 @@ An unlock banner during the game, the achievement list, the account and the vers
 
 ## Menu and game switch
 
-The main menu, the choice of ROM, and the messages when the device switches to another core or
-another game on the same core.
+The main menu, the Games page with the running game selected, and the messages when the device
+switches to another core or starts another game on the same core.
 
-![Main menu, ROM choice, core switch and game switch](menu-and-game-switch.png)
+![Main menu, Games page, core switch and game switch](menu-and-game-switch.png)
 
 ## The setup
 

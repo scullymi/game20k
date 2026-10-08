@@ -1,6 +1,6 @@
 # Tests
 
-Host tests of three pieces of the firmware, built from the fork's own sources and run without a board.
+Host tests of five pieces of the firmware, built from the fork's own sources and run without a board.
 
 ```sh
 git submodule update --init --recursive   # the fork, pico-sdk (mbedTLS headers) and external/unity
@@ -11,13 +11,15 @@ HOST_LOG=1 make -C tests/host             # with the firmware's debugf() lines
 
 Unity is the submodule `external/unity`, tag v2.7.0 (commit `b6763fbd`), MIT licence, used by the tests only.
 
-## What the three tests cover
+## What the five tests cover
 
 - `test_ftp_guard.c`: the FTP write protection in hardcore (`ftpd.c`: `protected_path()`, `resolve()` and every writing command). The fork's real FatFs is the oracle: every argument that FatFs resolves to a protected file must be refused, in the root and below the folder `ra`. It covers the known bypasses (backslash, trailing dot or space, control byte), and an earlier `protected_path()` without them fails it.
 - `test_dechunk.c`: `ra_net_dechunk()`, the chunked transfer framing of the RetroAchievements replies. Every input sits in a heap block of its exact length, so ASan sees any read past the end. The one IGNORE is the open length overflow (a hex length with more digits than an unsigned long wraps around), it becomes a hard assert in the commit in which the fork refuses such lengths.
 - `test_queue_lines.c`: `parse()` in `ra_queue.c`, the lines of `ra_pending.txt`: a line without a game hash is Galaga's, one with a hash carries its game, and the two tag labels never verify each other's line, so a hash cannot be inserted or removed unnoticed. Then `ra_queue_open()` and `ra_queue_head()` on a file on the RAM card: a malformed line is marked done and skipped, another account's line parked, a blank line left alone, and `ra_queue_own()` by hash and by the resolved game id. The tags come from a fake `ra_mac_tag()` in the stand-ins, deterministic over label and data.
+- `test_games.c`: `ra_games_by_file()` in `ra_games.c`, the file name that starts a core switch under "ROM set", case ignored, and near misses that name no game.
+- `test_games_file.c`: the footer of a ROM file (`games_file.c`) against a footer that `scripts/make_rom.py` wrote: valid, bad magic or version, every one-bit change caught by the CRC-32, a size that does not match, a file shorter than a footer, and `games_footer_read()` on the RAM card, which leaves the file position as it was. Then the order of the Games page, by title without case and by file name on a tie.
 
-Only these three, because each guards real bugs in code that parses input from outside, and all run in seconds.
+Only these five, because each guards real bugs in code that parses input from outside, and all run in seconds.
 
 ## What the stand-ins model
 

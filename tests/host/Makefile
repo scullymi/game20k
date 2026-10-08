@@ -50,11 +50,10 @@ STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c $(FORK)/ra_slim.c
-TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games
+TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
-# every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c and
-# test_games ra_games.c
-# themselves (their functions are static)
+# every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
+# test_games ra_games.c and test_games_file games_file.c themselves (their functions are static)
 SHARED  := $(foreach s,$(LIB_SRC) $(OWN_SRC),$(call obj,$(s)))
 
 .PHONY: all check build clean

@@ -77,14 +77,20 @@ the top of the picture on a darkened box.
 
 ## Changing the game
 
-To change the game, go to `ROM set` under `Settings`. Choosing a ROM for another game on the same
-board, such as `puckman.rom` while Pac-Man is running, restarts the Pico into that game with its
-own achievements. Choosing a ROM for a game on another core, such as `galaga.rom` while Pac-Man
-is running, loads that core first. Either way, the menu tells you, and the new game starts after
-about three seconds. The choice lasts until power-off, and `Save settings` keeps a ROM of the
-same core. Galaga always starts at power-on.
+To change the game, open `Games`, the first entry of the menu. It lists every game on the card
+by title. Choosing a game on the running core, such as Puck Man while Pac-Man is running,
+restarts the Pico into that game with its own achievements. Choosing a game on another core,
+such as Galaga while Pac-Man is running, loads that core first. Either way, the menu tells you,
+and the new game starts after about three seconds. `ROM set` under `Settings` still picks a
+file by name. The choice lasts until power-off. `Save settings` makes the running game the one
+that starts at power-on, otherwise Galaga starts.
 
-![Main menu, ROM choice, core switch and game switch](images/menu-and-game-switch.png)
+Only files that `scripts/make_sdcard.sh` built appear on the list. Each carries a footer with
+the game's name and a checksum, which the Pico checks while it loads the game. A file built by
+an older release shows `Old ROM file`, so rebuild the card. A file whose content no longer
+matches its checksum shows `ROM file damaged` and does not start, so copy it to the card again.
+
+![Main menu, Games page, core switch and game switch](images/menu-and-game-switch.png)
 
 `Status` shows the network and, under `Version`, the firmware version, which is the same one the
 firmware reports to RetroAchievements. The `RetroAchievements` menu is described in

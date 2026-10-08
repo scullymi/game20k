@@ -19,6 +19,7 @@
 #include "ra_mac.h"
 #include "ra_state.h"
 #include "ra_patch.h"
+#include "games.h"
 
 // the stand-ins below keep the real signatures and ignore most of their parameters
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -185,3 +186,5 @@ __attribute__((weak)) const ra_game_t *ra_games_by_hash(const char *hex) {
   return NULL;
 }
 bool ra_patch_foreign_rom(void) { return false; }
+// games.c: ftpd.c tells it of a changed ROM file, nothing here lists games
+void games_changed(const char *name) { (void)name; }
