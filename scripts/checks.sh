@@ -13,7 +13,8 @@
 #   secrets        PASS, TOKEN and SSID of sdcard/config.ini (or G20K_CONFIG_INI), counted, never
 #                  shown. Under 8 characters a value counts only as a word in a text file.
 #                  Skipped only without config.ini (the CI), a key without a value is a finding.
-#   paths          tracked files that .gitignore excludes, git add -f included
+#   paths          tracked files that .gitignore excludes, git add -f included, and build
+#                  output: anything in a folder build, build_* or CMakeFiles
 #   ra-conditions  RetroAchievements condition chains, conditions such as 0xH0010=5 joined
 #                  by "_": sets belong to RetroAchievements. tests/**/selftest_* is exempt.
 #   crlf           files whose line ends changed: a CRLF file stays CRLF
@@ -116,6 +117,10 @@ check_paths() {
   say "paths: $FILES names checked against .gitignore, $(wc -l < "$T/ignored" | tr -d ' ') excluded"
   [ "$FILES" -gt 0 ] || finding "paths: no file to check"
   while IFS= read -r p; do finding "paths: $p is excluded by .gitignore"; done < "$T/ignored"
+  # a build folder the .gitignore does not name yet: one finding per folder, not per file
+  tr '\000' '\n' < "$T/names" | sed -n -E 's#^((.*/)?(build|build_[^/]*|CMakeFiles))/.*#\1#p' \
+    | sort -u > "$T/builds"
+  while IFS= read -r d; do finding "paths: $d/ is build output and tracked"; done < "$T/builds"
 }
 
 check_ra() {
