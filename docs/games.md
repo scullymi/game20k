@@ -67,7 +67,9 @@ A game with a vertical monitor runs 2x upright on a regular monitor, or 3x rotat
 SDRAM frame buffer for a monitor turned on its side, which fills the screen as in the original
 cabinet. Both are selectable in the menu (`Screen`: `Upright 2x`, `Landscape 3x`), as are
 scanlines. A game with a horizontal monitor (Higemaru, Ghosts'n Goblins, the Pang core) always
-runs 3x, with the menu and the banner upright.
+runs 3x, with the menu and the banner upright. The banner appears in the black strip below the
+picture. On the Pang core the picture fills the full height of the screen, so the banner sits at
+the top of the picture on a darkened box.
 
 ![Galaga upright on a regular monitor and rotated for a monitor on its side](images/upright-and-rotated.png)
 
