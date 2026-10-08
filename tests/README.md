@@ -35,7 +35,7 @@ A call that no tested path should make ends the test with `HOST STUB:`, so a sta
 2. A new test only for a real bug, in the same commit as the fix.
 3. Every check prints its sample size and fails when it is 0 (`run_tests.sh` refuses a binary without tests, `checks.sh` and `check_contracts.py` a scan or contract that matched nothing).
 
-Budget ceiling: `tests/` at most 15 files and 1,400 lines, this README not counted. The check scripts plus the CI (`scripts/checks.sh`, `scripts/check_contracts.py`, `scripts/fpga_report.py`, `.github/workflows/checks.yml`) at most 600 lines. Anything beyond replaces something or goes to the archive.
+Budget ceiling: `tests/` at most 15 files and 2,000 lines, this README not counted. The check scripts plus the CI (`scripts/checks.sh`, `scripts/check_contracts.py`, `scripts/fpga_report.py`, `.github/workflows/checks.yml`) at most 600 lines. Anything beyond replaces something or goes to the archive.
 
 ## Updating a dependency
 
