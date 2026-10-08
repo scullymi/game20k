@@ -13,9 +13,8 @@ Usage:
                                                  mirror size (MIRROR_DATA) of the game.
                                                  Further manifests are sets of the same
                                                  board whose file is a prefix of the first
-                                                 one's layout, their sizes, at most two,
-                                                 become the loader's further sizes
-                                                 (ROM_TOTAL_SHORT, ROM_TOTAL_SHORT2).
+                                                 one's layout. The first one's size is the
+                                                 largest file the loader takes (ROM_TOTAL).
                                                  The screen lines of all of them give the
                                                  screen values (SCREEN_*, HDR_SEC, FB_*)
   scripts/make_rom.py --list                     the manifests under fpga/, one per line
@@ -477,14 +476,11 @@ def build(m, out):
     return digest, label, warnings
 
 
-def short_totals(m, prefixes):
-    """The sizes of the shorter files of the board, two values, 0 for none. Every further
-    manifest must describe the same board and mirror, and its sections must be the first
-    sections of m with the same offsets and sizes: rom_loader decodes with m's table and simply stops early, so
-    anything else would land in the wrong memory. The loader knows two more sizes besides
-    the full one. A manifest with exactly m's sections is another set of the same size and
-    needs no further size."""
-    totals = set()
+def check_prefixes(m, prefixes):
+    """Every further manifest must describe the same board and mirror, and its sections must
+    be the first sections of m with the same offsets and sizes: rom_loader decodes with m's
+    table and simply stops early, so anything else would land in the wrong memory. A
+    manifest with exactly m's sections is another set of the same size."""
     for p in prefixes:
         if (p["board"], p["mirror"]) != (m["board"], m["mirror"]):
             raise ManifestError("%s: board or mirror differ from %s" % (p["path"], m["path"]))
@@ -494,16 +490,9 @@ def short_totals(m, prefixes):
         # a header section is read by the top at its index, in every file of the board alike
         if [s["header"] for s in m["sections"][:n]] != [s["header"] for s in p["sections"]]:
             raise ManifestError("%s: its header sections differ from %s" % (p["path"], m["path"]))
-        if n == len(m["sections"]) and mine == theirs:
-            continue
-        if n >= len(m["sections"]) or mine != theirs:
+        if n > len(m["sections"]) or mine != theirs:
             raise ManifestError("%s: its sections are not the first sections of %s"
                                 % (p["path"], m["path"]))
-        totals.add(p["total"])
-    if len(totals) > 2:
-        raise ManifestError("the shorter files have the sizes %s, rom_loader takes two"
-                            % sorted(totals))
-    return (sorted(totals, reverse=True) + [0, 0])[:2]
 
 
 def screen_values(m, prefixes):
@@ -533,11 +522,10 @@ def screen_values(m, prefixes):
 
 def write_package(m, out, prefixes=()):
     """gen/rom_map_pkg.sv: the board id and the RAM mirror size the core announces in the
-    header (ram_spi.sv), then total size, the second size of shorter sets of the board,
-    number of sections and their offsets, the parameters of rom_loader.sv. Written only
-    when the content changes, so an unchanged manifest does not touch the file's time
-    stamp."""
-    short, short2 = short_totals(m, prefixes)
+    header (ram_spi.sv), then the size of the whole layout, number of sections and their
+    offsets, the parameters of rom_loader.sv. Written only when the content changes, so an
+    unchanged manifest does not touch the file's time stamp."""
+    check_prefixes(m, prefixes)
     sc_default, sc_rt, hdr_sec, fb_build, fb_ccw = screen_values(m, prefixes)
     offs = [s["offset"] for s in m["sections"]]
     if len(offs) > 16:
@@ -553,10 +541,8 @@ def write_package(m, out, prefixes=()):
              "    localparam logic [7:0] BOARD_ID = 8'd%d;" % m["board"],
              "    // game RAM bytes in the RAM mirror before the oracle log, header byte 14 x RAM_MIRROR_PAGE",
              "    localparam int MIRROR_DATA = %d;" % m["mirror"],
+             "    // end of the layout: rom_loader takes any file of 1 up to this many bytes",
              "    localparam int ROM_TOTAL    = %d;" % m["total"],
-             "    // two more accepted file sizes, 0 for none: shorter sets of this board",
-             "    localparam int ROM_TOTAL_SHORT = %d;" % short,
-             "    localparam int ROM_TOTAL_SHORT2 = %d;" % short2,
              "    localparam int ROM_SECTIONS = %d;" % len(offs),
              "    // width of the loader's byte counter and of every offset below",
              "    localparam int ROM_AW = %d;" % aw,

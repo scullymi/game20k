@@ -277,8 +277,7 @@ module game20k_top #(
     // Distributes the bytes of the game's ROM file to the core's ROM memories, as the
     // manifest lays them out. The file arrives from the SD card via the Companion,
     // rom_loaded reports completion to the LEDs.
-    rom_loader #(.SLOT(0), .TOTAL(ROM_TOTAL), .TOTAL_SHORT(ROM_TOTAL_SHORT),
-                 .TOTAL_SHORT2(ROM_TOTAL_SHORT2), .SECTIONS(ROM_SECTIONS),
+    rom_loader #(.SLOT(0), .TOTAL(ROM_TOTAL), .SECTIONS(ROM_SECTIONS),
                  .AW(ROM_AW), .OFFSETS(ROM_OFFSETS)) loader (
         .clk(clk_core), .reset(!pll_lock),
         .sel_strobe(rom_selection_strobe), .sel_index(rom_selected), .image_size(sd_img_size),

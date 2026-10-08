@@ -25,11 +25,9 @@
 
 module rom_loader #(
     parameter int SLOT = 0,            //!< image slot this loader accepts
-    parameter int TOTAL = 38944,       //!< expected file size in bytes
-    //! two more accepted sizes, 0 for none: a file that is a prefix of the layout, so the
-    //! sections from its end on stay unwritten (Pac-Man and Ms. Pac-Man next to Jr. Pac-Man)
-    parameter int TOTAL_SHORT = 0,
-    parameter int TOTAL_SHORT2 = 0,
+    //! end of the layout in bytes, the largest file. A shorter file is a prefix of the
+    //! layout, the sections from its end on stay unwritten (Pac-Man next to Jr. Pac-Man).
+    parameter int TOTAL = 38944,
     parameter int SECTIONS = 11,       //!< ROM memories of the core, 1..16, one wr_en bit each
     parameter int AW = 16,             //!< width of the byte counter and the offsets, 16..24
     //! start of every section in the file, section 0 in the lowest AW bits, in file order:
@@ -61,10 +59,11 @@ module rom_loader #(
     output logic        busy,
     output logic [15:0] count         //!< bytes taken so far, for the display
 );
-    // Only slot SLOT and only the exact file sizes are accepted. A wrong size is reported by
-    // the Companion as "Core has rejected image".
-    wire size_ok = (image_size == TOTAL) || (TOTAL_SHORT != 0 && image_size == TOTAL_SHORT)
-                   || (TOTAL_SHORT2 != 0 && image_size == TOTAL_SHORT2);
+    // Only slot SLOT and a file of 1 to TOTAL bytes are accepted. A longer file would write
+    // past the last section's memory, the decoder gives it no upper end. Which game a file
+    // is and whether it is whole is the firmware's to check. A wrong size is reported by the
+    // Companion as "Core has rejected image".
+    wire size_ok = (image_size != 64'd0) && (image_size <= TOTAL);
     assign accepted = sel_strobe && (sel_index == SLOT[2:0]) && size_ok;
 
     logic [AW-1:0] cnt;
