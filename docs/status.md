@@ -16,9 +16,6 @@
   constraints for both paths so that the report covers them, then fix the violations.
 - **WiFi.** The firmware only connects via WPA2 and gives up after the attempts at power-on.
   Plan: allow WPA3 networks and keep retrying in the background.
-- **Jr. Pac-Man's sound.** After a while in the game, some sound effects turn into a loud, low
-  buzz that repeats about three times a second. Pac-Man and Ms. Pac-Man are not affected.
-  Plan: find the cause and fix it.
 
 ## Plans
 
