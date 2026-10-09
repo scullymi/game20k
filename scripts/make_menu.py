@@ -10,7 +10,9 @@ The menu is fpga/common/menu/base.xml with its gaps filled from fpga/<core>/menu
 the head of base.xml for the format. The script writes the result to fpga/<core>/gen/menu.xml
 and its gzip as one hex byte per line to fpga/<core>/menu_xml.hex, which
 fpga/common/src/mcu/menu_rom.v reads with $readmemh (2048 bytes of room). files.tcl runs it at
-every Gowin build. The Companion fetches the menu from the FPGA over SPI at startup.
+every Gowin build. The Companion fetches the menu from the FPGA over SPI at startup. The script
+stops on an action the menu does not define and on a setting that the core's game_core.sv starts
+at another value than the menu's default.
 
 BUT: there is a second menu source, and it wins. If a file /config.xml lies on the SD card,
 the Companion reads that one and leaves the menu in the bitstream untouched (FPGA-Companion
@@ -142,6 +144,34 @@ def check(core, xml):
              % (core, ", ".join(missing)))
 
 
+def check_core_defaults(core, xml):
+    """Stops when the core starts a menu setting at another value than the menu's default.
+    The core holds its start values until the Companion sends the saved ones, a difference
+    would show a setting in the menu that the game does not run with. Returns the number of
+    settings compared."""
+    rel = "fpga/%s/src/game_core.sv" % core
+    sv = re.sub(r"//[^\n]*", "", read(rel))
+    defaults = {e.get("id"): e.get("default") for e in ET.fromstring(xml).iter("list")}
+    # the settings the core takes: '"L": lives <= cfg_val...' in a case on cfg_id, or
+    # 'cfg_id == "K") loop_btn <= ...'
+    taken = (re.findall(r'"(\w)"\s*:\s*(\w+)\s*<=', sv)
+             + re.findall(r'cfg_id\s*==\s*"(\w)"\s*\)\s*(\w+)\s*<=', sv))
+    if not taken:
+        fail("%s: no menu setting found (cfg_id)" % rel)
+    for key, var in taken:
+        # its declaration with the start value, "logic [1:0] lives = 2'd2;"
+        m = re.search(r"^\s*logic\b[^;]*?\b%s\s*=\s*\d*'([bdh])([0-9a-fA-F_]+)" % var, sv, re.M)
+        if not m:
+            fail("%s: no start value for %s, the setting %s" % (rel, var, key))
+        start = int(m.group(2).replace("_", ""), {"b": 2, "d": 10, "h": 16}[m.group(1)])
+        if key not in defaults:
+            fail("%s: the setting %s (%s) is not in the menu" % (rel, key, var))
+        if defaults[key] is None or int(defaults[key]) != start:
+            fail("%s: %s starts at %d, the menu's default of %s is %s"
+                 % (rel, var, start, key, defaults[key]))
+    return len(taken)
+
+
 def pack(xml):
     """The gzip of the menu, byte for byte what gzip -9 -n writes on macOS: zlib level 9, no
     name, no time, OS 3."""
@@ -170,6 +200,7 @@ def main():
         xml = compose(core)
         write("fpga/%s/gen/menu.xml" % core, xml)
         check(core, xml)
+        check_core_defaults(core, xml)
         gz = pack(xml)
         if len(gz) > ROOM:
             fail("fpga/%s: menu too large, %d bytes packed, %d fit (fpga/common/src/mcu/menu_rom.v)"
