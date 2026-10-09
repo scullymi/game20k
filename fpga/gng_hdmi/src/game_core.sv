@@ -5,7 +5,7 @@
 //! @file game_core.sv
 //! @brief Ghosts'n Goblins behind the game interface of the platform top (game20k).
 //!
-//! Wraps jotego's jtgng_game (src/jtcores, jtcores 548b87b) like g1943_hdmi wraps jt1943:
+//! Wraps jotego's jtgng_game (fpga/vendor/jtcores, jtcores 548b87b) like g1943_hdmi wraps jt1943:
 //! clock enables, five ROM buses through rom_slots, the audio mix and the RAM mirror. The
 //! palette is a RAM inside the game, so the core delivers 4/4/4 colour (game_pkg::RGB444)
 //! and nothing goes over the loader's write port.

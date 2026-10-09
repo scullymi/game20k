@@ -22,7 +22,8 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 G="$HERE/../src"
-J="$G/jtcores"
+V="$ROOT/fpga/vendor"
+J="$V/jtcores"
 FW="$J/modules/jtframe/hdl"
 SET="${SET:-pang}"
 FRAMES="${FRAMES:-600}"
@@ -106,8 +107,8 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
 fi
 
 # the sources in the order of build.tcl, the VHDL T80 replaced by T80s.v
-OPL="$G/jtopl/hdl"
-OKI="$G/jt6295/hdl"
+OPL="$V/jtopl/hdl"
+OKI="$V/jt6295/hdl"
 P="$J/cores/pang/hdl"
 verilator --binary --timing -j 8 -O3 --top-module tb_pang -Mdir "$W/obj_$mode" $define ${EXTRA:-} \
   -GFRAMES="$FRAMES" -GCOIN_F="$COIN_F" -GSTART_F="$START_F" -GFIRE_F="$FIRE_F" -GFIRE_N="$FIRE_N" \
@@ -120,7 +121,7 @@ verilator --binary --timing -j 8 -O3 --top-module tb_pang -Mdir "$W/obj_$mode" $
   "$FW/jtframe_bcd_cnt.v" "$FW/clocking/jtframe_freqinfo.v" "$FW/clocking/jtframe_gated_cen.v" \
   "$OPL"/jtopl_*.v "$OPL"/jtopll_*.v "$OPL/jt2413.v" \
   "$OKI"/jt12_*.v "$OKI"/jt6295_*.v "$OKI/jt6295.v" \
-  "$G/jteeprom/hdl/jt9346.v" "$G/jteeprom/hdl/jt9346_16b8b.v" \
+  "$V/jteeprom/hdl/jt9346.v" "$V/jteeprom/hdl/jt9346_16b8b.v" \
   "$P/jtpang_main.v" "$P/jtpang_snd.v" "$P/jtpang_char.v" "$P/jtpang_obj.v" "$P/jtpang_colmix.v" \
   "$P/jtpang_video.v" \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \

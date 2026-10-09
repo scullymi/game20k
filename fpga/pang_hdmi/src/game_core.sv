@@ -6,7 +6,7 @@
 //! @brief Pang and Super Pang behind the game interface of the platform top (game20k).
 //!
 //! The platform top (fpga/common/src/game20k_top.sv) knows only this module and game_pkg.
-//! Here it wraps jotego's jtpang (src/jtcores, see its README.md) and stands in for
+//! Here it wraps jotego's jtpang (fpga/vendor/jtcores, see its README.md) and stands in for
 //! jtpang_game.v and the JTFRAME top around it: the clock enables, the five ROM buses, the
 //! EEPROM load and the audio mix. One bitstream runs both games, from the same core.
 //!

@@ -22,12 +22,13 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 G="$HERE/../src"
-J="$G/jtcores"
+V="$ROOT/fpga/vendor"
+J="$V/jtcores"
 FW="$J/modules/jtframe/hdl"
 SET="${SET:-1942}"
 W="${WORK:-${TMPDIR:-/tmp}/verilator_$SET}"
 mode="${1:-port}"
-JTCORES=0b197caeae1596380863b8388552b125e7e1b208
+JTCORES=548b87b32a1b528a16cb41f689accb179e85d1a8
 T80S_BLOB=6baa20633ae0d8bf389290b7252b74490bba62bd
 
 case "$mode" in
@@ -78,8 +79,8 @@ verilator --binary --timing -j 8 -O3 --top-module tb_1942 -Mdir "$W/obj_$mode" $
   "$FW/ram/jtframe_prom.v" "$FW/ram/jtframe_ram.v" "$W/T80s.v" \
   "$FW/ram/jtframe_dual_ram.v" "$FW/ram/jtframe_dual_nvram.v" "$FW/cpu/jtframe_z80wait.v" \
   "$FW/cpu/jtframe_z80.v" "$J/cores/1942/hdl/jt1942_main.v" \
-  "$G/jt49/hdl/jt49_cen.v" "$G/jt49/hdl/jt49_div.v" "$G/jt49/hdl/jt49_eg.v" \
-  "$G/jt49/hdl/jt49_exp.v" "$G/jt49/hdl/jt49_noise.v" "$G/jt49/hdl/jt49.v" "$G/jt49/hdl/jt49_bus.v" \
+  "$V/jt49/hdl/jt49_cen.v" "$V/jt49/hdl/jt49_div.v" "$V/jt49/hdl/jt49_eg.v" \
+  "$V/jt49/hdl/jt49_exp.v" "$V/jt49/hdl/jt49_noise.v" "$V/jt49/hdl/jt49.v" "$V/jt49/hdl/jt49_bus.v" \
   "$J/cores/1942/hdl/jt1942_sound.v" "$FW/jtframe_sh.v" "$FW/video/jtframe_blank.v" \
   "$J/cores/1942/hdl/jt1942_colmix.v" "$J/cores/1942/hdl/jt1942_objdraw.v" \
   "$J/cores/1942/hdl/jt1942_objram.v" "$J/cores/1942/hdl/jt1942_objtiming.v" \

@@ -6,7 +6,7 @@
 //! @brief 1942, Vulgus and Higemaru behind the game interface of the platform top (game20k).
 //!
 //! The platform top (fpga/common/src/game20k_top.sv) knows only this module and game_pkg.
-//! Here it wraps jotego's jt1942_game (src/jtcores, see its README.md) and stands in for
+//! Here it wraps jotego's jt1942_game (fpga/vendor/jtcores, see its README.md) and stands in for
 //! what JTFRAME's generated top would put around it: the clock enables, the tmap block RAM
 //! and the five ROM buses. It also holds what is the games' own: the game selection, the
 //! DIP switches, the controls and the audio mix.

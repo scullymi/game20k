@@ -61,11 +61,11 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
 fi
 
 # the game's sources as build.tcl adds them, the VHDL T80 replaced by T80s.v
-files=$(sed -n 's|^add_file \(src/.*\.v\)$|\1|p' "$G/build.tcl" | sed "s|^|$G/|")
+files=$(sed -n -E 's#^add_file ((src|\.\./vendor)/.*\.v)$#\1#p' "$G/build.tcl" | sed "s|^|$G/|")
 verilator --binary --timing -j 8 -O3 --top-module tb_1943 -Mdir "$W/obj_$mode" $define $SIM_DEFINES \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
-  +define+TV80S +incdir+"$G/src/inc" +incdir+"$G/src/jtcores/modules/jtframe/hdl/inc" \
-  +incdir+"$G/src/jtcores/cores/1943/hdl" +incdir+"$G/src/jt12/hdl" \
+  +define+TV80S +incdir+"$G/src/inc" +incdir+"$ROOT/fpga/vendor/jtcores/modules/jtframe/hdl/inc" \
+  +incdir+"$ROOT/fpga/vendor/jtcores/cores/1943/hdl" +incdir+"$ROOT/fpga/vendor/jt12/hdl" \
   "$W/T80s.v" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \

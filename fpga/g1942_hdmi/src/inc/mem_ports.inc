@@ -4,7 +4,7 @@
 // would generate as mem_ports.inc from cores/1942/cfg/mem.yaml, written by hand
 // from the template modules/jtframe/hdl/inc/ports.v and the port rules in
 // modules/jtframe/src/jtframe/mem/mem.go (fill_implicit_ports, addr_range,
-// data_range). jtcores commit 0b197caeae1596380863b8388552b125e7e1b208.
+// data_range). jtcores commit 548b87b32a1b528a16cb41f689accb179e85d1a8.
 //
 // clocks: clk48 -> 12M with outputs cen12 cen6 cen3 cen1p5 (OutStr is reversed)
     input cen1p5, cen3, cen6, cen12, // 12000000 Hz

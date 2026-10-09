@@ -5,7 +5,7 @@
 //! @file game_core.sv
 //! @brief 1943 behind the game interface of the platform top (game20k).
 //!
-//! Wraps jotego's jt1943_game (src/jtcores, jtcores 548b87b) like g1942_hdmi wraps jt1942:
+//! Wraps jotego's jt1943_game (fpga/vendor/jtcores, jtcores 548b87b) like g1942_hdmi wraps jt1942:
 //! clock enables, eight ROM buses through rom_slots, the PROMs over the loader's write port,
 //! the palette index for the platform's palette, the audio mix and the RAM mirror. The scroll
 //! graphics and the scroll maps are fetched ahead (tile_prefetch.sv, map_prefetch.sv), so

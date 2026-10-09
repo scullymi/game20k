@@ -3,13 +3,12 @@
 # 1942, Vulgus and Higemaru with HDMI. Invocation: scripts/build_fpga.sh g1942_hdmi
 #
 # The platform (HDMI, SDRAM, Companion, RAM mirror) comes from ../common, see
-# ../common/files.tcl. This folder holds the game: jotego's core, the wrapper game_core, the
-# package game_pkg, the menu and the ROM manifests. Third-party HDL, copied into src/ with its
-# original headers and the upstream folder layout, with a README.md on where it comes from,
-# at which commit, and what game20k changed:
-#   src/jtcores/  jt1942 and the parts of JTFRAME it uses (jotego, GPL-3.0-or-later; the T80
-#                 inside JTFRAME by Daniel Wallner, BSD-style)
-#   src/jt49/     two AY-3-8910 (jotego, GPL-3.0-or-later), unchanged
+# ../common/files.tcl. This folder holds the game: the wrapper game_core, the package
+# game_pkg, the menu and the ROM manifests. Third-party HDL comes from ../vendor, each folder
+# with a README.md on where it comes from, at which commit, and what game20k changed:
+#   ../vendor/jtcores/  jt1942 and the parts of JTFRAME it uses (jotego, GPL-3.0-or-later; the
+#                       T80 inside JTFRAME by Daniel Wallner, BSD-style)
+#   ../vendor/jt49/     two AY-3-8910 (jotego, GPL-3.0-or-later), unchanged
 # Of the diagnostic variants of the other games (ROMVIEW, RAMDIAG, SDRAMTEST, FB*) only
 # RATEPROBE is offered here, see below.
 set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
@@ -19,13 +18,13 @@ set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
 add_file src/jt1942_defs.v
 
 # jotego's sources in dependency order (VHDL: the T80 parts before the T80)
-set jt src/jtcores
+set jt ../vendor/jtcores
 set fw $jt/modules/jtframe/hdl
 foreach f {ram/jtframe_prom.v ram/jtframe_ram.v} { add_file $fw/$f }
 foreach f {T80_ALU T80_MCode T80_Reg T80 T80s} { add_file $fw/cpu/t80/$f.vhd }
 foreach f {ram/jtframe_dual_ram.v ram/jtframe_dual_nvram.v cpu/jtframe_z80wait.v cpu/jtframe_z80.v} { add_file $fw/$f }
 add_file $jt/cores/1942/hdl/jt1942_main.v
-foreach f {jt49_cen jt49_div jt49_eg jt49_exp jt49_noise jt49 jt49_bus} { add_file src/jt49/hdl/$f.v }
+foreach f {jt49_cen jt49_div jt49_eg jt49_exp jt49_noise jt49 jt49_bus} { add_file ../vendor/jt49/hdl/$f.v }
 add_file $jt/cores/1942/hdl/jt1942_sound.v
 foreach f {jtframe_sh.v video/jtframe_blank.v} { add_file $fw/$f }
 foreach f {jt1942_colmix jt1942_objdraw jt1942_objram jt1942_objtiming} { add_file $jt/cores/1942/hdl/$f.v }

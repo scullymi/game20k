@@ -40,6 +40,8 @@ REPO_URL = "https://github.com/scullymi/game20k"
 # between the first line containing <first> and the next line containing <last>, both included.
 # "copyrights": the BSD-style notices ask for "the above copyright notice" of every file, and
 # each file names its own holder, so their "Copyright (c)" lines are listed as well.
+# "cores": the component claims files only for these cores. fpga/vendor holds one copy of a
+# file that several cores use, and each core's component names it with that core's changes.
 COMPONENTS = [
     {
         "name": "FPGA-SDcard-Reader by WangXuan95, via Nanomig",
@@ -114,13 +116,12 @@ COMPONENTS = [
         "name": "T80 Ver 350, the Z80 core by Daniel Wallner, in the 1942, 1943, Ghosts'n Goblins "
                 "and Pang cores",
         "short": "BSD-like, the notice below",
-        "url": "https://github.com/jotego/jtcores at 0b197ca (1942) and 548b87b (the others), folder "
-               "modules/jtframe/hdl/cpu/t80, the same files at both commits",
-        "match": r"^fpga/(g1942|g1943|gng|pang)_hdmi/src/jtcores/modules/jtframe/hdl/cpu/t80/(T80|"
-                 r"T80_ALU|T80_MCode|T80_Reg|T80s)\.vhd$",
+        "url": "https://github.com/jotego/jtcores at 548b87b, folder modules/jtframe/hdl/cpu/t80",
+        "match": r"^fpga/vendor/jtcores/modules/jtframe/hdl/cpu/t80/(T80|T80_ALU|T80_MCode|T80_Reg|"
+                 r"T80s)\.vhd$",
         "licence": "BSD-like, three conditions, the notice below",
         "note": "",
-        "show": [("lines", "fpga/g1942_hdmi/src/jtcores/modules/jtframe/hdl/cpu/t80/T80.vhd",
+        "show": [("lines", "fpga/vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80.vhd",
                   "Copyright (c)", "SUCH DAMAGE.")],
         "copyrights": True,
     },
@@ -143,7 +144,7 @@ COMPONENTS = [
         "short": "BSD-like, the notice below",
         "url": "https://github.com/jotego/jtcores at 548b87b, modules/jtframe/hdl/cpu/mc6809i.v, "
                "jotego's changed copy of mc6809i.v from https://github.com/cavnex/mc6809",
-        "match": r"^fpga/gng_hdmi/src/jtcores/modules/jtframe/hdl/cpu/mc6809i\.v$",
+        "match": r"^fpga/vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i\.v$",
         "licence": "the standard BSD licence of the author's LICENSE.md, three clauses, the notice "
                    "below",
         "note": "The file carries only the author's copyright line. His LICENSE.md (cavnex/mc6809 "
@@ -151,18 +152,18 @@ COMPONENTS = [
                 "mc6809i_LICENSE.md) offers the standard BSD licence or a binary-only variant. "
                 "game20k distributes the source and so uses the standard BSD licence. Unchanged "
                 "from jotego's copy.",
-        "show": [("lines", "fpga/gng_hdmi/src/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md",
+        "show": [("lines", "fpga/vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md",
                   "Copyright (c) 2016, Greg Miller", "SOFTWARE, EVEN IF ADVISED")],
         "copyrights": True,
     },
     {
         "name": "jt1942 and JTFRAME by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
-        "url": "https://github.com/jotego/jtcores at 0b197ca, folders cores/1942/hdl, cores/gng/hdl "
+        "url": "https://github.com/jotego/jtcores at 548b87b, folders cores/1942/hdl, cores/gng/hdl "
                "and modules/jtframe/hdl",
         # every file of these folders except the T80, which the component above claims first
-        "match": r"^fpga/g1942_hdmi/src/jtcores/(cores/(1942|gng)/hdl/[^/]+|"
-                 r"modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "match": r"^fpga/vendor/jtcores/(cores/(1942|gng)/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "cores": ("g1942_hdmi",),
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jtframe_dual_ram.v writes in Gowin's normal mode, jt1942_obj.v declares a net "
                 "before its first use, jt1942_main.v, jt1942_sound.v and jt1942_game.v bring out "
@@ -178,8 +179,8 @@ COMPONENTS = [
         "url": "https://github.com/jotego/jtcores at 548b87b, folders cores/1943/hdl, cores/gng/hdl "
                "and modules/jtframe/hdl",
         # every file of these folders except the T80, which a component above claims first
-        "match": r"^fpga/g1943_hdmi/src/jtcores/(cores/(1943|gng)/hdl/[^/]+|"
-                 r"modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "match": r"^fpga/vendor/jtcores/(cores/(1943|gng)/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "cores": ("g1943_hdmi",),
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jtframe_dual_ram.v writes in Gowin's normal mode, jtgng_sound.v takes its reset on "
                 "the rising clock edge, jt1943_main.v and jt1943_game.v bring out the CPU writes "
@@ -197,7 +198,8 @@ COMPONENTS = [
         "url": "https://github.com/jotego/jtcores at 548b87b, folders cores/gng/hdl and "
                "modules/jtframe/hdl",
         # every file of these folders except the T80 and mc6809i.v, which components above claim
-        "match": r"^fpga/gng_hdmi/src/jtcores/(cores/gng/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "match": r"^fpga/vendor/jtcores/(cores/gng/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "cores": ("gng_hdmi",),
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jtframe_dual_ram.v writes in Gowin's normal mode, jtgng_sound.v takes its reset on "
                 "the rising clock edge, jtgng_game.v takes its clock enables from outside, "
@@ -213,7 +215,8 @@ COMPONENTS = [
         "url": "https://github.com/jotego/jtcores at 548b87b, folders cores/pang/hdl and "
                "modules/jtframe/hdl",
         # every file of these folders except the T80, which a component above claims first
-        "match": r"^fpga/pang_hdmi/src/jtcores/(cores/pang/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "match": r"^fpga/vendor/jtcores/(cores/pang/hdl/[^/]+|modules/jtframe/hdl/.+)\.(v|vh|inc)$",
+        "cores": ("pang_hdmi",),
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jtpang_main.v takes the program decrypted ahead instead of through jtframe_kabuki, "
                 "leaves out a VRAM wait block that never stops the CPU and brings out the work RAM "
@@ -228,7 +231,7 @@ COMPONENTS = [
         "name": "JT12 by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jt12 at dc9be7c, folder hdl",
-        "match": r"^fpga/(g1943|gng)_hdmi/src/jt12/hdl/(adpcm/(jt10_adpcm|jt10_adpcm_acc|jt10_adpcm_cnt|"
+        "match": r"^fpga/vendor/jt12/hdl/(adpcm/(jt10_adpcm|jt10_adpcm_acc|jt10_adpcm_cnt|"
                  r"jt10_adpcm_div|jt10_adpcm_drvA|jt10_adpcm_drvB|jt10_adpcm_gain|jt10_adpcma_lut|"
                  r"jt10_adpcmb|jt10_adpcmb_cnt|jt10_adpcmb_gain|jt10_adpcmb_interpol)|jt03|jt03_acc|"
                  r"jt10_acc|jt12_acc|jt12_csr|jt12_div|jt12_dout|jt12_eg|jt12_eg_cnt|jt12_eg_comb|"
@@ -244,8 +247,8 @@ COMPONENTS = [
         "name": "JT49 by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jt49 at 7f6abfd, folder hdl",
-        "match": r"^fpga/(g1942|g1943|gng)_hdmi/src/jt49/hdl/(jt49|jt49_bus|jt49_cen|jt49_div|jt49_eg|"
-                 r"jt49_exp|jt49_noise)\.v$",
+        "match": r"^fpga/vendor/jt49/hdl/(jt49|jt49_bus|jt49_cen|jt49_div|jt49_eg|jt49_exp|"
+                 r"jt49_noise)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "Unchanged.",
         "show": [],
@@ -266,7 +269,7 @@ COMPONENTS = [
         "name": "JTOPL by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jtopl at 7ac0c81, folder hdl",
-        "match": r"^fpga/pang_hdmi/src/jtopl/hdl/(jt2413|jtopl_acc|jtopl_csr|jtopl_div|jtopl_eg|"
+        "match": r"^fpga/vendor/jtopl/hdl/(jt2413|jtopl_acc|jtopl_csr|jtopl_div|jtopl_eg|"
                  r"jtopl_eg_cnt|jtopl_eg_comb|jtopl_eg_ctrl|jtopl_eg_final|jtopl_eg_pure|"
                  r"jtopl_eg_step|jtopl_exprom|jtopl_lfo|jtopl_logsin|jtopl_noise|jtopl_op|jtopl_pg|"
                  r"jtopl_pg_comb|jtopl_pg_inc|jtopl_pg_rhy|jtopl_pg_sum|jtopl_pm|jtopl_sh|"
@@ -280,7 +283,7 @@ COMPONENTS = [
         "name": "JT6295 by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jt6295 at 7d76b0b, folder hdl",
-        "match": r"^fpga/pang_hdmi/src/jt6295/hdl/(jt12_comb|jt12_interpol|jt6295|jt6295_acc|"
+        "match": r"^fpga/vendor/jt6295/hdl/(jt12_comb|jt12_interpol|jt6295|jt6295_acc|"
                  r"jt6295_adpcm|jt6295_ctrl|jt6295_rom|jt6295_serial|jt6295_sh_rst|"
                  r"jt6295_timing)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
@@ -291,7 +294,7 @@ COMPONENTS = [
         "name": "JTEEPROM by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jteeprom at 9c68ce8, folder hdl",
-        "match": r"^fpga/pang_hdmi/src/jteeprom/hdl/(jt9346|jt9346_16b8b)\.v$",
+        "match": r"^fpga/vendor/jteeprom/hdl/(jt9346|jt9346_16b8b)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jt9346.v writes its RAM in Gowin's normal mode, marked game20k.",
         "show": [],
@@ -534,7 +537,7 @@ def check_menu(core, hexf):
 # jtframe's RAM and PROM modules: a data file read here is allowed when it hangs on one of these
 # parameters and the synthesis log shows no instance that sets one (see syn_params_set)
 SYN_PARAM = re.compile(r"\bSYN(HEX|FILE|BINFILE)\b")
-SYN_FILES = re.compile(r"^fpga/[^/]+/src/jtcores/modules/jtframe/hdl/ram/(jtframe_ram|jtframe_dual_ram|"
+SYN_FILES = re.compile(r"^fpga/vendor/jtcores/modules/jtframe/hdl/ram/(jtframe_ram|jtframe_dual_ram|"
                        r"jtframe_prom)\.v$")
 INCLUDE = re.compile(r'^\s*`include\s+"([^"]+)"')
 DIRECTIVE = re.compile(r"^\s*`(ifdef|ifndef|elsif|else|endif|define|undef)\b\s*(\w*)")
@@ -586,14 +589,16 @@ def syn_params_set(core):
 
 def include_target(core, rel, name):
     """The repository-relative file an `include in rel names: beside rel, else exactly one file
-    of that name in the core's src/ (build.tcl puts its folders on the include path)."""
+    of that name in the core's src/ and fpga/vendor (build.tcl puts folders of both on the
+    include path)."""
     beside = os.path.join(os.path.dirname(rel), name)
     if os.path.isfile(os.path.join(ROOT, beside)):
         return beside
-    src = os.path.join(ROOT, "fpga", core, "src")
-    hits = [os.path.relpath(os.path.join(d, name), ROOT) for d, _, fs in os.walk(src) if name in fs]
+    hits = [os.path.relpath(os.path.join(d, name), ROOT)
+            for top in (os.path.join(ROOT, "fpga", core, "src"), os.path.join(ROOT, "fpga", "vendor"))
+            for d, _, fs in os.walk(top) if name in fs]
     if len(hits) != 1:
-        die("%s includes %s, found %d files of that name under fpga/%s/src"
+        die("%s includes %s, found %d files of that name under fpga/%s/src and fpga/vendor"
             % (rel, name, len(hits), core))
     return hits[0]
 
@@ -716,6 +721,8 @@ def main():
         menu_hex = "fpga/%s/menu_xml.hex" % core
         for f in files:
             for i, comp in enumerate(COMPONENTS):
+                if core not in comp.get("cores", (core,)):
+                    continue
                 if re.search(comp["match"], f) and (i != OWN or own_file(f) or f == menu_hex):
                     claimed[i].add(f)
                     break
