@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 /** @file test_dechunk.c
- *  @brief ra_net_dechunk() from ra_net.c: the chunked transfer framing lwIP's HTTP client passes through.
+ *  @brief ra_net.c: the framing a reply's header names, and the chunked framing lwIP's HTTP client passes through.
  *
  *  Every input goes into a heap block of exactly its length, without a NUL
  *  after it, so AddressSanitizer sees any read past the end. */
@@ -10,6 +10,7 @@
 
 #include "unity.h"
 #include "ra_net.h"
+#include "ra_slim.h"
 
 void setUp(void) {}
 void tearDown(void) {}
@@ -37,8 +38,8 @@ static void check(const char *in, size_t in_len, bool want_ok, const char *want,
 
 #define CHECK(in, ok, want) check(in, sizeof(in) - 1, ok, want, sizeof(want) - 1)
 
-static void test_plain_json_stays(void) {
-  CHECK("{\"Success\":true}", true, "{\"Success\":true}");
+static void test_plain_json_is_not_framing(void) {
+  CHECK("{\"Success\":true}", false, "");
 }
 
 static void test_one_chunk(void) {
@@ -205,9 +206,32 @@ static void test_false_leaves_buffer_unchanged(void) {
   TEST_MESSAGE(msg);
 }
 
+static void test_framing_from_the_header(void) {
+  static const struct { const char *h; bool chunked, whole; } t[] = {
+    { "HTTP/1.1 200 OK\r\ntransfer-encoding:  gzip, CHUNKED \r\nContent-Length: 9\r\n\r\n", true, true },
+    { "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked, gzip\r\nX-A: chunked\r\n\r\n", false, true },
+    { "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n", false, true },
+    { "HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\n", false, false },   // no body byte came
+  };
+  for(unsigned i = 0, n; i < sizeof(t) / sizeof(t[0]); i++)
+    for(unsigned step = 1; step <= (n = (unsigned)strlen(t[i].h)); step++) {
+      ra_net_framing_t f;
+      ra_net_framing_init(&f);
+      for(unsigned at = 0; at < n; at += step) ra_net_framing_feed(&f, t[i].h + at, n - at < step ? n - at : step);
+      TEST_ASSERT_EQUAL_MESSAGE(t[i].chunked, f.chunked, t[i].h);
+      TEST_ASSERT_EQUAL_MESSAGE(t[i].whole, ra_net_framing_whole(&f), t[i].h);
+    }
+  ra_slim_t s;
+  char buf[8];
+  unsigned len = 0;
+  ra_slim_init(&s);
+  ra_slim_framing(&s, false);   // the header says plain: a hex digit first is no chunk length
+  TEST_ASSERT_TRUE(ra_slim_feed(&s, "1\r\n", 3, buf, sizeof(buf), &len) && ra_slim_whole(&s) && len == 3);
+}
+
 int main(void) {
   UNITY_BEGIN();
-  RUN_TEST(test_plain_json_stays);
+  RUN_TEST(test_plain_json_is_not_framing);
   RUN_TEST(test_one_chunk);
   RUN_TEST(test_chunk_extension);
   RUN_TEST(test_several_chunks);
@@ -224,5 +248,6 @@ int main(void) {
   RUN_TEST(test_empty);
   RUN_TEST(test_overlong_length_is_refused);
   RUN_TEST(test_false_leaves_buffer_unchanged);
+  RUN_TEST(test_framing_from_the_header);
   return UNITY_END();
 }
