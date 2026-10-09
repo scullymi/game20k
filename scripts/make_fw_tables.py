@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 """@file make_fw_tables.py
-@brief Writes the firmware's game table from the ROM manifests.
+@brief Writes the firmware's game table from the ROM manifests and its menus from the menu parts.
 
 Usage: scripts/make_fw_tables.py --out DIR
 
 Reads every fpga/<core>/*.manifest and writes DIR/ra_games_data.c, the rows that ra_games.c of
-the fork looks the games up in. scripts/build_companion.sh passes the file to CMake as
-GAME20K_GAMES_TABLE, tests/host links it into test_games. The file carries the fork's licence,
-Apache-2.0, because it links into the fork's firmware.
+the fork looks the games up in, and DIR/menus_data.c, the menu of every core in
+fpga/common/slots.txt with its board and IFACE_TAG (make_menu.py), plus the basic menu for a
+core without one. scripts/build_companion.sh passes the files to CMake as GAME20K_GAMES_TABLE
+and GAME20K_MENU_TABLE, tests/host links the game table into test_games. The files carry the
+fork's licence, Apache-2.0, because they link into the fork's firmware.
 
 A set with an ra line gets a row: set, short title, id, the md5 of the set name (how
 RetroAchievements knows an arcade game), board, its known lines and its dip lines. Within a
@@ -21,6 +23,7 @@ The script stops with a message on
   - a dip line whose id is no list of the core's menu_core.xml, or whose value that list lacks
   - a set twice, a board in two core folders, a board whose first row is not the ROM default
   - a setting that a core starts at another value than its menu's default (make_menu.py)
+  - a core of slots.txt without a menu part or without a manifest, a menu make_menu.py refuses
 Exit status 0 when the table is written, 1 otherwise.
 """
 import argparse
@@ -44,6 +47,16 @@ HEAD = """/* SPDX-License-Identifier: Apache-2.0 */
 #include "ra_games.h"
 
 const char ra_games_origin[] = "generated";
+"""
+
+MENU_HEAD = """/* SPDX-License-Identifier: Apache-2.0 */
+/* Copyright (C) 2026 scullymi */
+/** @file menus_data.c
+ *  @brief The menus of game20k's cores, written by its scripts/make_fw_tables.py from
+ *         fpga/common/menu/base.xml and fpga/<core>/menu_core.xml. Do not edit: change those. */
+#include "menus.h"
+
+const char menus_origin[] = "generated";
 """
 
 
@@ -114,7 +127,51 @@ def read_games():
     # the menus are made from the same parts: the cores start where their menus do
     folders = sorted(set().union(*boards.values()))
     started = sum(make_menu.check_core_defaults(c, make_menu.compose(c)) for c in folders)
-    return games, len(folders), started
+    return games, boards, started
+
+
+def read_menus(boards):
+    """Per core of slots.txt, in ring order: its board, IFACE_TAG and menu. No core of the ring
+    goes without a menu, the firmware would have none for it."""
+    board_of = {c: b for b, cs in boards.items() for c in cs}
+    menus = []
+    with open(os.path.join(ROOT, "fpga/common/slots.txt"), encoding="utf-8") as f:
+        ring = [line.split()[0] for line in f if line.strip() and not line.lstrip().startswith("#")]
+    for core in ring:
+        if not os.path.isfile(os.path.join(ROOT, "fpga", core, "menu_core.xml")):
+            fail("%s of fpga/common/slots.txt has no menu part fpga/%s/menu_core.xml" % (core, core))
+        if core not in board_of:
+            fail("%s of fpga/common/slots.txt has no manifest, so no board" % core)
+        xml = make_menu.compose(core)
+        make_menu.check(core, xml)
+        menus.append((core, board_of[core], make_menu.iface_tag(core), xml))
+    if not menus:
+        fail("fpga/common/slots.txt names no core")
+    return menus
+
+
+def c_text(text):
+    """text as C string literals, one per line, printable ASCII and line ends only."""
+    if not re.fullmatch(r"[ -~\n]*", text):
+        fail("a menu holds a character other than printable ASCII and line ends")
+    return "\n".join('  "%s"' % l.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+                     for l in text.splitlines(True))
+
+
+def menu_table(menus):
+    """The C file: each menu as a string, the rows by board, the basic menu."""
+    out = [MENU_HEAD]
+    for core, _, _, xml in menus:
+        out.append("\n/* fpga/%s/menu_core.xml */\nstatic const char menu_%s[] =\n%s;\n" % (core, core, c_text(xml)))
+    out.append("\n/* the board's menu (set NULL), its IFACE_TAG, the menu */\nconst menus_entry_t menus_rows[] = {\n")
+    for core, board, tag, _ in menus:
+        out.append("  { %d, NULL, 0x%04xu, menu_%s },\n" % (board, tag, core))
+    out.append("};\nconst unsigned menus_rows_n = sizeof(menus_rows) / sizeof(menus_rows[0]);\n")
+    basic = make_menu.compose("(basic menu)", make_menu.BASIC)
+    make_menu.check("(basic menu)", basic)
+    out.append("\n/* fpga/common/menu/base.xml without a core's part */\nconst char menus_basic_xml[] =\n%s;\n"
+               % c_text(basic))
+    return "".join(out)
 
 
 def table(games):
@@ -142,27 +199,35 @@ def table(games):
     return "".join(out)
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
-    ap.add_argument("--out", required=True, help="folder for ra_games_data.c")
-    a = ap.parse_args()
-    games, cores, started = read_games()
-    text = table(games)
-    path = os.path.join(a.out, "ra_games_data.c")
-    # written only when it changes, so make and CMake rebuild only then
+def write(path, text):
+    """Writes the file only when it changes, so make and CMake rebuild only then."""
     try:
         with open(path, encoding="utf-8", newline="") as f:
-            same = f.read() == text
+            if f.read() == text:
+                return
     except OSError:
-        same = False
-    if not same:
-        os.makedirs(a.out, exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="") as f:
-            f.write(text)
+        pass
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
+    ap.add_argument("--out", required=True, help="folder for ra_games_data.c and menus_data.c")
+    a = ap.parse_args()
+    games, boards, started = read_games()
+    menus = read_menus(boards)
+    path = os.path.join(a.out, "ra_games_data.c")
+    write(path, table(games))
+    write(os.path.join(a.out, "menus_data.c"), menu_table(menus))
     print("make_fw_tables.py: %s, %d games on %d boards, %d files, %d DIP switches in the menus, "
           "%d start values of %d cores as in their menus"
           % (path, len(games), len({g["board"] for g in games}), sum(len(g["known"]) for g in games),
-             sum(len(g["dips"]) for g in games), started, cores))
+             sum(len(g["dips"]) for g in games), started, len(set().union(*boards.values()))))
+    print("make_fw_tables.py: %s, %d menus of slots.txt, IFACE_TAG %s"
+          % (os.path.join(a.out, "menus_data.c"), len(menus),
+             " ".join("%d:%04x" % (b, t) for _, b, t, _ in menus)))
 
 
 if __name__ == "__main__":

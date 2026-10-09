@@ -5,8 +5,9 @@
 @brief Values that live in two places of game20k and must agree, compared without boards.
 
   mirror   the RAM mirror layout constants: ram_mirror_pkg.sv (core) against main.c (firmware)
-The firmware's game table needs none: scripts/make_fw_tables.py generates it from the ROM
-manifests at every firmware build and host test run, and checks the manifests as it goes.
+The firmware's game table and menus need none: scripts/make_fw_tables.py generates them from the
+ROM manifests and menu parts at every firmware build and host test run, and checks them as it
+goes. The interface tag of a core comes from the same parts through make_menu.py.
 
 Each contract prints how many values it compared ("N of N agree") and fails when it matched
 nothing: a check that found nothing to compare is blind, not green.

@@ -10,7 +10,7 @@
         @if key     the lines up to @end, only when <core> has the attribute key
       Notes like this one, comments that open with "@ ", stay out of the menu. -->
 <!-- {header} -->
-<config name="{name}" version="0">
+<config name="{name}">
   <actions>
     <!-- game20k: deliberately WITHOUT commands. The Pico answers these five
          buttons itself (menu.c catches them by name) and does not pass them on

@@ -34,10 +34,12 @@ B="$ROOT/external/FPGA-Companion/src/rp2040/build_pico2_native"
 rm -rf "$B"
 scripts/build_companion.sh pico2 native
 
-# --- the linked game table is the one generated from the manifests, not the fork's example ---
-grep -q '/build/firmware/gen/ra_games_data\.c\.o' "$B/fpga_companion.elf.map" \
-  && ! grep -q 'ra_games_example\.c\.o' "$B/fpga_companion.elf.map" \
-  || { echo "the image does not link the generated game table, see $B/cmake.log"; exit 1; }
+# --- the linked tables are the ones generated from this tree, not the fork's examples ---
+for T in ra_games menus; do
+  grep -q "/build/firmware/gen/${T}_data\.c\.o" "$B/fpga_companion.elf.map" \
+    && ! grep -q "${T}_example\.c\.o" "$B/fpga_companion.elf.map" \
+    || { echo "the image does not link the generated table ${T}_data.c, see $B/cmake.log"; exit 1; }
+done
 
 # --- checks on the image: the version it reports, no diagnostic output, no credentials ---
 python3 - "$B/fpga_companion.bin" "$VERSION" "$ROOT/sdcard/config.ini" <<'PY'

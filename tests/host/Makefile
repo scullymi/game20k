@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# Host tests of five pieces of the firmware, with Unity from the submodule external/unity:
+# Host tests of pieces of the firmware, with Unity from the submodule external/unity:
 #   make -C tests/host          build and run all, exit status 1 when one fails
 #   make -C tests/host SAN=0    without AddressSanitizer and UndefinedBehaviorSanitizer
 #   make -C tests/host V=1      print the compiler lines and every test line
-# The tested code and FatFs with its ffconf.h come straight from the fork, the game table from
-# scripts/make_fw_tables.py as in the firmware build. FreeRTOS, lwIP, the card lock and the RA
+# The tested code and FatFs with its ffconf.h come straight from the fork, the game and menu
+# tables from scripts/make_fw_tables.py as in the firmware build. FreeRTOS, lwIP, the card lock and the RA
 # task are stand-ins in stubs/, the SD card is a RAM disk under the real FatFs. char is
 # unsigned as on the Pico.
 
@@ -51,20 +51,22 @@ STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c $(FORK)/ra_slim.c
-TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file
+TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
 # test_games ra_games.c and test_games_file games_file.c themselves (their functions are static)
 SHARED  := $(foreach s,$(LIB_SRC) $(OWN_SRC),$(call obj,$(s)))
-# the game table made from the manifests, linked into test_games. The fork's example table is
-# only compiled, so a build of the fork alone does not break unseen
+# the game table made from the manifests, linked into test_games, and the menu table made with
+# it, linked into test_menus. The fork's example tables are only compiled, so a build of the
+# fork alone does not break unseen
 GEN     := $(BUILD)/gen/ra_games_data.c
-EXAMPLE := $(FORK)/ra_games_example.c
+MENUS   := $(FORK)/menus.c $(BUILD)/gen/menus_data.c
+EXAMPLE := $(FORK)/ra_games_example.c $(FORK)/menus_example.c
 
 .PHONY: all check build clean
 all check: build
 	@V=$(V) sh ./run_tests.sh $(addprefix $(BUILD)/,$(TESTS))
-build: $(addprefix $(BUILD)/,$(TESTS)) $(call obj,$(EXAMPLE))
+build: $(addprefix $(BUILD)/,$(TESTS)) $(foreach s,$(EXAMPLE),$(call obj,$(s)))
 clean:
 	rm -rf build
 
@@ -81,13 +83,15 @@ $(call obj,$(1)): $(1) $(STAMP)
 	$(Q)$$(CC) $(2) -MMD -MP -c $$< -o $$@
 endef
 $(foreach s,$(LIB_SRC),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
-$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(EXAMPLE),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
+$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
 
 # the generator runs every time and rewrites the table only when it changes
 .PHONY: FORCE
 $(GEN): FORCE
 	@python3 $(ROOT)/scripts/make_fw_tables.py --out $(BUILD)/gen
+$(BUILD)/gen/menus_data.c: $(GEN)
 $(BUILD)/test_games: $(call obj,$(GEN))
+$(BUILD)/test_menus: $(foreach s,$(MENUS),$(call obj,$(s)))
 
 $(BUILD)/test_%: $(BUILD)/obj/test_%.o $(SHARED)
 	@$(if $(Q),echo "  LD  $@",:)

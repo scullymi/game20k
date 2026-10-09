@@ -63,12 +63,13 @@ grep -q 'XFER_RESULT_SUCCESS == result' "$ROOT/external/tinyusb/src/class/hid/hi
 # refuses the core with "core too old" or reads garbage).
 python3 "$ROOT/scripts/check_contracts.py" --root "$ROOT" --fork "$REPO" \
   || { echo "a contract between core, firmware and scripts is broken, see above"; exit 1; }
-# The firmware's tables come from this tree: the game table from the ROM manifests. They go to
+# The firmware's tables come from this tree: the game table from the ROM manifests, the menus
+# and their interface tags from the menu parts of the cores in slots.txt. They go to
 # build/firmware/gen, outside the fork's tree, and CMake gets each one as a parameter. A build
-# without the parameter takes the fork's example table, which holds no game.
+# without the parameters takes the fork's example tables, which hold no game and no menu.
 GEN="$ROOT/build/firmware/gen"
 python3 "$ROOT/scripts/make_fw_tables.py" --out "$GEN" \
-  || { echo "the firmware tables cannot be made from the manifests, see above"; exit 1; }
+  || { echo "the firmware tables cannot be made from the manifests and menus, see above"; exit 1; }
 VERSION=$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
 echo "building fork commit $(git -C "$REPO" log -1 --format='%h %s') as game20k version ${VERSION:-unknown}"
 # local edits in the checkout go into the build, say so
@@ -82,6 +83,7 @@ mkdir -p "$B"
 ( cd "$B" && cmake -DBOARD=$CM_BOARD $CM_USB \
       ${VERSION:+-DGAME20K_VERSION="$VERSION"} \
       -DGAME20K_GAMES_TABLE:FILEPATH="$GEN/ra_games_data.c" \
+      -DGAME20K_MENU_TABLE:FILEPATH="$GEN/menus_data.c" \
       -DPICO_TINYUSB_PATH:PATH="$PICO_TINYUSB_PATH" \
       -DPICOTOOL_FETCH_FROM_GIT_PATH:PATH="$PICOTOOL_FETCH_FROM_GIT_PATH" \
       -DPICOTOOL_FORCE_FETCH_FROM_GIT=1 \
