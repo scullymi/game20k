@@ -203,11 +203,10 @@ openFPGALoader works as well: `FLASHER=openfpgaloader scripts/flash_fpga.sh <pro
 It comes with `brew install openfpgaloader` on macOS and `apt install openfpgaloader` on Debian
 and Ubuntu. There is no winget package for Windows, so Windows uses Gowin's programmer.
 
-A menu change needs two steps: `scripts/make_menu_hex.sh` packs `menu.xml` into the form
-that lives in the bitstream, and after loading the bitstream the **Pico must restart**, because
-it reads the menu from the FPGA once at power-up. Briefly pull the Pico's 5 V line or tap its
-reset button, not the Nano's power, otherwise a bitstream that was only loaded into SRAM is
-lost.
+A menu change needs a new build of the core, see [BUILD.md](BUILD.md), and after loading the
+bitstream the **Pico must restart**, because it reads the menu from the FPGA once at power-up.
+Briefly pull the Pico's 5 V line or tap its reset button, not the Nano's power, otherwise a
+bitstream that was only loaded into SRAM is lost.
 
 ## Firmware onto the Pico
 

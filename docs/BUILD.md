@@ -64,8 +64,8 @@ scripts/build_fpga.sh g1942_hdmi
 ```
 
 Each build ends with a short report on utilisation and timing, and fails if a clock misses its
-target. If you changed a core's `menu.xml`, run `scripts/make_menu_hex.sh <core>` first,
-otherwise the bitstream keeps the old menu.
+target. It also puts the core's menu together from `fpga/common/menu/base.xml` and the core's
+`menu_core.xml` (`scripts/make_menu.py`), so a menu change needs nothing but a new build.
 
 Write the cores into the board's flash, then power the board off and on:
 
@@ -159,7 +159,7 @@ Example: `RAMDIAG=1 scripts/build_fpga.sh galaga_hdmi`
 
 ```
 fpga/common/        the platform shared by all games: top level, HDMI, scaler, SDRAM frame
-                    buffer, SPI to the Pico, RAM mirror, pins and clocks
+                    buffer, SPI to the Pico, RAM mirror, pins and clocks, the menu template
 fpga/galaga_hdmi/   Galaga: Dar's core, its wrapper, the menu and the ROM manifest
 fpga/pacman_hdmi/   Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, Pac-Man Plus and Ponpoko:
                     MikeJ's core, its wrapper, the menu, the ROM manifests and testbenches
@@ -188,9 +188,8 @@ Each of our own source files carries `SPDX-License-Identifier: GPL-3.0-only` and
 notice at the top. Two files mix our changes with code by others and carry our copyright for
 those changes, but no SPDX tag: `sd_rw.v` (GPL-3.0, WangXuan95's SD card reader, via Nanomig)
 and `mcu/sector_dpram.v` (output of the Gowin IP generator, via MiSTeryNano, with Gowin's
-header). The menus (`menu.xml`) go into the bitstream byte for byte and carry no header. The
-wiring drawing `docs/wiring_pico.svg` is a Fritzing export and, like the Fritzing breadboard
-graphics in it, CC BY-SA 3.0.
+header). The wiring drawing `docs/wiring_pico.svg` is a Fritzing export and, like the
+Fritzing breadboard graphics in it, CC BY-SA 3.0.
 
 Not ours, and kept with their original headers: the HDMI files (MIT OR Apache-2.0, see
 `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, derived from NESTang, with both copyright notices),
