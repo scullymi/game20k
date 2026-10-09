@@ -31,8 +31,8 @@ ifeq ($(SAN),1)
 # a sanitizer finding ends the test binary with an error instead of a line of output
 COMMON += -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
 endif
-# the firmware's include paths, the generated stand-in headers first. Of mbedTLS and rcheevos
-# only the headers ra_net.c includes, nothing of them is linked
+# the firmware's include paths, the generated stand-in headers first. Of mbedTLS only the
+# headers ra_net.c includes, of rcheevos its JSON reader for test_text
 INC     := -I$(BUILD)/inc -Istubs -I$(UNITY) -I$(FORK) -I$(FORK)/fatfs/source -I$(FORK)/rp2040 \
            -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src -I$(MBEDTLS)/include
 DEFINES := -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\" \
@@ -50,8 +50,9 @@ FORWARD := FreeRTOS.h queue.h semphr.h task.h pico/time.h lwip/sockets.h lwip/ne
 STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)' | cksum | cut -d' ' -f1).stamp
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
+RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,rapi/rc_api_common.c rc_util.c rc_compat.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c $(FORK)/ra_slim.c
-TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus
+TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
 # test_games ra_games.c and test_games_file games_file.c themselves (their functions are static)
@@ -82,8 +83,8 @@ $(call obj,$(1)): $(1) $(STAMP)
 	@$(if $(Q),echo "  CC  $$<",:)
 	$(Q)$$(CC) $(2) -MMD -MP -c $$< -o $$@
 endef
-$(foreach s,$(LIB_SRC),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
-$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
+$(foreach s,$(LIB_SRC) $(RC_SRC),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
+$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE) $(FORK)/ra_text.c,$(eval $(call object,$(s),$$(OWN_CFLAGS))))
 
 # the generator runs every time and rewrites the table only when it changes
 .PHONY: FORCE
@@ -92,6 +93,7 @@ $(GEN): FORCE
 $(BUILD)/gen/menus_data.c: $(GEN)
 $(BUILD)/test_games: $(call obj,$(GEN))
 $(BUILD)/test_menus: $(foreach s,$(MENUS),$(call obj,$(s)))
+$(BUILD)/test_text: $(foreach s,$(FORK)/ra_text.c $(RC_SRC),$(call obj,$(s)))
 
 $(BUILD)/test_%: $(BUILD)/obj/test_%.o $(SHARED)
 	@$(if $(Q),echo "  LD  $@",:)
