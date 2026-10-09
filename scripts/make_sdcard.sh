@@ -15,7 +15,7 @@
 #
 # What gets produced (all gitignored, all only for the card), per game with a set in roms/:
 #   sdcard/<set>.rom     from the zips, checked chip by chip (scripts/make_rom.py)
-#   sdcard/<core>.ini    one settings file per core, named as its menu.xml saves it (galaga.ini,
+#   sdcard/<core>.ini    one settings file per core, named as its menu saves it (galaga.ini,
 #                        pacman.ini), a starter with the ROM entry, so the first trip into the
 #                        OSD is not needed
 #
@@ -96,13 +96,14 @@ done
 report "Lines" "$n, all within the 126-character limit"
 
 echo "== settings =="
-# One settings file per core, under the name its menu.xml loads and saves: the device reads no
-# other. It preselects the set named like the file (pacman.rom for pacman.ini), otherwise the
-# first set of that core that was built.
+# One settings file per core, under the name its menu loads and saves (the attribute ini in
+# fpga/<core>/menu_core.xml): the device reads no other. It preselects the set named like the
+# file (pacman.rom for pacman.ini), otherwise the first set of that core that was built.
 INIS=""
 for C in $(printf '%s\n' $PAIRS | cut -d: -f1 | sort -u); do
-  NAME=$(sed -n 's/.*<save file="\([^"]*\)".*/\1/p' "$ROOT/$C/menu.xml" | head -n 1)
-  [ -n "$NAME" ] || { echo "  $C/menu.xml names no settings file" >&2; exit 1; }
+  NAME=$(python3 -c 'import sys, xml.etree.ElementTree as ET
+print(ET.parse(sys.argv[1]).getroot().get("ini", ""))' "$ROOT/$C/menu_core.xml")
+  [ -n "$NAME" ] || { echo "  $C/menu_core.xml names no settings file" >&2; exit 1; }
   PICK=""
   for P in $PAIRS; do
     [ "${P%%:*}" = "$C" ] || continue
