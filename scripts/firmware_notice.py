@@ -102,13 +102,16 @@ COMPONENTS = [
         "url": "https://github.com/scullymi/FPGA-Companion (branch game20k), "
                "fork of https://github.com/MiSTle-Dev/FPGA-Companion",
         "checkout": "external/FPGA-Companion",
-        # the Companion's own files, and the files of src/rp2040 that CMake names relative to
-        # the build directory (bluetooth.c, mcu_hw.c, freertos_callbacks.c)
-        "match": r"/external/FPGA-Companion/src/|^CMakeFiles/fpga_companion\.dir/[^/]+\.o$",
+        # the Companion's own files, the files of src/rp2040 that CMake names relative to the
+        # build directory (bluetooth.c, mcu_hw.c, freertos_callbacks.c), and the tables that
+        # scripts/build_companion.sh generates for it under build/firmware/gen
+        "match": r"/external/FPGA-Companion/src/|^CMakeFiles/fpga_companion\.dir/[^/]+\.o$"
+                 r"|/build/firmware/gen/[^/]+\.c\.o$",
         "licence": "Apache-2.0",
         "texts": ["external/FPGA-Companion/LICENSE"],
         "note": "Written by Till Harbaum, Stefan Voss and further contributors, the "
-                "RetroAchievements client (src/ra_*) Copyright (C) 2026 scullymi. "
+                "RetroAchievements client (src/ra_*) and its game table, generated from the ROM "
+                "manifests of game20k, Copyright (C) 2026 scullymi. "
                 "{bluetooth}"
                 "The image also holds the root certificate GTS Root R4 of Google Trust Services "
                 "as data (https://pki.goog/repository/).",

@@ -5,11 +5,14 @@
  *         ra_games_row()/ra_games_at(), the row the restart mark keeps, and
  *         ra_games_select(), the game a boot plays.
  *
- *  ra_games.c is included as it is, with rcheevos' md5 for ra_games_name_hash().
- *  A ROM file picked in the menu switches the core when it is the set name of a
+ *  ra_games.c is included as it is, with rcheevos' md5 for ra_games_name_hash(), and
+ *  links the table that scripts/make_fw_tables.py makes from the manifests, as the
+ *  firmware does. The tests check the lookups on every row, not the rows themselves:
+ *  those the generator checks against the manifests and menus. A ROM file picked in the menu switches the core when it is the set name of a
  *  game of another board plus ".rom", case ignored. A near miss must name no game:
  *  it streams to the running core as before. The rules of ra_games_select() decide
  *  hardcore, they are checked on every row of the table. */
+#include <ctype.h>
 #include <string.h>
 
 #include "unity.h"
@@ -26,21 +29,19 @@ static unsigned id_of(const char *name) {
   return g ? g->id : 0;
 }
 
+/** Every row comes back by its file name, also in capitals: FAT keeps the case the card
+ *  writer chose, an 8.3 name often in capitals. */
 static void test_by_file_names_the_set(void) {
-  TEST_ASSERT_EQUAL_UINT(12138u, id_of("galaga.rom"));
-  TEST_ASSERT_EQUAL_UINT(12192u, id_of("pacman.rom"));
-  TEST_ASSERT_EQUAL_UINT(24933u, id_of("puckman.rom"));
-  TEST_ASSERT_EQUAL_UINT(11800u, id_of("mspacman.rom"));
-  TEST_ASSERT_EQUAL_UINT(11919u, id_of("pacplus.rom"));
-  TEST_ASSERT_EQUAL_UINT(11918u, id_of("ponpoko.rom"));
-  TEST_ASSERT_EQUAL_UINT(11960u, id_of("1942.rom"));
-  TEST_ASSERT_EQUAL_UINT(11961u, id_of("1943.rom"));
-}
-
-static void test_by_file_ignores_case(void) {
-  // FAT keeps the case the card writer chose, an 8.3 name often in capitals
-  TEST_ASSERT_EQUAL_UINT(12138u, id_of("GALAGA.ROM"));
-  TEST_ASSERT_EQUAL_UINT(24933u, id_of("PuckMan.Rom"));
+  const ra_game_t *g;
+  char name[40];
+  unsigned row, i;
+  for(row = 0; (g = ra_games_at(row)) != NULL; row++) {
+    snprintf(name, sizeof(name), "%s.rom", g->set);
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(g, ra_games_by_file(name), name);
+    for(i = 0; name[i]; i++) name[i] = (char)toupper(name[i]);
+    TEST_ASSERT_EQUAL_PTR_MESSAGE(g, ra_games_by_file(name), name);
+  }
+  TEST_ASSERT_GREATER_THAN_UINT(0, row);
 }
 
 static void test_by_file_near_misses(void) {
@@ -62,14 +63,14 @@ static void test_by_file_near_misses(void) {
 /** The restart mark keeps the row, not the id: makaimurg shares 12149 with gng, and the
  *  id would bring back gng. Every row must come back as itself. */
 static void test_row_tells_shared_ids_apart(void) {
-  const ra_game_t *m = ra_games_by_file("makaimurg.rom");
-  TEST_ASSERT_NOT_NULL(m);
-  TEST_ASSERT_EQUAL_STRING("gng", ra_games_by_id(m->id)->set);
-  TEST_ASSERT_EQUAL_PTR(m, ra_games_at(ra_games_row(m)));
-  unsigned row = 0;
-  for(const ra_game_t *g; (g = ra_games_at(row)) != NULL; row++)
+  const ra_game_t *g;
+  unsigned row = 0, shared = 0;
+  for(; (g = ra_games_at(row)) != NULL; row++) {
     TEST_ASSERT_EQUAL_UINT(row, ra_games_row(g));
-  TEST_ASSERT_EQUAL_UINT(GAMES_N, row);
+    shared += ra_games_by_id(g->id) != g;   // an earlier row has the id
+  }
+  TEST_ASSERT_EQUAL_UINT(ra_games_rows_n, row);
+  TEST_ASSERT_GREATER_THAN_UINT(0, shared);
 }
 
 /* ---- ra_games_select(): the game of a boot ---- */
@@ -180,7 +181,6 @@ static void test_select_no_name(void) {
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_by_file_names_the_set);
-  RUN_TEST(test_by_file_ignores_case);
   RUN_TEST(test_by_file_near_misses);
   RUN_TEST(test_row_tells_shared_ids_apart);
   RUN_TEST(test_select_digest);

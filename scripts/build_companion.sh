@@ -58,12 +58,17 @@ grep -q 'XFER_RESULT_SUCCESS == result' "$ROOT/external/tinyusb/src/class/hid/hi
   || { echo "external/tinyusb is not the fork's branch game20k (hid_host.c lacks the changed line), see .gitmodules"; exit 1; }
 [ -f "$ROOT/external/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB/src/pio_usb.c" ] \
   || { echo "external/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB is empty, run: git submodule update --init --recursive"; exit 1; }
-# Three contracts between this repository and the firmware, compared without boards by the
-# same script the CI runs: the RAM mirror layout of the core against main.c (otherwise the
-# firmware refuses the core with "core too old" or reads garbage), the known ROM digests and
-# labels of the ROM manifests against ra_games.c, and each game's row there (id, hash, board).
+# The contract between this repository and the firmware, compared without boards by the same
+# script the CI runs: the RAM mirror layout of the core against main.c (otherwise the firmware
+# refuses the core with "core too old" or reads garbage).
 python3 "$ROOT/scripts/check_contracts.py" --root "$ROOT" --fork "$REPO" \
   || { echo "a contract between core, firmware and scripts is broken, see above"; exit 1; }
+# The firmware's tables come from this tree: the game table from the ROM manifests. They go to
+# build/firmware/gen, outside the fork's tree, and CMake gets each one as a parameter. A build
+# without the parameter takes the fork's example table, which holds no game.
+GEN="$ROOT/build/firmware/gen"
+python3 "$ROOT/scripts/make_fw_tables.py" --out "$GEN" \
+  || { echo "the firmware tables cannot be made from the manifests, see above"; exit 1; }
 VERSION=$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
 echo "building fork commit $(git -C "$REPO" log -1 --format='%h %s') as game20k version ${VERSION:-unknown}"
 # local edits in the checkout go into the build, say so
@@ -76,6 +81,7 @@ mkdir -p "$B"
 # configure, and a later cmake re-run from another shell would fall back to the SDK's TinyUSB.
 ( cd "$B" && cmake -DBOARD=$CM_BOARD $CM_USB \
       ${VERSION:+-DGAME20K_VERSION="$VERSION"} \
+      -DGAME20K_GAMES_TABLE:FILEPATH="$GEN/ra_games_data.c" \
       -DPICO_TINYUSB_PATH:PATH="$PICO_TINYUSB_PATH" \
       -DPICOTOOL_FETCH_FROM_GIT_PATH:PATH="$PICOTOOL_FETCH_FROM_GIT_PATH" \
       -DPICOTOOL_FORCE_FETCH_FROM_GIT=1 \

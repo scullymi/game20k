@@ -5,9 +5,10 @@
 #   make -C tests/host          build and run all, exit status 1 when one fails
 #   make -C tests/host SAN=0    without AddressSanitizer and UndefinedBehaviorSanitizer
 #   make -C tests/host V=1      print the compiler lines and every test line
-# The tested code and FatFs with its ffconf.h come straight from the fork. FreeRTOS, lwIP, the
-# card lock and the RA task are stand-ins in stubs/, the SD card is a RAM disk under the real
-# FatFs. char is unsigned as on the Pico.
+# The tested code and FatFs with its ffconf.h come straight from the fork, the game table from
+# scripts/make_fw_tables.py as in the firmware build. FreeRTOS, lwIP, the card lock and the RA
+# task are stand-ins in stubs/, the SD card is a RAM disk under the real FatFs. char is
+# unsigned as on the Pico.
 
 ROOT    ?= ../..
 FORK    ?= $(ROOT)/external/FPGA-Companion/src
@@ -55,11 +56,15 @@ obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
 # test_games ra_games.c and test_games_file games_file.c themselves (their functions are static)
 SHARED  := $(foreach s,$(LIB_SRC) $(OWN_SRC),$(call obj,$(s)))
+# the game table made from the manifests, linked into test_games. The fork's example table is
+# only compiled, so a build of the fork alone does not break unseen
+GEN     := $(BUILD)/gen/ra_games_data.c
+EXAMPLE := $(FORK)/ra_games_example.c
 
 .PHONY: all check build clean
 all check: build
 	@V=$(V) sh ./run_tests.sh $(addprefix $(BUILD)/,$(TESTS))
-build: $(addprefix $(BUILD)/,$(TESTS))
+build: $(addprefix $(BUILD)/,$(TESTS)) $(call obj,$(EXAMPLE))
 clean:
 	rm -rf build
 
@@ -76,7 +81,13 @@ $(call obj,$(1)): $(1) $(STAMP)
 	$(Q)$$(CC) $(2) -MMD -MP -c $$< -o $$@
 endef
 $(foreach s,$(LIB_SRC),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
-$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
+$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(EXAMPLE),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
+
+# the generator runs every time and rewrites the table only when it changes
+.PHONY: FORCE
+$(GEN): FORCE
+	@python3 $(ROOT)/scripts/make_fw_tables.py --out $(BUILD)/gen
+$(BUILD)/test_games: $(call obj,$(GEN))
 
 $(BUILD)/test_%: $(BUILD)/obj/test_%.o $(SHARED)
 	@$(if $(Q),echo "  LD  $@",:)
