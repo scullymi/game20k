@@ -64,10 +64,11 @@ hsync <= hsync0;
 process(clk)
 begin
 
-if rising_edge(clk) and reset = '1' then  -- game20k: counters back to power-up values
+if rising_edge(clk) then
+if reset = '1' then  -- game20k: counters back to power-up values
   hcntReg <= to_unsigned(000,9);
   vcntReg <= to_unsigned(015,9);
-elsif rising_edge(clk) and enable = '1' then    -- clk & ena at 6MHz
+elsif enable = '1' then    -- clk & ena at 6MHz
 
   if hcntReg = 511 then 
     hcntReg <= to_unsigned (128,9);
@@ -123,6 +124,7 @@ elsif rising_edge(clk) and enable = '1' then    -- clk & ena at 6MHz
 
   blankn <= not (hblank or vblank); 
 
+end if;
 end if;
 
 end process;

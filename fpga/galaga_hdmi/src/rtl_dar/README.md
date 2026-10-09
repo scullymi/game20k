@@ -47,7 +47,11 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
   bit selection in the tile path therefore uses `hcnt` delayed by one clock (`hcnt_bg_d`).
   **This is Gowin specific and wrong on Altera or Xilinx.**
 - The slot counter starts from reset in a defined phase, so the core runs reproducibly.
-- `gen_video.vhd` gets a reset input.
+- `gen_video.vhd` gets a reset input, checked inside one `rising_edge` together with the
+  pixel enable. GHDL turns the form with the clock edge in both the `if` and the `elsif` into
+  constants without a message.
+- For GHDL: the three work RAM inputs are signals (`wram1_d` to `wram3_d`), not conditional
+  expressions in the port map.
 - The RAMs are our own `entity work.g20k_spram`: synchronous, read-first, zero at start.
 
 **ROMs from the SD card instead of the bitstream**

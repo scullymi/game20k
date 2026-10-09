@@ -179,6 +179,8 @@ port(
 end galaga;
 
 architecture struct of galaga is
+-- game20k: the wram inputs as signals, GHDL takes no conditional expression in a port map
+signal wram1_d, wram2_d, wram3_d : std_logic_vector(7 downto 0);
 
  signal reset_n: std_logic;
  signal clock_18n : std_logic;
@@ -1431,33 +1433,36 @@ port map(
  q    => bgram_do
 );
 -- working/sprite register RAM1   0x8800-0x8BFF / 0x8C00-0x8FFF
+wram1_d <= cap_w1 when harv_wr = '1' else nz_out(7 downto 0) when nz_wr = '1' else mux_cpu_do;
 wram1 : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
  we   => wram1_we,
  addr => wram_addr,
- d    => cap_w1 when harv_wr = '1' else nz_out(7 downto 0) when nz_wr = '1' else mux_cpu_do,
+ d    => wram1_d,
  q    => wram1_do
 );
 -- working/sprite register RAM2   0x9000-0x93FF / 0x9400-0x97FF
+wram2_d <= cap_w2 when harv_wr = '1' else nz_out(7 downto 0) when nz_wr = '1' else mux_cpu_do;
 wram2 : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
  we   => wram2_we,
  addr => wram_addr,
- d    => cap_w2 when harv_wr = '1' else nz_out(7 downto 0) when nz_wr = '1' else mux_cpu_do,
+ d    => wram2_d,
  q    => wram2_do
 );
 -- working/sprite register RAM3   0x9800-0x9BFF / 0x9C00-0x9FFF
+wram3_d <= cap_w3 when harv_wr = '1' else nz_out(7 downto 0) when nz_wr = '1' else mux_cpu_do;
 wram3 : entity work.g20k_spram
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
  we   => wram3_we,
  addr => wram_addr,
- d    => cap_w3 when harv_wr = '1' else nz_out(7 downto 0) when nz_wr = '1' else mux_cpu_do,
+ d    => wram3_d,
  q    => wram3_do
 );
 
