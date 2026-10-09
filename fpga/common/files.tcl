@@ -42,6 +42,7 @@ add_file $common/src/sdram_share.sv
 add_file $common/src/input_test_bar.sv
 add_file $common/src/ra_overlay.sv
 add_file $common/src/screen_sel.sv
+add_file $common/src/audio_cdc.sv
 
 # The interface tag: make_menu.py fills menu/base.xml with the game's menu_core.xml, checks
 # the menu and writes gen/iface_pkg.sv with IFACE_TAG, which ram_spi sends in the RAM mirror

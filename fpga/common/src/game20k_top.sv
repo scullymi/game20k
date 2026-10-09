@@ -549,18 +549,21 @@ module game20k_top #(
     // Volume, then into the pixel clock domain. The game delivers two's complement with
     // silence at 0 (HDMI wants that per IEC 60958), the scale is the game's business: a
     // unipolar core such as Galaga delivers 0..32767, see its game_core.
-    logic [15:0] aud_p0, aud_p1;
     logic signed [21:0] aud_mul;
     logic [15:0] aud_g;
     always_ff @(posedge clk_core) aud_mul <= audio * $signed({1'b0, gain});
     assign aud_g = aud_mul[19:4];   // /16, sign-correct
-    always_ff @(posedge clk_pixel) begin
-        aud_p0 <= aud_g;
-        aud_p1 <= aud_p0;
-    end
+    // One word per audio period, requested at the falling edge of clk_audio. audio_cdc
+    // delivers it within half a microsecond and holds it until the next request, so the
+    // HDMI module takes a whole, settled word at the rising edge half a period later.
+    logic        aud_req;
+    logic [15:0] aud_w;
+    assign aud_req = (aud_div == 10'd772) && clk_audio;
+    audio_cdc audio_cdc_i (.clk_core(clk_core), .din(aud_g), .clk_pixel(clk_pixel),
+                           .req(aud_req), .dout(aud_w));
     logic [15:0] audio_sample_word [1:0];
-    assign audio_sample_word[0] = aud_p1;
-    assign audio_sample_word[1] = aud_p1;
+    assign audio_sample_word[0] = aud_w;
+    assign audio_sample_word[1] = aud_w;
 
     // Companion OSD in the 720p raster (active-low sync pulses from cx/cy)
     logic hdmi_hs_n, hdmi_vs_n;
