@@ -64,8 +64,12 @@ scripts/build_fpga.sh g1942_hdmi
 ```
 
 Each build ends with a short report on utilisation and timing, and fails if a clock misses its
-target. It also puts the core's menu together from `fpga/common/menu/base.xml` and the core's
-`menu_core.xml` (`scripts/make_menu.py`), so a menu change needs nothing but a new build.
+target. The menus are not in the bitstream but in the firmware (section 4). The core only
+carries an interface tag (`scripts/make_menu.py`), a checksum over the ids and values of its
+menu and the labels of its own part, and the firmware takes its menu for the core only when
+the tags agree. A change to a core's `menu_core.xml` therefore needs a new build of that core
+and of the firmware, a change to `fpga/common/menu/base.xml` that only touches labels or
+comments needs the firmware alone.
 
 Write the cores into the board's flash, then power the board off and on:
 
@@ -81,6 +85,10 @@ address 0, which is Galaga. The script writes Galaga with Gowin's `programmer_cl
 cores with openFPGALoader, because `programmer_cli` can only write to address 0. Set
 `FLASHER=openfpgaloader` to use openFPGALoader for both. Without `flash`, the script loads the
 core into the FPGA's SRAM only, which is handy for a quick test and gone at power-off.
+
+**Only some of the cores.** The core switch loads the next core of the ring, an empty place in
+the flash would be loaded as well. To flash fewer cores, leave only those in `slots.txt`, build
+them and the firmware again, and flash them at their new addresses.
 
 `scripts/make_bitstream_release.sh` builds all cores from a release tag and packs them as the
 single flash image that the release ships. `DEV=1` runs it without a tag, for a trial. The image
@@ -117,6 +125,13 @@ files and the DIP switches their set expects, come from the ROM manifests:
 `scripts/build_companion.sh` generates the table into `build/firmware/gen/` and passes it to
 the firmware build, so a new set needs no change in the fork. Built on its own, the fork takes
 an empty example table and knows no game.
+
+**The menus.** The OSD menu of every core in `fpga/common/slots.txt` comes from
+`fpga/common/menu/base.xml` and the core's `menu_core.xml`: the same script writes them with
+their interface tags into `build/firmware/gen/`, and the build stops when a core of the ring has
+no menu part. Firmware and cores of different releases do not match: the firmware then shows a
+basic menu without DIP switches and a message to update both, and hardcore stays off. Built on
+its own, the fork has no menu of a game20k core and shows the basic menu for each.
 
 **Releases.** GitHub Actions builds the release firmware from the sources at the tag, and
 `gh attestation verify game20k-<version>-pico2w.zip -R scullymi/game20k` confirms that a

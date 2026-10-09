@@ -1,6 +1,6 @@
 # Tests
 
-Host tests of five pieces of the firmware, built from the fork's own sources and run without a board.
+Host tests of pieces of the firmware, built from the fork's own sources and run without a board.
 
 ```sh
 git submodule update --init --recursive   # the fork, pico-sdk (mbedTLS headers) and external/unity
@@ -11,15 +11,16 @@ HOST_LOG=1 make -C tests/host             # with the firmware's debugf() lines
 
 Unity is the submodule `external/unity`, tag v2.7.0 (commit `b6763fbd`), MIT licence, used by the tests only.
 
-## What the five tests cover
+## What the tests cover
 
 - `test_ftp_guard.c`: the FTP write protection in hardcore (`ftpd.c`: `protected_path()`, `resolve()` and every writing command). The fork's real FatFs is the oracle: every argument that FatFs resolves to a protected file must be refused, in the root and below the folder `ra`. It covers the known bypasses (backslash, trailing dot or space, control byte), and an earlier `protected_path()` without them fails it.
 - `test_dechunk.c`: `ra_net_dechunk()`, the chunked transfer framing of the RetroAchievements replies. Every input sits in a heap block of its exact length, so ASan sees any read past the end. The one IGNORE is the open length overflow (a hex length with more digits than an unsigned long wraps around), it becomes a hard assert in the commit in which the fork refuses such lengths.
 - `test_queue_lines.c`: `parse()` in `ra_queue.c`, the lines of `ra_pending.txt`: a line without a game hash is Galaga's, one with a hash carries its game, and the two tag labels never verify each other's line, so a hash cannot be inserted or removed unnoticed. Then `ra_queue_open()` and `ra_queue_head()` on a file on the RAM card: a malformed line is marked done and skipped, another account's line parked, a blank line left alone, and `ra_queue_own()` by hash and by the resolved game id. The tags come from a fake `ra_mac_tag()` in the stand-ins, deterministic over label and data.
 - `test_games.c`: `ra_games_by_file()` in `ra_games.c`, the file name that starts a core switch under "ROM set", case ignored, and near misses that name no game. Then `ra_games_select()`, the game a boot plays and whether hardcore may count it: a known digest, the file name of a table game, any other name and no ROM, each on the game's board and on another one. Both run on every row of the game table that `scripts/make_fw_tables.py` generates from the ROM manifests, as for the firmware.
 - `test_games_file.c`: the footer of a ROM file (`games_file.c`) against a footer that `scripts/make_rom.py` wrote: valid, bad magic or version, every one-bit change caught by the CRC-32, a size that does not match, a file shorter than a footer, and `games_footer_read()` on the RAM card, which leaves the file position as it was. Then the order of the Games page, by title without case and by file name on a tie.
+- `test_menus.c`: `menus_pick()` in `menus.c`, the menu a boot takes from the table that `scripts/make_fw_tables.py` generates from the menu sources: every board with its interface tag gets its menu, another tag, board 0 and a board without a menu get none (the basic menu runs, without hardcore on another tag).
 
-Only these five, because each guards real bugs in code that parses input from outside, and all run in seconds.
+Only these, because each guards real bugs in code that parses input from outside or decides about hardcore, and all run in seconds.
 
 ## What the stand-ins model
 
@@ -34,8 +35,6 @@ A call that no tested path should make ends the test with `HOST STUB:`, so a sta
 1. A red test is fixed or removed in the same session.
 2. A new test only for a real bug, in the same commit as the fix.
 3. Every check prints its sample size and fails when it is 0 (`run_tests.sh` refuses a binary without tests, `checks.sh` and `check_contracts.py` a scan or contract that matched nothing).
-
-Budget ceiling: `tests/` at most 15 files and 2,000 lines, this README not counted. The check scripts plus the CI (`scripts/checks.sh`, `scripts/check_contracts.py`, `scripts/fpga_report.py`, `.github/workflows/checks.yml`) at most 600 lines. Anything beyond replaces something or goes to the archive.
 
 ## Updating a dependency
 

@@ -34,7 +34,7 @@ on the Nano to open the menu.
 
 ## Things to avoid
 
-- Do not put a config.xml on the card. It replaces the menu built into the FPGA, and the
+- Do not put a config.xml on the card. It replaces the menu built into the firmware, and the
   machine then only plays in softcore.
 - Keep every line of config.ini within 126 characters. The firmware drops a longer line, and only
   its debug log says so.
