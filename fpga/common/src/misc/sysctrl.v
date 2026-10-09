@@ -76,8 +76,8 @@ always @(posedge clk) begin
       color <= 24'h000000;
       buttons_irq_enable <= 1'b1;
       int_ack <= 8'h00;
-      coldboot = 1'b1;
-      sys_int = 1'b1;
+      coldboot <= 1'b1;   // non-blocking like everywhere else in this block, yosys-slang refuses the mix
+      sys_int <= 1'b1;
       system_reset <= 2'd0;
       system_scanlines <= 2'd0;
       system_volume <= 3'd6;        // gain 12/16

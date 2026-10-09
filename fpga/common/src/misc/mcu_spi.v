@@ -75,11 +75,10 @@ always @(negedge spi_io_clk or posedge spi_io_ss) begin
 end // always @ (negedge spi_io_clk or posedge spi_io_ss)
    
 reg [7:0] spi_in_data;
+reg [7:0] spi_target;
+reg [3:0] spi_in_cnt;   // game20k: declared before its first use, slang and Icarus require it
 assign mcu_start = spi_in_cnt == 2;  
 assign mcu_dout = spi_in_data;
-     
-reg [7:0] spi_target;
-reg [3:0] spi_in_cnt;
 
 always @(posedge clk) begin
    reg [1:0] spi_data_in_readyD;

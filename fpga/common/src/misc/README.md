@@ -10,7 +10,7 @@ game20k changes in them are under the same licence, see
 | File | From | Changed here |
 |---|---|---|
 | `hid.v` | MiSTeryNano `c8e4601fbf7264e13f4b18ac2d452444de6b51c5` | yes: an extra joystick byte for the shoulder, select, start and trigger buttons, the analogue axes for the input test, and the Atari ST `keymap` instance removed with `kbd_row` and `kbd_column` tied to 0, since `atarist_keymap.v` is not copied |
-| `mcu_spi.v` | MiSTeryNano, same commit | yes: SPI target 5 passed through, the RAM mirror |
+| `mcu_spi.v` | MiSTeryNano, same commit | yes: SPI target 5 passed through, the RAM mirror. `spi_in_cnt` and `spi_target` declared before their first use |
 | `osd_u8g2.v` | MiSTeryNano, same commit | yes: input `rotate`, the menu rotated by 90 degrees in landscape mode, `SCALE 4` for 720p, an output `visible` for the top level, the box geometry and the area flags registered and computed one pixel ahead for timing |
 | `sysctrl.v` | derived from MiSTeryNano `sysctrl.v`, same commit | our file: the SPI command state machine and its constants are Till's, about 60 lines taken verbatim from the 333-line `sysctrl.v`. Menu ROM, the generic settings and the value strobe for the game are ours |
 | `sd_card.v` | Nanomig `df97f033f07b7b4074a2aeb569fe2f6310694e19` | only the licence header. Only Nanomig's version has command 8, the ROM image upload |

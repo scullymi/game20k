@@ -1,8 +1,8 @@
 The ten files in this folder come from https://github.com/hdl-util/hdmi by Sameer Puri,
 commit 08936f65be09abac338cd8c13beee289af7e7e59, which is dual-licensed MIT OR Apache-2.0
 (its LICENSE-MIT and LICENSE-APACHE). They are used here under the MIT License, whose
-text follows unchanged from its LICENSE-MIT. Six files are identical to that commit.
-hdmi.sv, packet_assembler.sv and tmds_channel.sv carry changes marked "game20k:",
+text follows unchanged from its LICENSE-MIT. Five files are identical to that commit.
+hdmi.sv, packet_assembler.sv, packet_picker.sv and tmds_channel.sv carry changes marked "game20k:",
 serializer.sv is the version from NESTang (https://github.com/nand2mario/nestang), which
 adds the line `define GW_IDE.
 

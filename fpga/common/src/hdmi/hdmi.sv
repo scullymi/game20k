@@ -335,7 +335,7 @@ generate
             begin
                 mode <= 3'd2;
                 video_data <= 24'd0;
-                control_data = 6'd0;
+                control_data <= 6'd0;  // game20k: non-blocking like the else branch, yosys-slang refuses the mix
                 data_island_data <= 12'd0;
             end
             else
