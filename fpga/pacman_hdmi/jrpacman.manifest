@@ -31,6 +31,12 @@ mirror  6272
 screen  cw
 # the file make_rom.py builds from roms/jrpacman.zip, the candidate for the firmware's digest list
 known   299e5ffbf28c7ecf70a72012a1a6f6612cb2fbf45bae93ae49353d615df66b0e MAME jrpacman
+# RetroAchievements game and the DIP switches its set expects: 3 lives (L 2) and bonus at
+# 20000 (B 2), one of its achievements checks them.
+ra      12191
+short   Jr. Pac-Man
+dip     L 2
+dip     B 2
 
 section program     0x0000 16384 zeros
 section gfx         0x4000 8192

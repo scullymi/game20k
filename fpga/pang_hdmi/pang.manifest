@@ -25,6 +25,10 @@ mirror  18176
 screen  upright
 # the file make_rom.py builds from roms/pang.zip, the candidate for the firmware's digest list
 known   3a2e950cf6e5879a007d669ecbfc0564579b1466df623f4de34a56939e01c729 MAME pang
+# RetroAchievements game. The board has no DIP switches: the settings live in the EEPROM,
+# which the file loads with MAME's first-start content, and the set reads them from RAM.
+ra      11996
+short   Pang
 kabuki  01234567 76543210 6548 24
 
 section main_data   0x000000 294912 sdram kabuki=data

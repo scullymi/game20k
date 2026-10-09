@@ -46,3 +46,8 @@ chip    u7          4096 1d8ac7ad03db2dc4c8c18ade466e12032673f874
 chip    u7          4096 1d8ac7ad03db2dc4c8c18ade466e12032673f874
 
 known   d6d7cfdbd89153b572ceb6ddc2a1322f1f481eb608e84c5fdee7319c4c05bae0 MAME mspacman
+# RetroAchievements game. The achievements read only the difficulty. Seven of the ten
+# leaderboards count with at most 3 lives, so the set expects 3 lives (L 2), the default.
+ra      11800
+short   Ms. Pac-Man
+dip     L 2

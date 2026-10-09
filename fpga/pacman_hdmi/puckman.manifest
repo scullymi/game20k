@@ -41,3 +41,10 @@ section timing_3m   0x6220 256
 chip    pm1-2.3m    256  0c4d0bee858b97632411c440bea6948a74759746
 
 known   ad4a2c562aa8b87d8f1dffccf45bf9d213c045e1b237e5ec1121fdc880ef7387 MAME puckman
+# RetroAchievements lists this set name as game 24933, "Pac-Man [Subset - Perfect Pac]": the
+# subset is played with the Japanese original. It asks for 3 lives or more, and "Perfect Pac"
+# itself for 5, so 5 lives (L 3) serves every achievement, with 1 coin 1 credit (C 1).
+ra      24933
+short   Puck Man
+dip     L 3
+dip     C 1

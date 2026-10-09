@@ -23,6 +23,13 @@ screen  cw
 # the file make_rom.py builds from roms/digdug.zip, namco51.zip and namco53.zip, the candidate
 # for the firmware's digest list
 known   322bcd78526311d9005667d494064af51922ceeb80fabf076e9ca788bee4a678 MAME digdug
+# RetroAchievements game and the DIP switches its set expects: 3 lives (L 2), bonus at 10K,
+# 40K and every 40K (B 4) and no continue (O 1), one of its achievements checks these.
+ra      12091
+short   Dig Dug
+dip     L 2
+dip     B 4
+dip     O 1
 
 section main        0x0000 16384 sdram
 chip    dd1a.1      4096 86689980410b9429cd7582c7a76342721c87d030

@@ -71,3 +71,6 @@ chip    bmk2.13a    256   94bc6514c980fdd1cb013ff0819d6f32464c581c
 chip    bmk3.14a    256   e1f58368fe0bd9b53f6c286ce5009b218a5197dc
 
 known   456c531ceb242253bb29e92a24420190b0f158485be1ab4f59b115203fbc90bd MAME 1943mii
+# RetroAchievements game, no DIP switch checked.
+ra      11962
+short   1943 Mark II

@@ -27,6 +27,12 @@ mirror  5760
 screen  upright
 # the file make_rom.py builds from roms/gng.zip, the candidate for the firmware's digest list
 known   3dde4d4fd230f8325dce7a49866275ec21bc589cd9d292c22ee5c97c52132676 MAME gng (gg)
+# RetroAchievements game and the DIP switches its set expects: 3 lives (L 3) and normal
+# difficulty (F 3), its rich presence reports any other setting as wrong.
+ra      12149
+short   Ghosts'n Goblins
+dip     L 3
+dip     F 3
 
 section main        0x00000 81920 sdram
 chip    gg3.bin   32768  a87880d87c64a6d61313c3bc69c8d49511e0f9c3

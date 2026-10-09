@@ -15,6 +15,10 @@ board   2
 mirror  6272
 screen  upright
 known   782e594e38d197c9b582ea495b25a05d81bf26c45e76118daf24d648688e7c5b MAME ponpoko
+# RetroAchievements game. The core sets Ponpoko's DIP switches itself, to FBNeo's defaults,
+# the menu's lists do not reach them.
+ra      11918
+short   Ponpoko
 
 section program     0x0000 16384
 chip    ppokoj1.bin 4096 d9e3186dcd4eb94d02bd24ad56030b248721537f

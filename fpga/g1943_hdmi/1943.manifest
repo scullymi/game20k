@@ -86,3 +86,7 @@ chip    bm2.13a     256   1796c4c9041dfe28e6319576f21df1dbcb8d12bf
 chip    bm3.14a     256   d1118159b3d429d841e4efa938728ebedadd7ec5
 
 known   cef89a371cbcbc0221d7ff09c00be48543e5d7f5b06c9b8f0cbc567ef866bf44 MAME 1943
+# RetroAchievements game. Only the parent set's name is linked there, 1943mii has its own. The
+# set checks no DIP switch, its conditions read the game state.
+ra      11961
+short   1943

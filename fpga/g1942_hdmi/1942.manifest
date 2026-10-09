@@ -75,3 +75,7 @@ chip    sb-9.m11    256   aee37d6cdc36acf0f11ff5f93e7b16e4b12f6c39
 chip    sb-1.k6     256   5349d722ab6733afdda65f6e0a98322f0d515e86
 
 known   2f847d48e7e21ce3f3e09d5e9611cc4742eda6a134f468b07f48dac69c29e043 MAME 1942
+# RetroAchievements game. Only the parent set's name is linked there, its revision A clone is
+# not. The set checks no DIP switch, its conditions read the game state.
+ra      11960
+short   1942

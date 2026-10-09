@@ -13,6 +13,11 @@ mirror  6272
 screen  cw
 # the file make_rom.py builds from roms/puckman.zip, the candidate for the firmware's digest list
 known   a15e0aca973d1fa470735948799fca15ab97b3b5bd3785c4d926566092bfce3e MAME pacmanf
+# RetroAchievements lists the speedup hack as a game of its own, with Pac-Man's switches.
+ra      24885
+short   Pac-Man (speedup)
+dip     L 2
+dip     C 1
 
 section program     0x0000 16384
 chip    pacman.6e   4096 e87e059c5be45753f7e9f33dff851f16d6751181

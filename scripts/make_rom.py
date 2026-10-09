@@ -138,17 +138,18 @@ def mirror_bounds():
 
 def read_manifest(path):
     """Parse a manifest into a dict: set, title, zip, total, board, mirror, screen, sections,
-    notes, known, and kabuki (the four keys) when the manifest has a kabuki line.
+    notes, known, dips, and kabuki (the four keys), ra and short when the manifest has those
+    lines.
 
     screen is the code of SCREEN. sections is a list of dicts {name, offset, size, chips,
     header, ...}, chips a list of dicts
     {name, size, sha1, zip, optional, derive, out} for a chip of the set, {fill, out} for
     filler bytes or {data, out} for literal bytes, out being the bytes it takes in the file.
-    known a list of (sha256, label). The layout, the
+    known a list of (sha256, label), dips a list of (id, value). The layout, the
     board id and the mirror size are checked here, so every user of the manifest (this
-    script, check_contracts.py) sees the same verdict.
+    script, make_fw_tables.py) sees the same verdict.
     """
-    m = {"path": path, "sections": [], "notes": {}, "known": []}
+    m = {"path": path, "sections": [], "notes": {}, "known": [], "dips": []}
     with open(path, encoding="utf-8") as fh:
         for no, raw in enumerate(fh, 1):
             words = raw.split("#", 1)[0].split()
@@ -159,8 +160,14 @@ def read_manifest(path):
             try:
                 if key in ("set", "zip") and len(args) == 1:
                     m[key] = args[0]
-                elif key == "title" and args:
-                    m["title"] = " ".join(args)
+                elif key in ("title", "short") and args:
+                    m[key] = " ".join(args)
+                elif key == "ra" and len(args) == 1 and int(args[0]) > 0:
+                    m["ra"] = int(args[0])
+                elif key == "dip" and len(args) == 2 and len(args[0]) == 1:
+                    # a list of the core's menu by its one-character id, and the value the
+                    # RetroAchievements set expects
+                    m["dips"].append((args[0], int(args[1])))
                 elif key in ("total", "board", "mirror") and len(args) == 1:
                     m[key] = int(args[0], 0)
                 elif key == "screen" and len(args) == 1:
@@ -244,8 +251,8 @@ def read_manifest(path):
         raise ManifestError("%s: board %d, a board id is 1..254" % (path, m["board"]))
     # The mirror size goes out in header byte 14 in pages of RAM_MIRROR_PAGE bytes, at most
     # RAM_MIRROR_DATA_MAX, both read from ram_mirror_pkg.sv (the firmware carries the same
-    # values, scripts/check_contracts.py compares them and checks this bound once more). The
-    # FPGA build runs this script alone, so the bound holds here. A core with less RAM pads.
+    # values, scripts/check_contracts.py compares them). The FPGA build runs this script
+    # alone, so the bound holds here. A core with less RAM pads.
     page, data_max = mirror_bounds()
     if m["mirror"] % page or not 0 < m["mirror"] <= data_max:
         raise ManifestError("%s: mirror %d, the mirror size is a multiple of RAM_MIRROR_PAGE %d up to "

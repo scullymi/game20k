@@ -19,6 +19,13 @@ mirror  2048
 screen  cw
 # the file make_rom.py builds from roms/timeplt.zip, the candidate for the firmware's digest list
 known   dd1089b868ade9f656fda4a5d41330f90bdde8077003972165f96db9141dbf74 MAME timeplt
+# RetroAchievements game and the DIP switches its set expects, MAME's defaults: 3 lives (L 3),
+# bonus at 10K and every 50K (B 1), difficulty 4 (F 4).
+ra      11902
+short   Time Pilot
+dip     L 3
+dip     B 1
+dip     F 4
 
 section main        0x0000 24576 sdram
 chip    tm1         8192  c72f30988ac00cbe6549b71c3bcb414511e8b997

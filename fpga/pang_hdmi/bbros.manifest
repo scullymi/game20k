@@ -13,6 +13,9 @@ mirror  18176
 screen  upright
 # the file make_rom.py builds from roms/pang.zip, the candidate for the firmware's digest list
 known   c1b709ece306765cb44118dfee4ee26c0a301b54d45318e077dc99ba93b1aef0 MAME bbros
+# RetroAchievements game: Pang's set (see pang.manifest).
+ra      11996
+short   Buster Bros.
 # the file make_rom.py builds from roms/pang.zip, the candidate for the firmware's digest list
 kabuki  01234567 76543210 6548 24
 

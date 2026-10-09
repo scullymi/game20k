@@ -15,6 +15,11 @@ mirror  5760
 screen  upright
 # the file make_rom.py builds from roms/gng.zip, the candidate for the firmware's digest list
 known   3660816e2b431f20364c400336ee23e818f12339aa9ab2a432c1375786175d3f MAME makaimurg
+# RetroAchievements game: Ghosts'n Goblins' set, with its switches.
+ra      12149
+short   Makaimura
+dip     L 3
+dip     F 3
 
 section main        0x00000 81920 sdram
 chip    mj03g.bin 32768  23a0a17d0abc4b084ffeba90266ef455361771cc

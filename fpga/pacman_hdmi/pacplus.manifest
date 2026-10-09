@@ -25,6 +25,9 @@ mirror  6272
 # MAME ROT90, as Pac-Man
 screen  cw
 known   f5bd31c1caeba45073ae03b4aef6639e6e24ff727839d8e408c21595454f43a5 MAME pacplus
+# RetroAchievements game. The DIP switches are Pac-Man's, the set expects none.
+ra      11919
+short   Pac-Man Plus
 
 section program     0x0000 16384
 chip    pacplus.6e  4096 8531c54ca6b0de0ea4ccc34e0e801ba9847e75bc

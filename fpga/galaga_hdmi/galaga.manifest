@@ -6,8 +6,8 @@
 #   scripts/make_rom.py         builds sdcard/galaga.rom from roms/, checking every chip
 #   build.tcl                   the section table of rom_loader, the board id and the mirror
 #                               size (gen/rom_map_pkg.sv)
-#   scripts/check_contracts.py  compares the known digests and labels, the board and the
-#                               mirror size with the firmware (ra_games.c)
+#   scripts/make_fw_tables.py   the set's row in the firmware's game table, from the board,
+#                               known, ra, short and dip lines
 #
 # Format: one entry per line, words separated by blanks, # starts a comment.
 #   set <name>        MAME set name. The file on the card is <name>.rom, the settings <name>.ini
@@ -15,8 +15,7 @@
 #   zip <file>        the set in roms/, as a MAME merged set
 #   total <bytes>     size of the finished file, rom_loader accepts exactly this size
 #   board <id>        which board this core is to the firmware, 1..254: header byte 12 of
-#                     the RAM mirror (BOARD_ID). The games[] row of the set in ra_games.c of
-#                     the fork repeats it
+#                     the RAM mirror (BOARD_ID)
 #   mirror <bytes>    game RAM bytes in the RAM mirror before the oracle log (MIRROR_DATA), a
 #                     multiple of 128 and at most 22528; header byte 14 = mirror / 128
 #   screen upright|cw|ccw
@@ -35,9 +34,15 @@
 #                     zeros, with a warning.
 #   note <file> <text>  what is lost when an optional chip is missing
 #   known <SHA-256> <label>
-#                     a finished file the firmware accepts for hardcore (roms_galaga in
-#                     ra_games.c, digest and label in this order). The label has at most 16
-#                     characters, the firmware shows it in its version dialog
+#                     a finished file the firmware accepts for hardcore. The label has at
+#                     most 16 characters, the firmware shows it in its version dialog
+#   ra <id>           the game's id on RetroAchievements. A set with known lines needs it and
+#                     gets a row in the firmware's game table, a set without achievements
+#                     has neither
+#   short <text>      the title in the firmware's menus and dialogs, without it the title line
+#   dip <id> <value>  a DIP switch the RetroAchievements set expects: the id of a list in the
+#                     core's menu_core.xml and one of its values. Any other value shows as
+#                     "DIP not default!" in the firmware's RetroAchievements status
 
 set     galaga
 title   Galaga (Namco Rev B)
@@ -80,3 +85,10 @@ chip    prom-5.5n   32   1a6dea13b4af155d9cb5b999a75d4f1eb9c71346
 
 known   e658893d7e85185e69ae1f8cf91a5a3dc6c2c9706608d36825a5f21734fa619c with the 54xx
 known   9ae04f20d36b97680d52b3d130e00dd6a0cfe662eeae43600d9a8e383b4fe3d2 without the 54xx
+# RetroAchievements game and the DIP switches its set expects, as the menu's lists keep them:
+# 3 lives (L 2) and bonus at 20K/70K (B 2). Most of its conditions read these settings from
+# the game's RAM and never fire with other ones.
+ra      12138
+short   Galaga
+dip     L 2
+dip     B 2

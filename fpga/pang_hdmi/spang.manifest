@@ -16,6 +16,9 @@ mirror  18176
 screen  upright
 # the file make_rom.py builds from roms/spang.zip, the candidate for the firmware's digest list
 known   efc3cec0f81ba2daf4986fad0313a3ae6f19aac473fa5dcb89737b68b92b040f MAME spang
+# RetroAchievements game, no DIP switches (see pang.manifest).
+ra      12239
+short   Super Pang
 kabuki  45670123 45670123 5852 43
 
 section main_data   0x000000 294912 sdram kabuki=data
