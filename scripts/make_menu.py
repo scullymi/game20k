@@ -2,28 +2,27 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 """@file make_menu.py
-@brief Puts a core's OSD menu together and packs it into the form the FPGA keeps on hand.
+@brief Puts a core's OSD menu together and derives the core's interface tag from it.
 
 Usage: scripts/make_menu.py <core> [<core> ...]     core folders under fpga/, e.g. galaga_hdmi
 
 The menu is fpga/common/menu/base.xml with its gaps filled from fpga/<core>/menu_core.xml, see
-the head of base.xml for the format. The script writes the result to fpga/<core>/gen/menu.xml
-and its gzip as one hex byte per line to fpga/<core>/menu_xml.hex, which
-fpga/common/src/mcu/menu_rom.v reads with $readmemh (2048 bytes of room). files.tcl runs it at
-every Gowin build. The Companion fetches the menu from the FPGA over SPI at startup. The script
-stops on an action the menu does not define and on a setting that the core's game_core.sv starts
-at another value than the menu's default.
+the head of base.xml for the format. The Companion's firmware holds the menus of all cores,
+scripts/make_fw_tables.py writes them with compose() and iface_tag() of this script. Here, at
+every Gowin build (files.tcl), the script writes the menu to fpga/<core>/gen/menu.xml for a look
+and the core's IFACE_TAG to fpga/<core>/gen/iface_pkg.sv, which ram_spi sends in the RAM mirror
+header. The firmware takes its menu for the core only when the tags agree. The script stops on
+an action the menu does not define and on a setting that the core's game_core.sv starts at
+another value than the menu's default.
 
 BUT: there is a second menu source, and it wins. If a file /config.xml lies on the SD card,
-the Companion reads that one and leaves the menu in the bitstream untouched (FPGA-Companion
-src/main.c, f_open on sys_get_config_name() BEFORE the fallback to the core). Then a menu change
-has no effect no matter how often you rebuild and flash, and the device shows no sign of it.
-The only hint goes to the debug UART: "Loading XML config from file" versus "Loading XML config
-from core" (GP0, 921600 baud).
+the Companion reads that one and leaves its built-in menu aside (FPGA-Companion src/main.c,
+f_open on sys_get_config_name() first). Then a menu change has no effect no matter how often
+you rebuild and flash, and only the debug UART tells: "Loading XML config from file" versus
+"Loading the built-in XML config" (GP0, 921600 baud).
 """
 import os
 import re
-import struct
 import sys
 import textwrap
 import xml.etree.ElementTree as ET
@@ -32,7 +31,6 @@ from xml.sax.saxutils import escape
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = "fpga/common/menu/base.xml"
-ROOM = 2048        # bytes of menu_rom.v
 # the menu for a core the firmware has no menu for: base.xml without a core's part
 BASIC = ({"title": "Unknown core", "name": "game20k", "ini": "unknown.ini", "rom": "", "fire": "0",
           "header": "game20k basic menu, for a core without a menu of its own in the firmware"},
@@ -177,15 +175,6 @@ def check_core_defaults(core, xml):
     return len(taken)
 
 
-def pack(xml):
-    """The gzip of the menu, byte for byte what gzip -9 -n writes on macOS: zlib level 9, no
-    name, no time, OS 3."""
-    data = xml.encode("utf-8")
-    z = zlib.compressobj(9, zlib.DEFLATED, -15)
-    return (b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\x03" + z.compress(data) + z.flush()
-            + struct.pack("<II", zlib.crc32(data), len(data)))
-
-
 def iface_tag(core):
     """IFACE_TAG of a core: what core and firmware must agree on, as 16 bits. Today that is the
     menu, the id and the values of every setting it sends (base.xml and the core's part), and
@@ -247,12 +236,9 @@ def main():
         write("fpga/%s/gen/menu.xml" % core, xml)
         check(core, xml)
         check_core_defaults(core, xml)
-        gz = pack(xml)
-        if len(gz) > ROOM:
-            fail("fpga/%s: menu too large, %d bytes packed, %d fit (fpga/common/src/mcu/menu_rom.v)"
-                 % (core, len(gz), ROOM))
-        write("fpga/%s/menu_xml.hex" % core, "\n".join("%02x" % b for b in gz) + "\n")
-        print("make_menu.py: fpga/%s/menu_xml.hex, %d of %d bytes" % (core, len(gz), ROOM))
+        tag = iface_tag(core)
+        write("fpga/%s/gen/iface_pkg.sv" % core, iface_pkg(core, tag))
+        print("make_menu.py: fpga/%s/gen/iface_pkg.sv, IFACE_TAG 0x%04x" % (core, tag))
 
 
 if __name__ == "__main__":

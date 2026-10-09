@@ -14,15 +14,17 @@
 //! RAM_MIRROR_DATA_MAX. The core announces it in header bytes 14/15 (MIRROR_DATA /
 //! RAM_MIRROR_PAGE and the complement) and its board id in bytes 12/13 (BOARD_ID and the
 //! complement), so the firmware sizes its read from the header instead of from a constant.
+//! Bytes 16 to 19 carry IFACE_TAG of gen/iface_pkg.sv and its complement, see make_menu.py.
 package ram_mirror_pkg;
-    //! Header byte 4. Layout 4 has a header of 16 bytes with board id and data size in
-    //! bytes 12 to 15. The firmware checks it and refuses a core of another layout with a
-    //! message.
-    localparam logic [7:0] RAM_MIRROR_LAYOUT = 8'h04;
+    //! Header byte 4. Layout 5 has a header of 24 bytes with board id and data size in
+    //! bytes 12 to 15 and the interface tag in bytes 16 to 19. The firmware checks it and
+    //! refuses a core of another layout with a message.
+    localparam logic [7:0] RAM_MIRROR_LAYOUT = 8'h05;
     //! 'R' 'A' 'C' 'H', layout, frame no (2), harvest flag, reset count, build flags,
     //! their complements, board id and its complement, data size in 128-byte pages and its
-    //! complement
-    localparam int RAM_MIRROR_HEAD = 16;
+    //! complement, interface tag (2) and its complement (2), four bytes 0. A multiple of 8,
+    //! like RAM_MIRROR_PAGE and RAM_MIRROR_LOG, so the footer decode of ram_spi.sv holds.
+    localparam int RAM_MIRROR_HEAD = 24;
     //! The unit of header byte 14: a game's data size goes out in pages of this many bytes.
     //! A multiple of 8, so the footer decode of ram_spi.sv holds for every game.
     localparam int RAM_MIRROR_PAGE = 128;
@@ -33,6 +35,6 @@ package ram_mirror_pkg;
     localparam int RAM_MIRROR_LOG = 1536;
     //! footer: frame no (2), underrun, log overflow, checksum (2), log count (2)
     localparam int RAM_MIRROR_TAIL = 8;
-    //! 24088, the longest block. A game's block is HEAD + MIRROR_DATA + LOG + TAIL.
+    //! 24096, the longest block. A game's block is HEAD + MIRROR_DATA + LOG + TAIL.
     localparam int RAM_MIRROR_BYTES_MAX = RAM_MIRROR_HEAD + RAM_MIRROR_DATA_MAX + RAM_MIRROR_LOG + RAM_MIRROR_TAIL;
 endpackage

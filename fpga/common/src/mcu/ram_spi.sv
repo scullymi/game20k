@@ -9,7 +9,9 @@
 //! sizes that are the same for every game live in ram_mirror_pkg.sv (RAM_MIRROR_*); the
 //! firmware carries the same constants. The game's RAM size and its board id are the
 //! parameters DATA and BOARD and go out in header bytes 12 to 15, each with its
-//! complement, so the firmware takes the length of the body from the header.
+//! complement, so the firmware takes the length of the body from the header. IFACE goes
+//! out in bytes 16 to 19 the same way: the firmware takes its menu for the core only when
+//! its own tag for the board matches.
 //!
 //! Verdict and measurement
 //! -----------------------
@@ -38,6 +40,7 @@
 module ram_spi #(
     parameter int         DATA  = 5120,   //!< game RAM bytes in the mirror, a multiple of RAM_MIRROR_PAGE (MIRROR_DATA of the game)
     parameter logic [7:0] BOARD = 8'd0,   //!< board id of the core, 1..254 (BOARD_ID of the game); 0 and 255 are no board
+    parameter logic [15:0] IFACE = 16'd0, //!< interface tag of core and firmware (IFACE_TAG of the game, gen/iface_pkg.sv)
     parameter int         US_DIV = 19     //!< core clocks per microsecond, rounded: 19 at 18.5625 MHz, 37 at 37.125
 )(
     input  wire         clk,              //!< clk_core
@@ -131,40 +134,47 @@ module ram_spi #(
     // changed during the transfer and the Pico discards it.
     logic [7:0] hdr;
     always_comb begin
-        case (k[3:0])
-            4'd0: hdr = 8'h52;            // 'R'
-            4'd1: hdr = 8'h41;            // 'A'
-            4'd2: hdr = 8'h43;            // 'C'
-            4'd3: hdr = 8'h48;            // 'H'
-            // Layout 4: header of 16 bytes with board id and payload size in bytes 12 to
-            // 15, DATA payload bytes, 1536 bytes of oracle log
-            4'd4: hdr = RAM_MIRROR_LAYOUT;
-            4'd5: hdr = frame_no[7:0];
-            4'd6: hdr = frame_no[15:8];
+        case (k[4:0])
+            5'd0: hdr = 8'h52;            // 'R'
+            5'd1: hdr = 8'h41;            // 'A'
+            5'd2: hdr = 8'h43;            // 'C'
+            5'd3: hdr = 8'h48;            // 'H'
+            // Layout 5: header of 24 bytes with board id and payload size in bytes 12 to
+            // 15 and the interface tag in 16 to 19, DATA payload bytes, 1536 bytes of
+            // oracle log
+            5'd4: hdr = RAM_MIRROR_LAYOUT;
+            5'd5: hdr = frame_no[7:0];
+            5'd6: hdr = frame_no[15:8];
             // Header byte 7 says whether a harvest was running at the START: then an
             // underrun is to be expected, and the Pico can skip checking the snapshot.
-            4'd7: hdr = {7'd0, harv_at_start};
+            5'd7: hdr = {7'd0, harv_at_start};
             // Byte 8: the core's resets, S1 on the Nano included, taken when the harvest
             // ended. The Pico uses it only when byte 7 is 0, and then no harvest can end
             // during the transfer, so the value holds still like the frame number.
-            4'd8: hdr = rst_no;
+            5'd8: hdr = rst_no;
             // Byte 9: which diagnostic parameters this core was built with, 0 in a release
             // build. The Pico allows no hardcore on a diagnostic core.
-            4'd9: hdr = build_flags;
+            5'd9: hdr = build_flags;
             // Bytes 10 and 11: the complements of 8 and 9. The checksum covers only the
             // body, the Pico uses 8 and 9 only when their complements match.
-            4'd10: hdr = ~rst_no;
-            4'd11: hdr = ~build_flags;
+            5'd10: hdr = ~rst_no;
+            5'd11: hdr = ~build_flags;
             // Bytes 12 to 15: which board this core is and how long its payload is, each
             // with its complement like 8 to 11. The Pico takes both only when the
             // complements match, so a stuck line (all 0 or all 1) is refused, and sizes
             // its body read from byte 14: the payload in pages of RAM_MIRROR_PAGE bytes,
             // 1 to RAM_MIRROR_DATA_MAX / RAM_MIRROR_PAGE.
-            4'd12: hdr = BOARD;
-            4'd13: hdr = ~BOARD;
-            4'd14: hdr = 8'(DATA / RAM_MIRROR_PAGE);
-            4'd15: hdr = ~8'(DATA / RAM_MIRROR_PAGE);
-            default: hdr = 8'h00;         // k[3:0] covers 0 to 15, kept for completeness
+            5'd12: hdr = BOARD;
+            5'd13: hdr = ~BOARD;
+            5'd14: hdr = 8'(DATA / RAM_MIRROR_PAGE);
+            5'd15: hdr = ~8'(DATA / RAM_MIRROR_PAGE);
+            // Bytes 16 to 19: the interface tag, low byte first, and its complement, taken
+            // like 12 to 15. Bytes 20 to 23 stay 0, room for a later tag.
+            5'd16: hdr = IFACE[7:0];
+            5'd17: hdr = IFACE[15:8];
+            5'd18: hdr = ~IFACE[7:0];
+            5'd19: hdr = ~IFACE[15:8];
+            default: hdr = 8'h00;         // 20 to 23
         endcase
     end
     logic [7:0] ftr;

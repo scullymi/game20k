@@ -5,7 +5,7 @@
 //! DERIVED from MiSTeryNano src/misc/sysctrl.v (Till Harbaum, MiSTle-Dev), reduced to what
 //! game20k needs. About 60 lines are Till's, taken over verbatim from the 333-line sysctrl.v:
 //! the SPI command state machine with its magic constants, because the Companion expects
-//! exactly this protocol. The rest (menu ROM, generic settings, the value strobe) is ours,
+//! exactly this protocol. The rest (generic settings, the value strobe) is ours,
 //! Copyright (C) 2026 scullymi. Till's lines and ours are GPL-3.0-or-later, see
 //! THIRD-PARTY.md.
 //! The README in this folder names the upstream commit of sysctrl.v.
@@ -63,12 +63,6 @@ reg buttons_irq_enable;
 
 assign int_out_n = (int_in != 8'h00 || sys_int) ? 1'b0 : 1'b1;
 
-// game20k: menu description. The content lives in our module menu_rom (src/mcu/menu_rom.v),
-// not here; see there for why.
-reg [11:0] menu_rom_addr;
-wire [7:0] menu_rom_data;
-menu_rom menu_rom_inst (.clk(clk), .addr(menu_rom_addr), .data(menu_rom_data));
-
 always @(posedge clk) begin
    if(reset) begin
       state <= 4'd0;
@@ -109,7 +103,6 @@ always @(posedge clk) begin
         if(data_in_start) begin
            state <= 4'd0;
            command <= data_in;
-           menu_rom_addr <= 12'd0;
            data_out <= 8'h00;
         end else begin
             if(state != 4'd15) state <= state + 4'd1;
@@ -170,10 +163,10 @@ always @(posedge clk) begin
             if(command == 8'd7) begin
                data_out <= 8'd0;
             end
-            // CMD 8: read menu configuration
+            // CMD 8: read menu configuration. game20k: the core has none, the Companion holds
+            // the menus of our cores. 0x00 tells it so (neither '<' nor a gzip header).
             if(command == 8'd8) begin
-               data_out <= menu_rom_data;
-               menu_rom_addr <= menu_rom_addr + 12'd1;
+               data_out <= 8'd0;
             end
         end
       end

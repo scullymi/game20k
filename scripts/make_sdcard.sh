@@ -154,8 +154,8 @@ for NAME in $INIS; do
 done
 if [ -f "$TARGET/config.xml" ]; then
   echo
-  echo "  WARNING: there is a config.xml on the card. It replaces the menu from the"
-  echo "  bitstream, permanently and without any notice on the device. If unwanted: delete it."
+  echo "  WARNING: there is a config.xml on the card. It replaces the menu built into the"
+  echo "  firmware, permanently and without any notice on the device. If unwanted: delete it."
 fi
 echo
 echo "Done. Eject the card cleanly, otherwise data will be missing."

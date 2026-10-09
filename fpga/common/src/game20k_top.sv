@@ -8,7 +8,8 @@
 //! One top for every game. The game sits behind game_core (fpga/<core>/src/game_core.sv),
 //! its raster, name and test bar labels come from game_pkg (fpga/<core>/src/game_pkg.sv),
 //! its ROM layout, board id and RAM mirror size from rom_map_pkg, which build.tcl generates
-//! from the game's manifest.
+//! from the game's manifest, its interface tag from iface_pkg, which files.tcl generates from
+//! the game's menu part.
 //! Video and audio go out over HDMI.
 //!
 //! Clocks: 27 MHz crystal and TWO PLLs. pll_hdmi produces clk_x5 (371.25 MHz) and clk_core
@@ -83,6 +84,7 @@ module game20k_top #(
     import ram_mirror_pkg::*;   // block sizes of the RAM mirror, see ram_mirror_pkg.sv
     import game_pkg::*;         // raster, name and test bar labels of the game
     import rom_map_pkg::*;      // ROM layout of the game, generated from its manifest
+    import iface_pkg::*;        // interface tag of the game, generated from its menu part
 
     // ---------------- Picture geometry in the 720p raster, from the core raster W x H ----------------
     // Landscape 3x through the scaler, the picture centred. Portrait 2x from the frame buffer,
@@ -1045,9 +1047,11 @@ module game20k_top #(
             snap_sum <= {snap_sum[14:0], snap_sum[15]} ^ {8'h00, fifo_wdat};
     end
 
-    // The game's RAM size and board id go out in the header; both from the manifest through
+    // The game's RAM size and board id go out in the header, both from the manifest through
     // rom_map_pkg, so the firmware reads the length of the block and which core it talks to.
-    ram_spi #(.DATA(MIRROR_DATA), .BOARD(BOARD_ID), .US_DIV((CORE_HZ + 500_000) / 1_000_000)) ram_spi_i (
+    // Its interface tag too, so the firmware knows whether its menu for the board fits.
+    ram_spi #(.DATA(MIRROR_DATA), .BOARD(BOARD_ID), .IFACE(IFACE_TAG),
+              .US_DIV((CORE_HZ + 500_000) / 1_000_000)) ram_spi_i (
         .clk(clk_core), .reset(!pll_lock),
         .spi_ss(spi_csn), .spi_clk(spi_sck),
         .strobe(mcu_ram_strobe), .start(mcu_start), .data_in(mcu_data_out),

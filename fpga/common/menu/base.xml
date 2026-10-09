@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--@ SPDX-License-Identifier: GPL-3.0-only
       Copyright (C) 2026 scullymi
-      The menu of every core. scripts/make_menu.py fills it in with the core's part,
-      fpga/<core>/menu_core.xml, at each build and packs the result into the core's
-      menu_xml.hex, which the menu ROM reads.
+      The menu of every core. scripts/make_fw_tables.py fills it in with each core's part,
+      fpga/<core>/menu_core.xml, for the Companion's firmware, which holds the menus.
+      scripts/make_menu.py does the same at each Gowin build to derive the core's IFACE_TAG.
         {key}       the attribute key of the core's <core> element
         @slot name  the lines up to @end, or instead the content of the core's element
                     name (an empty element leaves them out)
