@@ -104,9 +104,9 @@ set_option -top_module game20k_top
 set_option -use_mspi_as_gpio 1
 set_option -use_sspi_as_gpio 1
 set_option -bit_compress 1
-# Placement option 1, measured with the CMD24 retry in sd_rw.v: the default placement puts
-# the pixel clock at 73.6 MHz (one path 0.12 ns short of the 74.25 MHz), option 1 at 74.4 MHz.
-# Same sources, different placement. Check with scripts/fpga_report.sh.
+# Placement option 1: the default placement has missed the 74.25 MHz of the pixel clock by a
+# single path, option 1 meets it. Same sources, different placement. Check with
+# scripts/fpga_report.sh.
 set_option -place_option 1
 
 run all

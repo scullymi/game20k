@@ -47,24 +47,26 @@ COMPONENTS = [
         "name": "FPGA-SDcard-Reader by WangXuan95, via Nanomig",
         "short": "GPL-3.0",
         "url": "https://github.com/WangXuan95/FPGA-SDcard-Reader, the files from "
-               "https://github.com/MiSTle-Dev/Nanomig at df97f03",
+               "https://github.com/MiSTle-Dev/Nanomig at df97f03, sd_rw.v with "
+               "https://github.com/MiSTle-Dev/NanoMig/pull/168 at 6f12ddd",
         "match": r"^fpga/common/src/misc/(sd_rw|sdcmd_ctrl)\.v$",
         "licence": "GPL-3.0, see the GPL text at the end",
         "note": "Nanomig ships these two files without the licence text. Under GPL-3.0 section 10 "
-                "every recipient is licensed by the original licensor. sd_rw.v retries CMD24 in "
-                "game20k.",
+                "every recipient is licensed by the original licensor. sd_rw.v contains changes "
+                "by Manger74.",
         "show": [],
     },
     {
         "name": "MiSTeryNano and Nanomig files by Till Harbaum",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/MiSTle-Dev/MiSTeryNano at c8e4601 (src/misc), "
-               "https://github.com/MiSTle-Dev/Nanomig at df97f03 (sd_card.v)",
+               "https://github.com/MiSTle-Dev/NanoMig/pull/168 at 6f12ddd (sd_card.v)",
         "match": r"^fpga/common/src/misc/(hid|mcu_spi|osd_u8g2|sd_card|sysctrl)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "Upstream these files carry no licence header. game20k's copies carry the SPDX "
                 "tag, its changes in them are under the same licence, Copyright (C) 2026 "
-                "scullymi. sysctrl.v is reduced to what game20k needs and extended by it.",
+                "scullymi. sysctrl.v is reduced to what game20k needs and extended by it. "
+                "sd_card.v contains changes by Manger74.",
         "show": [],
     },
     {

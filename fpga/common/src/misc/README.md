@@ -13,9 +13,9 @@ game20k changes in them are under the same licence, see
 | `mcu_spi.v` | MiSTeryNano, same commit | yes: SPI target 5 passed through, the RAM mirror. `spi_in_cnt` and `spi_target` declared before their first use |
 | `osd_u8g2.v` | MiSTeryNano, same commit | yes: input `rotate`, the menu rotated by 90 degrees in landscape mode, `SCALE 4` for 720p, an output `visible` for the top level, the box geometry and the area flags registered and computed one pixel ahead for timing |
 | `sysctrl.v` | derived from MiSTeryNano `sysctrl.v`, same commit | our file: the SPI command state machine and its constants are Till's, about 60 lines taken verbatim from the 333-line `sysctrl.v`. The generic settings and the value strobe for the game are ours, the menu read (CMD 8) answers 0 |
-| `sd_card.v` | Nanomig `df97f033f07b7b4074a2aeb569fe2f6310694e19` | only the licence header. Only Nanomig's version has command 8, the ROM image upload |
-| `sd_rw.v` | Nanomig, same commit | yes: `CMD24` gets a retry branch like `CMD17`, seven retries, then back to `READY`. Without it one missing or garbled response leaves the controller in `CMD24` for good, status `0xDC`, and the card is dead until power cycle |
-| `sdcmd_ctrl.v` | Nanomig, same commit | no |
+| `sd_card.v` | Nanomig with the pull request [MiSTle-Dev/NanoMig#168](https://github.com/MiSTle-Dev/NanoMig/pull/168) by Manger74, commit `6f12ddd50096e579bc726c3498ab8b39a7ad3f56` | only the licence header. Only Nanomig's version has command 8, the ROM image upload. The pull request reports a failed write to the Companion in bit 0 of the status byte |
+| `sd_rw.v` | Nanomig with the same pull request | only a comment naming the origin. The pull request ends a failed write with an error instead of leaving the controller stuck in `CMD24` or sending `CMD24` again at once, and initialises the card again afterwards |
+| `sdcmd_ctrl.v` | Nanomig `df97f033f07b7b4074a2aeb569fe2f6310694e19`, unchanged by the pull request | no |
 
 Some changes are marked `game20k` in the text, not all. The complete record is the diff against
 the upstream commits:
@@ -24,9 +24,10 @@ the upstream commits:
 git clone https://github.com/MiSTle-Dev/MiSTeryNano.git /tmp/MiSTeryNano
 git -C /tmp/MiSTeryNano checkout c8e4601fbf7264e13f4b18ac2d452444de6b51c5
 git clone https://github.com/MiSTle-Dev/Nanomig.git /tmp/Nanomig
-git -C /tmp/Nanomig checkout df97f033f07b7b4074a2aeb569fe2f6310694e19
+git -C /tmp/Nanomig fetch https://github.com/Manger74/NanoMig.git 6f12ddd50096e579bc726c3498ab8b39a7ad3f56
 cd fpga/common/src/misc
 for f in hid mcu_spi osd_u8g2; do diff /tmp/MiSTeryNano/src/misc/$f.v $f.v; done
 diff /tmp/MiSTeryNano/src/misc/sysctrl.v sysctrl.v
-for f in sd_card sd_rw sdcmd_ctrl; do diff /tmp/Nanomig/src/misc/$f.v $f.v; done
+for f in sd_card sd_rw; do git -C /tmp/Nanomig show 6f12ddd:src/misc/$f.v | diff - $f.v; done
+git -C /tmp/Nanomig show df97f03:src/misc/sdcmd_ctrl.v | diff - sdcmd_ctrl.v
 ```
