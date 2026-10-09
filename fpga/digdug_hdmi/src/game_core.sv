@@ -85,7 +85,7 @@ module game_core #(
     wire clk = clk_core;
 
     // ---------------- DIP switches from the menu ----------------
-    // The ids are the ones menu.xml uses, the values the raw bits of MAME galaga.cpp (digdug).
+    // The ids are the ones menu_core.xml uses, the values the raw bits of MAME galaga.cpp (digdug).
     // The defaults are MAME's: DSWA 0x99, DSWB 0x24.
     // DSWA: 7:6 lives, 5:3 bonus, 2:0 coin B. DSWB: 7:6 coin A, 5 freeze (1 off), 4 demo
     // sounds (0 on), 3 continue (0 yes), 2 cabinet (1 upright), 1:0 difficulty.

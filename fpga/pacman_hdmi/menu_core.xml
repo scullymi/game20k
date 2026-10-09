@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The Pac-Man part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="Pac-Man" name="Pac-Man" ini="pacman.ini" rom="pacman.rom" fire="0"
+      header="Pac-Man (game20k) configuration for the FPGA Companion">
+  <dips>
+    <!-- game20k: the values are the raw DSW1 bits of MAME pacman.cpp, the wrapper does no
+         translation. Every list resets: the switches reach the core only in reset. -->
+    <menu label="DIP switches">
+      <list label="Lives:" id="L" default="2" action="reset">
+        <listentry label="1" value="0"/>
+        <listentry label="2" value="1"/>
+        <listentry label="3" value="2"/>
+        <listentry label="5" value="3"/>
+      </list>
+      <list label="Bonus:" id="B" default="0" action="reset">
+        <listentry label="10000" value="0"/>
+        <listentry label="15000" value="1"/>
+        <listentry label="20000" value="2"/>
+        <listentry label="None" value="3"/>
+      </list>
+      <list label="Coinage:" id="C" default="1" action="reset">
+        <listentry label="Free play" value="0"/>
+        <listentry label="1C/1C" value="1"/>
+        <listentry label="1C/2C" value="2"/>
+        <listentry label="2C/1C" value="3"/>
+      </list>
+      <list label="Difficulty:" id="F" default="1" action="reset">
+        <listentry label="Hard" value="0"/>
+        <listentry label="Normal" value="1"/>
+      </list>
+      <list label="Ghost names:" id="K" default="1" action="reset">
+        <listentry label="Alternate" value="0"/>
+        <listentry label="Normal" value="1"/>
+      </list>
+    </menu>
+  </dips>
+</core>

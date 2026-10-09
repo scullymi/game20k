@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Time Pilot (game20k) configuration for the FPGA Companion. -->
-<config name="timeplt" version="0">
+<!--@ SPDX-License-Identifier: GPL-3.0-only
+      Copyright (C) 2026 scullymi
+      The menu of every core. scripts/make_menu.py fills it in with the core's part,
+      fpga/<core>/menu_core.xml, at each build and packs the result into the core's
+      menu_xml.hex, which the menu ROM reads.
+        {key}       the attribute key of the core's <core> element
+        @slot name  the lines up to @end, or instead the content of the core's element
+                    name (an empty element leaves them out)
+        @if key     the lines up to @end, only when <core> has the attribute key
+      Notes like this one, comments that open with "@ ", stay out of the menu. -->
+<!-- {header} -->
+<config name="{name}" version="0">
   <actions>
     <!-- game20k: deliberately WITHOUT commands. The Pico answers these five
          buttons itself (menu.c catches them by name) and does not pass them on
@@ -12,14 +22,14 @@
     <action name="ralist"/>
     <action name="games"/>
     <action name="init">
-      <load file="timeplt.ini"/>
+      <load file="{ini}"/>
       <set id="R" value="1"/>
     </action>
     <action name="ready">
       <set id="R" value="0"/>
     </action>
     <action name="save">
-      <save file="timeplt.ini"/>
+      <save file="{ini}"/>
     </action>
     <action name="reset">
       <set id="R" value="1"/>
@@ -32,41 +42,12 @@
     </action>
   </actions>
 
-  <menu label="Time Pilot">
+  <menu label="{title}">
     <button label="Games" action="games"/>
-    <!-- game20k: the values are the raw DSW bits of MAME timeplt.cpp, the wrapper only
-         places them. Every list resets: the switches reach the core only in reset. The
-         defaults are MAME's. -->
-    <menu label="DIP switches">
-      <list label="Lives:" id="L" default="3" action="reset">
-        <listentry label="3" value="3"/>
-        <listentry label="4" value="2"/>
-        <listentry label="5" value="1"/>
-      </list>
-      <list label="Bonus:" id="B" default="1" action="reset">
-        <listentry label="10K 50K" value="1"/>
-        <listentry label="20K 60K" value="0"/>
-      </list>
-      <list label="Coinage:" id="C" default="15" action="reset">
-        <listentry label="Free play" value="0"/>
-        <listentry label="1C/1C" value="15"/>
-        <listentry label="1C/2C" value="14"/>
-        <listentry label="1C/3C" value="13"/>
-        <listentry label="2C/1C" value="8"/>
-      </list>
-      <list label="Difficulty:" id="F" default="4" action="reset">
-        <listentry label="1 (easiest)" value="7"/>
-        <listentry label="2" value="6"/>
-        <listentry label="3" value="5"/>
-        <listentry label="4" value="4"/>
-        <listentry label="5" value="3"/>
-        <listentry label="6" value="2"/>
-        <listentry label="7" value="1"/>
-        <listentry label="8 (hardest)" value="0"/>
-      </list>
-    </menu>
+    <!--@slot dips-->
+    <!--@end-->
     <menu label="Controller">
-      <list label="Fire:" id="A" default="1">
+      <list label="Fire:" id="A" default="{fire}">
         <listentry label="Any" value="0"/>
         <listentry label="1" value="1"/>
         <listentry label="2" value="2"/>
@@ -81,6 +62,23 @@
         <listentry label="11" value="11"/>
         <listentry label="12" value="12"/>
       </list>
+      <!--@if button2-->
+      <list label="{button2}" id="K" default="2">
+        <listentry label="None" value="0"/>
+        <listentry label="1" value="1"/>
+        <listentry label="2" value="2"/>
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="5"/>
+        <listentry label="6" value="6"/>
+        <listentry label="7" value="7"/>
+        <listentry label="8" value="8"/>
+        <listentry label="9" value="9"/>
+        <listentry label="10" value="10"/>
+        <listentry label="11" value="11"/>
+        <listentry label="12" value="12"/>
+      </list>
+      <!--@end-->
       <list label="Coin:" id="N" default="9">
         <listentry label="None" value="0"/>
         <listentry label="1" value="1"/>
@@ -162,7 +160,7 @@
       </list>
     </menu>
     <menu label="Settings">
-      <image label="ROM set" index="0" ext="rom" default="timeplt.rom"
+      <image label="ROM set" index="0" ext="rom" default="{rom}"
              none_str="&lt;none&gt;" action="reset_hide"/>
       <list label="Volume:" id="V" default="6">
         <listentry label="Off" value="0"/>
@@ -174,16 +172,20 @@
         <listentry label="6" value="6"/>
         <listentry label="7 (max)" value="7"/>
       </list>
+      <!--@slot settings-->
+      <!--@end-->
       <list label="Scanlines:" id="S" default="0">
         <listentry label="Off" value="0"/>
         <listentry label="25%" value="1"/>
         <listentry label="50%" value="2"/>
         <listentry label="75%" value="3"/>
       </list>
+      <!--@slot screen-->
       <list label="Screen:" id="G" default="0">
         <listentry label="Landscape 3x" value="0"/>
         <listentry label="Upright 2x" value="1"/>
       </list>
+      <!--@end-->
       <button label="Save settings" action="save"/>
     </menu>
     <!-- game20k: the mode goes to the core like any value and the core ignores

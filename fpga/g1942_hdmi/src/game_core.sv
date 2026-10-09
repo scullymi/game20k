@@ -112,7 +112,7 @@ module game_core #(
         if (hdr_we && rom_wr_addr[1:0] == 2'd0) game_id <= prog_data[1:0];
 
     // ---------------- DIP switches from the menu ----------------
-    // The ids are the ones menu.xml uses, the values are the raw bits of MAME 1942.cpp. The
+    // The ids are the ones menu_core.xml uses, the values are the raw bits of MAME 1942.cpp. The
     // defaults are MAME's and the menu's: 1 coin 1 credit, bonus 20K 80K 80K+, 3 lives,
     // normal difficulty. The RetroAchievements set 11960 checks no DIP switch.
     // DSWA: 7:6 lives, 5:4 bonus, 3 cabinet (0 upright), 2:0 coin A.
@@ -131,7 +131,7 @@ module game_core #(
             default: ;
         endcase
 
-    // DIP switches reach the core only while it is in reset: every DIP list in menu.xml
+    // DIP switches reach the core only while it is in reset: every DIP list in menu_core.xml
     // carries action="reset", and the top holds reset for at least 255 clocks. The menu sets
     // 1942's. Vulgus and Higemaru get the defaults of jotego's MRA files, which are MAME's:
     // Vulgus FF 7F (1 coin 1 credit, 3 lives, upright), Higemaru FF FE (the same, upright).

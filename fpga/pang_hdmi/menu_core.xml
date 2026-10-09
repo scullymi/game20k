@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The Pang part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="Pang" name="Pang" ini="pang.ini" rom="pang.rom" fire="1" button2="Button 2:"
+      header="Pang and Super Pang (game20k) configuration for the FPGA Companion">
+  <dips>
+    <!-- game20k: the board has no DIP switches, its settings live in the EEPROM and are set
+         under Game Information in the game's test menu. Pang and Buster Bros. confirm there
+         with start 2, Super Pang and Super Buster Bros. with button 1. The test switch is
+         read at power-on, so the list resets. -->
+    <menu label="Service">
+      <list label="Test mode:" id="X" default="0" action="reset">
+        <listentry label="Off" value="0"/>
+        <listentry label="On" value="1"/>
+      </list>
+    </menu>
+  </dips>
+  <!-- a horizontal monitor: always 3x, no Screen list -->
+  <screen/>
+</core>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The 1942 part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="1942" name="1942" ini="1942.ini" rom="1942.rom" fire="1" button2="Loop:"
+      header="1942, Vulgus and Higemaru (game20k) configuration for the FPGA Companion">
+  <dips>
+    <!-- game20k: the values are the raw DSWA and DSWB bits of MAME 1942.cpp, the wrapper
+         only places them. Every list resets: the switches reach the core only in reset.
+         The defaults are MAME's. -->
+    <menu label="DIP switches">
+      <list label="Lives:" id="L" default="3" action="reset">
+        <listentry label="1" value="2"/>
+        <listentry label="2" value="1"/>
+        <listentry label="3" value="3"/>
+        <listentry label="5" value="0"/>
+      </list>
+      <list label="Bonus:" id="B" default="3" action="reset">
+        <listentry label="20K 80K 80K+" value="3"/>
+        <listentry label="20K 100K 100K+" value="2"/>
+        <listentry label="30K 80K 80K+" value="1"/>
+        <listentry label="30K 100K 100K+" value="0"/>
+      </list>
+      <list label="Coinage:" id="C" default="7" action="reset">
+        <listentry label="Free play" value="0"/>
+        <listentry label="1C/1C" value="7"/>
+        <listentry label="1C/2C" value="6"/>
+        <listentry label="1C/4C" value="5"/>
+        <listentry label="2C/1C" value="4"/>
+        <listentry label="2C/3C" value="3"/>
+        <listentry label="3C/1C" value="2"/>
+        <listentry label="4C/1C" value="1"/>
+      </list>
+      <list label="Difficulty:" id="F" default="3" action="reset">
+        <listentry label="Easy" value="2"/>
+        <listentry label="Normal" value="3"/>
+        <listentry label="Difficult" value="1"/>
+        <listentry label="Very difficult" value="0"/>
+      </list>
+    </menu>
+  </dips>
+  <settings>
+    <list label="Sound:" id="W" default="0">
+      <listentry label="Original" value="0"/>
+      <listentry label="Soft" value="1"/>
+    </list>
+  </settings>
+  <screen>
+    <list label="Screen:" id="G" default="0">
+      <listentry label="Landscape 3x" value="0"/>
+      <!-- game20k: Higemaru stands upright and always comes in landscape, the entry does nothing there -->
+      <listentry label="Upright 2x" value="1"/>
+    </list>
+  </screen>
+</core>

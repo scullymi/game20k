@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The Time Pilot part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="Time Pilot" name="timeplt" ini="timeplt.ini" rom="timeplt.rom" fire="1"
+      header="Time Pilot (game20k) configuration for the FPGA Companion.">
+  <dips>
+    <!-- game20k: the values are the raw DSW bits of MAME timeplt.cpp, the wrapper only
+         places them. Every list resets: the switches reach the core only in reset. The
+         defaults are MAME's. -->
+    <menu label="DIP switches">
+      <list label="Lives:" id="L" default="3" action="reset">
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="2"/>
+        <listentry label="5" value="1"/>
+      </list>
+      <list label="Bonus:" id="B" default="1" action="reset">
+        <listentry label="10K 50K" value="1"/>
+        <listentry label="20K 60K" value="0"/>
+      </list>
+      <list label="Coinage:" id="C" default="15" action="reset">
+        <listentry label="Free play" value="0"/>
+        <listentry label="1C/1C" value="15"/>
+        <listentry label="1C/2C" value="14"/>
+        <listentry label="1C/3C" value="13"/>
+        <listentry label="2C/1C" value="8"/>
+      </list>
+      <list label="Difficulty:" id="F" default="4" action="reset">
+        <listentry label="1 (easiest)" value="7"/>
+        <listentry label="2" value="6"/>
+        <listentry label="3" value="5"/>
+        <listentry label="4" value="4"/>
+        <listentry label="5" value="3"/>
+        <listentry label="6" value="2"/>
+        <listentry label="7" value="1"/>
+        <listentry label="8 (hardest)" value="0"/>
+      </list>
+    </menu>
+  </dips>
+</core>

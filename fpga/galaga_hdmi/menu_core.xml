@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The Galaga part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="Galaga" name="Galaga" ini="galaga.ini" rom="galaga.rom" fire="0"
+      header="Galaga (game20k) configuration for the FPGA Companion">
+  <dips>
+    <menu label="DIP switches">
+      <list label="Lives:" id="L" default="2" action="reset">
+        <listentry label="2" value="0"/>
+        <listentry label="3" value="2"/>
+        <listentry label="4" value="1"/>
+        <listentry label="5" value="3"/>
+      </list>
+      <list label="Bonus:" id="B" default="2" action="reset">
+        <listentry label="None" value="0"/>
+        <listentry label="30K 100K+" value="1"/>
+        <listentry label="20K 70K+" value="2"/>
+        <listentry label="20K 60K" value="3"/>
+        <listentry label="20K 60K+" value="4"/>
+        <listentry label="30K 120K+" value="5"/>
+        <listentry label="20K 80K+" value="6"/>
+        <listentry label="30K 80K" value="7"/>
+      </list>
+      <list label="Coinage:" id="C" default="7" action="reset">
+        <listentry label="Free play" value="0"/>
+        <listentry label="1C/3P" value="1"/>
+        <listentry label="2C/3P" value="2"/>
+        <listentry label="1C/2P" value="3"/>
+        <listentry label="4C/1P" value="4"/>
+        <listentry label="3C/1P" value="5"/>
+        <listentry label="2C/1P" value="6"/>
+        <listentry label="1C/1P" value="7"/>
+      </list>
+      <list label="Difficulty:" id="F" default="0" action="reset">
+        <listentry label="Medium" value="0"/>
+        <listentry label="Hard" value="1"/>
+        <listentry label="Hardest" value="2"/>
+        <listentry label="Easy" value="3"/>
+      </list>
+      <list label="Demo sound:" id="M" default="1" action="reset">
+        <listentry label="Off" value="0"/>
+        <listentry label="On" value="1"/>
+      </list>
+    </menu>
+  </dips>
+</core>

@@ -10,7 +10,7 @@ files that went into its bitstream. Every one of them has to belong to a compone
 each component names the notice it needs. A file that no component claims ends the script with
 exit code 1, so new HDL cannot get into a release without its notice. So do a diagnostic build,
 a bitstream older than one of its sources or than its synthesis project, a source that reads a
-data file other than the menu, a menu hex that does not match its menu.xml, and a source with
+data file other than the menu, a menu hex that does not hold its menu sources, and a source with
 uncommitted changes or one that git does not track (ALLOW_DIRTY=1 lets those two pass for a
 trial run): the NOTICE describes exactly the files it lists.
 
@@ -27,6 +27,8 @@ import subprocess
 import sys
 import textwrap
 import zlib
+
+import make_menu  # the menu generator, its output is what the bitstream must hold
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_URL = "https://github.com/scullymi/game20k"
@@ -426,7 +428,8 @@ COMPONENTS = [
         "licence": "GPL-3.0-only, see the GPL text at the end",
         "note": "Copyright (C) 2026 scullymi. The generated files gen/menu_rom.v and "
                 "gen/rom_map_pkg.sv come from fpga/common/src/mcu/menu_rom.v and from the game's "
-                "manifest, the menu ROM reads the game's menu_xml.hex, the gzip of its menu.xml. "
+                "manifest, the menu ROM reads the game's menu_xml.hex, which scripts/make_menu.py "
+                "packs from menu/base.xml and the game's menu_core.xml. "
                 "The rPLL instantiation in pll_sdram.v is output of the Gowin IP generator as "
                 "NESTang's gowin_pll_nes.v carries it, with our parameters.",
         "show": [],
@@ -437,6 +440,8 @@ OWN = len(COMPONENTS) - 1
 TOP = "fpga/common/src/game20k_top.sv"
 # the only files of a core's gen/ folder that belong into a release build
 GEN_OK = ("gen/menu_rom.v", "gen/rom_map_pkg.sv")
+# the files of a core that its build writes and no commit holds
+BUILT = GEN_OK + ("menu_xml.hex",)
 # Statements that pull a file into the design at synthesis. The only one allowed is the menu ROM
 # reading the game's menu text, so no ROM image reaches a bitstream unseen.
 FILE_READ = re.compile(r"\$readmem|`include|\$fopen|\$fread|textio|file_open", re.I)
@@ -511,27 +516,24 @@ def inputs(core):
     if odd or TOP not in rel:
         die("%s is not the normal build (%s), build it again without diagnostic variables"
             % (core, ", ".join(odd) or TOP + " missing"))
-    # the menu ROM reads the game's menu text as data, it is part of the bitstream too
+    # the menu ROM reads the game's menu as data, it is part of the bitstream too, and so are
+    # the two files make_menu.py makes it from
     hexf = "fpga/%s/menu_xml.hex" % core
     check_menu(core, hexf)
-    rel.append(hexf)
+    rel += [hexf, make_menu.BASE, "fpga/%s/menu_core.xml" % core]
     return rel
 
 
 def check_menu(core, hexf):
-    """Stops unless the menu hex is the gzip of the game's menu.xml (make_menu_hex.sh is a manual
-    step, a skipped run leaves the old menu in the bitstream)."""
-    xml = os.path.join(ROOT, "fpga", core, "menu.xml")
-    if not os.path.isfile(xml):
-        die("missing: %s" % os.path.relpath(xml, ROOT))
+    """Stops unless the menu hex holds the menu that make_menu.py makes of today's sources, a
+    hex from older sources would put an old menu into the bitstream."""
     try:
         data = gzip.decompress(bytes(int(t, 16) for t in read(hexf).split()))
     except (ValueError, OSError, EOFError, zlib.error) as e:
         die("%s is not a gzip in hex: %s" % (hexf, e))
-    with open(xml, "rb") as f:
-        if data != f.read():
-            die("%s is not the gzip of fpga/%s/menu.xml, run scripts/make_menu_hex.sh %s"
-                % (hexf, core, core))
+    if data != make_menu.compose(core).encode("utf-8"):
+        die("%s does not hold the menu of %s and fpga/%s/menu_core.xml, build %s again"
+            % (hexf, make_menu.BASE, core, core))
 
 
 # jtframe's RAM and PROM modules: a data file read here is allowed when it hangs on one of these
@@ -734,12 +736,12 @@ def main():
     if unclaimed:
         die("no component claims these files, add them to COMPONENTS or give them our SPDX line:\n  "
             + "\n  ".join(sorted(set(unclaimed))))
-    # A source git does not know is as uncommitted as a changed one, the generated gen/ files
-    # aside, which no commit holds.
+    # A source git does not know is as uncommitted as a changed one, the files the build
+    # writes aside, which no commit holds.
     every = sorted({f for fs in per_core.values() for f in fs})
     tracked = set(git("ls-files", "--", *every).split("\n")) - {""}
     untracked = ["?? " + f for f in every
-                 if f not in tracked and not any(f.endswith("/" + g) for g in GEN_OK)]
+                 if f not in tracked and not any(f.endswith("/" + g) for g in BUILT)]
     dirty = "\n".join([git("status", "--porcelain", "--", *sorted(tracked))] + untracked).strip()
     if dirty and not allow_dirty:
         die("sources with uncommitted changes or unknown to git, a NOTICE names committed files "

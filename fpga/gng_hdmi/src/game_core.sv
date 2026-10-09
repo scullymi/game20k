@@ -88,7 +88,7 @@ module game_core #(
     // (0 on), 4 coinage affects (1 coin A), 3:0 coinage (F 1C/1C). DSW2: 6:5 difficulty
     // (3 normal), 4:3 bonus (3: 20K 70K every 70K), 2 cabinet (0 upright), 1:0 lives (3: 3).
     // The defaults are jotego's MRA (DF, FB). The switches reach the game only in reset,
-    // every DIP list in menu.xml resets.
+    // every DIP list in menu_core.xml resets.
     logic [1:0] difficulty = 2'd3, bonus = 2'd3, lives = 2'd3;
     logic [3:0] coinage    = 4'hF;
     logic       demo_snd   = 1'b0;

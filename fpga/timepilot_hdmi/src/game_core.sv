@@ -84,7 +84,7 @@ module game_core #(
     wire clk = clk_core;
 
     // ---------------- DIP switches from the menu ----------------
-    // The ids are the ones menu.xml uses, the values are the raw bits of MAME timeplt.cpp.
+    // The ids are the ones menu_core.xml uses, the values are the raw bits of MAME timeplt.cpp.
     // The defaults are MAME's: 1 coin 1 credit, 3 lives, upright, bonus 10000 50000,
     // difficulty 4, demo sounds on.
     // DSW0: 7:4 coin B, 3:0 coin A, both set from the one coinage entry.

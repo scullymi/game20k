@@ -43,8 +43,13 @@ add_file $common/src/input_test_bar.sv
 add_file $common/src/ra_overlay.sv
 add_file $common/src/screen_sel.sv
 
-# The menu ROM reads the game's menu_xml.hex relative to its own location (see the file
+# The game's menu: make_menu.py fills menu/base.xml with the game's menu_core.xml and writes
+# menu_xml.hex. The menu ROM reads that file relative to its own location (see the file
 # head), so it is compiled from a copy in the game's gen/ folder.
+if {[catch {exec python3 ../../scripts/make_menu.py [file tail [pwd]]} msg]} {
+    error $msg
+}
+puts $msg
 file mkdir gen
 file copy -force $common/src/mcu/menu_rom.v gen/menu_rom.v
 add_file gen/menu_rom.v

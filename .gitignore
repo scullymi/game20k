@@ -45,6 +45,8 @@ impl/
 *.bin
 *.bit
 *.log
+# each core's packed menu, scripts/make_menu.py writes it at every build
+menu_xml.hex
 
 # --- Pico build output ---
 build/

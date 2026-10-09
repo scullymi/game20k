@@ -83,7 +83,7 @@ module game_core #(
     output logic [5:0]  diag_leds
 );
     // ---------------- DIP switches from the menu ----------------
-    // The ids are the ones menu.xml uses. The defaults are the menu's defaults, they hold
+    // The ids are the ones menu_core.xml uses. The defaults are the menu's defaults, they hold
     // until the Companion sends the saved values at start-up.
     logic [1:0] lives      = 2'd2;    // 3 lives (MAME: 0x80 -> bits 7:6 = 10)
     logic [2:0] bonus      = 3'd2;

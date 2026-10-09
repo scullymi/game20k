@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The 1943 part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="1943" name="1943" ini="1943.ini" rom="1943.rom" fire="1" button2="Bomb:"
+      header="1943 (game20k) configuration for the FPGA Companion.">
+  <dips>
+    <!-- game20k: the values are the raw DSWA and DSWB bits of MAME 1943.cpp, the wrapper
+         only places them. Every list resets: the switches reach the core only in reset.
+         The defaults are MAME's. -->
+    <menu label="DIP switches">
+      <list label="Difficulty:" id="F" default="8" action="reset">
+        <listentry label="1 (easy)" value="15"/>
+        <listentry label="2" value="14"/>
+        <listentry label="3" value="13"/>
+        <listentry label="4" value="12"/>
+        <listentry label="5" value="11"/>
+        <listentry label="6" value="10"/>
+        <listentry label="7" value="9"/>
+        <listentry label="8 (normal)" value="8"/>
+        <listentry label="9" value="7"/>
+        <listentry label="10" value="6"/>
+        <listentry label="11" value="5"/>
+        <listentry label="12" value="4"/>
+        <listentry label="13" value="3"/>
+        <listentry label="14" value="2"/>
+        <listentry label="15" value="1"/>
+        <listentry label="16 (hard)" value="0"/>
+      </list>
+      <list label="Coinage:" id="C" default="7" action="reset">
+        <listentry label="1C/1C" value="7"/>
+        <listentry label="1C/2C" value="6"/>
+        <listentry label="1C/3C" value="5"/>
+        <listentry label="1C/4C" value="4"/>
+        <listentry label="2C/1C" value="2"/>
+        <listentry label="3C/1C" value="1"/>
+        <listentry label="4C/1C" value="0"/>
+      </list>
+    </menu>
+  </dips>
+</core>

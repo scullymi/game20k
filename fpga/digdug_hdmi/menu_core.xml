@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The Dig Dug part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="Dig Dug" name="Dig Dug" ini="digdug.ini" rom="digdug.rom" fire="0"
+      header="Dig Dug (game20k) configuration for the FPGA Companion.">
+  <dips>
+    <menu label="DIP switches">
+      <list label="Lives:" id="L" default="2" action="reset">
+        <listentry label="1" value="0"/>
+        <listentry label="2" value="1"/>
+        <listentry label="3" value="2"/>
+        <listentry label="5" value="3"/>
+      </list>
+      <list label="Bonus:" id="B" default="3" action="reset">
+        <listentry label="None" value="0"/>
+        <listentry label="20K 70K+" value="1"/>
+        <listentry label="10K 50K+" value="2"/>
+        <listentry label="20K 60K" value="3"/>
+        <listentry label="10K 40K+" value="4"/>
+        <listentry label="10K 40K" value="5"/>
+        <listentry label="20K 60K+" value="6"/>
+        <listentry label="10K" value="7"/>
+      </list>
+      <list label="Coin A:" id="C" default="0" action="reset">
+        <listentry label="1C/1P" value="0"/>
+        <listentry label="2C/1P" value="1"/>
+        <listentry label="1C/2P" value="2"/>
+        <listentry label="2C/3P" value="3"/>
+      </list>
+      <list label="Coin B:" id="K" default="1" action="reset">
+        <listentry label="1C/7P" value="0"/>
+        <listentry label="1C/1P" value="1"/>
+        <listentry label="1C/3P" value="2"/>
+        <listentry label="2C/1P" value="3"/>
+        <listentry label="1C/6P" value="4"/>
+        <listentry label="2C/3P" value="5"/>
+        <listentry label="1C/2P" value="6"/>
+        <listentry label="3C/1P" value="7"/>
+      </list>
+      <list label="Difficulty:" id="F" default="0" action="reset">
+        <listentry label="Easy" value="0"/>
+        <listentry label="Hard" value="1"/>
+        <listentry label="Medium" value="2"/>
+        <listentry label="Hardest" value="3"/>
+      </list>
+      <list label="Demo sound:" id="M" default="0" action="reset">
+        <listentry label="On" value="0"/>
+        <listentry label="Off" value="1"/>
+      </list>
+      <list label="Continue:" id="O" default="0" action="reset">
+        <listentry label="Yes" value="0"/>
+        <listentry label="No" value="1"/>
+      </list>
+    </menu>
+  </dips>
+</core>

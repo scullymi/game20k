@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 scullymi
+     The Ghosts'n Goblins part of the menu: fpga/common/menu/base.xml holds the rest, and
+     scripts/make_menu.py fills its gaps with these attributes and elements. -->
+<core title="Ghosts'n Goblins" name="GnG" ini="gng.ini" rom="gng.rom" fire="1" button2="Jump:"
+      header="Ghosts'n Goblins (game20k) configuration for the FPGA Companion.">
+  <dips>
+    <!-- game20k: the values are the raw DSW1 and DSW2 bits of MAME gng.cpp, the wrapper
+         only places them. Every list resets: the switches reach the core only in reset.
+         The defaults are MAME's and jotego's (DF, FB). -->
+    <menu label="DIP switches">
+      <list label="Difficulty:" id="F" default="3" action="reset">
+        <listentry label="Easy" value="2"/>
+        <listentry label="Normal" value="3"/>
+        <listentry label="Difficult" value="1"/>
+        <listentry label="Very difficult" value="0"/>
+      </list>
+      <list label="Lives:" id="L" default="3" action="reset">
+        <listentry label="3" value="3"/>
+        <listentry label="4" value="2"/>
+        <listentry label="5" value="1"/>
+        <listentry label="7" value="0"/>
+      </list>
+      <list label="Bonus:" id="B" default="3" action="reset">
+        <listentry label="20K 70K +70K" value="3"/>
+        <listentry label="30K 80K +80K" value="2"/>
+        <listentry label="20K 80K" value="1"/>
+        <listentry label="30K 80K" value="0"/>
+      </list>
+      <list label="Coinage:" id="C" default="15" action="reset">
+        <listentry label="1C/1C" value="15"/>
+        <listentry label="1C/2C" value="14"/>
+        <listentry label="1C/3C" value="13"/>
+        <listentry label="1C/4C" value="12"/>
+        <listentry label="1C/5C" value="11"/>
+        <listentry label="1C/6C" value="10"/>
+        <listentry label="1C/7C" value="9"/>
+        <listentry label="2C/1C" value="8"/>
+        <listentry label="2C/3C" value="7"/>
+        <listentry label="2C/5C" value="6"/>
+        <listentry label="3C/1C" value="5"/>
+        <listentry label="3C/2C" value="4"/>
+        <listentry label="3C/4C" value="3"/>
+        <listentry label="4C/1C" value="2"/>
+        <listentry label="4C/3C" value="1"/>
+        <listentry label="Free play" value="0"/>
+      </list>
+      <list label="Demo sounds:" id="E" default="0" action="reset">
+        <listentry label="On" value="0"/>
+        <listentry label="Off" value="1"/>
+      </list>
+      <!-- jotego's core option: the arcade's palette writes during the picture make
+           yellow flashes, On blocks them -->
+      <list label="Block flashes:" id="Y" default="0" action="reset">
+        <listentry label="Off" value="0"/>
+        <listentry label="On" value="1"/>
+      </list>
+    </menu>
+  </dips>
+  <!-- a horizontal monitor: always 3x, no Screen list -->
+  <screen/>
+</core>

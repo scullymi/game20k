@@ -127,7 +127,7 @@ module game_core #(
     wire ponp = (hdr_game == 2'd2);
 
     // ---------------- DIP switches from the menu ----------------
-    // The ids are the ones menu.xml uses, the values are the raw DSW1 bits (MAME pacman.cpp):
+    // The ids are the ones menu_core.xml uses, the values are the raw DSW1 bits (MAME pacman.cpp):
     // 1:0 coinage, 3:2 lives, 5:4 bonus, 6 difficulty (1 normal), 7 ghost names (1 normal).
     // The defaults are the menu's defaults, they hold until the Companion sends the saved
     // values at start-up: 0xC9, MAME's default, 3 lives and 1 coin per play as the
@@ -147,7 +147,7 @@ module game_core #(
             default: ;
         endcase
 
-    // DIP switches reach the core only while it is in reset: every DIP list in menu.xml
+    // DIP switches reach the core only while it is in reset: every DIP list in menu_core.xml
     // carries action="reset", and the top holds reset for at least 255 clocks. The menu sets
     // Pac-Man's DSW1, which Puck Man, Ms. Pac-Man, Jr. Pac-Man and Pac-Man Plus share. DSW2 is
     // unused by them, 0xFF is MiSTer's value. Ponpoko has switches of its own and gets
