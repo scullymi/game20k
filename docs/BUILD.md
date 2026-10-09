@@ -112,6 +112,12 @@ whatever is checked out there. Commit your changes in that repository first, the
 `git add external/FPGA-Companion` and commit here too, so that this repository records which
 firmware commit it uses.
 
+**The game table.** The games the firmware knows, with their RetroAchievements id, board, ROM
+files and the DIP switches their set expects, come from the ROM manifests:
+`scripts/build_companion.sh` generates the table into `build/firmware/gen/` and passes it to
+the firmware build, so a new set needs no change in the fork. Built on its own, the fork takes
+an empty example table and knows no game.
+
 **Releases.** GitHub Actions builds the release firmware from the sources at the tag, and
 `gh attestation verify game20k-<version>-pico2w.zip -R scullymi/game20k` confirms that a
 downloaded zip comes from that build.
