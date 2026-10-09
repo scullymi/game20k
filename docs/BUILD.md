@@ -34,8 +34,8 @@ forks of [FPGA-Companion](https://github.com/scullymi/FPGA-Companion) and
 2.2.0. If you cloned without `--recursive`, the build script fetches them itself.
 
 Third-party HDL keeps its original headers. Each of its folders (`rtl_dar/`, `rtl_pacman/`,
-`rtl_T80/`, `jtcores/`, `jt49/`, `misc/`, `hdmi/`) has a README or LICENSE that names the
-upstream commit and our changes. [THIRD-PARTY.md](../THIRD-PARTY.md) lists who wrote what and under which licence.
+`rtl_T80/`, `misc/`, `hdmi/`, and under `fpga/vendor/` the copies of jotego's repositories that
+several cores share) has a README or LICENSE that names the upstream commit and our changes. [THIRD-PARTY.md](../THIRD-PARTY.md) lists who wrote what and under which licence.
 
 ## 2. ROMs and the SD card
 
