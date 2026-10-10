@@ -178,6 +178,11 @@ mean something else, see the source.
 
 Example: `RAMDIAG=1 scripts/build_fpga.sh galaga_hdmi`
 
+## Tests and dependencies
+
+The host tests of the firmware: [tests/README.md](../tests/README.md).
+Keeping submodules and the HDL copied into `fpga/` up to date: [dependencies.md](dependencies.md).
+
 ## Repository layout
 
 ```
