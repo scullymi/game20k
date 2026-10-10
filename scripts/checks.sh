@@ -57,6 +57,7 @@ say() { echo "  $*"; }
 total() { awk -F: '{ s += $NF } END { print s + 0 }'; }
 nonzero() { case $1 in *[!0]*) return 0 ;; *) return 1 ;; esac; }
 GIT="git -c core.quotepath=off -c color.ui=never"
+CR=$(printf '\r')
 
 # git grep -c with "$@" over what this mode checks: the index, the tracked files, or the tree
 # of each pushed tip. One "[<tip>:]<path>:<count>" line per file with a match.
@@ -130,14 +131,20 @@ check_ra() {
   while IFS= read -r l; do finding "ra-conditions: ${l%:*} has ${l##*:} lines like a condition chain"; done < "$T/ra"
 }
 
-# eol <diff arguments>: files whose numstat changes with --ignore-cr-at-eol, that is files
-# with lines that differ only in their line end. Adds the files compared to EOL_N.
+# eol <old> [<new>]: files whose line ends changed from commit <old> to <new> (without <new>:
+# the index). A candidate is a file whose numstat changes with --ignore-cr-at-eol. That also
+# takes a newline added at the end of the file, so a file counts only when its number of
+# lines with CR changes too. Adds the files compared to EOL_N.
 eol() {
-  $GIT diff --numstat --no-renames --no-ext-diff "$@" > "$T/a"
-  $GIT diff --numstat --no-renames --no-ext-diff --ignore-cr-at-eol "$@" > "$T/b"
+  if [ -n "$2" ]; then set -- "$1" "$2" "$1" "$2"; else set -- --cached "$1" "$1" ""; fi
+  $GIT diff --numstat --no-renames --no-ext-diff "$1" "$2" > "$T/a"
+  $GIT diff --numstat --no-renames --no-ext-diff --ignore-cr-at-eol "$1" "$2" > "$T/b"
   EOL_N=$((EOL_N + $(wc -l < "$T/a")))
   awk -F'\t' 'FILENAME == ARGV[1] { b[$3] = $1 " " $2; next } b[$3] != $1 " " $2 { print $3 }' \
-    "$T/b" "$T/a" >> "$T/eol"
+    "$T/b" "$T/a" | while IFS= read -r p; do
+    [ "$($GIT show "$3:$p" 2>/dev/null | grep -c "$CR")" = "$($GIT show "$4:$p" 2>/dev/null | grep -c "$CR")" ] ||
+      printf '%s\n' "$p"
+  done >> "$T/eol"
 }
 
 check_tests() {
@@ -158,7 +165,7 @@ check_crlf() {
     git rev-parse -q --verify "$from^{commit}" > /dev/null || { finding "crlf: base $BASE is not in this clone"; from=; }
   fi
   case $MODE in
-    staged) git rev-parse -q --verify HEAD > /dev/null && eol --cached HEAD ;;
+    staged) git rev-parse -q --verify HEAD > /dev/null && eol HEAD ;;
     ci) if [ -n "$from" ]; then eol "$from" HEAD
         elif git rev-parse -q --verify HEAD^1 > /dev/null; then eol HEAD^1 HEAD; fi ;;
     push) while read -r c; do git rev-parse -q --verify "$c^1" > /dev/null && eol "$c^1" "$c"; done < "$T/commits" ;;
