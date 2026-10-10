@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# Checks on every push and pull request, two jobs:
-#   checks    scripts/checks.sh --ci on this repository and on the fork's gitlink, the
-#             contract of scripts/check_contracts.py, and the host tests in tests/host, which
-#             generate the game table from the manifests with scripts/make_fw_tables.py
+# Checks on every push and pull request, three jobs:
+#   checks    scripts/checks.sh --ci on this repository and on the fork's gitlink, which also
+#             runs the host tests in tests/host, and the contract of scripts/check_contracts.py
 #   firmware  the release build of scripts/make_firmware_release.sh (DEV=1), then no compiler
 #             warning in the fork's own RetroAchievements files src/ra_*.c
+#   sims      the simulations that need no ROM: rom_sdram, the screen layouts and the audio
+#             handover in fpga/common/sim, the Pac-Man RAM mirror in fpga/pacman_hdmi/sim
 # The fork is checked through its gitlink, it has no workflow of its own. No schedule on
 # purpose: every run comes from a push.
 name: Checks
@@ -29,7 +30,11 @@ jobs:
           submodules: recursive
           persist-credentials: false
 
-      - name: Scans (scripts/checks.sh --ci, game20k and fork)
+      # ASan in the host tests needs fewer random mmap bits than the runner kernel's default
+      - name: mmap bits for ASan
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+
+      - name: Scans and host tests (scripts/checks.sh --ci, game20k and fork)
         run: |
           sh scripts/checks.sh --ci --base "$BASE"
           sh scripts/checks.sh --ci --fork --base "$BASE"
@@ -40,13 +45,6 @@ jobs:
 
       - name: Contracts (scripts/check_contracts.py)
         run: python3 scripts/check_contracts.py
-
-      # ASan needs fewer random mmap bits than the runner kernel's default
-      - name: Host tests (make -C tests/host)
-        run: |
-          sudo sysctl -w vm.mmap_rnd_bits=28
-          test -f tests/host/Makefile || { echo '::error::tests/host/Makefile missing'; exit 1; }
-          make -C tests/host
 
   firmware:
     runs-on: ubuntu-24.04
@@ -84,3 +82,31 @@ jobs:
           if grep -E 'src/ra_[a-z_]+\.c:[0-9]+:[0-9]+: warning' "$log"; then
             echo "::error::compiler warnings in the fork's src/ra_*.c, see above"; exit 1
           fi
+
+  sims:
+    runs-on: ubuntu-24.04
+    env:
+      # Ubuntu 24.04 has no nvc package, the release package of nvc instead
+      NVC_DEB: nvc_1.23.0-1_amd64_ubuntu-24.04.deb
+      NVC_SHA256: 33d65eafb83d83352716895e44c116002f94d8a198a9486a3cee6df3e4fdfb89
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Verilator (apt) and nvc 1.23.0
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator
+          curl -fsSL -o "$RUNNER_TEMP/$NVC_DEB" "https://github.com/nickg/nvc/releases/download/r1.23.0/$NVC_DEB"
+          echo "$NVC_SHA256  $RUNNER_TEMP/$NVC_DEB" | sha256sum -c -
+          sudo apt-get install -y "$RUNNER_TEMP/$NVC_DEB"
+          verilator --version
+          nvc --version
+
+      - name: Simulations without ROMs
+        run: |
+          sh fpga/common/sim/run_sim.sh
+          sh fpga/common/sim/run_screen_sim.sh
+          sh fpga/common/sim/run_audio_sim.sh
+          sh fpga/pacman_hdmi/sim/run_sim.sh
