@@ -45,8 +45,8 @@
 //! only 24 px high: at (LX, LY), 5 px below the picture. 1942's raster: picture x 256..1024,
 //! y 24..696, text 384 x 14 px from x 448, y 701.
 //! A raster that fills the height (OVL, Pang's 384 x 240: x 64..1216, y 0..720) leaves no
-//! band: the banner lies over the picture at (LX, LY) on a dark box (dim, the top halves the
-//! picture there), 424 x 18 px from 20 px left of the text and 2 px above it, the mark
+//! band: the banner lies over the picture at (LX, LY) on a black box (dim, the top blacks the
+//! picture out there), 424 x 18 px from 20 px left of the text and 2 px above it, the mark
 //! inside. The challenge marker goes into the band right of the picture, at (CX, CY).
 //!
 //! The OSD is not suited for this: it draws a 512x256 box into the middle of the
@@ -86,7 +86,7 @@ module ra_overlay #(
     input  wire         challenge_on, //!< a challenge is on: the gold marker shows, with or without banner
     output logic        on,
     output logic [23:0] color,
-    output logic        dim           //!< with OVL: the dark box behind the banner, darken the picture
+    output logic        dim           //!< with OVL: the black box behind the banner
 );
     // ---- Text buffer. 24 characters as registers, NOT as BSRAM: the device
     // ---- is at 45 of 46 blocks used, registers are at 31 percent. The attribute

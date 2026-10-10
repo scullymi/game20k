@@ -71,7 +71,7 @@ cabinet. Both are selectable in the menu (`Screen`: `Upright 2x`, `Landscape 3x`
 scanlines. A game with a horizontal monitor (Higemaru, Ghosts'n Goblins, the Pang core) always
 runs 3x, with the menu and the banner upright. The banner appears in the black strip below the
 picture. On the Pang core the picture fills the full height of the screen, so the banner sits at
-the top of the picture on a darkened box.
+the top of the picture on a black box.
 
 ![Galaga upright on a regular monitor and rotated for a monitor on its side](images/upright-and-rotated.png)
 

@@ -94,7 +94,7 @@ module game20k_top #(
     // A game that stands upright has its banner 5 px below the landscape picture, in the
     // band of Y0_L lines (24 for a raster 224 high, the 14 px of text need at least 19).
     // Without that band (Pang: 384 x 240 fills the height) the banner lies over the top of
-    // the picture, on a box that halves the picture, and the challenge marker in the band
+    // the picture, on a black box, and the challenge marker in the band
     // right of the picture. Pang's score and lives are at the bottom.
     // Pang without a frame buffer: Y0_P is negative, only the portrait parameters use it.
     localparam int X0_L = (1280 - 3 * W) / 2;
@@ -717,10 +717,9 @@ module game20k_top #(
         .challenge_on(chal_p),
         .on(ra_on), .color(ra_col), .dim(ra_dim)
     );
-    // over the picture (BANNER_OVL) the banner has a dark box: the picture at half
+    // over the picture (BANNER_OVL) the banner has a black box, so the text reads on any picture
     logic [23:0] rgb_ra;
-    assign rgb_ra = ra_on ? ra_col : ra_dim ? {1'b0, rgb_osd[23:17], 1'b0, rgb_osd[15:9], 1'b0, rgb_osd[7:1]}
-                                            : rgb_osd;
+    assign rgb_ra = ra_on ? ra_col : ra_dim ? 24'h000000 : rgb_osd;
 
     logic [23:0] rgb_dbg;
     assign rgb_dbg = dbg_on ? dbg_col : rgb_ra;
