@@ -2,7 +2,8 @@
 
 The files under `hdl/` are copied unchanged from [jotego/jt49](https://github.com/jotego/jt49)
 at commit `7f6abfd08a2af9a92dbd5b32c71ea773248a77e2` (1 February 2025), folder `hdl/`. That is
-the commit jt12 `dc9be7c` pulls in as its submodule `jt49`, see `../jt12/README.md`. 1942 has
+the commit jt12 `dc9be7c` pulls in as its submodule `jt49`. jt12 `d495f64` points to
+`441eea8`, which is not on GitHub, see `../jt12/README.md`. 1942 has
 two AY-3-8910 on its sound board. Each YM2203 of 1943 and Ghosts'n Goblins contains an
 AY-3-8910 compatible SSG, which jt12 builds from jt49. Only 1942 uses `jt49_bus.v`. `LICENSE`
 is the licence file of the repository.

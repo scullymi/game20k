@@ -6,8 +6,9 @@
 # jotego's core in ../vendor/jtcores (jtcores 548b87b), jt12 (YM2203 as jt03) in ../vendor/jt12
 # and jt49 in ../vendor/jt49, all GPL-3.0-or-later, the T80 BSD-style, the 6809 (mc6809i.v, Greg
 # Miller) BSD, see README.md. Changed files carry "game20k" in the text: jtframe_dual_ram (Gowin
-# write mode), jt12_rst and jtgng_sound (reset on the rising edge), jtgng_game (clock enables
-# from outside, mirror tap), jtgng_main (mirror tap). The RAM mirror is mirror_n.sv.
+# write mode), jt12_rst and jtgng_sound (reset on the rising edge), jt12_top (SSG level table),
+# jtgng_game (clock enables from outside, mirror tap), jtgng_main (mirror tap). The RAM mirror
+# is mirror_n.sv.
 set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
 
 # jotego's global macros first: Gowin compiles all files as one unit

@@ -58,8 +58,10 @@ VENDORED = [
     ('mc6809 licence', 'cavnex/mc6809', '17e94a6', '17e94a6',
      'fpga/vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md',
      'documentation/LICENSE.md', (), ()),
-    ('jt12', 'jotego/jt12', 'dc9be7c', 'dc9be7c', 'fpga/vendor/jt12/hdl', 'hdl', (),
-     ('jt49',)),   # jt49: the submodule commit, the copy is in fpga/vendor/jt49
+    # jt49: the submodule commit. d495f64 points to 441eea8, not on GitHub, the copy in
+    # fpga/vendor/jt49 stays at 7f6abfd
+    ('jt12', 'jotego/jt12', 'd495f64', 'd495f64', 'fpga/vendor/jt12/hdl', 'hdl', (),
+     ('jt49',)),
     ('jt49', 'jotego/jt49', '7f6abfd', '47301ed', 'fpga/vendor/jt49/hdl', 'hdl', (), ()),
     ('jtopl', 'jotego/jtopl', '7ac0c81', '7ac0c81', 'fpga/vendor/jtopl/hdl', 'hdl', (), ()),
     ('jt6295', 'jotego/jt6295', '7d76b0b', '7d76b0b', 'fpga/vendor/jt6295/hdl', 'hdl', (), ()),

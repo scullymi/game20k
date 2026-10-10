@@ -7,8 +7,9 @@
 # and jt49 in ../vendor/jt49, all GPL-3.0-or-later, the T80 BSD-style, each folder with a
 # README.md. Changed files carry "game20k" in the text:
 # jtframe_dual_ram (Gowin write mode, as for 1942), jt12_rst and jtgng_sound (reset on the
-# rising edge), jt1943_main, _game, _video, _colmix (mirror taps, palette
-# index, sound ROM from SDRAM). The RAM mirror g1943_mirror.sv is 1942's with a 1943 layout.
+# rising edge), jt12_top (SSG level table), jt1943_main, _game, _video, _colmix (mirror
+# taps, palette index, sound ROM from SDRAM). The RAM mirror g1943_mirror.sv is 1942's with
+# a 1943 layout.
 set_device GW2AR-LV18QN88C8/I7 -name GW2AR-18C
 
 # jotego's global macros first: Gowin compiles all files as one unit

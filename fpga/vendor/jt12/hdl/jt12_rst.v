@@ -28,7 +28,7 @@ module jt12_rst(
 reg r;
 
 // game20k: posedge instead of negedge. On Gowin the negedge register gives the reset
-// path into the T80 only half a clock. Copy of jt12 dc9be7c.
+// path into the T80 only half a clock. Copy of jt12 d495f64.
 always @(posedge clk)
     if( rst ) begin
         r     <= 1'b0;

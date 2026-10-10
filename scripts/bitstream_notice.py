@@ -232,7 +232,7 @@ COMPONENTS = [
     {
         "name": "JT12 by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
-        "url": "https://github.com/jotego/jt12 at dc9be7c, folder hdl",
+        "url": "https://github.com/jotego/jt12 at d495f64, folder hdl",
         "match": r"^fpga/vendor/jt12/hdl/(adpcm/(jt10_adpcm|jt10_adpcm_acc|jt10_adpcm_cnt|"
                  r"jt10_adpcm_div|jt10_adpcm_drvA|jt10_adpcm_drvB|jt10_adpcm_gain|jt10_adpcma_lut|"
                  r"jt10_adpcmb|jt10_adpcmb_cnt|jt10_adpcmb_gain|jt10_adpcmb_interpol)|jt03|jt03_acc|"
@@ -242,7 +242,8 @@ COMPONENTS = [
                  r"jt12_pg_inc|jt12_pg_sum|jt12_pm|jt12_reg|jt12_reg_ch|jt12_rst|jt12_sh|"
                  r"jt12_sh_rst|jt12_single_acc|jt12_sumch|jt12_timers|jt12_top)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
-        "note": "jt12_rst.v takes its reset on the rising clock edge, marked game20k.",
+        "note": "jt12_rst.v takes its reset on the rising clock edge, jt12_top.v keeps SSG level "
+                "table 1, both marked game20k.",
         "show": [],
     },
     {
