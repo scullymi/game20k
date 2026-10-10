@@ -134,18 +134,16 @@ Builds on other machines have not been compared yet.
   time, PROMs and the programs of the Namco MCUs included. The exception is Pac-Man's sound timing PROM 3M in MikeJ's core, see
   above. The star table in Dar's `stars.vhd` comes from MAME's recording of the 05xx starfield
   chip (MAME 0.190, `src/mame/video/galaga.cpp`, BSD-3-Clause, Nicola Salmoria), not from a ROM.
-- **Dar's condition** forbids redistributing a synthesized file with ROMs. We read it strictly: a
-  bitstream without ROM images may be passed on, ROMs never. MiSTer and MiST publish bitstreams
-  of Dar's cores, and their Galaga bitstreams still contain the five colour and sound PROMs,
-  ours contain none. MiSTer's port of Dar's Popeye, whose source carries Dar's note "release rev
-  04 : MiSTer configuration", loads all its ROMs at run time, as ours do.
+- **Dar's condition** forbids redistributing a synthesized file with ROMs. Dar has allowed us by
+  mail (October 2026) to publish the Galaga bitstream without ROMs. ROMs are never passed on, in
+  any form.
 - **An open point with Galaga.** Its bitstream combines GPL-3.0 code by nand2mario
   (`sdram_fb.v`) and WangXuan95 (`sd_rw.v`, `sdcmd_ctrl.v`) with Dar's code, which grants no
-  licence and asks for educational use only. GPL-3.0 requires the whole to be under its terms
-  and allows no further restrictions. MiSTer and MiST combine Dar's core only with GPL code of
-  their own projects. We publish the Galaga bitstream all the same and name the point here. The
-  source repository is in the same position. The Pac-Man core itself (MikeJ, T80) is BSD-style,
-  so the question does not arise there.
+  licence and asks for educational use only. Dar's permission covers his side of the bitstream,
+  but his files remain without an open licence, while GPL-3.0 requires the whole to be under its
+  terms and allows no further restrictions. MiSTer and MiST combine Dar's core only with GPL
+  code of their own projects. The source repository is in the same position. The Pac-Man core
+  itself (MikeJ, T80) is BSD-style, so the question does not arise there.
 - **An open point with Time Pilot.** Two of its files, `jtframe_frac_cen.v` and
   `ram_rom/spram.vhd`, carry no licence statement, and the upstream repository has no licence
   file. The NOTICE lists them as such.

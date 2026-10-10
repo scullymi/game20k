@@ -373,9 +373,9 @@ COMPONENTS = [
         "match": r"^fpga/galaga_hdmi/src/rtl_dar/(galaga|gen_video|mb88|sound_machine|stars|"
                  r"stars_machine)\.vhd$",
         "licence": "no licence granted, the condition below",
-        "note": "MiSTer and MiST publish bitstreams of Dar's cores. game20k reads the condition "
-                "the strict way: a bitstream without any ROM image may be passed on, ROMs never, "
-                "in any form. This bitstream holds no ROM image, all ROMs of the game, its PROMs "
+        "note": "Dar has allowed game20k by mail (October 2026) to publish this bitstream "
+                "without ROMs. ROMs are never passed on, in any form. This bitstream holds no "
+                "ROM image, all ROMs of the game, its PROMs "
                 "and the programs of the 51XX and 54XX included, come from the SD card at run "
                 "time. The star table in stars.vhd comes "
                 "from MAME's recording of the 05xx starfield chip (MAME 0.190, "
