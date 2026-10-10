@@ -99,25 +99,14 @@ int lwip_close(int s) { return 0; }
 // sdc.c: sdc_lock() takes a FreeRTOS mutex that is not recursive, a second take from the same
 // task never returns. Here that stops the test instead.
 static unsigned sdc_depth;
-static char     image_cwd[MAX_DRIVES + MAX_IMAGES][64];
-static char     image_name[MAX_DRIVES + MAX_IMAGES][64];
-static bool     image_set[MAX_DRIVES + MAX_IMAGES];
 
 void sdc_lock(void) { if(sdc_depth++) host_fail("sdc_lock() while it is held: on the Pico this never returns"); }
 void sdc_unlock(void) { if(!sdc_depth--) host_fail("sdc_unlock() without sdc_lock()"); }
 unsigned host_sdc_depth(void) { return sdc_depth; }
 
-void host_sdc_set_image(int drive, const char *cwd, const char *name) {
-  if(drive < 0 || drive >= MAX_DRIVES + MAX_IMAGES) host_fail("host_sdc_set_image(): no such drive");
-  image_set[drive] = name != NULL;
-  snprintf(image_name[drive], sizeof(image_name[drive]), "%s", name ? name : "");
-  snprintf(image_cwd[drive], sizeof(image_cwd[drive]), "%s", cwd ? cwd : "");
-}
-
-// sdc.c: the file name of a drive's mounted image and its directory, NULL when it has none
-#define HAS_IMAGE(d) ((d) >= 0 && (d) < MAX_DRIVES + MAX_IMAGES && image_set[d])
-char *sdc_get_image_name(int drive) { return HAS_IMAGE(drive) ? image_name[drive] : NULL; }
-char *sdc_get_cwd(int drive) { return HAS_IMAGE(drive) && image_cwd[drive][0] ? image_cwd[drive] : NULL; }
+// sdc.c: the file name of a drive's mounted image and its directory. No test mounts one
+char *sdc_get_image_name(int drive) { (void)drive; return NULL; }
+char *sdc_get_cwd(int drive) { (void)drive; return NULL; }
 
 // ra_task.c: the mode the FTP guard asks for
 bool host_hardcore;

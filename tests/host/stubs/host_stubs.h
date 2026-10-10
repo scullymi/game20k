@@ -78,7 +78,6 @@ extern struct netif *netif_default;          /* NULL: no interface on the host *
 /* ---- what the tests set and read ----------------------------------------------------------- */
 
 unsigned host_sdc_depth(void);                           /**< sdc_lock() held right now, 0 or 1 */
-void host_sdc_set_image(int drive, const char *cwd, const char *name);   /**< NULL name: none */
 extern bool host_hardcore;                               /**< what ra_task_hardcore() returns */
 void host_set_game(const char *hash, unsigned id);      /**< what ra_game_hash() and ra_game_id() return, "" and 0 for no game */
 #define HOST_FTP_CTL 7                                   /**< the modelled control connection */

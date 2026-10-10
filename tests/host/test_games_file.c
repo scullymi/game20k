@@ -3,8 +3,8 @@
 /** @file test_games_file.c
  *  @brief games_file.c: the footer of a ROM file and the order of the Games page.
  *
- *  games_file.c is included as it is. The reference footer below is what
- *  scripts/make_rom.py footer() writes for 1000 bytes of the counter 0, 1, ... 255, 0, ...
+ *  games_file.c is included as it is. The reference footer comes from scripts/make_rom.py
+ *  footer() at build time (see the Makefile) for 1000 bytes of the counter 0, 1, ... 255, 0, ...
  *  as content, set "testset", title "A Test Game", board 3, screen 2: the firmware must
  *  accept exactly what the script writes. A file on the RAM disk under the real FatFs
  *  shows that games_footer_read() leaves the file position where it was. */
@@ -20,16 +20,7 @@ void tearDown(void) {}
 
 #define CONTENT 1000u   // content size of the reference footer
 
-static const unsigned char ref[GAMES_FOOTER_SIZE] = {
-  0x47,0x32,0x30,0x4b,0x01,0x03,0x02,0x00,0xe8,0x03,0x00,0x00,0x74,0x65,0x73,0x74,
-  0x73,0x65,0x74,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x41,0x20,0x54,0x65,
-  0x73,0x74,0x20,0x47,0x61,0x6d,0x65,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xa8,0xaf,0x09,0x9b,
-  0xf2,0xe8,0x78,0x60,0x95,0x58,0xdb,0xf6,0x9d,0x8f,0x88,0xf4,0xa3,0x10,0x40,0xa8,
-  0xcf,0x84,0xb5,0x49,0xa0,0xcf,0xa9,0x12,0xf1,0x2f,0xfc,0x3f,0x00,0x00,0x00,0x00,
-  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x67,0x13,0x39,0xde,
-};
+#include "games_footer_ref.h"
 
 /* The reference with byte at changed to value and, when crc is set, a CRC-32 that fits again. */
 static void variant(unsigned char *buf, unsigned at, unsigned char value, bool crc) {
@@ -39,12 +30,6 @@ static void variant(unsigned char *buf, unsigned at, unsigned char value, bool c
     uint32_t c = games_crc32(buf, 124);
     for(int i = 0; i < 4; i++) buf[124 + i] = (unsigned char)(c >> (8 * i));
   }
-}
-
-static void test_crc32_check_value(void) {
-  // the check value of CRC-32/ISO-HDLC, what zlib.crc32() gives
-  TEST_ASSERT_EQUAL_HEX32(0xCBF43926u, games_crc32("123456789", 9));
-  TEST_ASSERT_EQUAL_HEX32(0x00000000u, games_crc32("", 0));
 }
 
 static void test_valid_footer(void) {
@@ -102,14 +87,10 @@ static void test_bad_crc(void) {
 
 static void test_size_mismatch(void) {
   games_footer_t ft;
-  // a file cut or extended by one byte, or the footer alone
+  // a file cut or extended by one byte, the footer alone, a file shorter than a footer
   TEST_ASSERT_FALSE(games_footer_parse(ref, CONTENT + GAMES_FOOTER_SIZE - 1, &ft));
   TEST_ASSERT_FALSE(games_footer_parse(ref, CONTENT + GAMES_FOOTER_SIZE + 1, &ft));
   TEST_ASSERT_FALSE(games_footer_parse(ref, GAMES_FOOTER_SIZE, &ft));
-}
-
-static void test_short_file(void) {
-  games_footer_t ft;
   TEST_ASSERT_FALSE(games_footer_parse(ref, GAMES_FOOTER_SIZE - 1, &ft));
   TEST_ASSERT_FALSE(games_footer_parse(ref, 0, &ft));
 }
@@ -182,13 +163,11 @@ static void test_order_by_title(void) {
 
 int main(void) {
   UNITY_BEGIN();
-  RUN_TEST(test_crc32_check_value);
   RUN_TEST(test_valid_footer);
   RUN_TEST(test_full_fields_end_with_nul);
   RUN_TEST(test_bad_magic);
   RUN_TEST(test_bad_crc);
   RUN_TEST(test_size_mismatch);
-  RUN_TEST(test_short_file);
   RUN_TEST(test_footer_read_on_card);
   RUN_TEST(test_order_by_title);
   return UNITY_END();

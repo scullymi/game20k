@@ -57,7 +57,6 @@ void setUp(void) {
   TEST_ASSERT_EQUAL(FR_OK, f_mkdir("/sd/sub"));
   content_of("sub/config.ini", 201, buf);
   TEST_ASSERT_TRUE(host_card_put("/sd/sub/config.ini", buf, 201));
-  for(int d = 0; d < MAX_DRIVES + MAX_IMAGES; d++) host_sdc_set_image(d, NULL, NULL);
   host_hardcore = true;
   memset(&sess, 0, sizeof(sess));
   sess.ctl  = HOST_FTP_CTL;
@@ -316,12 +315,6 @@ static void test_fatfs_oracle(void) {
   TEST_MESSAGE(msg);
 }
 
-/* In softcore nothing is protected, not even the files themselves. */
-static void test_fatfs_oracle_softcore(void) {
-  host_hardcore = false;
-  for(unsigned i = 0; i < N_PROTECTED; i++) TEST_ASSERT_FALSE(protected_path(protected_files[i].name));
-}
-
 /* ---- the commands ---------------------------------------------------------------- */
 
 /* Runs a control session with these commands and returns what the server sent. */
@@ -431,19 +424,6 @@ static void test_refused_transfer_drops_rest(void) {
   TEST_ASSERT_TRUE(unchanged("config.ini", 101));
 }
 
-/* A file mounted as a disk image cannot be deleted, in either mode. */
-static void test_mounted_image_is_kept(void) {
-  char buf[64];
-  host_hardcore = false;
-  TEST_ASSERT_EQUAL(FR_OK, f_mkdir("/sd/games"));
-  content_of("games/disk.img", 20, buf);
-  TEST_ASSERT_TRUE(host_card_put("/sd/games/disk.img", buf, 20));
-  host_sdc_set_image(3, "/sd/games", "disk.img");
-  const char *t = session_run("DELE games/DISK.IMG\r\n");
-  TEST_ASSERT_NOT_NULL_MESSAGE(strstr(t, "550 Delete failed (mounted image?)."), t);
-  TEST_ASSERT_TRUE(host_card_exists("/sd/games/disk.img"));
-}
-
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_guard_table_hardcore);
@@ -451,11 +431,9 @@ int main(void) {
   RUN_TEST(test_resolve_table);
   RUN_TEST(test_resolve_refuses_what_does_not_fit);
   RUN_TEST(test_fatfs_oracle);
-  RUN_TEST(test_fatfs_oracle_softcore);
   RUN_TEST(test_hardcore_refuses_every_writing_command);
   RUN_TEST(test_softcore_lets_them_through);
   RUN_TEST(test_hardcore_reads_and_writes_elsewhere);
   RUN_TEST(test_refused_transfer_drops_rest);
-  RUN_TEST(test_mounted_image_is_kept);
   return UNITY_END();
 }

@@ -92,6 +92,18 @@ $(BUILD)/test_games: $(call obj,$(GEN))
 $(BUILD)/test_menus: $(foreach s,$(MENUS),$(call obj,$(s)))
 $(BUILD)/test_text: $(foreach s,$(FORK)/ra_text.c $(RC_SRC),$(call obj,$(s)))
 
+# the reference footer of test_games_file, from scripts/make_rom.py footer() as a ROM file gets it:
+# 1000 bytes of the counter 0, 1, ... 255, 0, ..., set "testset", title "A Test Game", board 3,
+# screen 2
+REF := $(BUILD)/inc/games_footer_ref.h
+$(REF): $(ROOT)/scripts/make_rom.py $(STAMP)
+	@python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import make_rom; \
+	  f = make_rom.footer({"set": "testset", "title": "A Test Game", "board": 3, "screen": 2}, \
+	                      bytes(i % 256 for i in range(1000))); \
+	  print("static const unsigned char ref[GAMES_FOOTER_SIZE] = {" + ",".join(map(str, f)) + "};")' \
+	  $(ROOT)/scripts > $@
+$(call obj,test_games_file.c): $(REF)
+
 $(BUILD)/test_%: $(BUILD)/obj/test_%.o $(SHARED)
 	@$(if $(Q),echo "  LD  $@",:)
 	$(Q)$(CC) $(COMMON) $^ -o $@
