@@ -139,7 +139,7 @@ bool ra_mac_check(const char *label, const void *data, size_t len, const char *h
 void ra_state_add(unsigned id, bool hardcore) {}
 bool ra_state_known(unsigned id) { return false; }
 bool ra_state_softcore_only(unsigned id) { return false; }
-static const ra_game_t host_table[] = { { "galaga", "Galaga", 12138u, RA_GAMES_V1_HASH, 1, NULL, 0, NULL, 0 } };
+static const ra_game_t host_table[] = { { "galaga", "Galaga", 12138u, "b8140b5e33c53b0f7dd3cc368951a4dd", 1, NULL, 0, NULL, 0 } };
 static char     host_hash[RA_GAMES_HASH_LEN + 1] = "";
 static unsigned host_id;
 void host_set_game(const char *hash, unsigned id) { snprintf(host_hash, sizeof(host_hash), "%s", hash ? hash : ""); host_id = id; }

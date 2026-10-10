@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 /** @file test_queue_lines.c
- *  @brief ra_queue.c: parse() on the lines of ra_pending.txt, card input from outside with a migration rule, then the queue on the RAM card.
+ *  @brief ra_queue.c: parse() on the lines of ra_pending.txt, card input from outside, then the queue on the RAM card.
  *
- *  ra_queue.c is included, parse() and scan() are static. A line without a hash
- *  is Galaga's, one with a hash carries its game: the token after the mode
- *  decides, and the tag label differs between the two shapes, so neither tag
- *  verifies the other's line. The tags come from the host's fake ra_mac_tag(),
- *  deterministic over label and data. The game is what host_set_game() says. */
+ *  ra_queue.c is included, parse() and scan() are static. Every line carries its
+ *  game's hash after the mode, a line without one is malformed. The tags come from
+ *  the host's fake ra_mac_tag(), deterministic over label and data. The game is
+ *  what host_set_game() says. */
 #include <string.h>
 
 #include "unity.h"
@@ -17,7 +16,7 @@
 void setUp(void) { host_set_game("", 0); }
 void tearDown(void) {}
 
-#define V1  RA_GAMES_V1_HASH
+#define V1  "b8140b5e33c53b0f7dd3cc368951a4dd"    /* md5("galaga"), the table game of the stand-ins */
 #define H2  "64d1f88b9b276aece4b0edcc25b7a434"    /* md5("pacman"), a line of another game */
 #define HGALLAG "477b96da708bd170f8c2b6245dcd28e4" /* md5("gallag"), a clone set's name the table does not know */
 #define H31 "64d1f88b9b276aece4b0edcc25b7a43"
@@ -37,23 +36,18 @@ typedef struct {
 } line_case_t;
 
 static const line_case_t cases[] = {
-  // without a hash, as the firmware before this one wrote them: Galaga's. Without
-  // a tag the mode does not count
-  { "17 1700000000 alice s",     NULL,      NULL, false, true,  PARSE_OK,     false, V1 },
-  { "17 1700000000 alice h",     NULL,      NULL, false, true,  PARSE_OK,     false, V1 },
-  { "17 1700000000 alice h",     "g20k-q1", NULL, false, true,  PARSE_OK,     true,  V1 },
-  { "17 1700000000 alice h",     "g20k-q1", NULL, true,  true,  PARSE_FORGED, false, "" },
-  // with a hash after the mode, tagged under its own label
+  // with a hash after the mode, tagged under its label. Without a tag the mode does not count
   { "17 1700000000 alice h " H2, NULL,      NULL, false, true,  PARSE_OK,     false, H2 },
   { "17 1700000000 alice h " H2, "g20k-q2", NULL, false, true,  PARSE_OK,     true,  H2 },
   { "17 1700000000 alice s " H2, "g20k-q2", NULL, false, true,  PARSE_OK,     false, H2 },
-  // the old label on a line with a hash, a hash changed after tagging, a hash
-  // inserted behind an old tag: none verifies
-  { "17 1700000000 alice h " H2, "g20k-q1", NULL,                          false, true, PARSE_FORGED, false, "" },
+  // a changed tag, a hash changed after tagging: neither verifies
+  { "17 1700000000 alice h " H2, "g20k-q2", NULL,                          true,  true, PARSE_FORGED, false, "" },
   { "17 1700000000 alice h " H2, "g20k-q2", "17 1700000000 alice h " V1,   false, true, PARSE_FORGED, false, "" },
-  { "17 1700000000 alice h " H2, "g20k-q1", "17 1700000000 alice h",       false, true, PARSE_FORGED, false, "" },
-  // a token of the wrong length or case in the hash's place: junk, nothing waits
-  // for it (a forged line would wait for a device key), scan() marks it done
+  // no hash (as older firmware wrote them, tagged or not), or a token of the wrong
+  // length or case in its place: junk, nothing waits for it (a forged line would wait
+  // for a device key), scan() marks it done
+  { "17 1700000000 alice h",      NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
+  { "17 1700000000 alice h",      "g20k-q1", NULL, false, true, PARSE_JUNK,   false, "" },
   { "17 1700000000 alice h " H31, NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
   { "17 1700000000 alice h " H33, NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
   { "17 1700000000 alice h " HUP, NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
@@ -100,19 +94,6 @@ static void test_line_table(void) {
   TEST_MESSAGE(msg);
 }
 
-/* The fake tags themselves: one label's tag never verifies under the other, which
-   is what keeps the two shapes apart. Without this the table above proves less. */
-static void test_labels_do_not_verify_each_other(void) {
-  char q1[RA_MAC_HEX + 1], q2[RA_MAC_HEX + 1];
-  const char *text = "17 1700000000 alice h";
-  TEST_ASSERT_TRUE(ra_mac_tag("g20k-q1", text, strlen(text), q1));
-  TEST_ASSERT_TRUE(ra_mac_tag("g20k-q2", text, strlen(text), q2));
-  TEST_ASSERT_EQUAL_size_t(RA_MAC_HEX, strlen(q1));
-  TEST_ASSERT_TRUE(strcmp(q1, q2) != 0);
-  TEST_ASSERT_TRUE(ra_mac_check("g20k-q1", text, strlen(text), q1));
-  TEST_ASSERT_FALSE(ra_mac_check("g20k-q2", text, strlen(text), q1));
-}
-
 /* Own by hash, or by the table game the server resolved a fallback identity to. */
 static void test_own_by_hash_or_resolved_id(void) {
   host_set_game(HGALLAG, 12138u);            // a fallback identity the server resolved to the table game
@@ -131,7 +112,7 @@ static void test_own_by_hash_or_resolved_id(void) {
    line left alone, another account's line parked, the own line is the head, a torn last
    line is marked done once it is reached, then the file goes. */
 static void test_head_skips_junk_parks_other_keeps_blank(void) {
-  static const char junk[] = "5 1700000000 alice h " H31 "\n", blank[] = "\n", bob[] = "9 1700000000 bob s\n";
+  static const char junk[] = "5 1700000000 alice h " H31 "\n", blank[] = "\n", bob[] = "9 1700000000 bob s " H2 "\n";
   const char *own = "17 1700000000 alice h " H2;
   char tag[RA_MAC_HEX + 1], file[512], back[512];
   ra_unlock_t u = { 0, 0, false, "" };
@@ -160,7 +141,6 @@ static void test_head_skips_junk_parks_other_keeps_blank(void) {
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_line_table);
-  RUN_TEST(test_labels_do_not_verify_each_other);
   RUN_TEST(test_own_by_hash_or_resolved_id);
   RUN_TEST(test_head_skips_junk_parks_other_keeps_blank);
   return UNITY_END();
