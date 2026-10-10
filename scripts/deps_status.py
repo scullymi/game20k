@@ -6,7 +6,7 @@ against its upstream repositories.
 
 Read-only: asks GitHub over HTTPS (git ls-remote and the public API), changes nothing and fetches
 nothing into the checkouts. The API needs a token for more than 60 requests an hour: GITHUB_TOKEN,
-or else the token of a logged-in gh. The workflow upstream.yml runs --vendored --ci every Saturday. tests/README.md says what
+or else the token of a logged-in gh. The workflow upstream.yml runs --vendored --ci every Saturday. docs/dependencies.md says what
 to do with the result.
 
 Usage: scripts/deps_status.py [--vendored] [--ci]
@@ -51,7 +51,7 @@ VENDORED = [
      'fpga/pacman_hdmi/src/rtl_pacman', 'rtl',
      ('g20k_dpram.vhd', 'pacman_mirror.vhd', 'sn76489_top.vhd', 'ym2149.vhd'), ()),
     # one copy for 1942, 1943, Ghosts'n Goblins and Pang
-    ('jtcores', 'jotego/jtcores', '548b87b', '548b87b',
+    ('jtcores', 'jotego/jtcores', '548b87b', 'fa75161',
      'fpga/vendor/jtcores', '', ('mc6809i_LICENSE.md',),
      ('modules/jt12', 'modules/jtopl', 'modules/jt6295', 'modules/jteeprom',
       'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
