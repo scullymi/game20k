@@ -77,9 +77,8 @@ VENDORED = [
     ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'c8e4601', 'fpga/common/src/misc',
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
      ('src/tang/nano20k/gowin_dpb/sector_dpram.v',)),
-    # sd_card.v and sd_rw.v are those of the pull request MiSTle-Dev/NanoMig#168 at 6f12ddd. It
-    # contains the change listed as known, and its merge upstream shows up here as a new change
-    ('Nanomig', 'MiSTle-Dev/Nanomig', 'df97f03', '5a33804', 'fpga/common/src/misc', 'src/misc',
+    # 0f3d2fd is the merge of MiSTle-Dev/NanoMig#168, which brought sd_card.v and sd_rw.v
+    ('Nanomig', 'MiSTle-Dev/Nanomig', '0f3d2fd', '0f3d2fd', 'fpga/common/src/misc', 'src/misc',
      ('hid.v', 'mcu_spi.v', 'osd_u8g2.v', 'sysctrl.v'), ()),
     ('hdmi', 'hdl-util/hdmi', '08936f6', '83b1c95', 'fpga/common/src/hdmi', 'src', (), ()),
     ('NESTang', 'nand2mario/nestang', '1c00dc5', '5b24a71',

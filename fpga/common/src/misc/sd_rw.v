@@ -7,7 +7,7 @@
 //--------------------------------------------------------------------------------------------------------
 
 
-// game20k: Nanomig src/misc/sd_rw.v with MiSTle-Dev/NanoMig#168 (Manger74, commit 6f12ddd),
+// game20k: Nanomig src/misc/sd_rw.v at 0f3d2fd, which contains MiSTle-Dev/NanoMig#168 (Manger74),
 // unchanged apart from this comment. It goes back to sd_reader.v of WangXuan95/FPGA-SDcard-Reader
 // and is therefore GPL-3.0. The README in this folder names the upstream commit to diff against,
 // THIRD-PARTY.md has the licence.
