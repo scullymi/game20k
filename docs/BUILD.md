@@ -86,9 +86,11 @@ cores with openFPGALoader, because `programmer_cli` can only write to address 0.
 `FLASHER=openfpgaloader` to use openFPGALoader for both. Without `flash`, the script loads the
 core into the FPGA's SRAM only, which is handy for a quick test and gone at power-off.
 
-**Only some of the cores.** The core switch loads the next core of the ring, an empty place in
-the flash would be loaded as well. To flash fewer cores, leave only those in `slots.txt`, build
-them and the firmware again, and flash them at their new addresses.
+**Only some of the cores.** To flash fewer cores, leave only those in `slots.txt`, build them
+and the firmware again, and flash them at their new addresses. Otherwise the Games page still
+lists the games of a missing core: the FPGA skips the empty place in the flash, which takes a
+few seconds, the Companion goes once round the ring and back to the core the game was picked
+in, and the picture shows "SYS: CORE NOT IN FLASH".
 
 `scripts/make_bitstream_release.sh` builds all cores from a release tag and packs them as the
 single flash image that the release ships. `DEV=1` runs it without a tag, for a trial. The image
