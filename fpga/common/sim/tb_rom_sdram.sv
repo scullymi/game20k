@@ -103,7 +103,14 @@ module tb_rom_sdram;
 
     // ---------------- the data: a fixed scramble of the word address ----------------
     function automatic logic [31:0] word_at(int w); return 32'(w) * 32'h9E3779B1 ^ 32'h5A5A1234; endfunction
-    function automatic logic [7:0] byte_at(int o); return word_at(o >> 2)[8*(o & 3) +: 8]; endfunction
+    function automatic logic [7:0] byte_at(int o); logic [31:0] w = word_at(o >> 2); return w[8*(o & 3) +: 8]; endfunction
+
+    // The testbench reads the DUT's outputs as they were right before each rising edge of
+    // clk_core, as a flop of the core would. Read directly after the edge, which value a
+    // process sees is up to the simulator, so through a clocking block
+    clocking cb @(posedge clk_core);
+        input rd_ready, rd_valid, rd_data, rd_push, wr_ready, wr_idle;
+    endclocking
 
     int errors = 0;
     int written_words = 0;                   // words the loader has completed so far
@@ -118,27 +125,27 @@ module tb_rom_sdram;
                 check(w);
                 n++;
             end else
-                @(posedge clk_core);
+                @(cb);
         end
         $display("%0d reads during loading", n);
     end
     initial begin
-        repeat (10) @(posedge clk_core);
+        repeat (10) @(cb);
         reset <= 0;
         #1000 sd_resetn <= 1;
         // the loader: a byte, then at least one clock pause, and only while wr_ready
         for (int o = 0; o < NBYTES; o++) begin
-            @(posedge clk_core);
-            while (!wr_ready) @(posedge clk_core);
+            @(cb);
+            while (!cb.wr_ready) @(cb);
             wr_we <= 1; wr_off <= 22'(o); wr_data <= byte_at(o);
-            @(posedge clk_core);
+            @(cb);
             wr_we <= 0;
             if ((o & 3) == 3) written_words = o / 4;   // the word before this one is surely out
-            if ($urandom % 4 == 0) repeat ($urandom % 30) @(posedge clk_core);   // SPI gaps
+            if ($urandom % 4 == 0) repeat ($urandom % 30) @(cb);   // SPI gaps
         end
-        while (!wr_idle) @(posedge clk_core);
+        while (!cb.wr_idle) @(cb);
         loading = 0;
-        repeat (40) @(posedge clk_core);
+        repeat (40) @(cb);
         $display("written: %0d bytes, %0d SDRAM writes, sdram_ready %0d at %0t", NBYTES, writes, sdram_ready, $time);
         // read back every word
         for (int w = 0; w < NBYTES / 4; w++) check(w);
@@ -156,15 +163,15 @@ module tb_rom_sdram;
     // one read: wanted until a clock edge takes it with rd_ready, then wait for the word
     task automatic check(input int w);
         int t;
-        @(posedge clk_core);
+        @(cb);
         rd_addr <= 20'(w);
         rd_want <= 1;
-        do @(posedge clk_core); while (!rd_ready);
+        do @(cb); while (!cb.rd_ready);
         rd_want <= 0;
         t = 0;
-        while (!rd_valid) begin @(posedge clk_core); t++; end
+        while (!cb.rd_valid) begin @(cb); t++; end
         nreads++; lat_sum += t; if (t > lat_max) lat_max = t;
-        compare(w, rd_data);
+        compare(w, cb.rd_data);
     endtask
 
     task automatic compare(input int w, input logic [31:0] d);
@@ -180,16 +187,16 @@ module tb_rom_sdram;
         int sent = 0, got = 0, w;
         int q [$];
         while (got < n) begin
-            @(posedge clk_core);
-            if (rd_valid) begin
-                compare(q.pop_front(), rd_data);
+            @(cb);
+            if (cb.rd_valid) begin
+                compare(q.pop_front(), cb.rd_data);
                 got++;
             end
-            if (rd_push) begin
+            if (cb.rd_push) begin
                 q.push_back(int'(rd_addr));
                 sent++;
             end
-            if (!rd_want || rd_ready) begin           // the last read is taken: offer the next
+            if (!rd_want || cb.rd_ready) begin           // the last read is taken: offer the next
                 if (sent < n && $urandom % 4 != 0) begin
                     w = $urandom % (NBYTES / 4);
                     rd_addr <= 20'(w);

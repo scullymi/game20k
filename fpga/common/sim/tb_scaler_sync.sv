@@ -119,6 +119,9 @@ module tb_scaler_sync;
                 .FRAME_H(816), .SYNC_Y(20)) cold (.done(d3), .bad_rows(b3), .stray(s3));
     initial begin
         wait (d1 && d2 && d3);
+        // the counts reach the ports in the time step done rises, in an order Verilator
+        // versions differ in: read them one step later
+        #1;
         if (b1 != 0 || s1 != 0) $fatal(1, "1942 raster: frame lock wrong");
         if (b2 != 0 || s2 != 0) $fatal(1, "Pang raster: frame lock wrong");
         if (b3 == 0) $fatal(1, "counter-check: Pang with SYNC_Y 20 should show wrong lines");
