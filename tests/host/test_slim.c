@@ -87,15 +87,12 @@ static size_t chunked(const char *body, unsigned size, char *out, size_t cap) {
   return o;
 }
 
-static void test_plain_set_loses_the_unused_fields(void) {
-  check(SET, strlen(SET), SLIM, strlen(SET) - strlen(SLIM));
-}
-
-static void test_chunked_set_loses_framing_and_fields(void) {
+static void test_set_loses_framing_and_fields(void) {
   static char in[8192];
-  unsigned sizes[] = { 1, 7, 64, 4096 };
+  unsigned sizes[] = { 0, 1, 7, 64, 4096 };   // 0: plain JSON
   for(unsigned i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
-    size_t n = chunked(SET, sizes[i], in, sizeof(in));
+    size_t n = sizes[i] ? chunked(SET, sizes[i], in, sizeof(in)) : strlen(SET);
+    if(!sizes[i]) memcpy(in, SET, n);
     TEST_ASSERT_LESS_THAN(sizeof(in), n);
     check(in, n, SLIM, strlen(SET) - strlen(SLIM));
   }
@@ -166,8 +163,7 @@ static void test_replies_that_are_not_whole(void) {
 
 int main(void) {
   UNITY_BEGIN();
-  RUN_TEST(test_plain_set_loses_the_unused_fields);
-  RUN_TEST(test_chunked_set_loses_framing_and_fields);
+  RUN_TEST(test_set_loses_framing_and_fields);
   RUN_TEST(test_space_around_the_pairs);
   RUN_TEST(test_in_place);
   RUN_TEST(test_too_small_a_buffer);

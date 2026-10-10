@@ -13,7 +13,6 @@
 ROOT    ?= ../..
 FORK    ?= $(ROOT)/external/FPGA-Companion/src
 UNITY   ?= $(ROOT)/external/unity/src
-MBEDTLS ?= $(ROOT)/external/pico-sdk/lib/mbedtls
 SAN     ?= 1
 V       ?= 0
 Q       := $(if $(filter 1,$(V)),,@)
@@ -22,7 +21,7 @@ BUILD   ?= build/$(if $(filter 1,$(SAN)),san,plain)
 
 # a missing submodule would only show as a confusing compile error
 ifneq ($(MAKECMDGOALS),clean)
-$(foreach f,$(FORK)/ra_net.c $(UNITY)/unity.c $(MBEDTLS)/include/mbedtls/ssl.h,\
+$(foreach f,$(FORK)/ra_slim.c $(UNITY)/unity.c,\
   $(if $(wildcard $(f)),,$(error $(f) is missing, run: git submodule update --init --recursive)))
 endif
 
@@ -31,19 +30,17 @@ ifeq ($(SAN),1)
 # a sanitizer finding ends the test binary with an error instead of a line of output
 COMMON += -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
 endif
-# the firmware's include paths, the generated stand-in headers first. Of mbedTLS only the
-# headers ra_net.c includes, of rcheevos its JSON reader for test_text
+# the firmware's include paths, the generated stand-in headers first. Of rcheevos its JSON
+# reader for test_text
 INC     := -I$(BUILD)/inc -Istubs -I$(UNITY) -I$(FORK) -I$(FORK)/fatfs/source -I$(FORK)/rp2040 \
-           -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src -I$(MBEDTLS)/include
-DEFINES := -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\" \
-           -DMBEDTLS_CONFIG_FILE=\"game20k_mbedtls_config.h\"
+           -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src
+DEFINES := -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\"
 # third-party code (FatFs, Unity) as it is, ours with full warnings and every stand-in declared
 LIB_CFLAGS := $(COMMON) -w $(INC) $(DEFINES)
 OWN_CFLAGS := $(COMMON) -Wall -Wextra -include host_stubs.h $(INC) $(DEFINES)
 
 # the headers the fork includes by name, generated, each one only includes stubs/host_stubs.h
-FORWARD := FreeRTOS.h queue.h semphr.h task.h pico/time.h lwip/sockets.h lwip/netif.h \
-           lwip/tcpip.h lwip/altcp_tls.h lwip/apps/http_client.h
+FORWARD := FreeRTOS.h queue.h task.h lwip/sockets.h lwip/netif.h
 
 # A changed flag set gets a new stamp file, which every object depends on, so nothing built
 # with other flags stays in use.
@@ -51,7 +48,7 @@ STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
 RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,rapi/rc_api_common.c rc_util.c rc_compat.c)
-OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_net.c $(FORK)/ra_slim.c
+OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_slim.c
 TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,

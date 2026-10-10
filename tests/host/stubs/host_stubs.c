@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 /** @file host_stubs.c
- *  @brief The host stand-ins for debugf(), FreeRTOS, lwIP, one mbedTLS call, the card lock,
- *  the RA task, the device key, the unlocked state and the game.
+ *  @brief The host stand-ins for debugf(), FreeRTOS, lwIP sockets, the card lock, the RA task,
+ *  the device key, the unlocked state and the game.
  *
- *  Each one models only what ftpd.c, ra_net.c and ra_queue.c rely on. A call that no tested
+ *  Each one models only what ftpd.c and ra_queue.c rely on. A call that no tested
  *  path should make stops the test through host_fail(), so a stand-in never answers something
  *  it does not model. The sockets model one FTP control connection, HOST_FTP_CTL, as a script
  *  of input bytes and a transcript of what the server sent. */
@@ -13,7 +13,6 @@
 #include <string.h>
 #include <strings.h>
 
-#include "mbedtls/ssl.h"
 #include "sdc.h"
 #include "ra_task.h"
 #include "ra_mac.h"
@@ -42,19 +41,13 @@ void host_log(const char *fmt, ...) {
   printf("\n");
 }
 
-/* ---- FreeRTOS: the tests reach ra_net.c only through ra_net_dechunk(), which uses none ---- */
+/* ---- FreeRTOS: no tested path sends to a queue or takes from one --------------------------- */
 
-QueueHandle_t xQueueCreate(UBaseType_t len, UBaseType_t size) { host_fail("xQueueCreate() is not modelled"); return NULL; }
 // a static queue gets its control block as the handle, ra_queue_init() only checks for NULL
 QueueHandle_t xQueueCreateStatic(UBaseType_t len, UBaseType_t size, uint8_t *storage, StaticQueue_t *ctl) { return (QueueHandle_t)ctl; }
 BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t wait) { host_fail("xQueueSend() is not modelled"); return pdFAIL; }
 BaseType_t xQueueReceive(QueueHandle_t q, void *item, TickType_t wait) { host_fail("xQueueReceive() is not modelled"); return pdFAIL; }
 UBaseType_t uxQueueMessagesWaiting(QueueHandle_t q) { (void)q; return 0; }
-BaseType_t xQueueAddToSet(QueueSetMemberHandle_t m, QueueSetHandle_t set) { host_fail("xQueueAddToSet() is not modelled"); return pdFAIL; }
-QueueSetMemberHandle_t xQueueSelectFromSet(QueueSetHandle_t set, TickType_t wait) { host_fail("xQueueSelectFromSet() is not modelled"); return NULL; }
-SemaphoreHandle_t xSemaphoreCreateBinary(void) { host_fail("xSemaphoreCreateBinary() is not modelled"); return NULL; }
-BaseType_t xSemaphoreGive(SemaphoreHandle_t s) { host_fail("xSemaphoreGive() is not modelled"); return pdFAIL; }
-BaseType_t xSemaphoreTake(SemaphoreHandle_t s, TickType_t wait) { host_fail("xSemaphoreTake() is not modelled"); return pdFAIL; }
 // task.h: xTaskCreate() may fail for want of memory. Here it always does, so a caller that
 // starts a task takes its error path
 BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words, void *arg,
@@ -64,7 +57,6 @@ BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words
 }
 void vTaskDelete(TaskHandle_t t) { host_fail("vTaskDelete() is not modelled"); }
 void vTaskDelay(TickType_t ticks) { host_fail("vTaskDelay(): a tested path waits"); }
-TickType_t xTaskGetTickCount(void) { return 0; }
 
 /* ---- lwIP sockets: the FTP control connection, no data connection ------------------------- */
 
@@ -101,22 +93,6 @@ int lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen) { return -1; }
 int lwip_getsockname(int s, struct sockaddr *name, socklen_t *namelen) { return -1; }
 int lwip_setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen) { return -1; }
 int lwip_close(int s) { return 0; }
-
-/* ---- HTTP client, altcp, pbuf, TLS: the network is not modelled --------------------------- */
-
-struct altcp_tls_config *altcp_tls_create_config_client(const u8_t *cert, size_t cert_len) { host_fail("altcp_tls_create_config_client() is not modelled"); return NULL; }
-struct altcp_pcb *altcp_tls_alloc(void *arg, u8_t ip_type) { host_fail("altcp_tls_alloc() is not modelled"); return NULL; }
-void *altcp_tls_context(struct altcp_pcb *conn) { host_fail("altcp_tls_context() is not modelled"); return NULL; }
-void altcp_abort(struct altcp_pcb *conn) { host_fail("altcp_abort() is not modelled"); }
-void altcp_recved(struct altcp_pcb *conn, u16_t len) { host_fail("altcp_recved() is not modelled"); }
-u16_t pbuf_copy_partial(const struct pbuf *p, void *dataptr, u16_t len, u16_t offset) { host_fail("pbuf_copy_partial() is not modelled"); return 0; }
-u8_t pbuf_free(struct pbuf *p) { host_fail("pbuf_free() is not modelled"); return 0; }
-err_t httpc_get_file_dns(const char *server_name, u16_t port, const char *uri, const httpc_connection_t *settings,
-                         altcp_recv_fn recv_fn, void *callback_arg, httpc_state_t **connection) {
-  host_fail("httpc_get_file_dns() is not modelled");
-  return ERR_MEM;
-}
-int mbedtls_ssl_set_hostname(mbedtls_ssl_context *ssl, const char *hostname) { host_fail("mbedtls_ssl_set_hostname() is not modelled"); return -1; }
 
 /* ---- card lock and mounted images (sdc.c), the mode (ra_task.c) --------------------------- */
 
