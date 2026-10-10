@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// game20k: Nanomig src/misc/sd_card.v (Till Harbaum) at 0f3d2fd, which contains MiSTle-Dev/NanoMig#168
-// (Manger74), unchanged apart from this header. GPL-3.0-or-later.
+// game20k: MODIFIED VERSION of Nanomig src/misc/sd_card.v (Till Harbaum) at 0f3d2fd, which
+// contains MiSTle-Dev/NanoMig#168 (Manger74). The game20k changes are marked "game20k":
+// a failed MCU read answers 0x02, command 9 polls an MCU sector without a new request, and a
+// sector the MCU has not clocked out completely stays ready for the next poll.
+// Till Harbaum's file is GPL-3.0-or-later, the game20k changes are too, Copyright (C) 2026
+// scullymi.
 //
 // sd_card.v - sd card wrapper currently used to interface to sd_rw.v
 //
@@ -144,6 +148,8 @@ localparam [2:0] MCU_REQ_IDLE       = 3'd0,   // waitring for mcu requests
 reg [31:0] mcu_sector;   // sector requested by MCU
 reg        mcu_wr_err;   // last MCU sector write failed (reported in status byte bit 0)
 wire       wr_err_int;   // sd_rw: the write that just ended has failed (valid with done_int)
+reg        mcu_rd_err;   // game20k: last MCU sector read failed (reply 0x02 to commands 3 and 9)
+wire       rd_err_int;   // game20k: sd_rw: the read that just ended has failed (valid with done_int)
 
 // ===== keep track of Core requesting sector IO ======
 reg [2:0]  core_request;
@@ -373,6 +379,7 @@ always @(posedge clk, negedge rstn) begin
 	  mcu_request <= MCU_REQ_IDLE;	  
 	  core_request <= CORE_REQ_IDLE;	  
 	  mcu_wr_err <= 1'b0;
+	  mcu_rd_err <= 1'b0;
    end else begin
       image_mounted <= 8'b00000000;
       direct_start_we <= 1'b0;
@@ -481,8 +488,10 @@ always @(posedge clk, negedge rstn) begin
 		 end
 			
 		 else if(mcu_request == MCU_READING) begin
-			$display("sd_card.v: MCU read done, waiting for MCU transfer");
-			mcu_request <= MCU_READY2TRANSFER;
+			$display("sd_card.v: MCU read done, waiting for MCU transfer, err=%0d", rd_err_int);
+			// game20k: a failed read has no data to transfer
+			mcu_request <= rd_err_int ? MCU_REQ_IDLE : MCU_READY2TRANSFER;
+			mcu_rd_err <= rd_err_int;
 		 end
 		 
 		 else if(mcu_request == MCU_WRITING) begin
@@ -544,6 +553,13 @@ always @(posedge clk, negedge rstn) begin
 			
 			byte_cnt <= 4'd0;	    
 			data_out <= { card_stat, card_type, 1'b0, mcu_wr_err };
+
+			// game20k: the 0x00 that announces an MCU sector goes out with the byte after the
+			// one that sets it. An MCU that ends the transfer after a busy reply (to poll again
+			// with CMD 9) never clocks it out, so a sector not sent completely stays ready and
+			// the next poll answers 0x00 again
+			if(mcu_request == MCU_TRANSFERRING)
+			  mcu_request <= MCU_READY2TRANSFER;
 		 end else begin
 			// SDC CMD 1: STATUS
 			if(command == 8'd1) begin
@@ -584,21 +600,28 @@ always @(posedge clk, negedge rstn) begin
 			end
 				 
 			// SDC CMD 3: MCU_READ
-			if(command == 8'd3) begin
+			// game20k: SDC CMD 9: MCU_POLL answers like the waiting part of commands 3 and 5
+			// but makes no request. The MCU may end the SPI transfer between two polls, so the
+			// other targets get the bus while a slow card is busy. While the MCU waits, all three
+			// answer 0x00 when done (a read sends its 512 bytes next), 0x02 when the read failed
+			// and 0x03 while busy. Upstream answers 0x01 while busy, so 0x03 tells the MCU that
+			// this core knows CMD 9 and reports failed reads
+			if(command == 8'd3 || command == 8'd9) begin
 			   // Store the entire MCU request separately and handle
 			   // it once the SD card is idle
 			   
-               if(byte_cnt == 4'd0) mcu_sector[31:24] <= data_in;
-               if(byte_cnt == 4'd1) mcu_sector[23:16] <= data_in;
-               if(byte_cnt == 4'd2) mcu_sector[15: 8] <= data_in;
-               if(byte_cnt == 4'd3) begin 
+               if(command == 8'd3 && byte_cnt == 4'd0) mcu_sector[31:24] <= data_in;
+               if(command == 8'd3 && byte_cnt == 4'd1) mcu_sector[23:16] <= data_in;
+               if(command == 8'd3 && byte_cnt == 4'd2) mcu_sector[15: 8] <= data_in;
+               if(command == 8'd3 && byte_cnt == 4'd3) begin 
                   mcu_sector[ 7: 0] <= data_in;				  
 				  $display("sd_card.v: MCU read request sector %0d/%8x", {mcu_sector[31:8], data_in}, {mcu_sector[31:8], data_in});  
 				  mcu_request <= MCU_REQ_READ;	  
+				  mcu_rd_err <= 1'b0;   // game20k
                end
 
 			   // return data once in reading state
-               if(byte_cnt <= 4'd3) 
+               if(command == 8'd3 && byte_cnt <= 4'd3) 
 				 data_out <= 8'hff;            // return 0xff during command transfer
 			   else begin
 				  if(mcu_request == MCU_READY2TRANSFER) begin
@@ -607,13 +630,15 @@ always @(posedge clk, negedge rstn) begin
 					 mcu_request <= MCU_TRANSFERRING;
 				  end else if(mcu_request == MCU_TRANSFERRING) begin
 					 data_out <= doutb;					 
-					 if(byte_cnt > 4'd4) begin
+					 if(byte_cnt > 4'd4 || command == 8'd9) begin
 						mcu_tx_cnt <= mcu_tx_cnt + 9'd1;
 						if(mcu_tx_cnt == 9'd511)
 						  mcu_request <= MCU_REQ_IDLE;
 					 end
-				  end else
-					data_out <= 8'h01;         // return 0x01 while waiting for data
+				  end else if(mcu_request == MCU_REQ_IDLE && (mcu_rd_err || command == 8'd9))
+					data_out <= mcu_rd_err ? 8'h02 : 8'h00;   // game20k: read failed, or write done
+				  else
+					data_out <= 8'h03;         // return 0x03 while waiting for data (game20k, was 0x01)
 			   end					
 			end
 			
@@ -645,11 +670,12 @@ always @(posedge clk, negedge rstn) begin
 				  $display("sd_card.v: MCU write request sector %0d/%8x", {mcu_sector[31:8], data_in}, {mcu_sector[31:8], data_in});
 				  mcu_request <= MCU_REQ_WRITE;				  
 				  mcu_wr_err <= 1'b0;
+				  mcu_rd_err <= 1'b0;   // game20k: CMD 9 reports this write
 				  mcu_tx_cnt <= 9'd0;
                end
 			   
 			   // send "busy" while transfer is still in progress
-			   data_out <= (mcu_request != MCU_REQ_IDLE)?8'h01:8'h00; 
+			   data_out <= (mcu_request != MCU_REQ_IDLE)?8'h03:8'h00;   // game20k: 0x03, see CMD 9
 
 			   // data transfer into local buffer
 			   if(mcu_request == MCU_REQ_WRITE) begin
@@ -812,7 +838,8 @@ sd_rw #(.CLK_DIV(CLK_DIV), .SIMULATE(SIMULATE)) sd_rw (
    .outen(louten),
    .outaddr(outaddr),
    .outbyte(outbyte),
-   .wr_err(wr_err_int)
+   .wr_err(wr_err_int),
+   .rd_err(rd_err_int)   // game20k
 );
 
 endmodule // sd_card

@@ -206,10 +206,11 @@ docs/               hardware, wiring, this page, and licence texts the firmware 
 ## Licences of the files
 
 Each of our own source files carries `SPDX-License-Identifier: GPL-3.0-only` and the copyright
-notice at the top. One file mixes our changes with code by others and carries our copyright for
-those changes, but no SPDX tag: `mcu/sector_dpram.v` (output of the Gowin IP generator, via
-MiSTeryNano, with Gowin's header). The wiring drawing `docs/wiring_pico.svg` is a Fritzing
-export and, like the Fritzing breadboard graphics in it, CC BY-SA 3.0.
+notice at the top. Two files mix our changes with code by others and carry our copyright for
+those changes, but no SPDX tag: `sd_rw.v` (GPL-3.0, WangXuan95's SD card reader, via Nanomig)
+and `mcu/sector_dpram.v` (output of the Gowin IP generator, via MiSTeryNano, with Gowin's
+header). The wiring drawing `docs/wiring_pico.svg` is a Fritzing export and, like the Fritzing
+breadboard graphics in it, CC BY-SA 3.0.
 
 Not ours, and kept with their original headers: the HDMI files (MIT OR Apache-2.0, see
 `src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, derived from NESTang, with both copyright notices),

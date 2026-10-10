@@ -7,20 +7,27 @@
 //--------------------------------------------------------------------------------------------------------
 
 
-// game20k: Nanomig src/misc/sd_rw.v at 0f3d2fd, which contains MiSTle-Dev/NanoMig#168 (Manger74),
-// unchanged apart from this comment. It goes back to sd_reader.v of WangXuan95/FPGA-SDcard-Reader
-// and is therefore GPL-3.0. The README in this folder names the upstream commit to diff against,
-// THIRD-PARTY.md has the licence.
+// game20k: MODIFIED VERSION of Nanomig src/misc/sd_rw.v at 0f3d2fd, which contains
+// MiSTle-Dev/NanoMig#168 (Manger74). It goes back to sd_reader.v of WangXuan95/FPGA-SDcard-Reader
+// and is therefore GPL-3.0. Modified 2026-10-09, changes Copyright (C) 2026 scullymi: a read gets
+// RD_TRIES attempts, its data CRC is checked, and a read that fails ends like a failed write
+// (rd_err). The README in this folder names the upstream commit to diff against, THIRD-PARTY.md
+// has the licence.
 module sd_rw # (
     parameter [2:0] CLK_DIV = 3'd2,
     parameter       SIMULATE = 0,
     // write busy timeout in SD clocks (~1 s; adjust to the real sdclk). Spec: 250 ms, Linux uses 3 s
     parameter [25:0] WBUSY_TMO = 26'd12500000,
     // after a failed write the card state is unknown -> re-initialise it
+    // (game20k: after a failed read as well)
     parameter       REINIT_ON_WERR = 1,
     // R1 status bits of CMD24 that abort the write (OUT_OF_RANGE, ADDRESS_ERROR, WP_VIOLATION,
     // CARD_IS_LOCKED, COM_CRC_ERROR, ILLEGAL_COMMAND, ERROR). 0 disables the check
-    parameter [31:0] R1_ERR_MASK = 32'hC6C80000
+    parameter [31:0] R1_ERR_MASK = 32'hC6C80000,
+    // game20k: attempts per sector read (1..3). A further attempt covers a cause outside this
+    // design, noise on the card lines that costs a response or corrupts the data (CRC). A card
+    // that fails three times in a row does not recover by retrying
+    parameter [1:0] RD_TRIES = 2'd3
 ) (
     // rstn active-low, 1:working, 0:reset
     input wire	       rstn,
@@ -54,7 +61,10 @@ module sd_rw # (
     output reg [ 7:0]  outbyte,  // a byte of read sector content
     // write failed (refused, no/negative CRC status, timeout). Valid when rbusy=0,
     // cleared by the next rstart/wstart
-    output reg         wr_err
+    output reg         wr_err,
+    // game20k: read failed (RD_TRIES attempts without response, data or a good CRC), the
+    // sector data is invalid. Valid when rbusy=0, cleared by the next rstart/wstart
+    output reg         rd_err
 );
 
 reg sddatoe;
@@ -122,7 +132,8 @@ localparam [3:0] RWAIT    = 4'd0,
 		 WWAITACK = 4'd8,
 		 WACK     = 4'd9,
 		 WWAIT    = 4'd10,
-		 WERR     = 4'd11;
+		 WERR     = 4'd11,
+		 RCRCERR  = 4'd12;   // game20k: read data with a bad CRC
    
 
 reg [3:0] sddat_stat = RWAIT;
@@ -131,10 +142,14 @@ reg [3:0] sddat_stat = RWAIT;
 reg [25:0] ridx   = 0;
 reg [15:0] data_crc[4];     // crc's calculated from data
 reg [15:0] read_crc[4];     // crc's received from card
+// game20k: the CRCs of a received block differ from what the card sent (valid in RTAIL)
+wire       rcrc_bad = {data_crc[0], data_crc[1], data_crc[2], data_crc[3]} !=
+                      {read_crc[0], read_crc[1], read_crc[2], read_crc[3]};
 reg [3:0] wdata;   
 reg [3:0] wack;
 reg       wfail;      // card reported CRC/write error in its CRC status token
 reg       werr_done;  // one clk pulse: a failed write also ends with rdone (wr_err tells which)
+reg [1:0] rd_try;     // game20k: failed attempts of the current read
    
    
 assign     rbusy  = (sdcmd_stat != READY) ;
@@ -190,10 +205,10 @@ begin
 end
 endtask
 
-// write failed: flag it and bring the card back to a known state
-task write_failed;
+// game20k: the end of a failed write, and of a failed read: rdone and the card back to a
+// known state
+task end_failed;
 begin
-    wr_err <= 1'b1;
     werr_done <= 1'b1;
     if(REINIT_ON_WERR) begin
         clkdiv <= SLOWCLKDIV; card_type <= UNKNOWN; sdv1_maybe <= 1'b0;
@@ -201,6 +216,30 @@ begin
         sdcmd_stat <= CMD0;
     end else
         sdcmd_stat <= READY;
+end
+endtask
+
+// write failed: flag it and bring the card back to a known state
+task write_failed;
+begin
+    wr_err <= 1'b1;
+    end_failed;
+end
+endtask
+
+// game20k: a read attempt failed (no response, no data or a bad CRC). CMD17 goes out again
+// until RD_TRIES attempts have failed, then the read ends like a failed write
+task read_again;
+    input [15:0] _precnt;
+begin
+    if(rd_try == RD_TRIES - 2'd1) begin
+        rd_err <= 1'b1;
+        end_failed;
+    end else begin
+        rd_try <= rd_try + 2'd1;
+        set_cmd(1, _precnt, 17, sectoraddr);
+        sdcmd_stat <= CMD17;
+    end
 end
 endtask
 
@@ -216,6 +255,8 @@ always @ (posedge clk or negedge rstn)
         cmd8_cnt    <= 0;
         wr_err      <= 1'b0;
         werr_done   <= 1'b0;
+        rd_err      <= 1'b0;
+        rd_try      <= 0;
     end else begin
         set_cmd(0,0,0,0);
         werr_done   <= 1'b0;
@@ -223,10 +264,9 @@ always @ (posedge clk or negedge rstn)
 	    // the question is: Do we also want to retry a failed
 	    // write? If this happens repeatedly it may wear out the
 	    // SD card. So for now i'd say: No retry on write!	   
-            if(sddat_stat==RTIMEOUT) begin
-                set_cmd(1, 96, 17, sectoraddr);   // retry read
-                sdcmd_stat <= CMD17;
-            end else if(sddat_stat==DONE)
+            if(sddat_stat==RTIMEOUT || sddat_stat==RCRCERR)
+                read_again(96);                   // game20k: retry read, bounded
+            else if(sddat_stat==DONE)
                 sdcmd_stat <= READY;
             else if(sddat_stat==WERR)             // don't retry write
                 write_failed;
@@ -247,6 +287,8 @@ always @ (posedge clk or negedge rstn)
                                 sectoraddr <= (card_type==SDHCv2) ? sector : (sector<<9);
                                 sdcmd_stat <= rstart?CMD17:CMD24;
                                 wr_err <= 1'b0;
+                                rd_err <= 1'b0;   // game20k
+                                rd_try <= 0;
 		            end
             endcase
         end else if(done) begin
@@ -294,7 +336,7 @@ always @ (posedge clk or negedge rstn)
                 CMD17   :   if(~timeout && ~syntaxe)
                                 sdcmd_stat <= READING;
                             else
-                                set_cmd(1, 128, 17, sectoraddr);   // retry
+                                read_again(128);   // game20k: retry, bounded
                 default :
 		  ;	      
             endcase
@@ -476,14 +518,20 @@ always @ (posedge clk or negedge rstn)
 
 	        // wait 64 bits after data transfer ... TODO: check why exactly
                 RTAIL   : if(ena_p) begin
-                   if (ridx == 1) begin
-		      // TODO: On read this would be the moment to compare 
-		      // read CRC's data_crc vs. read_crc
-	           end		       
+                   // game20k: read data whose CRC differs from the card's is read again
                    if (ridx >= 8*8-1) begin
-                      sddat_stat <= DONE;
+                      if (sdcmd_stat == READING && rcrc_bad)
+                         sddat_stat <= RCRCERR;
+                      else
+                         sddat_stat <= DONE;
 		   end
                    ridx   <= ridx + 1;
+                end
+
+            // game20k: a retried CMD17 waits for its data again
+                RTIMEOUT, RCRCERR : if (sdcmd_stat == CMD17) begin
+                   sddat_stat <= RWAIT;
+                   ridx   <= 0;
                 end
 	      
             endcase

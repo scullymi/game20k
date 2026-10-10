@@ -53,7 +53,7 @@ COMPONENTS = [
         "licence": "GPL-3.0, see the GPL text at the end",
         "note": "Nanomig ships these two files without the licence text. Under GPL-3.0 section 10 "
                 "every recipient is licensed by the original licensor. sd_rw.v contains changes "
-                "by Manger74.",
+                "by Manger74 and by game20k, Copyright (C) 2026 scullymi.",
         "show": [],
     },
     {
