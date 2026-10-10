@@ -5,15 +5,15 @@
  *
  *  ra_queue.c is included, parse() and scan() are static. Every line carries its
  *  game's hash after the mode, a line without one is malformed. The tags come from
- *  the host's fake ra_mac_tag(), deterministic over label and data. The game is
- *  what host_set_game() says. */
+ *  the host's fake ra_mac_tag(), deterministic over label and data. The game of
+ *  the lists is what ra_queue_game() names. */
 #include <string.h>
 
 #include "unity.h"
 #include "host_stubs.h"
 #include "ra_queue.c"
 
-void setUp(void) { host_set_game("", 0); }
+void setUp(void) { host_set_game("", 0); ra_queue_game("", 0); }
 void tearDown(void) {}
 
 #define V1  "b8140b5e33c53b0f7dd3cc368951a4dd"    /* md5("galaga"), the table game of the stand-ins */
@@ -96,15 +96,15 @@ static void test_line_table(void) {
 
 /* Own by hash, or by the table game the server resolved a fallback identity to. */
 static void test_own_by_hash_or_resolved_id(void) {
-  host_set_game(HGALLAG, 12138u);            // a fallback identity the server resolved to the table game
+  ra_queue_game(HGALLAG, 12138u);            // a fallback identity the server resolved to the table game
   TEST_ASSERT_TRUE(ra_queue_own(HGALLAG));   // its own hash
   TEST_ASSERT_TRUE(ra_queue_own(V1));        // the table game with the resolved id
   TEST_ASSERT_FALSE(ra_queue_own(H2));       // not in the table
-  host_set_game(V1, 12138u);                 // a table boot
+  ra_queue_game(V1, 12138u);                 // a table game
   TEST_ASSERT_FALSE(ra_queue_own(HGALLAG));  // a fallback-hash line stays foreign
-  host_set_game(HGALLAG, 0);                 // a fallback identity the server has not resolved yet
+  ra_queue_game(HGALLAG, 0);                 // a fallback identity the server has not resolved yet
   TEST_ASSERT_FALSE(ra_queue_own(V1));       // the id guard
-  host_set_game("", 0);                      // no game
+  ra_queue_game("", 0);                      // no game
   TEST_ASSERT_FALSE(ra_queue_own(V1));
 }
 

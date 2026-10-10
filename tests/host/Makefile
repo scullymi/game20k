@@ -40,19 +40,25 @@ LIB_CFLAGS := $(COMMON) -w $(INC) $(DEFINES)
 OWN_CFLAGS := $(COMMON) -Wall -Wextra -include host_stubs.h $(INC) $(DEFINES)
 
 # the headers the fork includes by name, generated, each one only includes stubs/host_stubs.h
-FORWARD := FreeRTOS.h queue.h task.h lwip/sockets.h lwip/netif.h
+FORWARD := FreeRTOS.h queue.h task.h semphr.h timers.h mbedtls/sha256.h lwip/sockets.h lwip/netif.h
 
-# A changed flag set gets a new stamp file, which every object depends on, so nothing built
-# with other flags stays in use.
-STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS)' | cksum | cut -d' ' -f1).stamp
+# A changed flag set, or another list of forwarded headers, gets a new stamp file, which every
+# object depends on, so nothing built with other flags stays in use.
+STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS) $(FORWARD)' | cksum | cut -d' ' -f1).stamp
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
 RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,rapi/rc_api_common.c rc_util.c rc_compat.c)
+# rcheevos' requests and replies, for test_game_switch
+RC_API  := $(addprefix $(FORK)/rcheevos/src/,rapi/rc_api_runtime.c rapi/rc_api_user.c rhash/md5.c)
+# the fork's achievement files test_game_switch links as they are
+RA_SRC  := $(addprefix $(FORK)/,ra_patch.c ra_queue.c ra_text.c ra_games.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_slim.c
-TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text
+TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
+           test_game_switch
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
-# test_games ra_games.c and test_games_file games_file.c themselves (their functions are static)
+# test_games ra_games.c, test_games_file games_file.c and test_game_switch ra_task.c themselves
+# (their functions are static)
 SHARED  := $(foreach s,$(LIB_SRC) $(OWN_SRC),$(call obj,$(s)))
 # the game table made from the manifests, linked into test_games, and the menu table made with
 # it, linked into test_menus. The fork's example tables are only compiled, so a build of the
@@ -80,8 +86,8 @@ $(call obj,$(1)): $(1) $(STAMP)
 	@$(if $(Q),echo "  CC  $$<",:)
 	$(Q)$$(CC) $(2) -MMD -MP -c $$< -o $$@
 endef
-$(foreach s,$(LIB_SRC) $(RC_SRC),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
-$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE) $(FORK)/ra_text.c,$(eval $(call object,$(s),$$(OWN_CFLAGS))))
+$(foreach s,$(LIB_SRC) $(RC_SRC) $(RC_API),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
+$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE) $(RA_SRC),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
 
 # the generator runs every time and rewrites the table only when it changes
 .PHONY: FORCE
@@ -91,6 +97,7 @@ $(BUILD)/gen/menus_data.c: $(GEN)
 $(BUILD)/test_games: $(call obj,$(GEN))
 $(BUILD)/test_menus: $(foreach s,$(MENUS),$(call obj,$(s)))
 $(BUILD)/test_text: $(foreach s,$(FORK)/ra_text.c $(RC_SRC),$(call obj,$(s)))
+$(BUILD)/test_game_switch: $(foreach s,$(RA_SRC) $(GEN) $(RC_SRC) $(RC_API),$(call obj,$(s)))
 
 # the reference footer of test_games_file, from scripts/make_rom.py footer() as a ROM file gets it:
 # 1000 bytes of the counter 0, 1, ... 255, 0, ..., set "testset", title "A Test Game", board 3,

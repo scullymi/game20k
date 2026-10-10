@@ -3,7 +3,8 @@
 /** @file host_stubs.h
  *  @brief Every host stand-in in one header: debugf(), FreeRTOS, lwIP sockets, and what the
  *  tests set and read in them. The stand-ins for the fork's own ra_mac, ra_state
- *  and ra_patch calls keep their real headers, see host_stubs.c.
+ *  and ra_patch calls keep their real headers, see host_stubs.c. mbedTLS' digest only
+ *  as far as ra_patch.c names it.
  *
  *  The Makefile passes this file with -include to the fork files, the stand-ins and the tests,
  *  and generates the headers the fork includes by name (FORWARD there), which only include
@@ -33,7 +34,11 @@ void host_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 typedef long BaseType_t;
 typedef unsigned long UBaseType_t;
 typedef uint32_t TickType_t;                 /* configTICK_TYPE_WIDTH_IN_BITS 32 */
+typedef uint32_t StackType_t;
 typedef struct host_queue *QueueHandle_t;
+typedef struct host_queue *QueueSetHandle_t;
+typedef struct host_queue *QueueSetMemberHandle_t;
+typedef struct host_queue *SemaphoreHandle_t;
 typedef struct host_task *TaskHandle_t;
 typedef void (*TaskFunction_t)(void *);
 #define pdFALSE ((BaseType_t)0)
@@ -41,17 +46,41 @@ typedef void (*TaskFunction_t)(void *);
 #define pdFAIL  pdFALSE
 #define pdPASS  pdTRUE
 #define pdMS_TO_TICKS(ms)    ((TickType_t)(ms))   /* configTICK_RATE_HZ 1000 */
+#define configTICK_RATE_HZ   1000
 #define configMAX_PRIORITIES 32
+#define portMAX_DELAY        ((TickType_t)0xffffffffu)
+#define taskENTER_CRITICAL() do { } while(0)       /* one thread, nothing to keep out */
+#define taskEXIT_CRITICAL()  do { } while(0)
 
-typedef struct { unsigned char opaque[80]; } StaticQueue_t;   /* the port's control block, never read here */
+typedef struct { _Alignas(8) unsigned char opaque[80]; } StaticQueue_t;   /* the port's control block, here the model's */
+typedef struct { unsigned char opaque[96]; } StaticTask_t;
+QueueHandle_t xQueueCreate(UBaseType_t len, UBaseType_t size);
 QueueHandle_t xQueueCreateStatic(UBaseType_t len, UBaseType_t size, uint8_t *storage, StaticQueue_t *ctl);
 BaseType_t xQueueSend(QueueHandle_t q, const void *item, TickType_t wait);
 BaseType_t xQueueReceive(QueueHandle_t q, void *item, TickType_t wait);
 UBaseType_t uxQueueMessagesWaiting(QueueHandle_t q);
+QueueSetHandle_t xQueueCreateSet(UBaseType_t len);
+BaseType_t xQueueAddToSet(QueueSetMemberHandle_t member, QueueSetHandle_t set);
+QueueSetMemberHandle_t xQueueSelectFromSet(QueueSetHandle_t set, TickType_t wait);
+SemaphoreHandle_t xSemaphoreCreateBinary(void);
+BaseType_t xSemaphoreGive(SemaphoreHandle_t s);
+BaseType_t xSemaphoreTake(SemaphoreHandle_t s, TickType_t wait);
+TaskHandle_t xTaskCreateStatic(TaskFunction_t fn, const char *name, uint32_t stack_words, void *arg,
+                               UBaseType_t prio, StackType_t *stack, StaticTask_t *tcb);
+TickType_t xTaskGetTickCount(void);
 BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words, void *arg,
                        UBaseType_t prio, TaskHandle_t *handle);
 void vTaskDelete(TaskHandle_t t);
 void vTaskDelay(TickType_t ticks);
+
+/* ---- mbedTLS: the ROM digest of ra_patch.c, no tested path streams a ROM ------------------- */
+
+typedef struct { int unused; } mbedtls_sha256_context;
+void mbedtls_sha256_init(mbedtls_sha256_context *ctx);
+int  mbedtls_sha256_starts(mbedtls_sha256_context *ctx, int is224);
+int  mbedtls_sha256_update(mbedtls_sha256_context *ctx, const unsigned char *data, size_t len);
+int  mbedtls_sha256_finish(mbedtls_sha256_context *ctx, unsigned char out[32]);
+void mbedtls_sha256_free(mbedtls_sha256_context *ctx);
 
 /* ---- lwIP: sockets for the FTP control connection ---------------------------------------- */
 
