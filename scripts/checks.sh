@@ -16,10 +16,11 @@
 #   paths          tracked files that .gitignore excludes, git add -f included, and build
 #                  output: anything in a folder build, build_* or CMakeFiles
 #   ra-conditions  RetroAchievements condition chains, conditions such as 0xH0010=5 joined
-#                  by "_": sets belong to RetroAchievements. tests/**/selftest_* is exempt.
+#                  by "_": sets belong to RetroAchievements.
 #   crlf           files whose line ends changed: a CRLF file stays CRLF
-#   tests          the host tests (make -C tests/host), game20k tree only: the CI runs them
-#                  too, but a push that fails there is already public
+#   tests          the host tests (make -C tests/host), game20k tree only, a missing Makefile
+#                  is a finding. The CI runs them here too, a push that fails there is already
+#                  public
 # Each scan prints its sample size, a sample of 0 is a finding. Exit 1 on a finding, 2 on
 # usage errors.
 
@@ -126,7 +127,7 @@ check_paths() {
 
 check_ra() {
   # counts per file only, the matching text would be the set
-  tgrep -I -E "$RA_RE" | grep -v -E '(^|:)tests/(.*/)?selftest_[^/:]*:[0-9]+$' > "$T/ra"
+  tgrep -I -E "$RA_RE" > "$T/ra"
   say "ra-conditions: $FILES files, $(wc -l < "$T/ra" | tr -d ' ') with a condition chain"
   while IFS= read -r l; do finding "ra-conditions: ${l%:*} has ${l##*:} lines like a condition chain"; done < "$T/ra"
 }
@@ -148,7 +149,8 @@ eol() {
 }
 
 check_tests() {
-  [ "$WHAT" = game20k ] && [ -f "$ROOT/tests/host/Makefile" ] || return 0
+  [ "$WHAT" = game20k ] || return 0
+  [ -f "$ROOT/tests/host/Makefile" ] || { finding "tests: tests/host/Makefile is missing"; return 0; }
   if OUT=$(make -C "$ROOT/tests/host" 2>&1); then say "tests: $(printf '%s\n' "$OUT" | grep -o 'host tests: .*' | tail -1)"
   else printf '%s\n' "$OUT" | tail -12; finding "tests: the host tests failed (make -C tests/host)"; fi
 }
