@@ -28,6 +28,10 @@ fi
 # no harm, each system simply ignores the variable meant for the other.
 export DYLD_FRAMEWORK_PATH="$IDE/lib" DYLD_LIBRARY_PATH="$IDE/lib"
 export LD_LIBRARY_PATH="$IDE/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# gw_sh links Qt widgets. With the Cocoa platform, macOS registers it as an app without a
+# window, and App Nap moves it to background priority, which runs only on the efficiency cores
+# and slows placement and routing down several times. gw_sh needs no window, so Qt runs headless.
+export QT_QPA_PLATFORM=offscreen
 
 cd "$ROOT/fpga/$1"
 # An aborted run leaves the reports of the previous build in place. Only reports newer than
