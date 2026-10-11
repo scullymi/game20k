@@ -174,9 +174,12 @@ wire [31:0] dq_in = SDRAM_DQ;
 reg  [31:0] dq_r;
 always @(posedge clk) dq_r <= dq_in;
 
+// cmd, a, SDRAM_BA and dqm are set anew in every cycle, without a hold that would feed back
+// through a multiplexer, so that each bit can sit in the output register of its I/O block
+// next to the pin. The SDRAM reads address and bank only together with a command.
 reg  [3:0]  cmd;
 reg  [10:0] a;
-reg  [3:0]  dqm;
+reg  [3:0]  dqm /* synthesis syn_preserve = 1 */;   // four registers, not one for four pins
 assign {SDRAM_nCS, SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} = cmd;
 assign SDRAM_A   = a;
 assign SDRAM_CKE = 1'b1;
@@ -309,9 +312,11 @@ always @(posedge clk) begin
         rfsh_wait <= 1'b0;
     end else begin
         // Defaults for this cycle
-        dq_oen <= 1'b1;
-        cmd    <= CMD_NOP;
-        if (normal) dqm <= 4'b0000;  // DQM stays high during initialisation
+        dq_oen   <= 1'b1;
+        cmd      <= CMD_NOP;
+        a        <= 11'd0;
+        SDRAM_BA <= 2'd0;
+        dqm      <= normal ? 4'b0000 : 4'b1111;   // DQM stays high during initialisation
 
         // 200 us after power-up
         if (~normal && ~setup && cfg_now) begin

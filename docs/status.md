@@ -10,10 +10,6 @@
   and modify the SD card, including `config.ini` with the WiFi key and the RetroAchievements
   token. Telnet on port 23 shows the debug log to anyone on the network. Plan: make FTP and
   telnet switchable in `config.ini`, and check whether FTP can support an optional password.
-- **FPGA timing.** The timing report lists 36 endpoints that fail setup. All 25 that it shows are
-  on the SDRAM read path, whose clock phase was measured on the board, and the 371 MHz clock of
-  the HDMI serializer is not checked at all. The design works on the tested board. Plan: add
-  constraints for both paths so that the report covers them, then fix the violations.
 - **WiFi.** The firmware only connects via WPA2 and gives up after the attempts at power-on.
   Plan: allow WPA3 networks and keep retrying in the background.
 
