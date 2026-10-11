@@ -24,6 +24,12 @@ set_input_delay  -clock [get_clocks {clk_sdram_pad}] -max  6.0 [get_ports {IO_sd
 set_input_delay  -clock [get_clocks {clk_sdram_pad}] -min  2.5 [get_ports {IO_sdram_dq[*]}]
 set_output_delay -clock [get_clocks {clk_sdram_pad}] -max  2.0 [get_ports {O_sdram_addr[*] O_sdram_ba[*] O_sdram_dqm[*] O_sdram_cs_n O_sdram_ras_n O_sdram_cas_n O_sdram_wen_n IO_sdram_dq[*]}]
 set_output_delay -clock [get_clocks {clk_sdram_pad}] -min -1.0 [get_ports {O_sdram_addr[*] O_sdram_ba[*] O_sdram_dqm[*] O_sdram_cs_n O_sdram_ras_n O_sdram_cas_n O_sdram_wen_n IO_sdram_dq[*]}]
+// The read data is used from the second clk_sdram edge after the pad clock edge that
+// launched it: dq_r captures at every edge, and sdram_fb.v passes on the word at
+// rd_track[CAPT + cap_ofs] with cap_ofs 1, the capture at the first edge is not used. On
+// the board cap_ofs 0, which would need the first edge, fails. Hold stays at the first edge.
+set_multicycle_path -from [get_clocks {clk_sdram_pad}] -to [get_clocks {clk_sdram}] -setup -end 2
+set_multicycle_path -from [get_clocks {clk_sdram_pad}] -to [get_clocks {clk_sdram}] -hold -end 1
 
 // BOTH SDRAM clocks in ONE group. Within a group they stay synchronous to each other.
 // If the pad clock were in a group of its own, or clk_sdram alone as in the line this
