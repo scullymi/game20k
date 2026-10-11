@@ -135,9 +135,45 @@ static void test_lboard_keeps_its_hash(void) {
   TEST_ASSERT_NULL(strstr(net_path, b.hash));
 }
 
+/* A core switch (ra_patch_new_core()): the old game ends at once, and the first settle on
+   the new board makes that board's game the running one. Without the switch a settle with
+   no ROM keeps the game. A stream the switch cuts is left to the board, the stand-ins here
+   hash no ROM. */
+static void test_new_core_settles_anew(void) {
+  const ra_game_t *ga = &ra_games_rows[0], *gc = NULL;
+  for(unsigned i = 1; i < ra_games_rows_n && !gc; i++) if(ra_games_rows[i].board != ga->board) gc = &ra_games_rows[i];
+  TEST_ASSERT_NOT_NULL_MESSAGE(gc, "the table has no two boards");
+  const ra_game_t *first_a = ra_games_by_board(ga->board), *first_c = ra_games_by_board(gc->board);
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  ra_patch_board(ga->board);
+  ra_patch_settle();                                       // the start: the board's game, no ROM
+  unsigned gen = ra_patch_generation();
+  TEST_ASSERT_EQUAL_STRING(first_a->title, ra_game_title());
+  ra_patch_board(gc->board);                               // no switch: the game stays
+  ra_patch_settle();
+  TEST_ASSERT_EQUAL_UINT(gen, ra_patch_generation());
+  TEST_ASSERT_EQUAL_STRING(first_a->title, ra_game_title());
+  ra_patch_board(ga->board);
+  ra_patch_settle();
+  ra_patch_new_core();
+  TEST_ASSERT_EQUAL_UINT(gen + 1, ra_patch_generation());
+  TEST_ASSERT_NULL(ra_game_title());
+  TEST_ASSERT_EQUAL_UINT(0, ra_game_id());
+  ra_patch_board(gc->board);
+  ra_patch_settle();                                       // the new core's first settle
+  TEST_ASSERT_EQUAL_UINT(gen + 2, ra_patch_generation());
+  TEST_ASSERT_EQUAL_STRING(first_c->title, ra_game_title());
+  TEST_ASSERT_FALSE(ra_task_hardcore_blocked() & RA_HC_BLOCK_GAME);
+  TEST_ASSERT_TRUE(ra_task_hardcore_blocked() & RA_HC_BLOCK_ROM);
+  ra_patch_settle();                                       // only the first one after the switch
+  TEST_ASSERT_EQUAL_UINT(gen + 2, ra_patch_generation());
+  TEST_ASSERT_EQUAL_UINT(0, host_sdc_depth());
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_stale_set_dropped);
   RUN_TEST(test_lboard_keeps_its_hash);
+  RUN_TEST(test_new_core_settles_anew);
   return UNITY_END();
 }
