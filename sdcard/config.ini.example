@@ -41,11 +41,13 @@ IP=162.159.200.123,216.239.35.0
 
 [NETWORK]
 ; MODE=dhcp is the default and needs nothing else.
-; For a fixed address: MODE=manual plus IP, MASK and GW.
+; For a fixed address: MODE=manual plus IP, MASK and GW, and DNS for the name server,
+; usually the router.
 MODE=dhcp
 ; IP=192.168.1.50
 ; MASK=255.255.255.0
 ; GW=192.168.1.1
+; DNS=192.168.1.1
 
 [RA]
 ; RetroAchievements. USER is your account name. No special
