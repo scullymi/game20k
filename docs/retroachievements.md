@@ -51,7 +51,9 @@ The `RetroAchievements` menu holds the mode, the achievement list with progress,
 `Mode` switches between hardcore (the default) and softcore. Softcore takes effect immediately.
 Switching to hardcore first resets the running game, as RetroAchievements requires, and the
 banner shows the mode each time a game starts. In hardcore mode, the server's warning follows,
-which reads "Unknown Emulator" until RetroAchievements approves this client. Also in hardcore,
+which reads "Unknown Emulator" until RetroAchievements approves this client. When a DIP switch
+differs from the setting the game's achievement set expects, "DIP NOT DEFAULT" follows in either
+mode, because some achievements may then never trigger. Also in hardcore,
 FTP cannot modify the `ra_*` files, the `ra` folder or `config.ini`. `Account` shows the login,
 the unlocks and anything still waiting to be sent to the server. Without a connection,
 achievements still count: their unlocks are queued on the card and sent once the server can be
