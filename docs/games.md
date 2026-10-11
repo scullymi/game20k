@@ -79,11 +79,11 @@ the top of the picture on a black box.
 
 To change the game, open `Games`, the first entry of the menu. It lists every game on the card
 by title. Choosing a game on the running core, such as Puck Man while Pac-Man is running,
-restarts the Pico into that game with its own achievements. Choosing a game on another core,
-such as Galaga while Pac-Man is running, loads that core first. Either way, the menu tells you,
-and the new game starts after about three seconds. `ROM set` under `Settings` still picks a
-file by name. The choice lasts until power-off. `Save settings` makes the running game the one
-that starts at power-on, otherwise Galaga starts.
+starts that game in place with its own achievements. Choosing a game on another core, such as
+Galaga while Pac-Man is running, loads that core first: the menu tells you, and the game starts
+a few seconds later. WiFi and the RetroAchievements login stay connected throughout. `ROM set`
+under `Settings` still picks a file by name. The choice lasts until power-off. `Save settings`
+makes the running game the one that starts at power-on, otherwise Galaga starts.
 
 Only files that `scripts/make_sdcard.sh` built appear on the list. Each carries a footer with
 the game's name and a checksum, which the Pico checks while it loads the game. A file built by
