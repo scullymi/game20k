@@ -71,7 +71,8 @@ static void make_idents(void) {
 /* The server's reply to r=patch for game id, one achievement, in ra_patch's buffer. */
 static unsigned put_set(unsigned id) {
   unsigned cap;
-  int n = snprintf(ra_patch_body(&cap), cap, "{\"Success\":true,\"PatchData\":{\"ID\":%u,\"Title\":\"T\","
+  char *body = ra_patch_body(&cap);   // first: the order in which arguments are read is not fixed
+  int n = snprintf(body, cap, "{\"Success\":true,\"PatchData\":{\"ID\":%u,\"Title\":\"T\","
                    "\"ConsoleID\":27,\"ImageIcon\":\"\",\"RichPresencePatch\":\"\",\"Achievements\":[{\"ID\":1,"
                    "\"Title\":\"t\",\"Description\":\"d\",\"Flags\":3,\"Points\":5,\"MemAddr\":\"0xH0000=1\","
                    "\"Author\":\"x\",\"BadgeName\":\"0\",\"Created\":1,\"Modified\":1}],\"Leaderboards\":[]}}", id);
