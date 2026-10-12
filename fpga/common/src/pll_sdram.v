@@ -17,9 +17,9 @@
 //! divides by 5, FBDIV_SEL 11 multiplies by 12, so 27 / 5 * 12 = 64.8 MHz. clkoutp carries
 //! the same clock phase-shifted and goes directly to the clock pin of the SDRAM.
 //!
-//! The phase is set to PSDA 11 (247.5 degrees), the middle of the window measured on the
-//! device: PSDA 7 to 15 run error-free, 0 to 6 do not. NESTang runs on the same board with
-//! 10, so we are one step off, which supports the measurement.
+//! The phase is set to PSDA 11 (247.5 degrees), in the middle of the window measured on the
+//! device with the capture cycle of the build (cap_ofs 1 in sdram_fb.v): PSDA 6 to 15 run
+//! error-free, 0 to 5 do not. NESTang runs on the same board with 10.
 //!
 //! Measured with DYN_DA_EN "true" and the phase from the input, and that is exactly how it
 //! runs in operation: the input is tied to 11. The static mode (DYN_DA_EN "false",

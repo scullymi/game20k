@@ -87,7 +87,11 @@ module tb_rom_sdram;
         if (!ncs && {nras, ncas, nwe} == 3'b100) begin open_b[ba] <= 1'b0; idle_at[ba] <= cyc + 2 + 2; end
     end
     always @(negedge clk_sdram) begin
-        // read data: CL edges after the READ edge, for one cycle
+        // read data: driven from the edge CL after the READ for one cycle. That is one cycle
+        // later than the data sheet (valid from tAC after edge CL-1 to tOH after edge CL) and
+        // stands in for what the board adds: pad delays and DQ lines that keep their level.
+        // There sdram_fb.v reads the word with cap_ofs 1, the setting of the build, and so it
+        // does here. The core testbenches use the same model.
         dq_drive <= rd_vld[1];
         if (rd_vld[1]) dq_out <= mem[rd_pipe[1][20:0]];
         rd_vld  <= {rd_vld[1:0], 1'b0};

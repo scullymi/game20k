@@ -13,12 +13,12 @@
 //! data cap_ofs 0..3. For each of the 64 combinations it remembers the worst result it ever
 //! had and shows that as four rows of 16 fields each.
 //!
-//! Why the capture cycle is swept too: measured on the device, a sweep with only the computed
-//! capture cycle gives exactly ONE error-free phase step at CL2 (PSDA 15, the step at the
-//! cycle boundary) and none at all at CL3. That is exactly what a capture cycle off by one
-//! looks like: it always reads the wrong cycle, unless the phase happens to shift the arrival
-//! by exactly that one cycle. A marginal phase would look different, namely yellow at the
-//! edges.
+//! Why the capture cycle is swept too: which FPGA edge sees the read data depends on the
+//! phase and on the delays of the clock pad and the DQ input path, which no data sheet gives.
+//! The first edge by the data sheet (cap_ofs 0, see CAPT in sdram_fb.v) works only at small
+//! phases. The sweep shows which capture cycle covers the whole window. A capture cycle off
+//! by one reads the wrong cycle at every phase (a row of red), a marginal phase shows as
+//! yellow at the edges of the window.
 //!
 //! No block RAM, no stored reference pattern.
 //!
@@ -456,8 +456,8 @@ module sdram_selftest #(
     // Layout (720p raster, visible cx 0..1279, cy 0..719):
     //   cy 230..499, cx 112..1167  black backdrop (red-brown if the PLL ever lost lock)
     //   cy 236..243                tick marks above field 0, 4, 8, 12
-    //   cy 248..283   row 0        capture cycle CAPT+0, one cycle earlier than computed
-    //   cy 294..329   row 1        capture cycle CAPT+1, the computed one
+    //   cy 248..283   row 0        capture cycle CAPT+0, the first edge by the data sheet
+    //   cy 294..329   row 1        capture cycle CAPT+1, the setting of the build
     //   cy 340..375   row 2        capture cycle CAPT+2
     //   cy 386..421   row 3        capture cycle CAPT+3
     //   cy 430..441                white mark under the phase step currently running

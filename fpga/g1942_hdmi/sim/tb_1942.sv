@@ -255,6 +255,7 @@ module tb_1942;
     logic [2:0]  rd_vld = '0;
     assign dq = dq_drive ? dq_out : 'z;
     always @(negedge clk_sdram) begin
+        // read data one cycle later than the data sheet, see the model in tb_rom_sdram.sv
         dq_drive <= rd_vld[1];
         if (rd_vld[1]) dq_out <= mem[rd_pipe[1][20:0]];
         rd_vld  <= {rd_vld[1:0], 1'b0};

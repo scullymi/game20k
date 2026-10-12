@@ -20,13 +20,10 @@
 //! delay (prim_sim.v line 15278: ps_dly = clkout_period*PSDA/16), at PSDA 10 phi = 9.645 ns.
 //! It therefore still lies within the same FPGA cycle. The command is thus taken over in
 //! bus cycle k+1, with 9.645 ns setup and T-phi = 5.787 ns hold.
-//! Read data appears CL SDRAM edges later: the SDRAM drives it at edge S(read bus cycle + CL),
-//! and the FPGA edge at the END of that very bus cycle captures it into the capture stage
-//! dq_r. From there it moves to rd_dout one cycle later, in the source rd_track[CAPT+1] with
-//! CAPT 4 (CL2) or 5 (CL3); the +1 is dq_r, see change 12.
-//! Exactly this path is the one measured on the device: the data is valid only phi + tAC
-//! after the start of the bus cycle and is captured after T. At PSDA 10 and tAC 6.0 ns that
-//! is 15.645 against 15.432 ns: the measurement decides, not the arithmetic.
+//! A READ taken at SDRAM edge S(n) has its data ready for capture at edge S(n+CL): the SDRAM
+//! drives it from tAC after S(n+CL-1) and holds it until tOH after S(n+CL) (standard SDR read
+//! timing). The FPGA samples the pad into dq_r at every edge (change 12) and hands dq_r on to
+//! rd_dout in the cycle that CAPT and cap_ofs select, see CAPT below.
 //!
 //! Ring schedule (6 cycles at 64.8 MHz, one cycle T = 15.432 ns)
 //! -------------------------------------------------------------
@@ -41,13 +38,13 @@
 //!                                           for that purpose
 //!
 //! The WRITE CHANNEL comes first, as in the original. The reverse order, read channel first,
-//! does not work and makes any phase measurement worthless: with the read channel first, the
-//! FPGA drives its write data in bus cycle 6m+4 and the SDRAM its read data in bus cycle
-//! 6m+5, i.e. in directly consecutive cycles on the same 32 lines. What separates the two is
-//! then the clock phase alone, and that is why, measured on the device with that order,
-//! exactly ONE phase value (the largest, PSDA 15) works and no other. With the write channel
-//! first there are three or four bus cycles between the FPGA driver (6m+3) and the SDRAM
-//! driver (6m+6 at CL2, 6m+7 at CL3).
+//! does not work and makes any phase measurement worthless: the READ is then on the bus in
+//! cycle 6m+3 and the write data in 6m+4, and at CL2 the SDRAM starts driving its read data
+//! tAC after S(6m+4), inside the very cycle in which the FPGA drives the write data. Only the
+//! clock phase separates the two drivers, so with that order exactly ONE phase value (the
+//! largest, PSDA 15) works on the board. With the write channel first, bus cycle 6m+4 lies
+//! between the FPGA driver (6m+3) and the SDRAM driver (from tAC after S(6m+5) at CL2, after
+//! S(6m+6) at CL3).
 //!
 //! Checked against a typical -6 SDR SDRAM (tRP/tRCD 18 ns, tRC 60 ns, tRAS 42 ns,
 //! tRRD 12..14 ns, tRFC 60..66 ns, tAC 6.0 (CL2) / 5.4 (CL3) ns, 2048 rows in 64 ms):
@@ -62,9 +59,9 @@
 //!   tRFC AutoRefresh S(6m+6), the following round is blocked, next ACT S(6m+13):
 //!        7 cycles = 108 ns >= 66 ns
 //!   Refresh every 501 cycles = 7.73 us; required 2048 rows / 64 ms = 31.25 us, 4x margin
-//!   DQ bus: the FPGA alone drives bus cycle 6m+3. The SDRAM drives from S(6m+6)+tAC at CL2,
-//!           from S(6m+7)+tAC at CL3, and at least two bus cycles remain until the next
-//!           write cycle 6m+9. No point of the round depends on the clock phase.
+//!   DQ bus: the FPGA alone drives bus cycle 6m+3. The SDRAM drives from S(6m+5)+tAC to
+//!           S(6m+6)+tHZ at CL2, one cycle later at CL3, and releases the bus before the
+//!           next write cycle 6m+9. No point of the round depends on the clock phase.
 //!   Throughput per channel: 64.8 MHz / 6 = 10.8 million accesses per second, minus the
 //!           2.4 percent refresh pause. Needed are 1.55 (write) and 1.31 (read).
 //!
@@ -201,26 +198,23 @@ localparam [10:0] MODE_REG   = {4'b0000, CAS[2:0], BURST_MODE, BURST_LEN};
 // 2048 rows / 64 ms = 31.25 us required; 501 cycles = 7.73 us is 4x as often.
 localparam [8:0] RFRSH_CYCLES = 9'd501;
 
-// Cycle in which the read data is valid at the DQ pad, counted in rd_track stages.
-// rd_start is set in ring cycle 0, rd_track[k] is valid in ring cycle 1+k.
-// The read CAS lies in bus cycle 6m+3, the data is valid from S(6m+3+CL) on and is captured
-// into dq_r by the FPGA edge at the END of bus cycle 6m+3+CL: that is ring cycle 5 at CL2
-// and ring cycle 6 at CL3, so rd_track index CAPT = 2+CL. From dq_r it moves to rd_dout one
-// cycle later, arithmetically rd_track[CAPT+1].
+// Capture cycle of the read data, counted in rd_track stages. rd_start is set in ring cycle 1
+// (FPGA cycle 6m+1), so rd_track[k] is set in cycle 6m+2+k, and in that cycle rd_dout takes
+// over dq_r, the pad value sampled at the edge that starts the cycle, E(6m+2+k).
+// The READ is on the bus in cycle 6m+4 and the SDRAM takes it at S(6m+4) = E(6m+4) + phi.
+// Its data is valid from tAC after S(6m+3+CL) to tOH after S(6m+4+CL), so the first FPGA
+// edge that can see it is E(6m+4+CL): k = 2+CL = CAPT, which is cap_ofs 0. At the operating
+// point PSDA 11 (phi 10.609 ns) and tAC 6.0 ns that edge is 1.2 ns early even before the
+// delays of the clock pad and the DQ input path, which come on top.
 //
-// "Arithmetically" is the problem here. Measured on the device (the series with the read
-// channel first, see the header), this arithmetic is wrong: at CL2 exactly ONE phase step
-// runs error-free (PSDA 15, the step right at the clock period boundary) and all others are
-// fully red, at CL3 the whole band is red. A capture cycle that is off by one cycle looks
-// exactly like this: it always reads the wrong cycle, not just barely off. Why that is
-// cannot be decided without measurement: the propagation time of the clock out of the pad
-// enters the arithmetic, but is in no data sheet.
-//
-// That is why the capture cycle is adjustable at run time. cap_ofs selects
-// rd_track[CAPT + cap_ofs], i.e. one cycle earlier than computed (cap_ofs 0) up to two
-// cycles later (cap_ofs 3). The multiplexer is NOT on the measured path: dq_r hangs
-// unchanged directly on the pad, only the moment when dq_r is passed on to rd_dout is
-// adjusted, and there is a whole cycle of time for that.
+// cap_ofs selects rd_track[CAPT + cap_ofs] at run time so that the measurement build can
+// sweep it. On the board cap_ofs 0 passes only at PSDA 6 to 8, where phi is small enough,
+// and cap_ofs 1 to 3 pass over the whole phase window (PSDA 6 to 15). The build uses
+// cap_ofs 1. cap_ofs 2 and 3 lie beyond tOH and tHZ: they pass because the DQ lines keep
+// their last level while nothing drives them, until the write cycle 6m+9. The measured
+// window is therefore wider than the data sheet guarantees.
+// The multiplexer is not on the pad path: dq_r sits at the pad unchanged, only the cycle in
+// which dq_r goes on to rd_dout moves, and that path has a whole cycle.
 localparam integer CAPT = (CAS == 3'd3) ? 5 : 4;
 
 // ---- State ----

@@ -27,7 +27,8 @@ set_output_delay -clock [get_clocks {clk_sdram_pad}] -min -1.0 [get_ports {O_sdr
 // The read data is used from the second clk_sdram edge after the pad clock edge that
 // launched it: dq_r captures at every edge, and sdram_fb.v passes on the word at
 // rd_track[CAPT + cap_ofs] with cap_ofs 1, the capture at the first edge is not used. On
-// the board cap_ofs 0, which would need the first edge, fails. Hold stays at the first edge.
+// the board cap_ofs 0, which uses the first edge, passes only up to PSDA 8 and fails at the
+// operating point PSDA 11. Hold stays at the first edge.
 set_multicycle_path -from [get_clocks {clk_sdram_pad}] -to [get_clocks {clk_sdram}] -setup -end 2
 set_multicycle_path -from [get_clocks {clk_sdram_pad}] -to [get_clocks {clk_sdram}] -hold -end 1
 
