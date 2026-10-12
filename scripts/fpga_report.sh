@@ -7,8 +7,9 @@
 # The tool's reports are HTML with a few thousand lines. This prints only the numbers
 # this project uses as acceptance criteria: utilisation, Fmax per clock and the number of
 # violated endpoints. The timing part lives in fpga_report.py, which documents the
-# tables it expects and gives the verdict: every clock reaches its required frequency, and
-# the synthesis log has no EX3638 or EX3988. The exit code is 1 when that fails.
+# tables it expects and gives the verdict: every clock reaches its required frequency, no
+# setup or hold endpoint is violated, and the synthesis log has no EX3638 or EX3988. The exit
+# code is 1 when that fails.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 P="${1:-galaga_hdmi}"

@@ -15,9 +15,11 @@ bitstream, and prints the numbers this project goes by:
 Usage: fpga_report.py <path to *_tr_content.html> [<synthesis log>]
 
 The verdict is fixed: every clock reaches the frequency its own summary row requires (the
-SDC is the rule), and the synthesis log, when given, has no EX3638 (a net used before its
-declaration gets a second, undriven net) and no EX3988 (a $readmemh file was not found, its
-memory stays empty). The violation counts are printed without a verdict.
+SDC is the rule), the report counts no violated setup or hold endpoint, and the synthesis
+log, when given, has no EX3638 (a net used before its declaration gets a second, undriven
+net) and no EX3988 (a $readmemh file was not found, its memory stays empty). The endpoint
+verdict uses the "Numbers of ... Violated Endpoints" totals, which also count paths that
+have no row of their own in the per-clock tables.
 
 The report has no ids or classes worth matching, so rows are recognised by their content.
 If Gowin changes the layout, the script says so instead of silently printing less.
@@ -61,8 +63,14 @@ def main(argv):
         if len(r) == 4 and r[1] in ('Setup', 'Hold') and r[3].isdigit() and r[3] != '0':
             print(f"  {r[0]} {r[1]}: {r[3]} violated endpoints (total {r[2]} ns)")
     flat = re.sub(r'<[^>]+>', ' ', text)
-    for m in re.finditer(r'Numbers of (Setup|Hold) Violated Endpoints[^0-9]*([0-9]+)', flat):
-        print(f"  {m.group(1)} violated endpoints: {m.group(2)}")
+    totals = {m.group(1): int(m.group(2)) for m in
+              re.finditer(r'Numbers of (Setup|Hold) Violated Endpoints[^0-9]*([0-9]+)', flat)}
+    for kind in ('Setup', 'Hold'):
+        # a missing total must not pass as zero
+        n = totals.get(kind)
+        ok = n == 0
+        print(f"  {'PASS' if ok else 'FAIL'}  {kind} violated endpoints: {'not found' if n is None else n}")
+        failed += not ok
     if clocks == 0:
         print("  (no clock summary found: the report layout has changed, open the HTML)")
         return 1
@@ -82,7 +90,7 @@ def main(argv):
             n = len(re.findall(r'^WARN\s*\(' + code + r'\)', log, re.M))
             print(f"  {'PASS' if n == 0 else 'FAIL'}  {code} in the synthesis log: {n}")
             failed += n != 0
-    print(f"  verdict: {'FAIL' if failed else 'PASS'}, {clocks} clocks"
+    print(f"  verdict: {'FAIL' if failed else 'PASS'}, {clocks} clocks, setup and hold endpoints"
           + (f" and {len(FORBIDDEN_WARNINGS)} synthesis warnings" if len(argv) == 3 else "") + " checked")
     return 1 if failed else 0
 

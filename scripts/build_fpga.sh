@@ -7,7 +7,8 @@
 #   RAMDIAG=1  ROMVIEW=1  FBTEST=1  FBSHOW=1  FBROT=1  SDRAMTEST=2|3  NOTESTBAR=1  RATEPROBE=1
 #
 # The build ends with scripts/fpga_report.sh on the fresh reports and exits 1 when a clock
-# misses its constraint or the synthesis log has EX3638 or EX3988.
+# misses its constraint, a setup or hold endpoint is violated, or the synthesis log has
+# EX3638 or EX3988.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
