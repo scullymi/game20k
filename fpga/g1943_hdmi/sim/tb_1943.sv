@@ -253,6 +253,7 @@ module tb_1943;
     logic [2:0]  rd_vld = '0;
     assign dq = dq_drive ? dq_out : 'z;
     always @(negedge clk_sdram) begin
+        // read data one cycle later than the data sheet, see the model in tb_rom_sdram.sv
         dq_drive <= rd_vld[1];
         if (rd_vld[1]) dq_out <= mem[rd_pipe[1][20:0]];
         rd_vld  <= {rd_vld[1:0], 1'b0};
@@ -301,21 +302,22 @@ module tb_1943;
     //     snapshot holds the last logged value
     //   - truth: the main RAM of jt1943 itself (E000-FFFF in one 8 KiB RAM), read
     //     hierarchically at the end of the harvest: E000-EFFF equals 0x0000-0x0FFF of the
-    //     snapshot, F000-F27F equals 0x2000-0x227F, and 0x1000-0x1FFF stays zero Also counted: the most log entries in one window (the platform has 512).
+    //     snapshot, F000-F2FF equals 0x2000-0x22FF, and 0x1000-0x1FFF stays zero Also counted: the most log entries in one window (the platform has 512).
     logic        snap_run = 1'b0, snap_push, snap_harv, log_we;
     logic [7:0]  snap_byte, log_data;
     logic [15:0] snap_frame, log_addr;
-    logic [7:0]  ref_ram [0:8831];          // truth at the end of the last harvest
-    logic [7:0]  got     [0:8831];          // the delivered snapshot
-    logic [7:0]  lg_val  [0:8831];          // last logged value per address in the window
-    logic        lg_set  [0:8831];
+    localparam int MD = rom_map_pkg::MIRROR_DATA;   // bytes of the mirror
+    logic [7:0]  ref_ram [0:MD-1];          // truth at the end of the last harvest
+    logic [7:0]  got     [0:MD-1];          // the delivered snapshot
+    logic [7:0]  lg_val  [0:MD-1];          // last logged value per address in the window
+    logic        lg_set  [0:MD-1];
     int          lg_n = 0, lg_max = 0, snaps = 0, mir_bad = 0, ora_bad = 0, got_n = 0;
     logic        harv_q = 1'b0;
     always @(posedge clk) begin
         harv_q <= snap_harv;
         if (snap_harv && !harv_q) begin                   // window opens
             lg_n = 0;
-            for (int i = 0; i < 8832; i++) lg_set[i] = 1'b0;
+            for (int i = 0; i < MD; i++) lg_set[i] = 1'b0;
         end
         if (snap_harv && log_we) begin
             lg_n = lg_n + 1;
@@ -324,12 +326,12 @@ module tb_1943;
         end
         if (!snap_harv && harv_q) begin                   // window closed: the truth now
             if (lg_n > lg_max) lg_max = lg_n;
-            for (int i = 0; i < 8832; i++) ref_ram[i] = 8'h00;
+            for (int i = 0; i < MD; i++) ref_ram[i] = 8'h00;
             for (int i = 0; i < 4096; i++) ref_ram[i]          = dut.u_game.u_main.RAM.mem[i];
-            for (int i = 0; i < 640;  i++) ref_ram[8192 + i]   = dut.u_game.u_main.RAM.mem[4096 + i];
+            for (int i = 0; i < MD - 8192; i++) ref_ram[8192 + i]   = dut.u_game.u_main.RAM.mem[4096 + i];
         end
         if (snap_run && snap_push) begin                  // snap_full is 0: every push counts
-            if (got_n < 8832) got[got_n] = snap_byte;
+            if (got_n < MD) got[got_n] = snap_byte;
             got_n = got_n + 1;
         end
     end
@@ -341,19 +343,19 @@ module tb_1943;
             while (snap_harv) @(posedge clk);
             got_n = 0;
             snap_run <= 1'b1;
-            repeat (8832 + 50) @(posedge clk);
+            repeat (MD + 50) @(posedge clk);
             snap_run <= 1'b0;
             snaps++;
-            if (got_n != 8832) begin
+            if (got_n != MD) begin
                 mir_bad++;
-                $display("mirror: snapshot %0d has %0d bytes, expected 8832", snaps, got_n);
+                $display("mirror: snapshot %0d has %0d bytes, expected %0d", snaps, got_n, MD);
             end
-            for (int i = 0; i < 8832; i++)
+            for (int i = 0; i < MD; i++)
                 if (got[i] !== ref_ram[i]) begin
                     if (mir_bad < 8) $display("mirror: snapshot %0d byte %04x is %02x, the core holds %02x", snaps, i, got[i], ref_ram[i]);
                     mir_bad++;
                 end
-            for (int i = 0; i < 8832; i++)
+            for (int i = 0; i < MD; i++)
                 if (lg_set[i] && got[i] !== lg_val[i]) begin
                     if (ora_bad < 8) $display("oracle: snapshot %0d byte %04x is %02x, last logged %02x", snaps, i, got[i], lg_val[i]);
                     ora_bad++;

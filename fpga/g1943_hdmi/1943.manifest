@@ -24,7 +24,7 @@ title   1943: The Battle of Midway
 zip     1943.zip
 total   892672
 board   6
-mirror  8832
+mirror  8960
 # MAME lists 1943 as ROT270, game_core turns the video by 180 degrees with jotego's dip_flip:
 # turned clockwise it stands, like 1942
 screen  cw

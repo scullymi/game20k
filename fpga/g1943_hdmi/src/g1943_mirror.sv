@@ -4,10 +4,10 @@
                        // silent one-bit net.
 //! @file g1943_mirror.sv
 //! @brief The RAM mirror of 1943: g1942_mirror.sv with the memories laid out
-//! for 1943's flat space of 8832 bytes. Only 0x0000-0x0FFF (main RAM E000-EFFF) and
-//! 0x2000-0x227F (F000-F27F) are kept, 4096 + 640 bytes in two memories each for the live
+//! for 1943's flat space of 8960 bytes. Only 0x0000-0x0FFF (main RAM E000-EFFF) and
+//! 0x2000-0x22FF (F000-F2FF) are kept, 4096 + 768 bytes in two memories each for the live
 //! shadow and the snapshot; 0x1000-0x1FFF (sound and video RAM in FBNeo's order, read by no
-//! condition of set 11961) is delivered as zeros. Three blocks per memory instead of five.
+//! condition of sets 11961 and 11962) is delivered as zeros. Three blocks per memory instead of five.
 //! Below the description of the original, which holds otherwise.
 //!
 //! RetroAchievements reads FBNeo's "All Ram" block of 1942 (d_1942.cpp MemIndex), 9344 bytes
@@ -46,7 +46,7 @@
 //! in the fourth, one byte per clock while the FIFO has room. No harvest starts while
 //! snap_run is high, and no delivery starts while a harvest runs.
 module g1943_mirror #(
-    parameter int N = 8832                  //!< bytes of the mirror, MIRROR_DATA
+    parameter int N = 8960                  //!< bytes of the mirror, MIRROR_DATA
 )(
     input  wire         clk,
     input  wire         reset,              //!< blocks harvest starts
@@ -97,7 +97,7 @@ module g1943_mirror #(
     // Both memories are split at 0x2000 into 8192 + (N - 8192) bytes: as one array of 9344
     // bytes Gowin builds 16384, 8 blocks instead of 5 (measured: BSRAM 46 of 46).
     localparam int NH = N - 8192;
-    // 1943: lo holds 0x0000-0x0FFF, hi 0x2000-0x227F; 0x1000-0x1FFF is not kept (zero)
+    // 1943: lo holds 0x0000-0x0FFF, hi 0x2000-0x22FF; 0x1000-0x1FFF is not kept (zero)
     logic [7:0]  live_lo [0:4095];
     logic [7:0]  live_hi [0:NH-1];
     logic [13:0] lr_addr;
