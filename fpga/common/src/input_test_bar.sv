@@ -42,7 +42,6 @@ module input_test_bar #(
     logic [3:0]  xi;
     logic [9:0]  label;
     logic [4:0]  glyph;
-    logic [7:0]  font_row;
     logic [2:0]  row, col;
     logic        bit_on, in_box_rows, in_label_rows;
 
@@ -114,195 +113,45 @@ module input_test_bar #(
     // 8x8 character set, 5 pixels wide, bit 7 = left. Address = character*8 + row
     logic [7:0] font_addr;
     assign font_addr = {glyph, cy[2:0] - 3'd4};   // line 12 -> 0
-    always_comb begin
-        case (font_addr)
-                   0: font_row = 8'b01110000;
-                   1: font_row = 8'b10001000;
-                   2: font_row = 8'b10011000;
-                   3: font_row = 8'b10101000;
-                   4: font_row = 8'b11001000;
-                   5: font_row = 8'b10001000;
-                   6: font_row = 8'b01110000;
-                   7: font_row = 8'b00000000;
-                   8: font_row = 8'b00100000;
-                   9: font_row = 8'b01100000;
-                  10: font_row = 8'b00100000;
-                  11: font_row = 8'b00100000;
-                  12: font_row = 8'b00100000;
-                  13: font_row = 8'b00100000;
-                  14: font_row = 8'b01110000;
-                  15: font_row = 8'b00000000;
-                  16: font_row = 8'b01110000;
-                  17: font_row = 8'b10001000;
-                  18: font_row = 8'b00001000;
-                  19: font_row = 8'b00010000;
-                  20: font_row = 8'b00100000;
-                  21: font_row = 8'b01000000;
-                  22: font_row = 8'b11111000;
-                  23: font_row = 8'b00000000;
-                  24: font_row = 8'b11111000;
-                  25: font_row = 8'b00010000;
-                  26: font_row = 8'b00100000;
-                  27: font_row = 8'b00010000;
-                  28: font_row = 8'b00001000;
-                  29: font_row = 8'b10001000;
-                  30: font_row = 8'b01110000;
-                  31: font_row = 8'b00000000;
-                  32: font_row = 8'b00010000;
-                  33: font_row = 8'b00110000;
-                  34: font_row = 8'b01010000;
-                  35: font_row = 8'b10010000;
-                  36: font_row = 8'b11111000;
-                  37: font_row = 8'b00010000;
-                  38: font_row = 8'b00010000;
-                  39: font_row = 8'b00000000;
-                  40: font_row = 8'b11111000;
-                  41: font_row = 8'b10000000;
-                  42: font_row = 8'b11110000;
-                  43: font_row = 8'b00001000;
-                  44: font_row = 8'b00001000;
-                  45: font_row = 8'b10001000;
-                  46: font_row = 8'b01110000;
-                  47: font_row = 8'b00000000;
-                  48: font_row = 8'b00110000;
-                  49: font_row = 8'b01000000;
-                  50: font_row = 8'b10000000;
-                  51: font_row = 8'b11110000;
-                  52: font_row = 8'b10001000;
-                  53: font_row = 8'b10001000;
-                  54: font_row = 8'b01110000;
-                  55: font_row = 8'b00000000;
-                  56: font_row = 8'b11111000;
-                  57: font_row = 8'b00001000;
-                  58: font_row = 8'b00010000;
-                  59: font_row = 8'b00100000;
-                  60: font_row = 8'b01000000;
-                  61: font_row = 8'b01000000;
-                  62: font_row = 8'b01000000;
-                  63: font_row = 8'b00000000;
-                  64: font_row = 8'b01110000;
-                  65: font_row = 8'b10001000;
-                  66: font_row = 8'b10001000;
-                  67: font_row = 8'b01110000;
-                  68: font_row = 8'b10001000;
-                  69: font_row = 8'b10001000;
-                  70: font_row = 8'b01110000;
-                  71: font_row = 8'b00000000;
-                  72: font_row = 8'b01110000;
-                  73: font_row = 8'b10001000;
-                  74: font_row = 8'b10001000;
-                  75: font_row = 8'b01111000;
-                  76: font_row = 8'b00001000;
-                  77: font_row = 8'b00010000;
-                  78: font_row = 8'b01100000;
-                  79: font_row = 8'b00000000;
-                  80: font_row = 8'b00000000;
-                  81: font_row = 8'b00000000;
-                  82: font_row = 8'b00000000;
-                  83: font_row = 8'b00000000;
-                  84: font_row = 8'b00000000;
-                  85: font_row = 8'b00000000;
-                  86: font_row = 8'b00000000;
-                  87: font_row = 8'b00000000;
-                  88: font_row = 8'b11110000;
-                  89: font_row = 8'b10001000;
-                  90: font_row = 8'b10001000;
-                  91: font_row = 8'b11110000;
-                  92: font_row = 8'b10001000;
-                  93: font_row = 8'b10001000;
-                  94: font_row = 8'b11110000;
-                  95: font_row = 8'b00000000;
-                  96: font_row = 8'b10001000;
-                  97: font_row = 8'b10001000;
-                  98: font_row = 8'b10001000;
-                  99: font_row = 8'b10001000;
-                 100: font_row = 8'b10001000;
-                 101: font_row = 8'b10001000;
-                 102: font_row = 8'b01110000;
-                 103: font_row = 8'b00000000;
-                 104: font_row = 8'b11110000;
-                 105: font_row = 8'b10001000;
-                 106: font_row = 8'b10001000;
-                 107: font_row = 8'b10001000;
-                 108: font_row = 8'b10001000;
-                 109: font_row = 8'b10001000;
-                 110: font_row = 8'b11110000;
-                 111: font_row = 8'b00000000;
-                 112: font_row = 8'b10000000;
-                 113: font_row = 8'b10000000;
-                 114: font_row = 8'b10000000;
-                 115: font_row = 8'b10000000;
-                 116: font_row = 8'b10000000;
-                 117: font_row = 8'b10000000;
-                 118: font_row = 8'b11111000;
-                 119: font_row = 8'b00000000;
-                 120: font_row = 8'b11110000;
-                 121: font_row = 8'b10001000;
-                 122: font_row = 8'b10001000;
-                 123: font_row = 8'b11110000;
-                 124: font_row = 8'b10100000;
-                 125: font_row = 8'b10010000;
-                 126: font_row = 8'b10001000;
-                 127: font_row = 8'b00000000;
-                 128: font_row = 8'b10001000;
-                 129: font_row = 8'b10001000;
-                 130: font_row = 8'b01010000;
-                 131: font_row = 8'b00100000;
-                 132: font_row = 8'b01010000;
-                 133: font_row = 8'b10001000;
-                 134: font_row = 8'b10001000;
-                 135: font_row = 8'b00000000;
-                 136: font_row = 8'b10001000;
-                 137: font_row = 8'b10001000;
-                 138: font_row = 8'b01010000;
-                 139: font_row = 8'b00100000;
-                 140: font_row = 8'b00100000;
-                 141: font_row = 8'b00100000;
-                 142: font_row = 8'b00100000;
-                 143: font_row = 8'b00000000;
-                 144: font_row = 8'b01110000;
-                 145: font_row = 8'b10001000;
-                 146: font_row = 8'b10001000;
-                 147: font_row = 8'b10001000;
-                 148: font_row = 8'b10001000;
-                 149: font_row = 8'b10001000;
-                 150: font_row = 8'b01110000;
-                 151: font_row = 8'b00000000;
-                 152: font_row = 8'b10001000;
-                 153: font_row = 8'b10010000;
-                 154: font_row = 8'b10100000;
-                 155: font_row = 8'b11000000;
-                 156: font_row = 8'b10100000;
-                 157: font_row = 8'b10010000;
-                 158: font_row = 8'b10001000;
-                 159: font_row = 8'b00000000;
-                 160: font_row = 8'b11111000;
-                 161: font_row = 8'b10000000;
-                 162: font_row = 8'b10000000;
-                 163: font_row = 8'b11110000;
-                 164: font_row = 8'b10000000;
-                 165: font_row = 8'b10000000;
-                 166: font_row = 8'b10000000;
-                 167: font_row = 8'b00000000;
-                 168: font_row = 8'b01110000;
-                 169: font_row = 8'b10001000;
-                 170: font_row = 8'b10000000;
-                 171: font_row = 8'b10000000;
-                 172: font_row = 8'b10000000;
-                 173: font_row = 8'b10001000;
-                 174: font_row = 8'b01110000;
-                 175: font_row = 8'b00000000;
-                 176: font_row = 8'b01111000;
-                 177: font_row = 8'b10000000;
-                 178: font_row = 8'b10000000;
-                 179: font_row = 8'b01110000;
-                 180: font_row = 8'b00001000;
-                 181: font_row = 8'b00001000;
-                 182: font_row = 8'b11110000;
-                 183: font_row = 8'b00000000;
-            default: font_row = 8'b00000000;
-        endcase
-    end
+    // Font ROM, address = glyph * 8 + row, read on the clock (stage 1) so that the tools
+    // can put it into a block RAM. The bit is picked after the register, in stage 2.
+    (* ram_style = "block", syn_romstyle = "block_rom" *)
+    logic [7:0] font_rom [0:255] = '{
+        8'h70, 8'h88, 8'h98, 8'ha8, 8'hc8, 8'h88, 8'h70, 8'h00,  // 0
+        8'h20, 8'h60, 8'h20, 8'h20, 8'h20, 8'h20, 8'h70, 8'h00,  // 1
+        8'h70, 8'h88, 8'h08, 8'h10, 8'h20, 8'h40, 8'hf8, 8'h00,  // 2
+        8'hf8, 8'h10, 8'h20, 8'h10, 8'h08, 8'h88, 8'h70, 8'h00,  // 3
+        8'h10, 8'h30, 8'h50, 8'h90, 8'hf8, 8'h10, 8'h10, 8'h00,  // 4
+        8'hf8, 8'h80, 8'hf0, 8'h08, 8'h08, 8'h88, 8'h70, 8'h00,  // 5
+        8'h30, 8'h40, 8'h80, 8'hf0, 8'h88, 8'h88, 8'h70, 8'h00,  // 6
+        8'hf8, 8'h08, 8'h10, 8'h20, 8'h40, 8'h40, 8'h40, 8'h00,  // 7
+        8'h70, 8'h88, 8'h88, 8'h70, 8'h88, 8'h88, 8'h70, 8'h00,  // 8
+        8'h70, 8'h88, 8'h88, 8'h78, 8'h08, 8'h10, 8'h60, 8'h00,  // 9
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 10
+        8'hf0, 8'h88, 8'h88, 8'hf0, 8'h88, 8'h88, 8'hf0, 8'h00,  // 11
+        8'h88, 8'h88, 8'h88, 8'h88, 8'h88, 8'h88, 8'h70, 8'h00,  // 12
+        8'hf0, 8'h88, 8'h88, 8'h88, 8'h88, 8'h88, 8'hf0, 8'h00,  // 13
+        8'h80, 8'h80, 8'h80, 8'h80, 8'h80, 8'h80, 8'hf8, 8'h00,  // 14
+        8'hf0, 8'h88, 8'h88, 8'hf0, 8'ha0, 8'h90, 8'h88, 8'h00,  // 15
+        8'h88, 8'h88, 8'h50, 8'h20, 8'h50, 8'h88, 8'h88, 8'h00,  // 16
+        8'h88, 8'h88, 8'h50, 8'h20, 8'h20, 8'h20, 8'h20, 8'h00,  // 17
+        8'h70, 8'h88, 8'h88, 8'h88, 8'h88, 8'h88, 8'h70, 8'h00,  // 18
+        8'h88, 8'h90, 8'ha0, 8'hc0, 8'ha0, 8'h90, 8'h88, 8'h00,  // 19
+        8'hf8, 8'h80, 8'h80, 8'hf0, 8'h80, 8'h80, 8'h80, 8'h00,  // 20
+        8'h70, 8'h88, 8'h80, 8'h80, 8'h80, 8'h88, 8'h70, 8'h00,  // 21
+        8'h78, 8'h80, 8'h80, 8'h70, 8'h08, 8'h08, 8'hf0, 8'h00,  // 22
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 23
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 24
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 25
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 26
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 27
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 28
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 29
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00,  // 30
+        8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00, 8'h00  // 31
+    };
+    logic [7:0] font_q;
+    always_ff @(posedge clk) font_q <= font_rom[font_addr];
 
     always_comb begin
         if (idx == 6'd0)        bit_on = hid_seen;
@@ -314,14 +163,17 @@ module input_test_bar #(
     // Stage 1 (registered): region, bit, glyph pixel. The bar ends after the last game signal.
     localparam logic [10:0] X_END = 11'(32 + 16 * (34 + MAP_N));
     logic       r_box, r_label, r_bit, r_pix;
+    logic [2:0] col_q;
     logic [5:0] r_idx;
     always_ff @(posedge clk) begin
         r_box   <= enable && cx >= 11'd32 && cx < X_END && idx != 6'd33 && in_box_rows && xi < 4'd12;
         r_label <= enable && cx >= 11'd32 && cx < X_END && idx != 6'd33 && in_label_rows;
         r_bit   <= bit_on;
-        r_pix   <= font_row[3'd7 - col];
+        col_q   <= col;
         r_idx   <= idx;
     end
+
+    assign r_pix = font_q[3'd7 - col_q];
 
     // Stage 2 (registered): colour. Output is thus shifted 2 pixels to the right, irrelevant.
     always_ff @(posedge clk) begin
