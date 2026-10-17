@@ -13,7 +13,7 @@ set -euo pipefail
 NEXTPNR_REPO=https://github.com/scullymi/nextpnr.git
 NEXTPNR_REV=4d79ccb48c60449698ca820694c9832122af95bd
 APICULA_REPO=https://github.com/scullymi/apicula.git
-APICULA_REV=d707b16f7320399982671f227913bc23529c596c
+APICULA_REV=a0c1043cc8ac36e30afd58a7f119e6c905e1e608
 SV_ELAB_REPO=https://github.com/scullymi/sv-elab.git
 SV_ELAB_REV=8b9abd368ea938c3468e886a8c451d2645cf92a8
 
