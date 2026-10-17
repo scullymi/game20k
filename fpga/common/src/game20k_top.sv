@@ -1109,6 +1109,9 @@ module game20k_top #(
         .screen_height    ()
     );
 
+    // Emulated LVDS at 3.3 V, as Gowin builds it. TLVDS would switch bank 4 away from 3.3 V and
+    // take the Companion's MOSI (pin 41) with it. scripts/oss/gowin_pack_g20k.py lets Apicula
+    // place ELVDS on these pins.
     ELVDS_OBUF tmds_bufds [3:0] (
         .I ({clk_pixel, tmds}),
         .O ({tmds_clk_p, tmds_d_p}),
