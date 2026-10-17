@@ -63,6 +63,9 @@ scripts/build_fpga.sh pacman_hdmi
 scripts/build_fpga.sh g1942_hdmi
 ```
 
+The cores also build without the Gowin IDE, with free tools: see
+[OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md).
+
 Each build ends with a short report on utilisation and timing, and fails if a clock misses its
 target. The menus are not in the bitstream but in the firmware (section 4). The core only
 carries an interface tag (`scripts/make_menu.py`), a checksum over the ids and values of its
