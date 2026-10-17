@@ -7,7 +7,7 @@ building the bitstreams and the firmware yourself, and debugging.
 
 | Tool | Version | Note |
 |---|---|---|
-| Gowin EDA **Education** | 1.9.11.03 | free download, **no licence file needed** |
+| Gowin EDA **Education** | 1.9.11.03 | free download, **no licence file needed**. Not needed with the [free toolchain](OPEN-TOOLCHAIN.md) |
 | openFPGALoader | | to flash every core except Galaga: `brew install openfpgaloader` or `apt install openfpgaloader` |
 | Arm GNU Toolchain | 14.2 | |
 | git, curl, CMake, make, Python 3, gzip, unzip, a C compiler | | |
@@ -64,7 +64,7 @@ scripts/build_fpga.sh g1942_hdmi
 ```
 
 The cores also build without the Gowin IDE, with free tools: see
-[OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md).
+[OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md). The release bitstreams come from the Gowin build.
 
 Each build ends with a short report on utilisation and timing, and fails if a clock misses its
 target. The menus are not in the bitstream but in the firmware (section 4). The core only

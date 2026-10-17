@@ -72,8 +72,8 @@ a USB arcade stick, an HDMI monitor and seven wires, see [docs/hardware.md](docs
 6. **Play.** Insert the card into the Nano and power on. The screen stays dark until LED 5 lights
    up, which means the ROM has loaded. **S2** on the Nano opens the menu.
 
-The firmware and the image must come from the same release. Building everything yourself:
-[docs/BUILD.md](docs/BUILD.md).
+The firmware and the image must come from the same release. Building everything yourself,
+with the Gowin IDE or with free tools: [docs/BUILD.md](docs/BUILD.md).
 
 ## More
 
