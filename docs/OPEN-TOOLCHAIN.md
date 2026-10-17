@@ -3,20 +3,8 @@
 The cores build either with the Gowin IDE (`scripts/build_fpga.sh`, see [BUILD.md](BUILD.md))
 or with a free toolchain: GHDL and yosys-slang read the sources, Yosys synthesises,
 nextpnr-himbaechel places and routes, and Apicula's `gowin_pack` writes the bitstream. Both
-builds come from the same sources and run on the same board.
-
-## Status
-
-| Core | Free build | Tested on the board |
-|---|---|---|
-| Galaga | yes | picture, sound, controls, achievements |
-| Pac-Man | yes | picture, sound, controls, volume |
-| 1942 | yes | picture, sound, controls, volume |
-| 1943 | yes | picture, sound, controls, volume |
-| Ghosts'n Goblins | yes | picture, sound, controls |
-| Dig Dug | yes | picture, sound, controls |
-| Pang | yes | picture, sound, controls |
-| Time Pilot | yes | picture, sound, controls |
+builds come from the same sources and run on the same board. Every core builds with the free
+toolchain and has been tested on the board.
 
 ## Tools
 
@@ -58,12 +46,12 @@ Settings per core are in `fpga/<core>/oss.conf`, described in the head of the bu
   and `RAM_LOGIC` in `oss.conf` decide single memories.
 - `scripts/oss/gowin_pack_g20k.py` wraps `gowin_pack`: bank 4 stays at 3.3 V (the Companion's
   MOSI shares it with HDMI), emulated LVDS on the HDMI pins, and the 25 MHz flash loading rate.
+- The build stops when nextpnr reports a hold violation, which nextpnr itself only warns about.
+  On the board such a placement fails now and then. Another `SEED` in `oss.conf` places around it.
+  It also stops on a net that has users but no route (`scripts/oss/check_unrouted.py`).
 
 ## Known issues
 
 - **Larger than the Gowin build.** Most cores need more logic than with the Gowin IDE, though
   all of them fit. Yosys does not pull a register with logic in front of it into a block RAM.
   Plan: extend Yosys, measure each core again.
-- **nextpnr reports Dig Dug's core clock just below its target.** The report follows reset
-  paths through the asynchronous clear of flip-flops, while the board runs fine. Plan: discuss
-  these timing arcs with the nextpnr maintainers.
