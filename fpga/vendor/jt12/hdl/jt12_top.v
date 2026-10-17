@@ -461,10 +461,7 @@ endgenerate
 `ifndef NOSSG
 generate
     if( use_ssg==1 ) begin : gen_ssg
-        // game20k: COMP 3'd1 for every chip, as in jt12 dc9be7c. Upstream gives the YM2203
-        // 3'd5, a level table from jt49 441eea8, which is not on GitHub. The jt49 copy has
-        // no table 5.
-        jt49 #(.COMP(3'd1), .CLKDIV(JT49_DIV), .YM2203_LUMPED(YM2203_LUMPED))
+        jt49 #(.COMP(num_ch==3 ? 3'd5 : 3'd1), .CLKDIV(JT49_DIV), .YM2203_LUMPED(YM2203_LUMPED))
             u_psg( // note that input ports are not multiplexed
             .rst_n      ( ~rst      ),
             .clk        ( clk       ),    // signal on positive edge
