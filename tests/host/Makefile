@@ -47,9 +47,9 @@ FORWARD := FreeRTOS.h queue.h task.h semphr.h timers.h mbedtls/sha256.h lwip/soc
 STAMP := $(BUILD)/flags-$(shell printf '%s\n' '$(CC) $(LIB_CFLAGS) $(OWN_CFLAGS) $(FORWARD)' | cksum | cut -d' ' -f1).stamp
 
 LIB_SRC := $(FORK)/fatfs/source/ff.c $(FORK)/fatfs/source/ffunicode.c $(UNITY)/unity.c
-RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,rapi/rc_api_common.c rc_util.c rc_compat.c)
+RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_common.c util/rc_util.c util/rc_compat.c)
 # rcheevos' requests and replies, for test_game_switch
-RC_API  := $(addprefix $(FORK)/rcheevos/src/,rapi/rc_api_runtime.c rapi/rc_api_user.c rhash/md5.c)
+RC_API  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_runtime.c api/rc_api_user.c util/md5.c)
 # the fork's achievement files test_game_switch links as they are
 RA_SRC  := $(addprefix $(FORK)/,ra_patch.c ra_queue.c ra_text.c ra_games.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_slim.c

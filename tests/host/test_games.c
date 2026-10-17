@@ -17,7 +17,7 @@
 
 #include "unity.h"
 #include "host_stubs.h"
-#include "rcheevos/src/rhash/md5.c"
+#include "rcheevos/src/util/md5.c"
 #include "ra_games.c"
 
 void setUp(void) {}
