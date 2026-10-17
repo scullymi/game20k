@@ -51,7 +51,7 @@ VENDORED = [
      'fpga/pacman_hdmi/src/rtl_pacman', 'rtl',
      ('g20k_dpram.vhd', 'pacman_mirror.vhd', 'sn76489_top.vhd', 'ym2149.vhd'), ()),
     # one copy for 1942, 1943, Ghosts'n Goblins and Pang
-    ('jtcores', 'jotego/jtcores', '548b87b', 'fa75161',
+    ('jtcores', 'jotego/jtcores', '548b87b', 'f64dbe2',
      'fpga/vendor/jtcores', '', ('mc6809i_LICENSE.md',),
      ('modules/jt12', 'modules/jtopl', 'modules/jt6295', 'modules/jteeprom',
       'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
