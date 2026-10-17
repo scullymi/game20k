@@ -1423,7 +1423,7 @@ port map(
 );
 
 -- background char RAM   0x8000-0x87FF
-bgram : entity work.g20k_lutram   -- game20k: distributed LUT RAM, asynchronous read
+bgram : entity work.g20k_spram    -- game20k: block RAM on clock_18n like wram1 to wram3
 generic map( dWidth => 8, aWidth => 11)
 port map(
  clk  => clock_18n,
