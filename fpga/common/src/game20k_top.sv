@@ -546,6 +546,12 @@ module game20k_top #(
         end else
             aud_div <= aud_div + 10'd1;
     end
+    // The HDMI audio logic takes clk_audio over the global clock network. On general routing
+    // the clock reaches neighbouring flip-flops with skew, and on some placements the counter
+    // of the audio clock regeneration packets miscounts: a monitor that rebuilds its audio
+    // clock from them then plays only the starts of the notes.
+    logic clk_audio_g;
+    BUFG audio_bufg (.I(clk_audio), .O(clk_audio_g));
     // Volume, then into the pixel clock domain. The game delivers two's complement with
     // silence at 0 (HDMI wants that per IEC 60958), the scale is the game's business: a
     // unipolar core such as Galaga delivers 0..32767, see its game_core.
@@ -1088,7 +1094,7 @@ module game20k_top #(
     ) hdmi_i (
         .clk_pixel_x5     (clk_x5),
         .clk_pixel        (clk_pixel),
-        .clk_audio        (clk_audio),
+        .clk_audio        (clk_audio_g),
         .reset            (1'b0),
         .sync             (sync && !RATEPROBE),   // the rate probe runs free
         .rgb              (rgb_hdmi),
