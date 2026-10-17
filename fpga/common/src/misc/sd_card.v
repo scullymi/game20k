@@ -89,7 +89,7 @@ module sd_card # (
     output reg [2:0]  rom_image_selected,
 	input			  rom_image_accepted,
     output			  rom_image_data_available,
-    output reg [7:0]  rom_image_data,
+    output [7:0]      rom_image_data,
     input			  rom_image_data_strobe,
 `endif
   
@@ -318,6 +318,13 @@ reg [31:0] rom_image_length;   // total length of rom image currently being tran
 
 // the fifo itself
 reg [7:0] rom_image_fifo [IMAGE_FIFO_SIZE];   
+// game20k: the FIFO's read register holds nothing but the FIFO output, so that the FIFO can
+// go into block RAM. The byte written straight through while the FIFO is empty has a
+// register of its own, rom_image_from_fifo says which of the two is on the output.
+reg [7:0] rom_image_fifo_q;
+reg [7:0] rom_image_data_direct;
+reg       rom_image_from_fifo;
+assign rom_image_data = rom_image_from_fifo ? rom_image_fifo_q : rom_image_data_direct;
 reg [IMAGE_FIFO_BITS:0] rom_image_fifo_wr_ptr;
 reg [IMAGE_FIFO_BITS:0] rom_image_fifo_rd_ptr;
 reg [IMAGE_FIFO_BITS:0] rom_image_fifo_expected;
@@ -409,7 +416,8 @@ always @(posedge clk, negedge rstn) begin
 		 if(!rom_image_fifo_empty) begin
 			// read data from fifo
 			rom_image_fifo_rd_ptr <= rom_image_fifo_rd_ptr + 'd1;
-			rom_image_data <= rom_image_fifo[rom_image_fifo_rd_ptr[IMAGE_FIFO_BITS-1:0] + IMAGE_FIFO_BITS'('d1)];	  
+			rom_image_fifo_q <= rom_image_fifo[rom_image_fifo_rd_ptr[IMAGE_FIFO_BITS-1:0] + IMAGE_FIFO_BITS'('d1)];
+			rom_image_from_fifo <= 1'b1;	  
 
 			// we frequently need to request further data from the companion. We do this by triggering
 			// an IRQ. The companion will then read the available buffer space and send as many bytes as
@@ -785,7 +793,7 @@ always @(posedge clk, negedge rstn) begin
 							 // become empty by this read. In both cases data written to the FIFO would
 							 // immediately show up on its output.
 							 if(rom_image_fifo_empty ||	(rom_image_data_strobe && rom_image_fifo_fill == 1))
-							   rom_image_data <= data_in;
+							   begin rom_image_data_direct <= data_in; rom_image_from_fifo <= 1'b0; end
 							 
 							 rom_image_fifo_wr_ptr <= rom_image_fifo_wr_ptr + 'd1;
 							 rom_image_length <= rom_image_length - 32'd1;
