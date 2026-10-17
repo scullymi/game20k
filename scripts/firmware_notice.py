@@ -61,9 +61,9 @@ COMPONENTS = [
         "short": "Zlib",
         "url": "https://github.com/RetroAchievements/rcheevos",
         "checkout": "external/FPGA-Companion/src/rcheevos",
-        "match": r"/external/FPGA-Companion/src/rcheevos/src/rhash/md5\.c\.o$",
+        "match": r"/external/FPGA-Companion/src/rcheevos/src/util/md5\.c\.o$",
         "licence": "zlib-style licence of Aladdin Enterprises",
-        "texts": [("header", "external/FPGA-Companion/src/rcheevos/src/rhash/md5.c")],
+        "texts": [("header", "external/FPGA-Companion/src/rcheevos/src/util/md5.c")],
     },
     {
         "name": "rcheevos",

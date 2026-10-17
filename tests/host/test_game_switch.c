@@ -25,7 +25,7 @@ int rc_runtime_activate_lboard(rc_runtime_t *rt, uint32_t id, const char *memadd
 void rc_runtime_deactivate_lboard(rc_runtime_t *rt, uint32_t id) {}
 int rc_runtime_activate_richpresence(rc_runtime_t *rt, const char *script, void *L, int i) { return RC_OK; }
 void rc_runtime_reset(rc_runtime_t *rt) {}
-rc_trigger_t *rc_runtime_get_achievement(const rc_runtime_t *rt, uint32_t id) { return NULL; }
+struct rc_trigger_t *rc_runtime_get_achievement(const rc_runtime_t *rt, uint32_t id) { return NULL; }
 int rc_parse_format(const char *format) { return 0; }   // leaderboard formats, these sets have none
 uint32_t getFreeHeap(void) { return 0; }
 // the network: the path of the last request, never an answer
