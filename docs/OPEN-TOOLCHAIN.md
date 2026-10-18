@@ -8,8 +8,10 @@ toolchain and has been tested on the board.
 
 ## Tools
 
-- YosysHQ's [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build/releases), unpacked
-  under `external/`. The head of `scripts/build_fpga_oss.sh` names the versions it needs.
+- YosysHQ's [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build/releases), two
+  builds of it for now (GHDL comes from an older one). `scripts/oss/fetch_suite.sh` downloads
+  both for macOS on Apple silicon or Linux (x86_64, arm64), checks them against their SHA-256
+  and unpacks them under `external/`.
 - nextpnr and Apicula from game20k's forks, which carry fixes that are not upstream yet
   (timing of LUT1 to LUT3 and of long-wire segments, clock inversion of memories, the
   flip-flop input from SEL, the sign of multipliers). `scripts/oss/build_tools.sh` builds them
@@ -17,7 +19,7 @@ toolchain and has been tested on the board.
   Boost and Eigen. `NEXTPNR` and `APICULA` in the environment point the build at other builds.
 
 ```sh
-cd game20k && scripts/oss/build_tools.sh
+cd game20k && scripts/oss/fetch_suite.sh && scripts/oss/build_tools.sh
 ```
 
 ## Building
@@ -33,6 +35,10 @@ The bitstream lands in `fpga/<core>/impl/oss/<core>.fs`. Load it into SRAM with
 several can run in parallel.
 
 Settings per core are in `fpga/<core>/oss.conf`, described in the head of the build script.
+
+`OSS=1 scripts/make_bitstream_release.sh` builds every core and packs the flash image with its
+NOTICE, as GitHub Actions does for a release (`.github/workflows/bitstreams.yml`). `DEV=1` runs
+it without a tag, for a trial.
 
 ## What the free build does differently
 

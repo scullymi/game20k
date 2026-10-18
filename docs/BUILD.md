@@ -64,7 +64,7 @@ scripts/build_fpga.sh g1942_hdmi
 ```
 
 The cores also build without the Gowin IDE, with free tools: see
-[OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md). The release bitstreams come from the Gowin build.
+[OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md). The release bitstreams come from the free build.
 
 Each build ends with a short report on utilisation and timing, and fails if a clock misses its
 target. The menus are not in the bitstream but in the firmware (section 4). The core only
@@ -96,7 +96,8 @@ few seconds, the Companion goes once round the ring and back to the core the gam
 in, and the picture shows "SYS: CORE NOT IN FLASH".
 
 `scripts/make_bitstream_release.sh` builds all cores from a release tag and packs them as the
-single flash image that the release ships. `DEV=1` runs it without a tag, for a trial. The image
+single flash image that the release ships, with the Gowin IDE, or with `OSS=1` with the free
+toolchain as the release does. `DEV=1` runs it without a tag, for a trial. The image
 starts at address 0, so `programmer_cli` can write it as well as openFPGALoader:
 
 ```sh
@@ -138,9 +139,9 @@ no menu part. Firmware and cores of different releases do not match: the firmwar
 basic menu without DIP switches and a message to update both, and hardcore stays off. Built on
 its own, the fork has no menu of a game20k core and shows the basic menu for each.
 
-**Releases.** GitHub Actions builds the release firmware from the sources at the tag, and
-`gh attestation verify game20k-<version>-pico2w.zip -R scullymi/game20k` confirms that a
-downloaded zip comes from that build.
+**Releases.** GitHub Actions builds the release firmware and the bitstreams from the sources at
+the tag, and `gh attestation verify game20k-<version>-pico2w.zip -R scullymi/game20k` (or
+`-tangnano20k.zip`) confirms that a downloaded zip comes from that build.
 
 ## Debugging the Pico
 
