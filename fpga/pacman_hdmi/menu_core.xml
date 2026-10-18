@@ -9,6 +9,7 @@
     <!-- game20k: the values are the raw DSW1 bits of MAME pacman.cpp, the wrapper does no
          translation. Every list resets: the switches reach the core only in reset. -->
     <menu label="DIP switches">
+      <button label="Set for RA" action="radips"/>
       <list label="Lives:" id="L" default="2" action="reset">
         <listentry label="1" value="0"/>
         <listentry label="2" value="1"/>

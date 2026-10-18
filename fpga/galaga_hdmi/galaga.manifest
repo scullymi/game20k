@@ -42,7 +42,8 @@
 #   short <text>      the title in the firmware's menus and dialogs, without it the title line
 #   dip <id> <value>  a DIP switch the RetroAchievements set expects: the id of a list in the
 #                     core's menu_core.xml and one of its values. Any other value shows as
-#                     "DIP not default!" in the firmware's RetroAchievements status
+#                     the banner "RA: DIP NOT AS SET", Account names the switch, and
+#                     "Set for RA" in the DIP switches sets it
 
 set     galaga
 title   Galaga (Namco Rev B)

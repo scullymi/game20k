@@ -12,15 +12,17 @@
 <!-- {header} -->
 <config name="{name}">
   <actions>
-    <!-- game20k: deliberately WITHOUT commands. The Pico answers these five
+    <!-- game20k: deliberately WITHOUT commands. The Pico answers these six
          buttons itself (menu.c catches them by name) and does not pass them on
          to the core. They must be listed all the same: config_get_action()
-         resolves an unknown name to NULL, and the button then does nothing. -->
+         resolves an unknown name to NULL, and the button then does nothing.
+         radips is "Set for RA" in a core's DIP switches. -->
     <action name="netinfo"/>
     <action name="rainfo"/>
     <action name="verinfo"/>
     <action name="ralist"/>
     <action name="games"/>
+    <action name="radips"/>
     <action name="init">
       <load file="{ini}"/>
       <set id="R" value="1"/>

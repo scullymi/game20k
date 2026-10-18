@@ -7,6 +7,7 @@
       header="Dig Dug (game20k) configuration for the FPGA Companion.">
   <dips>
     <menu label="DIP switches">
+      <button label="Set for RA" action="radips"/>
       <list label="Lives:" id="L" default="2" action="reset">
         <listentry label="1" value="0"/>
         <listentry label="2" value="1"/>

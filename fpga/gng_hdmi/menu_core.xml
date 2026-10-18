@@ -10,6 +10,7 @@
          only places them. Every list resets: the switches reach the core only in reset.
          The defaults are MAME's and jotego's (DF, FB). -->
     <menu label="DIP switches">
+      <button label="Set for RA" action="radips"/>
       <list label="Difficulty:" id="F" default="3" action="reset">
         <listentry label="Easy" value="2"/>
         <listentry label="Normal" value="3"/>
