@@ -51,13 +51,33 @@ The `RetroAchievements` menu holds the mode, the achievement list with progress,
 `Mode` switches between hardcore (the default) and softcore. Softcore takes effect immediately.
 Switching to hardcore first resets the running game, as RetroAchievements requires, and the
 banner shows the mode each time a game starts. In hardcore mode, the server's warning follows,
-which reads "Unknown Emulator" until RetroAchievements approves this client. When a DIP switch
-differs from the setting the game's achievement set expects, "DIP NOT DEFAULT" follows in either
-mode, because some achievements may then never trigger. Also in hardcore,
+which reads "Unknown Emulator" until RetroAchievements approves this client. Also in hardcore,
 FTP cannot modify the `ra_*` files, the `ra` folder or `config.ini`. `Account` shows the login,
 the unlocks and anything still waiting to be sent to the server. Without a connection,
 achievements still count: their unlocks are queued on the card and sent once the server can be
 reached.
+
+## DIP switches
+
+Some achievement sets expect certain DIP switch settings, which are not always the arcade's
+factory defaults. With any other setting, some achievements may never trigger. The banner then
+shows "DIP NOT AS SET" at each game start, in either mode, and `Account` names the first switch
+to change, for example `Set Bonus: 10K 40K+`. `Set for RA` in the `DIP switches` menu sets every
+switch the set expects and resets the game. `Save settings` keeps them for the next start.
+
+| Game | The set expects |
+| --- | --- |
+| Dig Dug | Lives: 3, Bonus: 10K 40K+, Continue: No |
+| Galaga | Lives: 3, Bonus: 20K 70K+ |
+| Ghosts'n Goblins, Makaimura | Lives: 3, Difficulty: Normal |
+| Jr. Pac-Man | Lives: 3, Bonus: 20000 |
+| Ms. Pac-Man | Lives: 3 |
+| Pac-Man | Lives: 3, Coinage: 1C/1C |
+| Puck Man | Lives: 5, Coinage: 1C/1C |
+| Time Pilot | Lives: 3, Bonus: 10K 50K, Difficulty: 4 |
+
+The `dip` lines of each game's manifest (`fpga/<core>/<set>.manifest`) are the source of this
+table.
 
 ## Hardcore
 
