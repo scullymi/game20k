@@ -53,7 +53,7 @@ jobs:
 
       - name: Tools from the cache
         id: tools
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: |
             external/oss-downloads
@@ -67,6 +67,16 @@ jobs:
         if: steps.tools.outputs.cache-hit != 'true'
         run: scripts/oss/build_tools.sh
 
+      # saved here, before the build: a failed build keeps the tools for the next run
+      - name: Tools into the cache
+        if: steps.tools.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            external/oss-downloads
+            external/oss-tools
+          key: ${{ steps.tools.outputs.cache-primary-key }}
+
       # a tag builds a release, anything else a trial build (DEV=1: no tag needed)
       - name: Build and pack
         run: |
@@ -75,6 +85,31 @@ jobs:
           else
             OSS=1 DEV=1 scripts/make_bitstream_release.sh
           fi
+
+      # per core the SHA-256 of its .bin and its clocks, also after a failed build, to compare
+      # with a build elsewhere
+      - name: Bitstreams and clocks
+        if: always()
+        run: |
+          for c in $(awk '!/^#/ && NF == 2 { print $1 }' fpga/common/slots.txt); do
+            echo "== $c"
+            sha256sum "fpga/$c/impl/oss/$c.bin" 2>/dev/null || echo "no $c.bin"
+            grep "Max frequency" "fpga/$c/impl/oss/nextpnr.log" 2>/dev/null | tail -n 6
+          done
+
+      # the logs and bitstreams of every core, also after a failed build
+      - name: Keep the build outputs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: oss-build-${{ github.run_id }}
+          path: |
+            fpga/*/impl/oss/*.log
+            fpga/*/impl/oss/*.fs
+            fpga/*/impl/oss/*.bin
+            fpga/*/impl/oss/report.json
+            fpga/*/impl/oss/tools.txt
+          if-no-files-found: warn
 
       # the zip as it is, not zipped again: the artifact takes its name,
       # game20k-<version>-tangnano20k.zip
