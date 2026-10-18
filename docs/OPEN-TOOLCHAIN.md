@@ -13,9 +13,8 @@ toolchain and has been tested on the board.
   both for macOS on Apple silicon or Linux (x86_64, arm64), checks them against their SHA-256
   and unpacks them under `external/`.
 - nextpnr and Apicula from game20k's forks, which carry fixes that are not upstream yet
-  (timing of LUT1 to LUT3 and of long-wire segments, no timing path through an asynchronous
-  clear or preset, clock inversion of memories, the flip-flop input from SEL, the sign of
-  multipliers). `scripts/oss/build_tools.sh` builds them
+  (timing of LUT1 to LUT3 and of long-wire segments, clock inversion of memories, the
+  flip-flop input from SEL, the sign of multipliers). `scripts/oss/build_tools.sh` builds them
   into `external/oss-tools/`, pinned to a commit each. It needs cmake, ninja, a C++ compiler,
   Boost and Eigen. `NEXTPNR` and `APICULA` in the environment point the build at other builds.
 
