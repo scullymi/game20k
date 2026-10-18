@@ -7,28 +7,32 @@
 # (every core at its address), NOTICE.txt and FLASHING.txt, and the same folder as .zip for the
 # release page.
 #
-# The bitstreams are built here and not in GitHub Actions, the Gowin tools are not available
-# there. A release comes from a clean tree on a tag, like the firmware (DEV=1 skips these checks
+# OSS=1 builds with the free toolchain (scripts/build_fpga_oss.sh, the tools from
+# scripts/oss/fetch_suite.sh and scripts/oss/build_tools.sh), as GitHub Actions does for a release
+# (.github/workflows/bitstreams.yml). Without it the Gowin IDE builds, which only runs here.
+# A release comes from a clean tree on a tag, like the firmware (DEV=1 skips these checks
 # for a trial run, the files then carry the version git describe gives). Every core of
-# fpga/common/slots.txt is built by this run, its timing report has to pass (build_fpga.sh), and
+# fpga/common/slots.txt is built by this run, its timing has to pass (build_fpga.sh checks
+# Gowin's report, this script nextpnr's clocks, build_fpga_oss.sh hold and routing), and
 # bitstream_notice.py checks that every source file belongs to a component of the NOTICE.
 # The cores build at the same time, at most as many as the machine has processors (JOBS=n for
 # fewer), each into a log of its own, which is printed in the ring's order afterwards.
 # Rebuilds of the same sources with the same Gowin version gave the same .bin byte for byte on
 # the build machine, also in a fresh clone at another path, the NOTICE records its SHA-256.
 #
-# The .fs files carry their build time in local time (the image is built from the .bin and has
-# none), the zip the time of packing.
+# Gowin's .fs files carry their build time in local time (the image is built from the .bin and
+# has none), the free build's none, the zip the time of packing.
 # git config game20k.quiethours "D1-D2 H1-H2" names a window of weekdays and hours, as date +%u
 # and +%H count them, in which no release is made: the script neither starts nor packs in it and
-# refuses a .fs whose "Created Time" falls in it. DEV=1 skips this check too.
+# refuses a Gowin .fs whose "Created Time" falls in it. DEV=1 skips this check too.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 # --- a diagnostic build rewrites the top, a release is the normal build only ---
-# build.tcl only asks whether a variable exists, so an empty one counts as set
-for v in RAMDIAG ROMVIEW SDRAMTEST FBTEST FBSHOW FBROT NOTESTBAR; do
+# build.tcl only asks whether a variable exists, so an empty one counts as set. The free build
+# has its own: macros for a diagnostic build, another LUT mapping, a stop after Yosys.
+for v in RAMDIAG ROMVIEW SDRAMTEST FBTEST FBSHOW FBROT NOTESTBAR OSS_DEFINES LUTMAP SYNTH_ONLY; do
   eval "isset=\${$v+set}"
   [ -z "$isset" ] || { echo "$v is set, even empty it selects a diagnostic build: unset it"; exit 1; }
 done
@@ -78,6 +82,9 @@ check_clock
 HEAD0=$(git rev-parse HEAD)
 VERSION=$(git describe --tags --always --dirty | sed 's/^v//')
 NAME="game20k-$VERSION-tangnano20k"
+# the build and the folder of its bitstreams
+if [ "$OSS" = 1 ]; then BUILD=scripts/build_fpga_oss.sh IMPL=oss; else BUILD=scripts/build_fpga.sh IMPL=pnr; fi
+export OSS
 
 # --- build every core of the ring, in its order ---
 CORES=$(awk '!/^#/ && NF == 2 { print $1 }' fpga/common/slots.txt)
@@ -88,9 +95,9 @@ trap 'rm -f "$STAMP"; rm -rf "$LOGS"' EXIT
 # never more builds at once than processors, a smaller JOBS is taken
 CPUS=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 if [ -n "$JOBS" ] && [ "$JOBS" -ge 1 ] && [ "$JOBS" -lt "$CPUS" ]; then CPUS=$JOBS; fi
-echo "building $(echo $CORES | wc -w | tr -d ' ') cores, $CPUS at a time"
+echo "building $(echo $CORES | wc -w | tr -d ' ') cores with $BUILD, $CPUS at a time"
 printf '%s\n' $CORES | xargs -P "$CPUS" -I{} sh -c \
-  'scripts/build_fpga.sh "$1" > "$2/$1.log" 2>&1 || touch "$2/$1.failed"' sh {} "$LOGS"
+  '"$3" "$1" > "$2/$1.log" 2>&1 || touch "$2/$1.failed"' sh {} "$LOGS" "$BUILD"
 for c in $CORES; do
   cat "$LOGS/$c.log"
   [ ! -e "$LOGS/$c.failed" ] || { echo "the build of $c failed, its log is above"; exit 1; }
@@ -98,11 +105,17 @@ done
 
 # --- the bitstreams come from this run, from the commit it started on, outside the window ---
 for c in $CORES; do
-  for f in "fpga/$c/impl/pnr/$c.fs" "fpga/$c/impl/pnr/$c.bin"; do
+  for f in "fpga/$c/impl/$IMPL/$c.fs" "fpga/$c/impl/$IMPL/$c.bin"; do
     [ -n "$(find "$f" -newer "$STAMP" 2>/dev/null)" ] \
       || { echo "$f is missing or older than this run"; exit 1; }
   done
-  if [ -z "$DEV" ] && fs_quiet "fpga/$c/impl/pnr/$c.fs"; then
+  # nextpnr routes on when a clock misses its frequency (--timing-allow-fail), a release does not
+  if [ "$OSS" = 1 ] && grep -q "FAIL at" "fpga/$c/impl/oss/nextpnr.log"; then
+    grep "Max frequency" "fpga/$c/impl/oss/nextpnr.log" | tail -n 6
+    echo "a clock of $c misses its frequency, see fpga/$c/impl/oss/nextpnr.log"
+    exit 1
+  fi
+  if [ -z "$DEV" ] && [ "$OSS" != 1 ] && fs_quiet "fpga/$c/impl/pnr/$c.fs"; then
     echo "fpga/$c/impl/pnr/$c.fs was built inside game20k.quiethours ($QUIET) or has no readable"
     echo "Created Time, build the release again outside the window"
     exit 1
@@ -136,9 +149,9 @@ for line in sys.stdin:
     if addr < len(img):
         sys.exit("slots.txt: %s at %#x overlaps the core before it, which ends at %#x" % (core, addr, len(img)))
     img += b"\xff" * (addr - len(img))
-    img += open("fpga/%s/impl/pnr/%s.bin" % (core, core), "rb").read()
+    img += open("fpga/%s/impl/%s/%s.bin" % (core, sys.argv[2], core), "rb").read()
 open(sys.argv[1], "wb").write(img)
-' "$OUT/$NAME.bin"
+' "$OUT/$NAME.bin" "$IMPL"
 {
   echo "Flashing game20k $VERSION onto the Tang Nano 20K"
   echo

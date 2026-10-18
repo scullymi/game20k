@@ -6,7 +6,8 @@
 Usage: scripts/bitstream_notice.py <output file> <version> <core> [<core> ...]
 
 The synthesis project of each core, fpga/<core>/impl/gwsynthesis/<core>.prj, lists the source
-files that went into its bitstream. Every one of them has to belong to a component below, and
+files that went into its bitstream. With OSS=1 the bitstreams are those of the free toolchain
+(scripts/build_fpga_oss.sh), which lists them in fpga/<core>/impl/oss/sources.txt. Every one of them has to belong to a component below, and
 each component names the notice it needs. A file that no component claims ends the script with
 exit code 1, so new HDL cannot get into a release without its notice. So do a diagnostic build,
 a bitstream older than one of its sources or than its synthesis project, a source that reads a
@@ -30,6 +31,13 @@ import make_menu  # the menu generator, the interface tag in the bitstream comes
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_URL = "https://github.com/scullymi/game20k"
+# OSS=1: the bitstreams of the free toolchain in impl/oss, else Gowin's in impl/pnr
+OSS = os.environ.get("OSS") == "1"
+
+
+def impl(core, name):
+    """A file of the core's build, of the free toolchain with OSS=1, else of Gowin's."""
+    return os.path.join(ROOT, "fpga", core, "impl", "oss" if OSS else "pnr", name)
 
 # Each component: the name in the NOTICE, a short licence label for the contents, where its
 # source comes from, a pattern on the repository-relative path, and what the NOTICE shows. The
@@ -497,11 +505,12 @@ def own_file(rel):
 
 def inputs(core):
     """The repository-relative source files of a core's last synthesis."""
-    prj = os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".prj")
+    prj = project(core)
     if not os.path.isfile(prj):
         die("%s missing, build %s first" % (os.path.relpath(prj, ROOT), core))
     with open(prj, encoding="utf-8") as f:
-        paths = re.findall(r'<File path="([^"]+)"', f.read())
+        text = f.read()
+    paths = text.split() if OSS else re.findall(r'<File path="([^"]+)"', text)
     if not paths:
         die("%s lists no files" % os.path.relpath(prj, ROOT))
     rel = []
@@ -520,6 +529,14 @@ def inputs(core):
     check_iface(core)
     rel += [make_menu.BASE, "fpga/%s/menu_core.xml" % core]
     return rel
+
+
+def project(core):
+    """The file of the build that lists its sources: Gowin's synthesis project, or the list the
+    free build writes."""
+    if OSS:
+        return impl(core, "sources.txt")
+    return os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".prj")
 
 
 def check_iface(core):
@@ -577,7 +594,21 @@ def active_lines(text, defined):
 
 
 def syn_params_set(core):
-    """The compiled module lines of the synthesis log that set a SYN* parameter."""
+    """The compiled module lines of the synthesis log that set a SYN* parameter. The free build
+    has no such log: its sources are searched, without comments, for a SYN* parameter given a
+    file name, by an instance, as a module's default or by defparam. Handing one on, as
+    jtframe's wrappers do, sets nothing."""
+    if OSS:
+        setter = re.compile(r'(\.\s*SYN(HEX|FILE|BINFILE)\s*\(\s*|\bSYN(HEX|FILE|BINFILE)\s*=\s*)"[^"]+"')
+        hits = []
+        for f in read(project_rel(core)).split():
+            rel = os.path.relpath(f, ROOT)
+            if not re.search(r"\.(s?vh?)$", rel):
+                continue
+            text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), read(rel), flags=re.S)
+            hits += ["%s:%d: %s" % (rel, n, l.strip()) for n, l in enumerate(text.split("\n"), 1)
+                     if setter.search(l.split("//", 1)[0])]
+        return hits
     log = os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".log")
     if not os.path.isfile(log):
         die("%s missing, build %s first" % (os.path.relpath(log, ROOT), core))
@@ -661,6 +692,24 @@ def slot_of(core):
     die("fpga/common/slots.txt has no address for %s" % core)
 
 
+def project_rel(core):
+    return os.path.relpath(project(core), ROOT)
+
+
+def tools(cores):
+    """The sentence on the tools: Gowin's version from the header of the .fs, or the line the
+    free build writes, which has to be the same for every core."""
+    if not OSS:
+        return ("with Gowin EDA %s. Gowin provides its Education edition for education, research "
+                "and other non-commercial purposes. These files were built for a non-commercial "
+                "open source project and are published free of charge. This describes how they "
+                "were made and adds no condition to the licences below." % gowin_version(cores[0]))
+    lines = {read(os.path.relpath(impl(c, "tools.txt"), ROOT)).strip() for c in cores}
+    if len(lines) != 1:
+        die("the cores were built with different tools:\n  " + "\n  ".join(sorted(lines)))
+    return "with the free toolchain, %s." % lines.pop()
+
+
 def gowin_version(core):
     """The tool version in the header of the core's .fs, e.g. "V1.9.11.03 Education (81398)"."""
     fs = os.path.join(ROOT, "fpga", core, "impl", "pnr", core + ".fs")
@@ -698,12 +747,12 @@ def main():
         per_core[core] = files
         # The bitstream must be newer than its synthesis project and every source in it. A
         # build that stopped halfway leaves the old .fs behind a new .prj.
-        base = os.path.join(ROOT, "fpga", core, "impl", "pnr", core)
+        base = impl(core, core)
         for out in (base + ".fs", base + ".bin"):
             if not os.path.isfile(out):
                 die("%s missing, build %s first" % (os.path.relpath(out, ROOT), core))
         built = min(os.path.getmtime(base + ".fs"), os.path.getmtime(base + ".bin"))
-        prj = "fpga/%s/impl/gwsynthesis/%s.prj" % (core, core)
+        prj = project_rel(core)
         newer = [f for f in [prj] + files if os.path.getmtime(os.path.join(ROOT, f)) > built]
         if newer:
             die("%s is older than %s, build it again" % (core, ", ".join(newer)))
@@ -748,15 +797,12 @@ def main():
     out = [title, "=" * len(title), ""]
     out += textwrap.wrap(
         "This file accompanies the bitstreams of game20k %s. They were built by %s at commit %s "
-        "with Gowin EDA %s. Gowin provides its Education edition for education, research and "
-        "other non-commercial purposes. These files were built for a non-commercial open "
-        "source project and are published free of charge. This describes how they were made "
-        "and adds no condition to the licences below. The flash image holds each core's "
+        "%s The flash image holds each core's "
         "bitstream at its flash address as the tool writes it to the .bin file, 0xFF in "
         "between. Each bitstream contains the hardware descriptions listed "
         "below, each part under its own terms. The source of every part is in the repository "
         "at that commit."
-        % (version, REPO_URL, commit, gowin_version(cores[0])), 78, break_long_words=False,
+        % (version, REPO_URL, commit, tools(cores)), 78, break_long_words=False,
         break_on_hyphens=False)
     out += [""]
     out += textwrap.wrap(
@@ -769,7 +815,7 @@ def main():
         "starfield chip, not from a ROM.", 78)
     out += ["", "Bitstreams", ""]
     for core in cores:
-        base = os.path.join(ROOT, "fpga", core, "impl", "pnr", core)
+        base = impl(core, core)
         out.append(field("%s  " % core, "flash address %s, %d source files"
                          % (slot_of(core), len(per_core[core]))))
         out.append(field(" " * (len(core) + 2), "SHA-256 of %s.bin: %s" % (core, sha256(base + ".bin"))))
