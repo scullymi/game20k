@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# Builds the bitstreams of every core with the free toolchain and packs the flash image with its
+# NOTICE, through OSS=1 scripts/make_bitstream_release.sh, on a clean Linux machine from the
+# sources in this repository.
+#
+# On a push that changes the FPGA sources or the free build: a trial build, the zip kept as an
+# artifact of the run. On a pushed tag v<version>: the release build, its zip goes into the draft
+# release, which this workflow or pico2w-firmware.yml creates, whichever comes first, plus a
+# build provenance attestation. By hand (Actions tab, "Run workflow", or
+# gh workflow run bitstreams.yml): a trial build of the chosen branch.
+# The tools are cached: the archives of the oss-cad-suite (scripts/oss/fetch_suite.sh) and the
+# forks built by scripts/oss/build_tools.sh, keyed by both scripts.
+name: Bitstreams
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']          # path filters do not apply to tags, every tag builds
+    paths:
+      - 'fpga/**'
+      - 'scripts/build_fpga_oss.sh'
+      - 'scripts/oss/**'
+      - 'scripts/make_bitstream_release.sh'
+      - 'scripts/bitstream_notice.py'
+      - 'scripts/make_menu.py'
+      - 'scripts/make_rom.py'
+      - '.github/workflows/bitstreams.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write      # add the zip to the draft release
+  id-token: write      # sign the provenance attestation
+  attestations: write  # store it
+
+jobs:
+  bitstreams:
+    runs-on: ubuntu-24.04
+    steps:
+      # full history and tags for git describe, which names the version
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # build_tools.sh compiles nextpnr and sv-elab, build_fpga_oss.sh runs build.tcl in tclsh
+      - name: Build dependencies (apt)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libboost-program-options-dev \
+            libboost-iostreams-dev libboost-thread-dev libeigen3-dev tcl
+
+      - name: Tools from the cache
+        id: tools
+        uses: actions/cache@v6
+        with:
+          path: |
+            external/oss-downloads
+            external/oss-tools
+          key: oss-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/oss/fetch_suite.sh', 'scripts/oss/build_tools.sh') }}
+
+      - name: oss-cad-suite (scripts/oss/fetch_suite.sh)
+        run: SUITE_DOWNLOADS=external/oss-downloads scripts/oss/fetch_suite.sh
+
+      - name: nextpnr, Apicula, sv-elab (scripts/oss/build_tools.sh)
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: scripts/oss/build_tools.sh
+
+      # a tag builds a release, anything else a trial build (DEV=1: no tag needed)
+      - name: Build and pack
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            OSS=1 scripts/make_bitstream_release.sh
+          else
+            OSS=1 DEV=1 scripts/make_bitstream_release.sh
+          fi
+
+      # the zip as it is, not zipped again: the artifact takes its name,
+      # game20k-<version>-tangnano20k.zip
+      - name: Keep the zip of this run
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.zip
+          archive: false
+          if-no-files-found: error
+
+      - name: Build provenance
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/*/*.bin
+
+      # pico2w-firmware.yml runs on the same tag and is usually done first
+      - name: Zip into the draft release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="docs/releases/$VERSION.md"
+          [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
+            --title "game20k $VERSION" --notes-file "$NOTES" \
+            || gh release upload "$GITHUB_REF_NAME" dist/*.zip
