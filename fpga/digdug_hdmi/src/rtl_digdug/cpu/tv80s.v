@@ -98,7 +98,7 @@ module tv80s (/*AUTOARG*/
      .intcycle_n (intcycle_n)
      );
 
-  always @(posedge clk or negedge reset_n)
+  always @(posedge clk)   // game20k: synchronous reset, see ../README.md
     begin
       if (!reset_n)
         begin
@@ -159,6 +159,6 @@ module tv80s (/*AUTOARG*/
           if (tstate[2] && wait_n == 1'b1)
             di_reg <= #1 di;
         end // else: !if(!reset_n)
-    end // always @ (posedge clk or negedge reset_n)
+    end // always @ (posedge clk)
 
 endmodule // t80s

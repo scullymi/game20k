@@ -334,7 +334,7 @@ COMPONENTS = [
                  r"tv80s)\.v$",
         "licence": "MIT, the notice below",
         "note": "The headers say the core is based on the VHDL T80 by Daniel Wallner. tv80s.v takes "
-                "a clock enable, marked game20k.",
+                "a clock enable, and tv80s.v and tv80_core.v reset synchronously, marked game20k.",
         "show": [("lines", "fpga/digdug_hdmi/src/rtl_digdug/cpu/tv80_core.v",
                   "Copyright (c) 2004 Guy Hutchison", "SOFTWARE OR THE USE OR OTHER DEALINGS")],
         "copyrights": True,

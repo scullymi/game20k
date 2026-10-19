@@ -374,7 +374,7 @@ module tv80_core (/*AUTOARG*/
         Save_Mux = ALU_Q;
     end // always @ *
 
-  always @ (posedge clk or negedge reset_n)
+  always @ (posedge clk)   // game20k: synchronous reset, see ../README.md
     begin
       if (reset_n == 1'b0 )
         begin
@@ -1114,7 +1114,7 @@ module tv80_core (/*AUTOARG*/
   //
   //-------------------------------------------------------------------------
 `ifdef TV80_REFRESH
-  always @ (posedge clk or negedge reset_n)
+  always @ (posedge clk)   // game20k: synchronous reset, see ../README.md
     begin
       if (reset_n == 1'b0 )
         begin
@@ -1134,7 +1134,7 @@ module tv80_core (/*AUTOARG*/
                 end
             end
         end
-    end // always @ (posedge clk or negedge reset_n)
+    end // always @ (posedge clk)
 `else // !`ifdef TV80_REFRESH
   assign rfsh_n = 1'b1;
 `endif
@@ -1159,7 +1159,7 @@ module tv80_core (/*AUTOARG*/
   //
   //-----------------------------------------------------------------------
 
-  always @ (posedge clk or negedge reset_n)
+  always @ (posedge clk)   // game20k: synchronous reset, see ../README.md
     begin : sync_inputs
       if (~reset_n)
         begin
@@ -1193,7 +1193,7 @@ module tv80_core (/*AUTOARG*/
   //
   //-----------------------------------------------------------------------
 
-  always @ (posedge clk or negedge reset_n)
+  always @ (posedge clk)   // game20k: synchronous reset, see ../README.md
     begin
       if (reset_n == 1'b0 )
         begin
