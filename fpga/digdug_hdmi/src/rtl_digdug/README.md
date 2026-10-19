@@ -45,7 +45,9 @@ changes.
   `DIGDUG_CUSIO`. The programs come with the ROM image. The control latch also drives the mode
   inputs of the 53XX and the reset of both MCUs. The sound CPU's NMI comes in raster lines 64
   and 192 as on the board and in MAME, instead of from a 120 Hz oscillator tuned to 48 MHz.
-  No hiscore port.
+  As in MAME, a pulse that comes while the NMI is disabled is dropped. Latched, it fired as
+  soon as the sound CPU enabled its NMI, and with some reset phases the next pulse came inside
+  that handler, which the CPU never re-armed from. No hiscore port.
 - **`FPGA_DIGDUG.v`:** write taps of the four shared RAMs for the RetroAchievements RAM mirror,
   and one write strobe per CPU write for the 06XX. No hiscore port.
 
