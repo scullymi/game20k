@@ -59,33 +59,37 @@ module rom_loader #(
     output logic        busy,
     output logic [15:0] count         //!< bytes taken so far, for the display
 );
-    // Only slot SLOT and a file of 1 to TOTAL bytes are accepted. A longer file would write
-    // past the last section's memory, the decoder gives it no upper end. Which game a file
-    // is and whether it is whole is the firmware's to check. A wrong size is reported by the
-    // Companion as "Core has rejected image".
-    wire size_ok = (image_size != 64'd0) && (image_size <= TOTAL);
+    // Only slot SLOT and a file of 1 byte up to below 2^(AW+1) bytes are accepted, the range
+    // of the counter. Bytes up to TOTAL go into the memories, the rest is taken and dropped:
+    // the footer of make_rom.py, which our fork cuts off and the upstream Companion firmware
+    // sends along. Which game a file is and whether it is whole is the firmware's to check,
+    // the upstream firmware does not. A wrong size is reported by the Companion as "Core has
+    // rejected image".
+    wire size_ok = (image_size != 64'd0) && (image_size < (64'd1 << (AW + 1)));
     assign accepted = sel_strobe && (sel_index == SLOT[2:0]) && size_ok;
 
-    logic [AW-1:0] cnt;
-    logic [AW-1:0] last;      // offset of the file's last byte, set when it is accepted
+    logic [AW:0]   cnt;
+    logic [AW:0]   last;      // offset of the file's last byte, set when it is accepted
     logic          active;
     assign busy  = active;
     assign count = cnt[15:0];
 
     // Target decoder: memory and address are derived from the running byte counter, the
-    // section is the last one whose start the counter has reached. The address is ALWAYS
-    // formed as the difference to the section start. Merely masking off the lower bits only
-    // works when the offset is a multiple of the section size, and for Galaga's sp_graphx
-    // (0x7000, 8192 bytes) it is not: the two halves ended up swapped in memory.
+    // section is the last one whose start the counter has reached, none from TOTAL on. The
+    // address is ALWAYS formed as the difference to the section start. Merely masking off the
+    // lower bits only works when the offset is a multiple of the section size, and for
+    // Galaga's sp_graphx (0x7000, 8192 bytes) it is not: the two halves ended up swapped in
+    // memory.
     logic [15:0]   en_c;
     logic [AW-1:0] addr_c;
     always_comb begin
         en_c   = 16'd0;
         addr_c = '0;
         for (int i = 0; i < SECTIONS; i++)
-            if (cnt >= OFFSETS[AW*i +: AW] && (i == SECTIONS - 1 || cnt < OFFSETS[AW*(i+1) +: AW])) begin
+            if (cnt >= OFFSETS[AW*i +: AW] && cnt < TOTAL
+                    && (i == SECTIONS - 1 || cnt < OFFSETS[AW*(i+1) +: AW])) begin
                 en_c[i] = 1'b1;
-                addr_c  = cnt - OFFSETS[AW*i +: AW];
+                addr_c  = AW'(cnt - OFFSETS[AW*i +: AW]);
             end
     end
 
@@ -104,7 +108,7 @@ module rom_loader #(
             if (sel_strobe && (sel_index == SLOT[2:0])) begin
                 if (size_ok) begin
                     cnt    <= '0;
-                    last   <= image_size[AW-1:0] - 1'b1;
+                    last   <= image_size[AW:0] - 1'b1;
                     active <= 1'b1;
                     loaded <= 1'b0;
                 end else if (image_size == 64'd0)
@@ -116,7 +120,7 @@ module rom_loader #(
             if (active && data_available && !data_strobe && wr_ready) begin
                 wr_data     <= data_in;
                 wr_addr     <= addr_c[15:0];
-                wr_off      <= cnt;
+                wr_off      <= cnt[AW-1:0];
                 wr_en       <= en_c;
                 data_strobe <= 1'b1;
                 cnt <= cnt + 1'b1;
