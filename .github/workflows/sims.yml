@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# The simulations that need no ROM: rom_sdram, the screen layouts and the audio handover in
-# fpga/common/sim, the Pac-Man RAM mirror in fpga/pacman_hdmi/sim. They take about half an hour
-# on a runner, so they run only when the FPGA sources or this workflow change. Verilator comes
+# The simulations that need no ROM: rom_sdram, the screen layouts, the audio handover and what
+# the upstream Companion firmware needs (ROM loader, READ_CFG) in fpga/common/sim, the Pac-Man
+# RAM mirror in fpga/pacman_hdmi/sim. They take about half an hour on a runner, so they run
+# only when the FPGA sources, the menu script or this workflow change. Verilator comes
 # from the oss-cad-suite the free build uses (scripts/oss/fetch_suite.sh), its archive from the
 # cache of bitstreams.yml or its own.
 name: Simulations
@@ -12,11 +13,13 @@ on:
   push:
     paths:
       - 'fpga/**'
+      - 'scripts/make_menu.py'
       - 'scripts/oss/fetch_suite.sh'
       - '.github/workflows/sims.yml'
   pull_request:
     paths:
       - 'fpga/**'
+      - 'scripts/make_menu.py'
       - 'scripts/oss/fetch_suite.sh'
       - '.github/workflows/sims.yml'
 
@@ -59,4 +62,5 @@ jobs:
           sh fpga/common/sim/run_sim.sh
           sh fpga/common/sim/run_screen_sim.sh
           sh fpga/common/sim/run_audio_sim.sh
+          sh fpga/common/sim/run_mcu_sim.sh
           sh fpga/pacman_hdmi/sim/run_sim.sh
