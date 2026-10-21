@@ -203,7 +203,7 @@ echo "== nextpnr"
 ${NEXTPNR:-nextpnr-himbaechel} --json "$out/$core.json" --write "$out/${core}_pnr.json" \
     --device GW2AR-LV18QN88C8/I7 --vopt family=GW2A-18C --vopt cst="$cst" --vopt sspi_as_gpio \
     --sdc "$out/clocks.sdc" --timing-allow-fail ${SEED:+--seed $SEED} --report "$out/report.json" -l "$out/nextpnr.log" -q
-grep -E "Max frequency" "$out/nextpnr.log" | tail -n 6
+python3 "$ROOT/scripts/oss/check_fmax.py" "$out/report.json" || true
 # nextpnr only warns about hold violations. On the board such a build fails now and then, so
 # it stops here. Another SEED in the core's oss.conf usually places around them.
 if grep -q "Hold/min time violation for" "$out/nextpnr.log"; then

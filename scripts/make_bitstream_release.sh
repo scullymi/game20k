@@ -110,8 +110,7 @@ for c in $CORES; do
       || { echo "$f is missing or older than this run"; exit 1; }
   done
   # nextpnr routes on when a clock misses its frequency (--timing-allow-fail), a release does not
-  if [ "$OSS" = 1 ] && grep -q "FAIL at" "fpga/$c/impl/oss/nextpnr.log"; then
-    grep "Max frequency" "fpga/$c/impl/oss/nextpnr.log" | tail -n 6
+  if [ "$OSS" = 1 ] && ! python3 scripts/oss/check_fmax.py "fpga/$c/impl/oss/report.json"; then
     echo "a clock of $c misses its frequency, see fpga/$c/impl/oss/nextpnr.log"
     exit 1
   fi

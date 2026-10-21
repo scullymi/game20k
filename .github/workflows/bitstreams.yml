@@ -94,7 +94,7 @@ jobs:
           for c in $(awk '!/^#/ && NF == 2 { print $1 }' fpga/common/slots.txt); do
             echo "== $c"
             sha256sum "fpga/$c/impl/oss/$c.bin" 2>/dev/null || echo "no $c.bin"
-            grep "Max frequency" "fpga/$c/impl/oss/nextpnr.log" 2>/dev/null | tail -n 6
+            python3 scripts/oss/check_fmax.py "fpga/$c/impl/oss/report.json" 2>/dev/null || true
           done
 
       # the logs and bitstreams of every core, also after a failed build
