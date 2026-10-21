@@ -73,8 +73,15 @@ input, SD card access and the menu, plus the RetroAchievements client in our for
 
 game20k needs a **Raspberry Pi Pico 2 W**. The firmware needs the RP2350's 520 kB of RAM, so the
 Pico W and other RP2040 boards are out, and it needs WiFi for RetroAchievements, so the Pico 2
-without W is out too. The Companion also runs on other boards (an M0S Dock, the Nano's onboard
-BL616, ESP32), but game20k does not support them.
+without W is out too.
+
+**Other Companion boards.** An M0S Dock wired to the same FPGA pins as the Pico (see
+[SPI.md](https://github.com/MiSTle-Dev/FPGA-Companion/blob/main/SPI.md)) can run the upstream
+FPGA-Companion firmware instead. Each core carries a smaller menu of its own for that firmware.
+You get the game with controller, DIP switches, settings and ROM loading, but no
+RetroAchievements and no game switch. The upstream firmware lists every `.rom` file on the card
+and checks none of them, so pick the game's own file. The Nano's onboard BL616 talks to the FPGA
+on other pins and does not work with our cores.
 
 **Two ways to connect the stick.** The recommended way is the Pico's own micro USB port with an
 OTG adapter (`scripts/build_companion.sh pico2 native`). It uses the chip's USB controller and
