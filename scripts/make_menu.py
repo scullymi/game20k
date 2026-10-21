@@ -2,18 +2,24 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 """@file make_menu.py
-@brief Puts a core's OSD menu together and derives the core's interface tag from it.
+@brief Puts a core's OSD menu together, derives the core's interface tag from it and packs the
+       menu for the core's ROM.
 
 Usage: scripts/make_menu.py <core> [<core> ...]     core folders under fpga/, e.g. galaga_hdmi
 
 The menu is fpga/common/menu/base.xml with its gaps filled from fpga/<core>/menu_core.xml, see
 the head of base.xml for the format. The Companion's firmware holds the menus of all cores,
 scripts/make_fw_tables.py writes them with compose() and iface_tag() of this script. Here, at
-every Gowin build (files.tcl), the script writes the menu to fpga/<core>/gen/menu.xml for a look
+every build (files.tcl), the script writes the menu to fpga/<core>/gen/menu.xml for a look
 and the core's IFACE_TAG to fpga/<core>/gen/iface_pkg.sv, which ram_spi sends in the RAM mirror
 header. The firmware takes its menu for the core only when the tags agree. The script stops on
 an action the menu does not define and on a setting that the core's game_core.sv starts at
 another value than the menu's default.
+
+For the upstream Companion firmware, which has no menus of its own, the core carries a smaller
+menu without the entries only our fork answers (rom_menu()). The script writes it to
+fpga/<core>/gen/menu_rom.xml and as gzip to fpga/<core>/gen/menu_rom.v, which sysctrl.v sends
+on READ_CFG.
 
 BUT: there is a second menu source, and it wins. If a file /config.xml lies on the SD card,
 the Companion reads that one and leaves its built-in menu aside (FPGA-Companion src/main.c,
@@ -23,6 +29,7 @@ you rebuild and flash, and only the debug UART tells: "Loading XML config from f
 """
 import os
 import re
+import struct
 import sys
 import textwrap
 import xml.etree.ElementTree as ET
@@ -31,6 +38,7 @@ from xml.sax.saxutils import escape
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = "fpga/common/menu/base.xml"
+ROOM = 2048        # bytes of the menu ROM, the 11-bit address of gen/menu_rom.v
 # the menu for a core the firmware has no menu for: base.xml without a core's part
 BASIC = ({"title": "Unknown core", "name": "game20k", "ini": "unknown.ini", "rom": "", "fire": "0",
           "header": "game20k basic menu, for a core without a menu of its own in the firmware"},
@@ -72,10 +80,12 @@ def core_part(core):
     return dict(root.attrib), blocks
 
 
-def compose(core, part=None):
+def compose(core, part=None, firmware=True):
     """The menu of a core as text, from base.xml and the core's part, or part (attributes and
-    blocks as core_part() returns them) for a menu without a core folder."""
+    blocks as core_part() returns them) for a menu without a core folder. With firmware False
+    the lines of base.xml under <!--@if firmware--> stay out, see rom_menu()."""
     attrs, blocks = part or core_part(core)
+    attrs = dict(attrs, firmware="") if firmware else attrs
     text = read(BASE)
     used = set()
 
@@ -124,7 +134,7 @@ def compose(core, part=None):
     out.append(fill(text[pos:]))
     if "<!--@" in "".join(out):
         fail("%s: a <!--@...--> that is not a line of its own" % BASE)
-    unknown = (set(attrs) | set(blocks)) - used
+    unknown = (set(attrs) | set(blocks)) - used - {"firmware"}
     if unknown:
         fail("fpga/%s/menu_core.xml: %s fills no gap of %s" % (core, ", ".join(sorted(unknown)), BASE))
     return "".join(out)
@@ -216,6 +226,57 @@ def iface_pkg(core, tag):
             "endpackage\n" % (BASE, core, core, tag))
 
 
+def rom_menu(core):
+    """The menu in the core's ROM, which the upstream Companion firmware reads with READ_CFG:
+    base.xml without its firmware lines, and without the elements of the core's part whose
+    action only the firmware's menu defines ("Set for RA"). Our fork never reads it, it takes
+    its own menu for the core's tag."""
+    full = {a.get("name") for a in ET.fromstring(compose(core)).iter("action")}
+    root = ET.fromstring(compose(core, firmware=False))
+    own = {a.get("name") for a in root.iter("action")}
+    for parent in list(root.iter()):
+        for e in list(parent):
+            if e.get("action") in full - own:
+                parent.remove(e)
+    ET.indent(root, "  ")
+    # "<hide/>" as in base.xml, the Companion's simple parser is only known to read that form
+    text = ET.tostring(root, encoding="unicode").replace(" />", "/>")
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + text + "\n"
+
+
+def pack(xml):
+    """The gzip of the menu, byte for byte what gzip -9 -n writes on macOS: zlib level 9, no
+    name, no time, OS 3. The Companion takes no other header flags."""
+    data = xml.encode("utf-8")
+    z = zlib.compressobj(9, zlib.DEFLATED, -15)
+    return (b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x02\x03" + z.compress(data) + z.flush()
+            + struct.pack("<II", zlib.crc32(data), len(data)))
+
+
+def menu_rom_v(core, gz):
+    """gen/menu_rom.v of a core: the packed menu as a case table, which Gowin and Yosys both
+    put into one block RAM. A table in the file needs no $readmemh path, which the two
+    toolchains resolve differently. Bytes past the end read 0."""
+    rows = "".join("    11'd%d: data <= 8'h%02x;\n" % (i, b) for i, b in enumerate(gz))
+    return ("// SPDX-License-Identifier: GPL-3.0-only\n"
+            "// Copyright (C) 2026 scullymi\n"
+            "// Generated by scripts/make_menu.py from %s and fpga/%s/menu_core.xml. Do not edit.\n"
+            "// The menu of %s for READ_CFG of sysctrl.v, gzip, %d bytes, see rom_menu().\n"
+            "`default_nettype none\n"
+            "module menu_rom (\n"
+            "  input  wire        clk,\n"
+            "  input  wire [10:0] addr,\n"
+            "  output reg  [7:0]  data\n"
+            ");\n"
+            "always @(posedge clk)\n"
+            "  case (addr)\n"
+            "%s"
+            "    default: data <= 8'h00;\n"
+            "  endcase\n"
+            "endmodule\n"
+            "`default_nettype wire\n" % (BASE, core, core, len(gz), rows))
+
+
 def write(rel, text):
     """Writes the file unless it holds this text already, so its date tells when it changed."""
     path = os.path.join(ROOT, rel)
@@ -239,6 +300,14 @@ def main():
         tag = iface_tag(core)
         write("fpga/%s/gen/iface_pkg.sv" % core, iface_pkg(core, tag))
         print("make_menu.py: fpga/%s/gen/iface_pkg.sv, IFACE_TAG 0x%04x" % (core, tag))
+        xml = rom_menu(core)
+        write("fpga/%s/gen/menu_rom.xml" % core, xml)
+        check(core, xml)
+        gz = pack(xml)
+        if len(gz) > ROOM:
+            fail("fpga/%s: the ROM menu is %d bytes packed, %d fit" % (core, len(gz), ROOM))
+        write("fpga/%s/gen/menu_rom.v" % core, menu_rom_v(core, gz))
+        print("make_menu.py: fpga/%s/gen/menu_rom.v, %d of %d bytes" % (core, len(gz), ROOM))
 
 
 if __name__ == "__main__":
