@@ -434,9 +434,9 @@ COMPONENTS = [
         "match": r"^fpga/(common|galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi|gng_hdmi|digdug_hdmi|"
                  r"pang_hdmi|timepilot_hdmi)/",
         "licence": "GPL-3.0-only, see the GPL text at the end",
-        "note": "Copyright (C) 2026 scullymi. The generated files gen/rom_map_pkg.sv and "
-                "gen/iface_pkg.sv come from the game's manifest and, by scripts/make_menu.py, "
-                "from menu/base.xml and the game's menu_core.xml. "
+        "note": "Copyright (C) 2026 scullymi. The generated file gen/rom_map_pkg.sv comes from "
+                "the game's manifest, gen/iface_pkg.sv and gen/menu_rom.v come by "
+                "scripts/make_menu.py from menu/base.xml and the game's menu_core.xml. "
                 "The rPLL instantiation in pll_sdram.v is output of the Gowin IP generator as "
                 "NESTang's gowin_pll_nes.v carries it, with our parameters.",
         "show": [],
@@ -446,7 +446,7 @@ OWN = len(COMPONENTS) - 1
 # the normal top level, a diagnostic build replaces it with gen/game20k_top_gen.sv (build.tcl)
 TOP = "fpga/common/src/game20k_top.sv"
 # the only files of a core's gen/ folder that belong into a release build
-GEN_OK = ("gen/rom_map_pkg.sv", "gen/iface_pkg.sv")
+GEN_OK = ("gen/rom_map_pkg.sv", "gen/iface_pkg.sv", "gen/menu_rom.v")
 # the files of a core that its build writes and no commit holds
 BUILT = GEN_OK
 # Statements that pull a file into the design at synthesis. None is allowed, so no ROM image
@@ -540,13 +540,19 @@ def project(core):
 
 
 def check_iface(core):
-    """Stops unless gen/iface_pkg.sv holds the tag make_menu.py derives from today's sources.
+    """Stops unless gen/iface_pkg.sv holds the tag and gen/menu_rom.v the menu that make_menu.py
+    derives from today's sources.
     The firmware of the release takes its menus from them, a core with an older tag would get
     the basic menu."""
     pkg = "fpga/%s/gen/iface_pkg.sv" % core
     if read(pkg) != make_menu.iface_pkg(core, make_menu.iface_tag(core)):
         die("%s does not hold the tag of %s and fpga/%s/menu_core.xml, build %s again"
             % (pkg, make_menu.BASE, core, core))
+    # the same for the menu that the core sends to the upstream Companion firmware
+    rom = "fpga/%s/gen/menu_rom.v" % core
+    if read(rom) != make_menu.menu_rom_v(core, make_menu.pack(make_menu.rom_menu(core))):
+        die("%s does not hold the menu of %s and fpga/%s/menu_core.xml, build %s again"
+            % (rom, make_menu.BASE, core, core))
 
 
 # jtframe's RAM and PROM modules: a data file read here is allowed when it hangs on one of these
