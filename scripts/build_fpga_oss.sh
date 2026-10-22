@@ -212,6 +212,7 @@ if grep -q "Hold/min time violation for" "$out/nextpnr.log"; then
     exit 1
 fi
 python3 "$ROOT/scripts/oss/check_unrouted.py" "$out/${core}_pnr.json" || exit 1
+PYTHONPATH=${APICULA:-} "$suite/bin/tabbypy3" "$ROOT/scripts/oss/check_clock_gates.py" "$out/${core}_pnr.json" 2> >(grep -vE "UserWarning|warnings.warn" >&2) || exit 1
 
 # The Companion's SPI pins share configuration pins: Gowin's -use_sspi_as_gpio and
 # -use_mspi_as_gpio. The core switch target comes from build.tcl. gowin_pack_g20k.py is Apicula's

@@ -54,7 +54,9 @@ it without a tag, for a trial.
   MOSI shares it with HDMI), emulated LVDS on the HDMI pins, and the 25 MHz flash loading rate.
 - The build stops when nextpnr reports a hold violation, which nextpnr itself only warns about.
   On the board such a placement fails now and then. Another `SEED` in `oss.conf` places around it.
-  It also stops on a net that has users but no route (`scripts/oss/check_unrouted.py`).
+  It also stops on a net that has users but no route (`scripts/oss/check_unrouted.py`), and on a
+  clock that leaves the global clock network and re-enters it through a clock gate, a detour
+  whose delay nextpnr does not model (`scripts/oss/check_clock_gates.py`).
 
 ## Known issues
 
