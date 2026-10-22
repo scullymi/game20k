@@ -10,8 +10,9 @@ author's repository is [MrX-8B/MiSTer-Arcade-DigDug](https://github.com/MrX-8B/M
 |---|---|---|---|
 | `FPGA_DIGDUG.v`, `DIGDUG_CORES.v`, `DIGDUG_IODEV.v`, `DIGDUG_VIDEO.v`, `DIGDUG_SPRITE.v`, `HVGEN.v`, `dprams.v`, `wsg.v` | MiSTer-X, "Copyright (c) 2017 MiSTer-X" in the head | GPL-3.0 by the repository's `LICENSE`, the files carry no licence text | yes, see below |
 | `cpucore.v` | not stated, the file has no head | GPL-3.0 by the repository's `LICENSE` | yes |
-| `cpu/tv80_alu.v`, `cpu/tv80_core.v`, `cpu/tv80_mcode.v`, `cpu/tv80_reg.v` | Guy Hutchison, based on the VHDL T80 by Daniel Wallner | MIT, in each head | no |
-| `cpu/tv80s.v` | Guy Hutchison | MIT, in the head | yes, a clock enable |
+| `cpu/tv80_alu.v`, `cpu/tv80_mcode.v`, `cpu/tv80_reg.v` | Guy Hutchison, based on the VHDL T80 by Daniel Wallner | MIT, in each head | no |
+| `cpu/tv80_core.v` | Guy Hutchison, based on the VHDL T80 by Daniel Wallner | MIT, in the head | yes, a synchronous reset |
+| `cpu/tv80s.v` | Guy Hutchison | MIT, in the head | yes, a clock enable and a synchronous reset |
 
 `LICENSE` is the text of the GPL version 3 and says neither "only" nor "or later". Not copied:
 `DIGDUG_CUSIO.v` (replaced by our `fpga/common/src/namco/namco_io.sv`), `hiscore.v`,
@@ -28,6 +29,11 @@ changes.
   clock had its edge. The paths on the inverted `MCLK` (sprite RAM ports, sprite ROM, line
   buffer write) stay as they are. This touches every changed file.
 - **`tv80s.v`:** input `cen`, also for its bus signals.
+- **`tv80s.v`, `cpu/tv80_core.v`:** the reset is synchronous. The control latch in
+  `DIGDUG_IODEV.v` is a register that holds CPU1 and CPU2 in reset. With an asynchronous reset,
+  the path from it ran through the clear of every CPU register and on through the CPU's logic,
+  longer than one core clock. The CPUs are held in reset for many clocks, one clock later makes
+  no difference.
 - **`cpucore.v`, `DIGDUG_CORES.v`, `FPGA_DIGDUG.v`:** the program of CPU0 comes from outside
   (`CPU0_ROM*`, read from SDRAM by `../game_core.sv`). `ROMWAIT` holds CPU0 in wait states
   until the byte is there. `rom0` is gone.
@@ -45,7 +51,9 @@ changes.
   `DIGDUG_CUSIO`. The programs come with the ROM image. The control latch also drives the mode
   inputs of the 53XX and the reset of both MCUs. The sound CPU's NMI comes in raster lines 64
   and 192 as on the board and in MAME, instead of from a 120 Hz oscillator tuned to 48 MHz.
-  No hiscore port.
+  As in MAME, a pulse that comes while the NMI is disabled is dropped. Latched, it fired as
+  soon as the sound CPU enabled its NMI, and with some reset phases the next pulse came inside
+  that handler, which the CPU never re-armed from. No hiscore port.
 - **`FPGA_DIGDUG.v`:** write taps of the four shared RAMs for the RetroAchievements RAM mirror,
   and one write strobe per CPU write for the 06XX. No hiscore port.
 
@@ -59,4 +67,4 @@ cmp LICENSE /tmp/Arcade-DigDug_MiSTer/LICENSE
 for f in $(find . -type f ! -name README.md ! -name LICENSE); do cmp -s "$f" "/tmp/Arcade-DigDug_MiSTer/rtl/$f" || echo "differs: $f"; done
 ```
 
-It lists the ten changed files. The four other TV80 files are byte for byte the upstream ones.
+It lists the eleven changed files. The three other TV80 files are byte for byte the upstream ones.

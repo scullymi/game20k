@@ -8,10 +8,13 @@
         @slot name  the lines up to @end, or instead the content of the core's element
                     name (an empty element leaves them out)
         @if key     the lines up to @end, only when <core> has the attribute key
+        @if firmware  the lines up to @end, only in the firmware's menu. The menu in the
+                    core's ROM, for the upstream Companion firmware, leaves them out
       Notes like this one, comments that open with "@ ", stay out of the menu. -->
 <!-- {header} -->
 <config name="{name}">
   <actions>
+    <!--@if firmware-->
     <!-- game20k: deliberately WITHOUT commands. The Pico answers these six
          buttons itself (menu.c catches them by name) and does not pass them on
          to the core. They must be listed all the same: config_get_action()
@@ -23,6 +26,7 @@
     <action name="ralist"/>
     <action name="games"/>
     <action name="radips"/>
+    <!--@end-->
     <action name="init">
       <load file="{ini}"/>
       <set id="R" value="1"/>
@@ -45,7 +49,9 @@
   </actions>
 
   <menu label="{title}">
+    <!--@if firmware-->
     <button label="Games" action="games"/>
+    <!--@end-->
     <!--@slot dips-->
     <!--@end-->
     <menu label="Controller">
@@ -190,6 +196,7 @@
       <!--@end-->
       <button label="Save settings" action="save"/>
     </menu>
+    <!--@if firmware-->
     <!-- game20k: the mode goes to the core like any value and the core ignores
          'H'. The Pico follows it (sys_set_val): softcore applies at once, hardcore
          resets a running game first, as RetroAchievements asks. Hardcore is the
@@ -211,6 +218,7 @@
       <button label="Network" action="netinfo"/>
       <button label="Version" action="verinfo"/>
     </menu>
+    <!--@end-->
     <button label="Reset" action="reset_hide"/>
   </menu>
 </config>

@@ -44,14 +44,16 @@ add_file $common/src/ra_overlay.sv
 add_file $common/src/screen_sel.sv
 add_file $common/src/audio_cdc.sv
 
-# The interface tag: make_menu.py fills menu/base.xml with the game's menu_core.xml, checks
-# the menu and writes gen/iface_pkg.sv with IFACE_TAG, which ram_spi sends in the RAM mirror
-# header. The menu itself lives in the Companion's firmware, which takes it only for this tag.
+# The interface tag and the menu ROM: make_menu.py fills menu/base.xml with the game's
+# menu_core.xml, checks the menu and writes gen/iface_pkg.sv with IFACE_TAG, which ram_spi
+# sends in the RAM mirror header. Our fork has the menu built in and takes it only for this
+# tag. gen/menu_rom.v holds a smaller menu for the upstream Companion firmware (READ_CFG).
 if {[catch {exec python3 ../../scripts/make_menu.py [file tail [pwd]]} msg]} {
     error $msg
 }
 puts $msg
 add_file gen/iface_pkg.sv
+add_file gen/menu_rom.v
 
 # The top. The diagnostic parameters are set by rewriting its parameter lines, see the
 # game's build.tcl: it decides whether the original or a rewritten copy is added.

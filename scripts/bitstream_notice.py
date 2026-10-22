@@ -6,7 +6,8 @@
 Usage: scripts/bitstream_notice.py <output file> <version> <core> [<core> ...]
 
 The synthesis project of each core, fpga/<core>/impl/gwsynthesis/<core>.prj, lists the source
-files that went into its bitstream. Every one of them has to belong to a component below, and
+files that went into its bitstream. With OSS=1 the bitstreams are those of the free toolchain
+(scripts/build_fpga_oss.sh), which lists them in fpga/<core>/impl/oss/sources.txt. Every one of them has to belong to a component below, and
 each component names the notice it needs. A file that no component claims ends the script with
 exit code 1, so new HDL cannot get into a release without its notice. So do a diagnostic build,
 a bitstream older than one of its sources or than its synthesis project, a source that reads a
@@ -30,6 +31,13 @@ import make_menu  # the menu generator, the interface tag in the bitstream comes
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_URL = "https://github.com/scullymi/game20k"
+# OSS=1: the bitstreams of the free toolchain in impl/oss, else Gowin's in impl/pnr
+OSS = os.environ.get("OSS") == "1"
+
+
+def impl(core, name):
+    """A file of the core's build, of the free toolchain with OSS=1, else of Gowin's."""
+    return os.path.join(ROOT, "fpga", core, "impl", "oss" if OSS else "pnr", name)
 
 # Each component: the name in the NOTICE, a short licence label for the contents, where its
 # source comes from, a pattern on the repository-relative path, and what the NOTICE shows. The
@@ -326,7 +334,7 @@ COMPONENTS = [
                  r"tv80s)\.v$",
         "licence": "MIT, the notice below",
         "note": "The headers say the core is based on the VHDL T80 by Daniel Wallner. tv80s.v takes "
-                "a clock enable, marked game20k.",
+                "a clock enable, and tv80s.v and tv80_core.v reset synchronously, marked game20k.",
         "show": [("lines", "fpga/digdug_hdmi/src/rtl_digdug/cpu/tv80_core.v",
                   "Copyright (c) 2004 Guy Hutchison", "SOFTWARE OR THE USE OR OTHER DEALINGS")],
         "copyrights": True,
@@ -426,9 +434,9 @@ COMPONENTS = [
         "match": r"^fpga/(common|galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi|gng_hdmi|digdug_hdmi|"
                  r"pang_hdmi|timepilot_hdmi)/",
         "licence": "GPL-3.0-only, see the GPL text at the end",
-        "note": "Copyright (C) 2026 scullymi. The generated files gen/rom_map_pkg.sv and "
-                "gen/iface_pkg.sv come from the game's manifest and, by scripts/make_menu.py, "
-                "from menu/base.xml and the game's menu_core.xml. "
+        "note": "Copyright (C) 2026 scullymi. The generated file gen/rom_map_pkg.sv comes from "
+                "the game's manifest, gen/iface_pkg.sv and gen/menu_rom.v come by "
+                "scripts/make_menu.py from menu/base.xml and the game's menu_core.xml. "
                 "The rPLL instantiation in pll_sdram.v is output of the Gowin IP generator as "
                 "NESTang's gowin_pll_nes.v carries it, with our parameters.",
         "show": [],
@@ -438,7 +446,7 @@ OWN = len(COMPONENTS) - 1
 # the normal top level, a diagnostic build replaces it with gen/game20k_top_gen.sv (build.tcl)
 TOP = "fpga/common/src/game20k_top.sv"
 # the only files of a core's gen/ folder that belong into a release build
-GEN_OK = ("gen/rom_map_pkg.sv", "gen/iface_pkg.sv")
+GEN_OK = ("gen/rom_map_pkg.sv", "gen/iface_pkg.sv", "gen/menu_rom.v")
 # the files of a core that its build writes and no commit holds
 BUILT = GEN_OK
 # Statements that pull a file into the design at synthesis. None is allowed, so no ROM image
@@ -497,11 +505,12 @@ def own_file(rel):
 
 def inputs(core):
     """The repository-relative source files of a core's last synthesis."""
-    prj = os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".prj")
+    prj = project(core)
     if not os.path.isfile(prj):
         die("%s missing, build %s first" % (os.path.relpath(prj, ROOT), core))
     with open(prj, encoding="utf-8") as f:
-        paths = re.findall(r'<File path="([^"]+)"', f.read())
+        text = f.read()
+    paths = text.split() if OSS else re.findall(r'<File path="([^"]+)"', text)
     if not paths:
         die("%s lists no files" % os.path.relpath(prj, ROOT))
     rel = []
@@ -522,14 +531,28 @@ def inputs(core):
     return rel
 
 
+def project(core):
+    """The file of the build that lists its sources: Gowin's synthesis project, or the list the
+    free build writes."""
+    if OSS:
+        return impl(core, "sources.txt")
+    return os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".prj")
+
+
 def check_iface(core):
-    """Stops unless gen/iface_pkg.sv holds the tag make_menu.py derives from today's sources.
+    """Stops unless gen/iface_pkg.sv holds the tag and gen/menu_rom.v the menu that make_menu.py
+    derives from today's sources.
     The firmware of the release takes its menus from them, a core with an older tag would get
     the basic menu."""
     pkg = "fpga/%s/gen/iface_pkg.sv" % core
     if read(pkg) != make_menu.iface_pkg(core, make_menu.iface_tag(core)):
         die("%s does not hold the tag of %s and fpga/%s/menu_core.xml, build %s again"
             % (pkg, make_menu.BASE, core, core))
+    # the same for the menu that the core sends to the upstream Companion firmware
+    rom = "fpga/%s/gen/menu_rom.v" % core
+    if read(rom) != make_menu.menu_rom_v(core, make_menu.pack(make_menu.rom_menu(core))):
+        die("%s does not hold the menu of %s and fpga/%s/menu_core.xml, build %s again"
+            % (rom, make_menu.BASE, core, core))
 
 
 # jtframe's RAM and PROM modules: a data file read here is allowed when it hangs on one of these
@@ -577,7 +600,21 @@ def active_lines(text, defined):
 
 
 def syn_params_set(core):
-    """The compiled module lines of the synthesis log that set a SYN* parameter."""
+    """The compiled module lines of the synthesis log that set a SYN* parameter. The free build
+    has no such log: its sources are searched, without comments, for a SYN* parameter given a
+    file name, by an instance, as a module's default or by defparam. Handing one on, as
+    jtframe's wrappers do, sets nothing."""
+    if OSS:
+        setter = re.compile(r'(\.\s*SYN(HEX|FILE|BINFILE)\s*\(\s*|\bSYN(HEX|FILE|BINFILE)\s*=\s*)"[^"]+"')
+        hits = []
+        for f in read(project_rel(core)).split():
+            rel = os.path.relpath(f, ROOT)
+            if not re.search(r"\.(s?vh?)$", rel):
+                continue
+            text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), read(rel), flags=re.S)
+            hits += ["%s:%d: %s" % (rel, n, l.strip()) for n, l in enumerate(text.split("\n"), 1)
+                     if setter.search(l.split("//", 1)[0])]
+        return hits
     log = os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".log")
     if not os.path.isfile(log):
         die("%s missing, build %s first" % (os.path.relpath(log, ROOT), core))
@@ -661,6 +698,24 @@ def slot_of(core):
     die("fpga/common/slots.txt has no address for %s" % core)
 
 
+def project_rel(core):
+    return os.path.relpath(project(core), ROOT)
+
+
+def tools(cores):
+    """The sentence on the tools: Gowin's version from the header of the .fs, or the line the
+    free build writes, which has to be the same for every core."""
+    if not OSS:
+        return ("with Gowin EDA %s. Gowin provides its Education edition for education, research "
+                "and other non-commercial purposes. These files were built for a non-commercial "
+                "open source project and are published free of charge. This describes how they "
+                "were made and adds no condition to the licences below." % gowin_version(cores[0]))
+    lines = {read(os.path.relpath(impl(c, "tools.txt"), ROOT)).strip() for c in cores}
+    if len(lines) != 1:
+        die("the cores were built with different tools:\n  " + "\n  ".join(sorted(lines)))
+    return "with the free toolchain, %s." % lines.pop()
+
+
 def gowin_version(core):
     """The tool version in the header of the core's .fs, e.g. "V1.9.11.03 Education (81398)"."""
     fs = os.path.join(ROOT, "fpga", core, "impl", "pnr", core + ".fs")
@@ -698,12 +753,12 @@ def main():
         per_core[core] = files
         # The bitstream must be newer than its synthesis project and every source in it. A
         # build that stopped halfway leaves the old .fs behind a new .prj.
-        base = os.path.join(ROOT, "fpga", core, "impl", "pnr", core)
+        base = impl(core, core)
         for out in (base + ".fs", base + ".bin"):
             if not os.path.isfile(out):
                 die("%s missing, build %s first" % (os.path.relpath(out, ROOT), core))
         built = min(os.path.getmtime(base + ".fs"), os.path.getmtime(base + ".bin"))
-        prj = "fpga/%s/impl/gwsynthesis/%s.prj" % (core, core)
+        prj = project_rel(core)
         newer = [f for f in [prj] + files if os.path.getmtime(os.path.join(ROOT, f)) > built]
         if newer:
             die("%s is older than %s, build it again" % (core, ", ".join(newer)))
@@ -748,15 +803,12 @@ def main():
     out = [title, "=" * len(title), ""]
     out += textwrap.wrap(
         "This file accompanies the bitstreams of game20k %s. They were built by %s at commit %s "
-        "with Gowin EDA %s. Gowin provides its Education edition for education, research and "
-        "other non-commercial purposes. These files were built for a non-commercial open "
-        "source project and are published free of charge. This describes how they were made "
-        "and adds no condition to the licences below. The flash image holds each core's "
+        "%s The flash image holds each core's "
         "bitstream at its flash address as the tool writes it to the .bin file, 0xFF in "
         "between. Each bitstream contains the hardware descriptions listed "
         "below, each part under its own terms. The source of every part is in the repository "
         "at that commit."
-        % (version, REPO_URL, commit, gowin_version(cores[0])), 78, break_long_words=False,
+        % (version, REPO_URL, commit, tools(cores)), 78, break_long_words=False,
         break_on_hyphens=False)
     out += [""]
     out += textwrap.wrap(
@@ -769,7 +821,7 @@ def main():
         "starfield chip, not from a ROM.", 78)
     out += ["", "Bitstreams", ""]
     for core in cores:
-        base = os.path.join(ROOT, "fpga", core, "impl", "pnr", core)
+        base = impl(core, core)
         out.append(field("%s  " % core, "flash address %s, %d source files"
                          % (slot_of(core), len(per_core[core]))))
         out.append(field(" " * (len(core) + 2), "SHA-256 of %s.bin: %s" % (core, sha256(base + ".bin"))))

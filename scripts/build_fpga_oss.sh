@@ -27,14 +27,12 @@
 # nextpnr, Apicula and sv-elab (the slang frontend): scripts/oss/build_tools.sh builds them into
 # external/oss-tools/ from game20k's forks, which carry fixes not yet upstream. NEXTPNR, APICULA
 # and SLANG (the path of a slang.so) override them.
-# Toolchain: YosysHQ's oss-cad-suite, unpacked under external/ (ignored by git). Two builds are
-# needed for now:
+# Toolchain: YosysHQ's oss-cad-suite under external/ (ignored by git), two builds for now, both
+# downloaded and checked by scripts/oss/fetch_suite.sh:
 #   OSS_CAD_SUITE  2026-10-03 or later. Its Apicula fixes a crash on PLLs left of column 27.
 #   GHDL_SUITE     2026-09-10. GHDL 7.0.0-dev of 2026-10-03 aborts in synthesis
-#                  (netlists.adb:978), even on small designs.
-# Download from https://github.com/YosysHQ/oss-cad-suite-build/releases, for example
-#   oss-cad-suite-darwin-arm64-20261003.tgz, unpacked: external/oss-cad-suite
-#   oss-cad-suite-darwin-arm64-20260910.tgz, unpacked and renamed: external/oss-cad-suite-20260910
+#                  (netlists.adb:978), even on small designs. The macOS suite of 2026-10-18 has
+#                  a GHDL plugin that does not load into its Yosys.
 set -euo pipefail
 [ -n "${1:-}" ] || { echo "Usage: scripts/build_fpga_oss.sh <project folder under fpga/>" >&2; exit 2; }
 core=$1
@@ -62,6 +60,9 @@ vhdl=$(awk '$1=="hdl" && $2 ~ /\.vhdl?$/ {print $2}' "$out/files.txt" | tr '\n' 
 sv=$(awk '$1=="hdl" && $2 !~ /\.vhdl?$/ {print $2}' "$out/files.txt" | tr '\n' ' ')
 for f in $VHDL_SKIP; do vhdl=$(echo " $vhdl " | sed "s| [^ ]*/$f | |"); done
 for f in $SV_EXTRA; do sv="$sv $ROOT/fpga/$core/$f"; done
+# the sources this build reads, for the NOTICE (scripts/bitstream_notice.py). Written first, so
+# that a bitstream older than it is one of an earlier or a broken build.
+printf '%s\n' $vhdl $sv > "$out/sources.txt"
 cst=$(awk '$1=="cst" {print $2}' "$out/files.txt")
 # board.cst is in the Gowin IDE's form. nextpnr needs each pin of a differential pair in its own line.
 python3 "$ROOT/scripts/oss/cst_pairs.py" "$cst" > "$out/board_oss.cst"
@@ -202,7 +203,7 @@ echo "== nextpnr"
 ${NEXTPNR:-nextpnr-himbaechel} --json "$out/$core.json" --write "$out/${core}_pnr.json" \
     --device GW2AR-LV18QN88C8/I7 --vopt family=GW2A-18C --vopt cst="$cst" --vopt sspi_as_gpio \
     --sdc "$out/clocks.sdc" --timing-allow-fail ${SEED:+--seed $SEED} --report "$out/report.json" -l "$out/nextpnr.log" -q
-grep -E "Max frequency" "$out/nextpnr.log" | tail -n 6
+python3 "$ROOT/scripts/oss/check_fmax.py" "$out/report.json" || true
 # nextpnr only warns about hold violations. On the board such a build fails now and then, so
 # it stops here. Another SEED in the core's oss.conf usually places around them.
 if grep -q "Hold/min time violation for" "$out/nextpnr.log"; then
@@ -218,4 +219,14 @@ python3 "$ROOT/scripts/oss/check_unrouted.py" "$out/${core}_pnr.json" || exit 1
 echo "== gowin_pack"
 PYTHONPATH=${APICULA:-} "$suite/bin/tabbypy3" "$ROOT/scripts/oss/gowin_pack_g20k.py" -d GW2A-18C --sspi_as_gpio --mspi_as_gpio ${mb:+--multiboot_address 0x$mb} \
     -o "$out/$core.fs" "$out/${core}_pnr.json" 2> >(grep -vE "UserWarning|warnings.warn" >&2)
+# the .fs as bytes for the release image
+python3 "$ROOT/scripts/oss/fs2bin.py" "$out/$core.fs" "$out/$core.bin"
+# the tools of this build in one line, for the NOTICE: the suite's dates (scripts/oss/fetch_suite.sh)
+# and the commits of the forks, or the suite's own tool where none is set
+rev() { [ -n "$1" ] && git -C "$1" rev-parse --short=12 HEAD 2>/dev/null || echo "of the suite"; }
+date_of() { cut -d- -f1 "$1/.suite-date" 2>/dev/null || echo "unknown"; }
+echo "$(yosys -V | cut -d' ' -f1-2) and GHDL from YosysHQ's oss-cad-suite $(date_of "$suite")" \
+    "(GHDL $(date_of "$ghdl_suite")), yosys-slang $(rev "${SLANG:+$(dirname "$(dirname "$SLANG")")}")," \
+    "nextpnr-himbaechel $(rev "${NEXTPNR:+$(dirname "$(dirname "$NEXTPNR")")}")" \
+    "and Apicula $(rev "${APICULA:-}")" > "$out/tools.txt"
 echo "$out/$core.fs"

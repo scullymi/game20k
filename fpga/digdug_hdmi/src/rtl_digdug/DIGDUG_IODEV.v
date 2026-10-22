@@ -4,7 +4,8 @@
 //					Copyright (c) 2017 MiSTer-X
 //--------------------------------------------
 // game20k: one clock CLK48M with enables (CL, FGSCCL, the WSG's own), no hiscore port, the
-// sound CPU's NMI from the raster (SNDNMI) instead of a free-running 120 Hz oscillator. The
+// sound CPU's NMI from the raster (SNDNMI) instead of a free-running 120 Hz oscillator, and only
+// while it is enabled. The
 // custom I/O is the 06XX with the real 51XX and 53XX programs (namco_io.sv) instead of
 // DIGDUG_CUSIO. The programs come with the ROM image (ROMAD E000-E7FF).
 
@@ -223,7 +224,10 @@ always @( posedge CLK or posedge RESET ) begin
 			endcase
 		end
 		if (VBLK) begin IRQ0LC <= 1'b1; IRQ1LC <= 1'b1; end
-		if ((pH120^H120)&H120) NMI2LC <= 1'b1;
+		// game20k: a line pulse while the NMI is off is dropped, as in MAME. Latched, it fired
+		// the moment the sound CPU enabled its NMI, and with some reset phases the next pulse
+		// came inside that handler. The CPU never re-armed: no sound, the game stopped at READY.
+		if ((pH120^H120)&H120&NMI2EN) NMI2LC <= 1'b1;
 		pH120 <= H120;
 	end
 end
