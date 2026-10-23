@@ -180,7 +180,9 @@ yosys -m "${SLANG:-slang}" -q -l "$out/elab.log" -s "$out/elab.ys"
 # GHDL drops the defaults of VHDL input ports, an instance that leaves one open would get an
 # undriven input (Time Pilot's sound Z80 waited for ever with WAIT_n open). Apply them.
 [ -n "$VHDL_TOPS" ] && python3 "$ROOT/scripts/oss/vhdl_port_defaults.py" "$out/elab.il" $VHDL_TOPS -- $vhdl
-yosys -q -l "$out/yosys.log" -s "$out/synth.ys"
+# ABC writes files into the working directory, e.g. the miter of an equivalence check that runs
+# out of time, so synthesis runs in the output folder (synth.ys has absolute paths only)
+(cd "$out" && yosys -q -l "$out/yosys.log" -s "$out/synth.ys")
 # Yosys leaves block RAMs unused when LUT RAM looks cheaper, Gowin fills them. A second run puts
 # the largest memories with clocked reads into the block RAMs that are still free.
 if [ "$BLOCK_FILL" = 1 ]; then
@@ -190,7 +192,7 @@ if [ "$BLOCK_FILL" = 1 ]; then
         echo "== yosys, again with $(echo $fill | wc -w | tr -d ' ') more memories in block RAM"
         RAM_BLOCK="$RAM_BLOCK $fill"
         write_synth
-        yosys -q -l "$out/yosys.log" -s "$out/synth.ys"
+        (cd "$out" && yosys -q -l "$out/yosys.log" -s "$out/synth.ys")
     fi
 fi
 python3 "$ROOT/scripts/oss/mems_table.py" "$out/mems_dump.txt" > "$out/mems.txt"
