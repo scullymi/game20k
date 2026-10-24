@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# On a pushed tag v<version>: builds the Pico 2 W firmware (pico2w-firmware.yml) and the
+# bitstreams (bitstreams.yml) from the tag, each with a build provenance attestation, then creates
+# one draft release with both zips and the text from docs/releases/<version>.md. The draft is
+# published by hand on the release page.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    uses: ./.github/workflows/pico2w-firmware.yml
+    permissions:
+      contents: read
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+
+  bitstreams:
+    uses: ./.github/workflows/bitstreams.yml
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+  # the only job that creates the release, once both zips exist
+  draft:
+    needs: [firmware, bitstreams]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write      # create the draft release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # the zips of both builds as they were uploaded: an artifact of type application/zip is
+      # unpacked on download unless skip-decompress is set
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: game20k-*.zip
+          merge-multiple: true
+          skip-decompress: true
+          path: dist
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES="docs/releases/$VERSION.md"
+          [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
+          ls -l dist
+          [ "$(ls dist/*.zip | wc -l)" -eq 2 ] || { echo "expected the firmware and the bitstreams zip"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
+            --title "game20k $VERSION" --notes-file "$NOTES"

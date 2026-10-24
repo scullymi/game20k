@@ -6,9 +6,8 @@
 # sources in this repository.
 #
 # On a push that changes the FPGA sources or the free build: a trial build, the zip kept as an
-# artifact of the run. On a pushed tag v<version>: the release build, its zip goes into the draft
-# release, which this workflow or pico2w-firmware.yml creates, whichever comes first, plus a
-# build provenance attestation. By hand (Actions tab, "Run workflow", or
+# artifact of the run. Called by release.yml on a pushed tag v<version>: the release build, its
+# zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run workflow", or
 # gh workflow run bitstreams.yml): a trial build of the chosen branch.
 # The tools are cached: the archives of the oss-cad-suite (scripts/oss/fetch_suite.sh) and the
 # forks built by scripts/oss/build_tools.sh, keyed by both scripts.
@@ -17,7 +16,6 @@ name: Bitstreams
 on:
   push:
     branches: ['**']
-    tags: ['v*']          # path filters do not apply to tags, every tag builds
     paths:
       - 'fpga/**'
       - 'scripts/build_fpga_oss.sh'
@@ -27,10 +25,11 @@ on:
       - 'scripts/make_menu.py'
       - 'scripts/make_rom.py'
       - '.github/workflows/bitstreams.yml'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
-  contents: write      # add the zip to the draft release
+  contents: read
   id-token: write      # sign the provenance attestation
   attestations: write  # store it
 
@@ -127,16 +126,3 @@ jobs:
           subject-path: |
             dist/*.zip
             dist/*/*.bin
-
-      # pico2w-firmware.yml runs on the same tag and is usually done first
-      - name: Zip into the draft release
-        if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          NOTES="docs/releases/$VERSION.md"
-          [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
-          gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
-            --title "game20k $VERSION" --notes-file "$NOTES" \
-            || gh release upload "$GITHUB_REF_NAME" dist/*.zip

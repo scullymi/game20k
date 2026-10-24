@@ -4,21 +4,18 @@
 # Builds the firmware image for the Pico 2 W with its NOTICE, through
 # scripts/make_firmware_release.sh, on a clean Linux machine from the sources in this repository.
 #
-# On a pushed tag v<version>: a draft release with the zip and the text from
-# docs/releases/<version>.md, plus a build provenance attestation. bitstreams.yml adds the
-# bitstreams' zip, or creates the draft when it is first. The draft is published by hand on the
-# release page.
+# Called by release.yml on a pushed tag v<version>: the release build, its zip kept as an artifact
+# of the run for the draft release, plus a build provenance attestation.
 # By hand (Actions tab, "Run workflow", or gh workflow run pico2w-firmware.yml): a trial build of
 # the chosen branch, the zip kept as an artifact of the run, no release.
 name: Pico 2 W firmware
 
 on:
-  push:
-    tags: ['v*']
+  workflow_call:
   workflow_dispatch:
 
 permissions:
-  contents: write      # create the draft release
+  contents: read
   id-token: write      # sign the provenance attestation
   attestations: write  # store it
 
@@ -72,15 +69,3 @@ jobs:
           subject-path: |
             dist/*.zip
             dist/*/*.uf2
-
-      - name: Draft release
-        if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          NOTES="docs/releases/$VERSION.md"
-          [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
-          gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
-            --title "game20k $VERSION" --notes-file "$NOTES" \
-            || gh release upload "$GITHUB_REF_NAME" dist/*.zip
