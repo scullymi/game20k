@@ -4,10 +4,11 @@
 """Pinned dependencies against their newest upstream releases, and the HDL copied into fpga/
 against its upstream repositories.
 
-Read-only: asks GitHub over HTTPS (git ls-remote and the public API), changes nothing and fetches
-nothing into the checkouts. The API needs a token for more than 60 requests an hour: GITHUB_TOKEN,
-or else the token of a logged-in gh. The workflow upstream.yml runs --vendored --ci every Saturday. docs/dependencies.md says what
-to do with the result.
+Read-only: asks GitHub over HTTPS (git ls-remote, the public API for the forks) and changes nothing
+in the checkouts. For the copied HDL it clones each upstream repository without file contents into
+a temporary folder and asks git log, which has no limit on commits or files. The workflow
+upstream.yml runs --vendored --ci every Saturday. docs/dependencies.md says what to do with the
+result.
 
 Usage: scripts/deps_status.py [--vendored] [--ci]
   --vendored  only the copied HDL
@@ -18,9 +19,7 @@ import os
 import re
 import subprocess
 import sys
-import time
-import urllib.error
-import urllib.parse
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -124,61 +123,35 @@ def upstream_lead(upstream, fork, sha):
         return None   # offline, rate limit, or our commit is not on GitHub yet
 
 
-def token():
-    """GITHUB_TOKEN, or the token of a logged-in gh, or ''."""
-    if os.environ.get('GITHUB_TOKEN'):
-        return os.environ['GITHUB_TOKEN']
-    try:
-        r = subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True, timeout=10)
-        return r.stdout.strip() if r.returncode == 0 else ''
-    except (OSError, subprocess.TimeoutExpired):
-        return ''
+class Unanswered(Exception):
+    """The upstream history could not be read completely."""
 
 
-TOKEN = None
+def clone(repo, into):
+    """A clone of the upstream repository with history and trees but no file contents, so even a
+    large one stays small. Its HEAD is the default branch."""
+    path = into / repo.replace('/', '_')
+    if not path.exists():
+        r = subprocess.run(['git', 'clone', '--quiet', '--bare', '--filter=blob:none',
+                            f'https://github.com/{repo}.git', str(path)],
+                           capture_output=True, text=True, timeout=600)
+        if r.returncode:
+            raise Unanswered('git clone failed: ' + (r.stderr.strip().splitlines() or ['?'])[-1])
+    return path
 
 
-def api(path):
-    """JSON of a GitHub API request, authenticated when a token is at hand."""
-    global TOKEN
-    if TOKEN is None:
-        TOKEN = token()
-    req = urllib.request.Request('https://api.github.com/' + path, headers={
-        'Accept': 'application/vnd.github+json', 'User-Agent': 'game20k-deps-status'})
-    if TOKEN:
-        req.add_header('Authorization', 'Bearer ' + TOKEN)
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.load(r)
-
-
-def why(e):
-    """Short reason of a failed API request, with the reset time of an exhausted limit."""
-    if isinstance(e, urllib.error.HTTPError):
-        reset = e.headers.get('X-RateLimit-Reset')
-        if e.code in (403, 429) and e.headers.get('X-RateLimit-Remaining') == '0' and reset:
-            return (f'API limit used up until {time.strftime("%H:%M", time.localtime(int(reset)))}'
-                    + ('' if TOKEN else ', set GITHUB_TOKEN or log in with gh'))
-        return f'HTTP {e.code} {e.reason}'
-    return str(e)
-
-
-def touched(repo, base, head, ours):
-    """Upstream changes to our files from base to head: (commits upstream, report lines, None),
-    or (0, [], reason) when the API cannot give a complete answer."""
-    cmp = api(f'repos/{repo}/compare/{base}...{head}')
-    files = cmp.get('files', [])
-    # the API lists at most 300 files and 250 commits of a comparison
-    if len(files) >= 300 or cmp.get('total_commits', 0) > 250:
-        return 0, [], f'{cmp["ahead_by"]} commits, too many for the API, compare by hand'
-    shas = {c['sha'] for c in cmp.get('commits', [])}
+def touched(repo_clone, base, head, ours):
+    """Upstream changes to our files from base to head: (commits upstream, report lines)."""
+    # a base that is not on the default branch would make every commit look new
+    if not git('-C', str(repo_clone), 'rev-parse', '--verify', '--quiet', f'{base}^{{commit}}'):
+        raise Unanswered(f'{base} is not in the upstream history')
+    ahead = int(git('-C', str(repo_clone), 'rev-list', '--count', f'{base}..{head}') or 0)
     lines = []
-    for fn in sorted(f['filename'] for f in files if f['filename'] in ours):
-        q = urllib.parse.quote(fn)
-        for c in api(f'repos/{repo}/commits?path={q}&sha={head}&per_page=30'):
-            if c['sha'] in shas:
-                msg = c['commit']['message'].splitlines()[0]
-                lines.append(f'  {fn}: {c["sha"][:7]} {c["commit"]["committer"]["date"][:10]} {msg}')
-    return cmp['ahead_by'], lines, None
+    for fn in sorted(ours):
+        log = git('-C', str(repo_clone), 'log', '--abbrev=7', '--format=%h %cs %s',
+                  f'{base}..{head}', '--', fn)
+        lines += [f'  {fn}: {c}' for c in log.splitlines()]
+    return ahead, lines
 
 
 def vendored():
@@ -186,6 +159,7 @@ def vendored():
     after the reviewed commit. Changes between the copy and the reviewed commit were looked at
     and not taken over, they are listed under "known" and do not count."""
     lines, known, look = [], [], False
+    tmp = tempfile.TemporaryDirectory(prefix='deps-status-')
     for name, repo, pinned, reviewed, local, there, other, extra in VENDORED:
         folder = ROOT / local
         ours = {f'{there}/{p.relative_to(folder)}'.lstrip('/') for p in folder.rglob('*')
@@ -193,15 +167,18 @@ def vendored():
         if folder.is_file():
             ours = {there}
         ours |= set(extra)
+        err = None
         try:
-            branch = api(f'repos/{repo}')['default_branch']
-            ahead, hit, err = touched(repo, reviewed, branch, ours)
+            repo_clone = clone(repo, Path(tmp.name))
+            ahead, hit = touched(repo_clone, reviewed, 'HEAD', ours)
             if pinned != reviewed:
-                _, old, _ = touched(repo, pinned, reviewed, ours)
+                _, old = touched(repo_clone, pinned, reviewed, ours)
                 if old:
                     known += [f'{name} ({pinned}..{reviewed}):'] + old
-        except (OSError, ValueError, KeyError) as e:
-            ahead, hit, err = 0, [], f'GitHub did not answer ({why(e)})'
+        except Unanswered as e:
+            ahead, hit, err = 0, [], str(e)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            ahead, hit, err = 0, [], f'git did not run ({e})'
         if err:
             lines.append(f'{name}: {err}')
             look = True
@@ -212,6 +189,7 @@ def vendored():
         else:
             lines.append(f'{name}: nothing new for our {len(ours)} files since {reviewed} '
                          f'({ahead} commits upstream)')
+    tmp.cleanup()
     if known:
         lines += ['', 'Known, looked at and not taken over (copy..reviewed):'] + known
     return lines, look

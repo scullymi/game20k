@@ -4,7 +4,7 @@
 # Weekly look at the upstream repositories of the HDL copied into fpga/. The run fails when one
 # of the copied files changed upstream after the commit marked as reviewed in
 # scripts/deps_status.py, and GitHub sends a mail about the failed run. The report is in the
-# summary of the run. Read-only, the token only lifts the API limit.
+# summary of the run. Read-only.
 name: Upstream
 
 on:
@@ -26,6 +26,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Copied HDL against upstream
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/deps_status.py --vendored --ci
