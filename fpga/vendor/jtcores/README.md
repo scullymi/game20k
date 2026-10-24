@@ -28,7 +28,7 @@ the README.md in `../jt12`, `../jt49`, `../jtopl`, `../jt6295` and `../jteeprom`
 | `cores/pang/hdl` | Jose Tejada Gomez | GPL-3.0-or-later | `jtpang_main.v`, see below |
 | `modules/jtframe/hdl` (without `cpu/t80` and `cpu/mc6809i.v`) | Jose Tejada Gomez | GPL-3.0-or-later | `ram/jtframe_dual_ram.v`, `cpu/jtframe_z80wait.v`, see below |
 | `modules/jtframe/hdl/cpu/t80` | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-style, see the file heads | no |
-| `modules/jtframe/hdl/cpu/mc6809i.v` | Greg Miller, changes by Jose Tejada Gomez | BSD-style, see below | no |
+| `modules/jtframe/hdl/cpu/mc6809i.v` | Greg Miller, changes by Jose Tejada Gomez | BSD-style, see below | upstream fix `bd9fefa`, see below |
 
 The upstream files keep their headers, except the two port lists in `modules/jtframe/hdl/inc`,
 which have none upstream. The T80 licence asks for the copyright notice in the documentation of a
@@ -64,6 +64,11 @@ Every change is marked `game20k` in the text.
   previous. At 37.125 MHz with an 8 MHz CPU that is too early for a RAM byte, and Pang read a
   wrong return address from its stack. jotego warns about the recovery at 48 MHz and 8 MHz. The
   other games do not define the macro and get the upstream logic.
+- **`modules/jtframe/hdl/cpu/mc6809i.v`** (Ghosts'n Goblins): jotego's later fix `bd9fefa`
+  ("correct interrupt and stack timing") on top of the copy, nothing else of jtcores after
+  `548b87b`. SYNC and CWAI wait the measured number of cycles, PSHS and PSHU with an empty
+  register mask make no stack access, SWI goes to the stack without a spare cycle, and SWI3 keeps
+  its interrupt type, where a missing `else` turned it into SWI.
 - **`cores/1942/hdl/jt1942_obj.v`:** `wire LHBL_eff` moved above its first use. Upstream uses
   the net before declaring it, Gowin warns with EX3638, and `scripts/fpga_report.sh` fails a
   build on that warning because it usually means a second, undriven net. Here both are one bit

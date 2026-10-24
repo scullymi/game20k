@@ -2,6 +2,9 @@
 // Company:
 // Engineer: Greg Miller
 // Copyright (c) 2016, Greg Miller
+// game20k: changed copy of jotego/jtcores 548b87b32a1b528a16cb41f689accb179e85d1a8
+// modules/jtframe/hdl/cpu/mc6809i.v. Only change: the upstream fix bd9fefa "correct interrupt
+// and stack timing", marked at each place, see fpga/vendor/jtcores/README.md.
 //
 // Create Date:    14:26:59 08/13/2016
 // Design Name:
@@ -123,10 +126,6 @@ reg     [15:0]          s;
 reg     [15:0]          pc;
 reg     [7:0]           dp;
 reg     [7:0]           cc;
-`ifdef SIMULATION
-wire   alu_busy = CpuState==CPUSTATE_MUL_ACTION;
-wire stack_busy = CpuState==CPUSTATE_PUL_ACTION || CpuState==CPUSTATE_PSH_ACTION;
-`endif
 /* verilator tracing_off */
 reg     [15:0]          tmp;
 reg     [15:0]          addr;
@@ -387,6 +386,13 @@ localparam CPUSTATE_SYNC                =  7'd113;
 localparam CPUSTATE_SYNC_EXIT           =  7'd114;
 
 localparam CPUSTATE_INT_DONTCARE        =  7'd115;
+// game20k: from jtcores bd9fefa
+localparam CPUSTATE_CWAI_PAD1           =  7'd116;
+localparam CPUSTATE_CWAI_PAD2           =  7'd117;
+localparam CPUSTATE_CWAI_PAD3           =  7'd118;
+localparam CPUSTATE_CWAI_PAD4           =  7'd119;
+localparam CPUSTATE_SYNC_PAD1           =  7'd120;
+localparam CPUSTATE_SYNC_PAD2           =  7'd121;
 
 
 reg     [6:0]    CpuState = CPUSTATE_RESET;
@@ -394,6 +400,12 @@ reg     [6:0]    CpuState_nxt = CPUSTATE_RESET;
 
 reg     [6:0]    NextState = CPUSTATE_RESET;
 reg     [6:0]    NextState_nxt = CPUSTATE_RESET;
+
+// game20k: from jtcores bd9fefa (moved below CpuState)
+`ifdef SIMULATION
+wire alu_busy = CpuState==CPUSTATE_MUL_ACTION;
+wire stack_busy = CpuState==CPUSTATE_PUL_ACTION || CpuState==CPUSTATE_PSH_ACTION;
+`endif
 
 wire    [6:0]    PostIllegalState;
 
@@ -1968,7 +1980,8 @@ begin
                     end
                     else if (Inst1 == OPCODE_INH_SYNC)
                     begin
-                        CpuState_nxt = CPUSTATE_SYNC;
+                        // game20k: from jtcores bd9fefa
+                        CpuState_nxt = CPUSTATE_SYNC_PAD1;
                         rLIC = 1'b1;
                         rAVMA = 1'b0;
                     end
@@ -3503,9 +3516,20 @@ begin
 
     CPUSTATE_PSH_DONTCARE3:
     begin
-        addr_nxt = (Inst1[1]) ? u : s;
-
-        CpuState_nxt = CPUSTATE_PSH_ACTION;
+        // game20k: from jtcores bd9fefa
+        if (tmp[7:0] == 8'h00)
+        begin
+            // A zero register mask has no stack write cycle.
+            addr_nxt = pc;
+            rAVMA = 1'b1;
+            rLIC = 1'b1;
+            CpuState_nxt = CPUSTATE_FETCH_I1;
+        end
+        else
+        begin
+            addr_nxt = (Inst1[1]) ? u : s;
+            CpuState_nxt = CPUSTATE_PSH_ACTION;
+        end
     end
 
     CPUSTATE_PSH_ACTION:
@@ -3873,10 +3897,11 @@ begin
 
         NextState_nxt = CPUSTATE_IRQ_DONTCARE2;
         rAVMA = 1'b1;
-        CpuState_nxt = CPUSTATE_IRQ_DONTCARE;
+        // game20k: from jtcores bd9fefa: straight to the stack, and SWI3 keeps its own type
+        CpuState_nxt = CPUSTATE_PSH_ACTION;
         if (InstPage3)
             IntType_nxt = INTTYPE_SWI3;
-        if (InstPage2)
+        else if (InstPage2)
             IntType_nxt = INTTYPE_SWI2;
         else
             IntType_nxt = INTTYPE_SWI;
@@ -4045,6 +4070,16 @@ begin
         CpuState_nxt = CPUSTATE_FETCH_I1;
     end
 
+    // game20k: from jtcores bd9fefa
+    CPUSTATE_SYNC_PAD1, CPUSTATE_SYNC_PAD2:
+    begin
+        addr_nxt = 16'HFFFF;
+        rAVMA = 1'b0;
+        rLIC = 1'b1;
+        CpuState_nxt = (CpuState == CPUSTATE_SYNC_PAD2)
+                     ? CPUSTATE_SYNC : CPUSTATE_SYNC_PAD2;
+    end
+
     CPUSTATE_SYNC:
     begin
         addr_nxt = 16'HFFFF;
@@ -4143,7 +4178,8 @@ begin
         cc_nxt = {1'b1, (cc[6:0] & Inst2[6:0])}; // Set E flag, AND CC with CWAI argument
         tmp_nxt = 16'H00FF; // Save to the S stack, PC, U, Y, X, DP, B, A, CC
 
-        NextState_nxt = CPUSTATE_CWAI_POST;
+        // game20k: from jtcores bd9fefa
+        NextState_nxt = CPUSTATE_CWAI_PAD1;
         rAVMA = 1'b0;
         CpuState_nxt = CPUSTATE_CWAI_DONTCARE1;
     end
@@ -4153,6 +4189,17 @@ begin
         addr_nxt = 16'HFFFF;
         rAVMA = 1'b1;
         CpuState_nxt = CPUSTATE_PSH_ACTION;
+    end
+
+    // game20k: from jtcores bd9fefa
+    // CWAI takes 20 E cycles before it starts accepting an interrupt.
+    CPUSTATE_CWAI_PAD1, CPUSTATE_CWAI_PAD2,
+    CPUSTATE_CWAI_PAD3, CPUSTATE_CWAI_PAD4:
+    begin
+        addr_nxt = 16'HFFFF;
+        rAVMA = 1'b0;
+        CpuState_nxt = (CpuState == CPUSTATE_CWAI_PAD4)
+                     ? CPUSTATE_CWAI_POST : CpuState + 1'b1;
     end
 
     CPUSTATE_CWAI_POST:
