@@ -42,7 +42,8 @@ DEPS = [
 #: folder that come from elsewhere, further upstream paths. Every file under the local folder
 #: except README.md and LICENSE is watched. A local file instead of a folder stands for the one
 #: upstream file it is derived from. After looking at a reported change, set the fourth
-#: field to the newest upstream commit of the report. Taking a change over moves the third.
+#: field to the newest upstream commit of the report. Taking everything over moves the third,
+#: a single change taken over is named in the folder's README.
 VENDORED = [
     ('Galaga', 'DECAfpga/Arcade_Galaga', 'e06ba91', 'e06ba91',
      'fpga/galaga_hdmi/src/rtl_dar', 'rtl_dar', (), ()),
@@ -156,8 +157,9 @@ def touched(repo_clone, base, head, ours):
 
 def vendored():
     """Report lines for the copied HDL, and whether something new needs a look. New means
-    after the reviewed commit. Changes between the copy and the reviewed commit were looked at
-    and not taken over, they are listed under "known" and do not count."""
+    after the reviewed commit. Changes between the copy and the reviewed commit were looked at,
+    they are listed under "known" and do not count. The few taken over are named in the README
+    of the local folder."""
     lines, known, look = [], [], False
     tmp = tempfile.TemporaryDirectory(prefix='deps-status-')
     for name, repo, pinned, reviewed, local, there, other, extra in VENDORED:
@@ -191,7 +193,7 @@ def vendored():
                          f'({ahead} commits upstream)')
     tmp.cleanup()
     if known:
-        lines += ['', 'Known, looked at and not taken over (copy..reviewed):'] + known
+        lines += ['', "Known, looked at (copy..reviewed), what was taken over is in the folder's README:"] + known
     return lines, look
 
 
