@@ -7,7 +7,7 @@
 //--------------------------------------------------------------------------------------------------------
 
 
-// game20k: MODIFIED VERSION of Nanomig src/misc/sd_rw.v at 0f3d2fd, which contains
+// game20k: MODIFIED VERSION of Nanomig src/misc/sd_rw.v at d913239, which contains
 // MiSTle-Dev/NanoMig#168 (Manger74). It goes back to sd_reader.v of WangXuan95/FPGA-SDcard-Reader
 // and is therefore GPL-3.0. Modified 2026-10-09, changes Copyright (C) 2026 scullymi: a read gets
 // RD_TRIES attempts, its data CRC is checked, and a read that fails ends like a failed write
@@ -89,6 +89,8 @@ localparam [1:0] UNKNOWN = 2'd0,      // SD card type
 localparam [15:0] FASTCLKDIV = CLK_DIV;
 localparam [15:0] SLOWCLKDIV = (FASTCLKDIV+1) * (SIMULATE ? 16'd5 : 16'd48);
 
+localparam integer CLKDIV_WIDTH = $clog2(SLOWCLKDIV + 1);
+
 reg        start  = 1'b0;
 reg [15:0] precnt = 0;
 reg [ 5:0] cmd    = 0;
@@ -168,7 +170,9 @@ endfunction
 // sd clk enable signals
 wire ena_n, ena_p;   
    
-sdcmd_ctrl u_sdcmd_ctrl (
+sdcmd_ctrl #(
+    .CLKDIV_WIDTH(CLKDIV_WIDTH)
+) u_sdcmd_ctrl (
     .rstn        ( rstn         ),
     .clk         ( clk          ),
     .sdclk       ( sdclk        ),
@@ -178,7 +182,7 @@ sdcmd_ctrl u_sdcmd_ctrl (
 `endif   
     .ena_n       ( ena_n        ),
     .ena_p       ( ena_p        ),
-    .clkdiv      ( clkdiv       ),
+    .clkdiv      ( clkdiv[CLKDIV_WIDTH-1:0] ),
     .start       ( start        ),
     .precnt      ( precnt       ),
     .cmd         ( cmd          ),

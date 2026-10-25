@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// game20k: MODIFIED VERSION of Nanomig src/misc/sd_card.v (Till Harbaum) at 0f3d2fd, which
+// game20k: MODIFIED VERSION of Nanomig src/misc/sd_card.v (Till Harbaum) at d913239, which
 // contains MiSTle-Dev/NanoMig#168 (Manger74). The game20k changes are marked "game20k":
 // a failed MCU read answers 0x02, command 9 polls an MCU sector without a new request, and a
 // sector the MCU has not clocked out completely stays ready for the next poll.
