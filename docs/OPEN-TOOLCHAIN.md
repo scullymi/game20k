@@ -17,9 +17,14 @@ toolchain and has been tested on the board.
   flip-flop input from SEL, the sign of multipliers, a plan of BUFGs and clock spines before
   the clocks are routed, so that no clock detours through another BUFG's gate, and PLL input
   routes that no clock reaches). The Apicula fork carries its own chip databases for that last
-  fix. `scripts/oss/build_tools.sh` builds both
-  into `external/oss-tools/`, pinned to a commit each. It needs cmake, ninja, a C++ compiler,
-  Boost and Eigen. `NEXTPNR` and `APICULA` in the environment point the build at other builds.
+  fix. yosys-slang comes from game20k's fork of sv-elab.
+- Fixes for a build that does not depend on the platform: in the nextpnr fork, in the sv-elab
+  fork, and for two passes of the suite's Yosys (`write_xaiger`, `submod`) as patches in
+  `scripts/oss/yosys/`, built into a Yosys plugin. Eigen, which nextpnr's placer uses, is pinned
+  as well. A build on macOS and one on Linux then give the same bitstream.
+- `scripts/oss/build_tools.sh` builds all of it into `external/oss-tools/`, pinned to a commit
+  each. It needs cmake, ninja, a C++20 compiler and Boost. `NEXTPNR`, `APICULA`, `SLANG` and
+  `YOSYS_FIXES` in the environment point the build at other builds.
 
 ```sh
 cd game20k && scripts/oss/fetch_suite.sh && scripts/oss/build_tools.sh
