@@ -14,8 +14,10 @@ toolchain and has been tested on the board.
   and unpacks them under `external/`.
 - nextpnr and Apicula from game20k's forks, which carry fixes that are not upstream yet
   (timing of LUT1 to LUT3 and of long-wire segments, clock inversion of memories, the
-  flip-flop input from SEL, the sign of multipliers, PLL input routes that no clock reaches).
-  The Apicula fork carries its own chip databases for that last fix. `scripts/oss/build_tools.sh` builds both
+  flip-flop input from SEL, the sign of multipliers, a plan of BUFGs and clock spines before
+  the clocks are routed, so that no clock detours through another BUFG's gate, and PLL input
+  routes that no clock reaches). The Apicula fork carries its own chip databases for that last
+  fix. `scripts/oss/build_tools.sh` builds both
   into `external/oss-tools/`, pinned to a commit each. It needs cmake, ninja, a C++ compiler,
   Boost and Eigen. `NEXTPNR` and `APICULA` in the environment point the build at other builds.
 

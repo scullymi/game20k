@@ -11,7 +11,7 @@
 # scripts/build_fpga_oss.sh). On macOS: brew install cmake ninja boost eigen
 set -euo pipefail
 NEXTPNR_REPO=https://github.com/scullymi/nextpnr.git
-NEXTPNR_REV=e43bf42e91940a590dd15ab6da7e65203cf29014
+NEXTPNR_REV=f28aaf91319c4e904b09e60b1a22a17b768daed8
 APICULA_REPO=https://github.com/scullymi/apicula.git
 APICULA_REV=d4eba7de04e7f007fd83e1b8599a269017c36e7f
 SV_ELAB_REPO=https://github.com/scullymi/sv-elab.git
