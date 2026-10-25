@@ -79,7 +79,7 @@ VENDORED = [
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
      ('src/tang/nano20k/gowin_dpb/sector_dpram.v',)),
     # 0f3d2fd is the merge of MiSTle-Dev/NanoMig#168, which brought sd_card.v and sd_rw.v
-    ('Nanomig', 'MiSTle-Dev/Nanomig', '0f3d2fd', '0f3d2fd', 'fpga/common/src/misc', 'src/misc',
+    ('Nanomig', 'MiSTle-Dev/Nanomig', '0f3d2fd', 'd913239', 'fpga/common/src/misc', 'src/misc',
      ('hid.v', 'mcu_spi.v', 'osd_u8g2.v', 'sysctrl.v'), ()),
     ('hdmi', 'hdl-util/hdmi', '08936f6', '83b1c95', 'fpga/common/src/hdmi', 'src', (), ()),
     ('NESTang', 'nand2mario/nestang', '1c00dc5', '5b24a71',
