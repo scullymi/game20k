@@ -13,7 +13,7 @@ set -euo pipefail
 NEXTPNR_REPO=https://github.com/scullymi/nextpnr.git
 NEXTPNR_REV=e43bf42e91940a590dd15ab6da7e65203cf29014
 APICULA_REPO=https://github.com/scullymi/apicula.git
-APICULA_REV=a0c1043cc8ac36e30afd58a7f119e6c905e1e608
+APICULA_REV=d4eba7de04e7f007fd83e1b8599a269017c36e7f
 SV_ELAB_REPO=https://github.com/scullymi/sv-elab.git
 SV_ELAB_REV=8b9abd368ea938c3468e886a8c451d2645cf92a8
 
@@ -32,9 +32,11 @@ checkout() {
 
 echo "== Apicula $APICULA_REV"
 checkout "$out/apicula" "$APICULA_REPO" "$APICULA_REV"
-# The chip databases come from Gowin's IDE data and are not in the repository. The suite's
-# Apicula ships them.
-cp "$suite"/lib/python3*/site-packages/apycula/*.msgpack.xz "$out/apicula/apycula/"
+# The chip databases come from Gowin's IDE data. The suite's Apicula ships them, the fork
+# carries its own for the devices it fixes, and those stay.
+for db in "$suite"/lib/python3*/site-packages/apycula/*.msgpack.xz; do
+    [ -e "$out/apicula/apycula/${db##*/}" ] || cp "$db" "$out/apicula/apycula/"
+done
 
 echo "== nextpnr $NEXTPNR_REV"
 checkout "$out/nextpnr" "$NEXTPNR_REPO" "$NEXTPNR_REV"
@@ -43,6 +45,8 @@ cd "$out/nextpnr"
 # The output of the chip database generator depends on Python's hash order. With a fixed seed
 # every build of the database comes out the same, else it and the bitstreams differ per run.
 export PYTHONHASHSEED=0
+# The build regenerates the database only when gowin_arch_gen.py changes, not when Apicula does
+rm -f build/himbaechel/uarch/gowin/chipdb-*.bba
 PYTHONPATH="$out/apicula" cmake -B build -G Ninja -DARCH=himbaechel -DHIMBAECHEL_UARCH=gowin \
     -DHIMBAECHEL_GOWIN_DEVICES=GW2A-18C -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON=OFF -DBUILD_GUI=OFF \
     -DPython3_EXECUTABLE="$suite/py3bin/python3" > "$out/nextpnr-cmake.log"
