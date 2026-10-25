@@ -1,0 +1,33 @@
+From 53b2470052f98760763d2d52cf57be89e1c7b96d Mon Sep 17 00:00:00 2001
+From: scullymi <github@twork.de>
+Date: Sun, 25 Oct 2026 17:09:10 +0100
+Subject: [PATCH 1/2] write_xaiger: make the order of inputs and outputs total
+
+sort_by_port_id compared only port_id and offset. All non-port wires have port_id 0, so their bits tied, and std::sort put them in a different order with libc++ and libstdc++. abc9 then gave ABC a different network on macOS and Linux and got different netlists back. Ties are now broken by wire name.
+---
+ backends/aiger/xaiger.cc | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/backends/aiger/xaiger.cc b/backends/aiger/xaiger.cc
+index 2725c3523..9eda7617a 100644
+--- a/backends/aiger/xaiger.cc
++++ b/backends/aiger/xaiger.cc
+@@ -395,8 +395,13 @@ struct XAigerWriter
+ 
+ 		struct sort_by_port_id {
+ 			bool operator()(const RTLIL::SigBit& a, const RTLIL::SigBit& b) const {
+-				return a.wire->port_id < b.wire->port_id ||
+-				    (a.wire->port_id == b.wire->port_id && a.offset < b.offset);
++				if (a.wire->port_id != b.wire->port_id)
++					return a.wire->port_id < b.wire->port_id;
++				// All non-port wires share port_id 0: order them by name, so
++				// that the order does not depend on the std::sort implementation
++				if (a.wire != b.wire)
++					return a.wire->name.lt_by_name(b.wire->name);
++				return a.offset < b.offset;
+ 			}
+ 		};
+ 		input_bits.sort(sort_by_port_id());
+-- 
+2.54.0 (Apple Git-157)
+

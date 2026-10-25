@@ -26,7 +26,8 @@
 #
 # nextpnr, Apicula and sv-elab (the slang frontend): scripts/oss/build_tools.sh builds them into
 # external/oss-tools/ from game20k's forks, which carry fixes not yet upstream. NEXTPNR, APICULA
-# and SLANG (the path of a slang.so) override them.
+# and SLANG (the path of a slang.so) override them. It also builds a Yosys plugin with fixes for
+# the suite's Yosys (scripts/oss/yosys/), YOSYS_FIXES overrides its path.
 # Toolchain: YosysHQ's oss-cad-suite under external/ (ignored by git), two builds for now, both
 # downloaded and checked by scripts/oss/fetch_suite.sh:
 #   OSS_CAD_SUITE  2026-10-03 or later. Its Apicula fixes a crash on PLLs left of column 27.
@@ -44,6 +45,7 @@ tools=$ROOT/external/oss-tools
 [ -z "${NEXTPNR:-}" ] && [ -x "$tools/nextpnr/build/nextpnr-himbaechel" ] && NEXTPNR=$tools/nextpnr/build/nextpnr-himbaechel
 [ -z "${APICULA:-}" ] && [ -d "$tools/apicula/apycula" ] && APICULA=$tools/apicula
 [ -z "${SLANG:-}" ] && [ -f "$tools/sv-elab/build/slang.so" ] && SLANG=$tools/sv-elab/build/slang.so
+[ -z "${YOSYS_FIXES:-}" ] && [ -f "$tools/yosys/fixes.so" ] && YOSYS_FIXES=$tools/yosys/fixes.so
 ghdl_suite=${GHDL_SUITE:-$ROOT/external/oss-cad-suite-20260910}
 for s in "$suite" "$ghdl_suite"; do
     [ -f "$s/environment" ] || { echo "$s/environment missing, see the head of this script" >&2; exit 1; }
@@ -182,7 +184,7 @@ yosys -m "${SLANG:-slang}" -q -l "$out/elab.log" -s "$out/elab.ys"
 [ -n "$VHDL_TOPS" ] && python3 "$ROOT/scripts/oss/vhdl_port_defaults.py" "$out/elab.il" $VHDL_TOPS -- $vhdl
 # ABC writes files into the working directory, e.g. the miter of an equivalence check that runs
 # out of time, so synthesis runs in the output folder (synth.ys has absolute paths only)
-(cd "$out" && yosys -q -l "$out/yosys.log" -s "$out/synth.ys")
+(cd "$out" && yosys ${YOSYS_FIXES:+-m "$YOSYS_FIXES"} -q -l "$out/yosys.log" -s "$out/synth.ys")
 # Yosys leaves block RAMs unused when LUT RAM looks cheaper, Gowin fills them. A second run puts
 # the largest memories with clocked reads into the block RAMs that are still free.
 if [ "$BLOCK_FILL" = 1 ]; then
@@ -192,7 +194,7 @@ if [ "$BLOCK_FILL" = 1 ]; then
         echo "== yosys, again with $(echo $fill | wc -w | tr -d ' ') more memories in block RAM"
         RAM_BLOCK="$RAM_BLOCK $fill"
         write_synth
-        (cd "$out" && yosys -q -l "$out/yosys.log" -s "$out/synth.ys")
+        (cd "$out" && yosys ${YOSYS_FIXES:+-m "$YOSYS_FIXES"} -q -l "$out/yosys.log" -s "$out/synth.ys")
     fi
 fi
 python3 "$ROOT/scripts/oss/mems_table.py" "$out/mems_dump.txt" > "$out/mems.txt"
@@ -228,7 +230,8 @@ python3 "$ROOT/scripts/oss/fs2bin.py" "$out/$core.fs" "$out/$core.bin"
 # and the commits of the forks, or the suite's own tool where none is set
 rev() { [ -n "$1" ] && git -C "$1" rev-parse --short=12 HEAD 2>/dev/null || echo "of the suite"; }
 date_of() { cut -d- -f1 "$1/.suite-date" 2>/dev/null || echo "unknown"; }
-echo "$(yosys -V | cut -d' ' -f1-2) and GHDL from YosysHQ's oss-cad-suite $(date_of "$suite")" \
+echo "$(yosys -V | cut -d' ' -f1-2)${YOSYS_FIXES:+ with the game20k fixes of write_xaiger and submod}" \
+    "and GHDL from YosysHQ's oss-cad-suite $(date_of "$suite")" \
     "(GHDL $(date_of "$ghdl_suite")), yosys-slang $(rev "${SLANG:+$(dirname "$(dirname "$SLANG")")}")," \
     "nextpnr-himbaechel $(rev "${NEXTPNR:+$(dirname "$(dirname "$NEXTPNR")")}")" \
     "and Apicula $(rev "${APICULA:-}")" > "$out/tools.txt"

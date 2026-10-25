@@ -1,0 +1,27 @@
+From ba2785ac1322dea9dfe040d304180fcfa14a9f30 Mon Sep 17 00:00:00 2001
+From: scullymi <github@twork.de>
+Date: Sun, 25 Oct 2026 17:09:10 +0100
+Subject: [PATCH 2/2] submod: iterate wires in insertion order, not pointer
+ order
+
+wire_flags was a std::map keyed by Wire*, so the new module's wires, the n<k> port names and the connections of the new cell followed heap addresses, which differ between platforms. A dict keeps the order in which the wires were found.
+---
+ passes/hierarchy/submod.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/passes/hierarchy/submod.cc b/passes/hierarchy/submod.cc
+index ce14d7852..2c0b4408d 100644
+--- a/passes/hierarchy/submod.cc
++++ b/passes/hierarchy/submod.cc
+@@ -53,7 +53,7 @@ struct SubmodWorker
+ 		bool is_int_used, is_ext_driven, is_ext_used;
+ 		wire_flags_t(RTLIL::Wire* wire) : new_wire(nullptr), is_int_driven(State::S0, GetSize(wire)), is_int_used(false), is_ext_driven(false), is_ext_used(false) { }
+ 	};
+-	std::map<RTLIL::Wire*, wire_flags_t> wire_flags;
++	dict<RTLIL::Wire*, wire_flags_t> wire_flags;
+ 	bool flag_found_something;
+ 
+ 	void flag_wire(RTLIL::Wire *wire, bool create, bool set_int_used, bool set_ext_driven, bool set_ext_used)
+-- 
+2.54.0 (Apple Git-157)
+

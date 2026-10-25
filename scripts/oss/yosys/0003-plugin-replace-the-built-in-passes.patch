@@ -1,0 +1,28 @@
+Plugin build only: the two passes replace the built-in ones
+
+diff --git a/backends/aiger/xaiger.cc b/backends/aiger/xaiger.cc
+index 7eb2a5f1c..7b7b4cba6 100644
+--- a/backends/aiger/xaiger.cc
++++ b/backends/aiger/xaiger.cc
+@@ -725,6 +725,8 @@ struct XAigerWriter
+ 
+ struct XAigerBackend : public Backend {
+ 	XAigerBackend() : Backend("xaiger", "write design to XAIGER file") { }
++	// Plugin build only: replaces the built-in backend, Backend::run_register refuses a second one
++	void run_register() override { pass_register[pass_name] = this; backend_register[backend_name] = this; }
+ 	void help() override
+ 	{
+ 		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
+diff --git a/passes/hierarchy/submod.cc b/passes/hierarchy/submod.cc
+index 7cd5e33f6..002e174a2 100644
+--- a/passes/hierarchy/submod.cc
++++ b/passes/hierarchy/submod.cc
+@@ -320,6 +320,8 @@ struct SubmodWorker
+ 
+ struct SubmodPass : public Pass {
+ 	SubmodPass() : Pass("submod", "moving part of a module to a new submodule") { }
++	// Plugin build only: replaces the built-in pass
++	bool replace_existing_pass() const override { return true; }
+ 	void help() override
+ 	{
+ 		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|

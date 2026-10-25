@@ -10,7 +10,7 @@
 # zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run workflow", or
 # gh workflow run bitstreams.yml): a trial build of the chosen branch.
 # The tools are cached: the archives of the oss-cad-suite (scripts/oss/fetch_suite.sh) and the
-# forks built by scripts/oss/build_tools.sh, keyed by both scripts.
+# forks built by scripts/oss/build_tools.sh, keyed by both scripts and the Yosys patches.
 name: Bitstreams
 
 on:
@@ -48,7 +48,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libboost-program-options-dev \
-            libboost-iostreams-dev libboost-thread-dev libeigen3-dev tcl
+            libboost-iostreams-dev libboost-thread-dev tcl
 
       - name: Tools from the cache
         id: tools
@@ -57,12 +57,12 @@ jobs:
           path: |
             external/oss-downloads
             external/oss-tools
-          key: oss-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/oss/fetch_suite.sh', 'scripts/oss/build_tools.sh') }}
+          key: oss-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/oss/fetch_suite.sh', 'scripts/oss/build_tools.sh', 'scripts/oss/yosys/*.patch') }}
 
       - name: oss-cad-suite (scripts/oss/fetch_suite.sh)
         run: SUITE_DOWNLOADS=external/oss-downloads scripts/oss/fetch_suite.sh
 
-      - name: nextpnr, Apicula, sv-elab (scripts/oss/build_tools.sh)
+      - name: nextpnr, Apicula, sv-elab, Yosys fixes (scripts/oss/build_tools.sh)
         if: steps.tools.outputs.cache-hit != 'true'
         run: scripts/oss/build_tools.sh
 
