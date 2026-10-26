@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 # Builds nextpnr, Apicula and sv-elab (Yosys' slang frontend, as a plugin) for the free toolchain
-# from game20k's forks into external/oss-tools/. scripts/build_fpga_oss.sh takes them from there. The forks carry fixes that are not upstream yet,
-# each pinned to the commit below. Also a Yosys plugin with the fixes in scripts/oss/yosys/.
+# into external/oss-tools/. scripts/build_fpga_oss.sh takes them from there. nextpnr and Apicula come
+# from game20k's forks, which carry fixes that are not upstream yet, sv-elab from upstream. Each is
+# pinned to the commit below. Also a Yosys plugin with the fixes in scripts/oss/yosys/.
 #   scripts/oss/build_tools.sh
 #
 # Needs git, cmake, ninja, a C++20 compiler, Boost (program_options, iostreams, thread), and the
@@ -16,9 +17,10 @@ NEXTPNR_REPO=https://github.com/scullymi/nextpnr.git
 NEXTPNR_REV=9c9843602b1c0d8c8d43f4f71f3205c4b68b7142
 APICULA_REPO=https://github.com/scullymi/apicula.git
 APICULA_REV=d4eba7de04e7f007fd83e1b8599a269017c36e7f
-SV_ELAB_REPO=https://github.com/scullymi/sv-elab.git
-SV_ELAB_REV=a39f163f1ef1aebcfcf7fc8eb54aa8d7b6698114
-EIGEN_REPO=https://gitlab.com/libeigen/eigen.git
+SV_ELAB_REPO=https://github.com/povik/sv-elab.git
+SV_ELAB_REV=dab821430d6403d0de80d08f49714c644cc60ce6
+# GitHub mirror of https://gitlab.com/libeigen/eigen
+EIGEN_REPO=https://github.com/scullymi/eigen.git
 EIGEN_REV=bc3b39870ecb690a623a3f49149a358b95c5781d # 5.0.1
 # the commit of the suite's Yosys, which the plugin is built for
 YOSYS_REPO=https://github.com/YosysHQ/yosys.git
@@ -33,6 +35,8 @@ mkdir -p "$out"
 # checkout <directory> <repository> <commit>
 checkout() {
     [ -d "$1/.git" ] || git clone -q --no-checkout "$2" "$1"
+    # an existing checkout follows a change of the repository above
+    git -C "$1" remote set-url origin "$2"
     git -C "$1" fetch -q --depth 1 origin "$3"
     git -C "$1" checkout -q --detach FETCH_HEAD
 }

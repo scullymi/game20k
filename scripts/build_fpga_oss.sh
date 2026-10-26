@@ -25,7 +25,7 @@
 # SYNTH_ONLY=1 stops after Yosys, for looking at the netlist and its statistics.
 #
 # nextpnr, Apicula and sv-elab (the slang frontend): scripts/oss/build_tools.sh builds them into
-# external/oss-tools/ from game20k's forks, which carry fixes not yet upstream. NEXTPNR, APICULA
+# external/oss-tools/, nextpnr and Apicula from game20k's forks, which carry fixes not yet upstream. NEXTPNR, APICULA
 # and SLANG (the path of a slang.so) override them. It also builds a Yosys plugin with fixes for
 # the suite's Yosys (scripts/oss/yosys/), YOSYS_FIXES overrides its path.
 # Toolchain: YosysHQ's oss-cad-suite under external/ (ignored by git), two builds for now, both
