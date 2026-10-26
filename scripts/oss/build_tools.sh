@@ -70,6 +70,9 @@ PYTHONPATH="$out/apicula" cmake -B build -G Ninja -DARCH=himbaechel -DHIMBAECHEL
 PYTHONPATH="$out/apicula" ninja -C build > "$out/nextpnr-build.log"
 echo "$out/nextpnr/build/nextpnr-himbaechel"
 
+# slang.so and the Yosys fixes are built against the suite's Yosys, the last step notes which
+rm -f "$out/yosys-version.txt"
+
 echo "== sv-elab $SV_ELAB_REV"
 checkout "$out/sv-elab" "$SV_ELAB_REPO" "$SV_ELAB_REV"
 git -C "$out/sv-elab" submodule update -q --init --recursive --depth 1
@@ -81,20 +84,23 @@ echo "$out/sv-elab/build/slang.so"
 
 echo "== Yosys fixes $YOSYS_REV"
 # write_xaiger and submod order their output by keys that tie or by heap address, so macOS and
-# Linux get different netlists from the same design. The plugin replaces the two passes of the
+# Linux get different netlists from the same design. The plugin replaces these passes of the
 # suite's Yosys with their sources at its commit and the patches in scripts/oss/yosys/.
 version=$("$suite/bin/yosys" -V)
 case "$version" in
     *"git sha1 ${YOSYS_REV:0:9},"*) ;;
     *) echo "The suite's Yosys is not $YOSYS_REV ($version): set YOSYS_REV and check scripts/oss/yosys/" >&2; exit 1 ;;
 esac
-# only the two files
+# only the files the patches change
+files=$(sed -n 's|^+++ b/||p' "$ROOT"/scripts/oss/yosys/*.patch | sort -u)
 [ -d "$out/yosys/.git" ] || git clone -q --no-checkout --filter=blob:none "$YOSYS_REPO" "$out/yosys"
-git -C "$out/yosys" sparse-checkout set --no-cone /backends/aiger/xaiger.cc /passes/hierarchy/submod.cc
+git -C "$out/yosys" sparse-checkout set --no-cone $(printf '/%s ' $files)
 git -C "$out/yosys" fetch -q --depth 1 --filter=blob:none origin "$YOSYS_REV"
 git -C "$out/yosys" checkout -q -f --detach FETCH_HEAD
 git -C "$out/yosys" apply "$ROOT"/scripts/oss/yosys/*.patch
 # as for sv-elab: flags from yosys-config, the compiler is the local one
 c++ $("$suite/bin/yosys-config" --cxxflags) -O2 -shared $([ "$(uname)" = Darwin ] && echo -undefined dynamic_lookup) \
-    -o "$out/yosys/fixes.so" "$out/yosys/backends/aiger/xaiger.cc" "$out/yosys/passes/hierarchy/submod.cc"
+    -o "$out/yosys/fixes.so" $(printf "$out/yosys/%s\n" $files | grep '\.cc$')
 echo "$out/yosys/fixes.so"
+# scripts/build_fpga_oss.sh loads both plugins only into this Yosys
+echo "$version" > "$out/yosys-version.txt"

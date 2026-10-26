@@ -1,14 +1,23 @@
-Plugin build only: the two passes replace the built-in ones
+From 8d39fbebcaf2aecc09039685d631e132d6d21a8b Mon Sep 17 00:00:00 2001
+From: scullymi <github@twork.de>
+Date: Mon, 26 Oct 2026 07:27:16 +0100
+Subject: [PATCH 3/3] plugin: replace the built-in passes
+
+For the plugin build only. Backend::run_register refuses a second backend of the same name even when replace_existing_pass() is true, so XAigerBackend registers itself.
+---
+ backends/aiger/xaiger.cc   | 2 ++
+ passes/hierarchy/submod.cc | 2 ++
+ 2 files changed, 4 insertions(+)
 
 diff --git a/backends/aiger/xaiger.cc b/backends/aiger/xaiger.cc
-index 7eb2a5f1c..7b7b4cba6 100644
+index 7eb2a5f1c..f6b98bd6c 100644
 --- a/backends/aiger/xaiger.cc
 +++ b/backends/aiger/xaiger.cc
 @@ -725,6 +725,8 @@ struct XAigerWriter
  
  struct XAigerBackend : public Backend {
  	XAigerBackend() : Backend("xaiger", "write design to XAIGER file") { }
-+	// Plugin build only: replaces the built-in backend, Backend::run_register refuses a second one
++	// Plugin build only: replaces the built-in backend, since Backend::run_register refuses a second one
 +	void run_register() override { pass_register[pass_name] = this; backend_register[backend_name] = this; }
  	void help() override
  	{
@@ -26,3 +35,6 @@ index 7cd5e33f6..002e174a2 100644
  	void help() override
  	{
  		//   |---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|---v---|
+-- 
+2.54.0 (Apple Git-157)
+

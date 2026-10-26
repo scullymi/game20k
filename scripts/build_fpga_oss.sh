@@ -50,6 +50,16 @@ ghdl_suite=${GHDL_SUITE:-$ROOT/external/oss-cad-suite-20260910}
 for s in "$suite" "$ghdl_suite"; do
     [ -f "$s/environment" ] || { echo "$s/environment missing, see the head of this script" >&2; exit 1; }
 done
+# slang.so and fixes.so from external/oss-tools are built against the headers of one Yosys.
+# Loaded into another one they crash or run with the wrong layout, so a new suite needs
+# scripts/oss/build_tools.sh again.
+case "${SLANG:-}${YOSYS_FIXES:-}" in
+    *"$tools/"*)
+        if [ "$("$suite/bin/yosys" -V)" != "$(cat "$tools/yosys-version.txt" 2>/dev/null)" ]; then
+            echo "external/oss-tools is not built for the suite's Yosys, run scripts/oss/build_tools.sh" >&2
+            exit 1
+        fi ;;
+esac
 out=$ROOT/fpga/$core/impl/oss
 mkdir -p "$out/ghdl"
 VHDL_TOPS= VHDL_X_OK= RAM_BLOCK= RAM_LOGIC= VHDL_SKIP= SV_EXTRA= BLOCK_FILL=1 SLANG_OPTS= ALU_LUT=8 SEED=
