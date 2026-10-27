@@ -28,10 +28,26 @@ void rc_runtime_reset(rc_runtime_t *rt) {}
 struct rc_trigger_t *rc_runtime_get_achievement(const rc_runtime_t *rt, uint32_t id) { return NULL; }
 int rc_parse_format(const char *format) { return 0; }   // leaderboard formats, these sets have none
 uint32_t getFreeHeap(void) { return 0; }
-// the network: the path of the last request, never an answer
+// the network: the path of the last request, never an answer. A switch set here comes
+// while the next request runs, as com_task's turn during a request of seconds
 static char net_path[RA_PATH_MAX];
-int ra_net_get(const char *path, char *buf, unsigned cap, ra_reply_t *reply) { snprintf(net_path, sizeof(net_path), "%s", path); return -1; }
-int ra_net_get_set(const char *path, char *buf, unsigned cap, ra_reply_t *reply) { return -1; }
+static void (*while_request)(void);
+int ra_net_get(const char *path, char *buf, unsigned cap, ra_reply_t *reply) {
+  void (*fn)(void) = while_request;
+  while_request = NULL;
+  snprintf(net_path, sizeof(net_path), "%s", path);
+  if(fn) fn();
+  return -1;
+}
+static void (*while_set)(void);
+static unsigned net_sets;           // set requests made
+int ra_net_get_set(const char *path, char *buf, unsigned cap, ra_reply_t *reply) {
+  void (*fn)(void) = while_set;
+  while_set = NULL;
+  net_sets++;
+  if(fn) fn();
+  return -1;
+}
 bool ra_net_init(QueueSetHandle_t set, void (*fn)(QueueSetMemberHandle_t m)) { return false; }
 const char *ra_user_agent(void) { return "host"; }
 // no device key for the set's tag, but a task switch while it is tried: card_write() makes
@@ -136,6 +152,67 @@ static void test_lboard_keeps_its_hash(void) {
   TEST_ASSERT_NULL(strstr(net_path, b.hash));
 }
 
+/* a's round on the server, com_task switches to b during one of its requests (while_request,
+   while_set). ra_net_get() handles the events meanwhile and takes the wake-up with it, so the
+   round has to see the switch itself and end, not sleep until the next ping. The stand-in of
+   xQueueSelectFromSet() stops the test when the round waits. */
+static void serve_a(void) {
+  make_idents();
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  account = true;
+  user = "alice";
+  token = "token";
+  ra_patch_new_game(&a);
+  ra_game_now(&game);
+  playing = session = true;
+  lb_n = 0;                                                // nothing left from the test before
+  net_sets = 0;
+  next_ping = xTaskGetTickCount() + pdMS_TO_TICKS(RA_PING_EVERY);   // no ping due
+  serve();
+  account = playing = session = false;                     // nothing left for the next test
+  user = token = NULL;
+}
+
+/* During the lists: the round ends before a's set is asked for, which would hold b's card set. */
+static void test_switch_during_lists_ends_round(void) {
+  while_request = switch_to_b;
+  serve_a();
+  TEST_ASSERT_NULL(while_request);                         // the switch came during a request
+  TEST_ASSERT_TRUE(game_moved());
+  TEST_ASSERT_EQUAL_UINT(0, net_sets);
+}
+
+/* During the set: the round ends instead of sleeping. */
+static void test_switch_during_set_ends_round(void) {
+  while_set = switch_to_b;
+  serve_a();
+  TEST_ASSERT_NULL(while_set);
+  TEST_ASSERT_TRUE(game_moved());
+  TEST_ASSERT_EQUAL_UINT(1, net_sets);
+}
+
+/* The mode banner waits for ra_patch_set_pending(): from the switch until com_task took the
+   card set, or until the read found none. */
+static void test_set_pending_until_taken(void) {
+  rc_runtime_t rt;
+  memset(&rt, 0, sizeof(rt));
+  make_idents();
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  ra_patch_new_game(&a);
+  TEST_ASSERT_TRUE(ra_patch_set_pending());
+  TEST_ASSERT_FALSE(ra_patch_set_again());                 // no set on the card
+  TEST_ASSERT_FALSE(ra_patch_set_pending());
+  TEST_ASSERT_EQUAL_INT(1, ra_patch_from_server(put_set(a.id), ra_patch_generation()));
+  ra_patch_apply_pending(&rt);                             // now the card has a's set
+  ra_patch_new_game(&b);
+  ra_patch_new_game(&a);
+  TEST_ASSERT_TRUE(ra_patch_set_pending());
+  ra_patch_set_again();                                    // read and handed over, false without a device key
+  TEST_ASSERT_TRUE(ra_patch_set_pending());                // not taken yet
+  TEST_ASSERT_EQUAL_UINT(RA_PATCH_NEW_SET, ra_patch_apply_pending(&rt) & RA_PATCH_NEW_SET);
+  TEST_ASSERT_FALSE(ra_patch_set_pending());
+}
+
 /* A core switch (ra_patch_new_core()): the old game ends at once, and the first settle on
    the new board makes that board's game the running one. Without the switch a settle with
    no ROM keeps the game. A stream the switch cuts is left to the board, the stand-ins here
@@ -175,6 +252,9 @@ int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_stale_set_dropped);
   RUN_TEST(test_lboard_keeps_its_hash);
+  RUN_TEST(test_switch_during_lists_ends_round);
+  RUN_TEST(test_switch_during_set_ends_round);
+  RUN_TEST(test_set_pending_until_taken);
   RUN_TEST(test_new_core_settles_anew);
   return UNITY_END();
 }
