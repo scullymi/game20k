@@ -14,7 +14,7 @@
 # system: Eigen 3.4 and 5 give different placements, so macOS and the CI use the same headers.
 set -euo pipefail
 NEXTPNR_REPO=https://github.com/scullymi/nextpnr.git
-NEXTPNR_REV=354f01802ac131a5a8b81a9d3dbf6ba2b8319d47
+NEXTPNR_REV=0c3a4f55b14c73bbb8be2537ae7a65cf2d599659
 APICULA_REPO=https://github.com/scullymi/apicula.git
 APICULA_REV=d4eba7de04e7f007fd83e1b8599a269017c36e7f
 SV_ELAB_REPO=https://github.com/povik/sv-elab.git
