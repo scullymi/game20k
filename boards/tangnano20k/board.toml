@@ -9,6 +9,8 @@ family = "GW2A-18C"
 synth_family = "gw2a"
 loader = "tangnano20k"
 pins = "board.cst"
+# the 18 Kbit block RAMs of the device
+block_rams = 46
 # the Companion's SPI shares the configuration pins of both SPI ports
 sspi_as_gpio = true
 mspi_as_gpio = true

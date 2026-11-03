@@ -27,6 +27,7 @@ BOARD = """
     synth_family = "gw2a"
     loader = "tangnano20k"
     pins = "board.cst"
+    block_rams = 46
     sspi_as_gpio = true
     mspi_as_gpio = true
 

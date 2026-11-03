@@ -27,6 +27,7 @@ def make_build(root: Path) -> build.Build:
         root / "b.cst",
         True,
         False,
+        46,
         config.Flash(0x800000, 0x100000),
         [config.Clock("sys_clk", 27_000_000, port="sys_clk")],
     )

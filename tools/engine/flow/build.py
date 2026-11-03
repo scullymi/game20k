@@ -398,8 +398,8 @@ def synthesize(b: Build) -> None:
         host.python(
             b.script("block_fill.py"),
             b.out / "mems.json",
-            b.out / "yosys.log",
             b.out / f"{b.core.name}.json",
+            str(b.project.board.block_rams),
         ),
         cwd=b.out,
     ).split()

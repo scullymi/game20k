@@ -138,6 +138,7 @@ class Board:
     pins: Path
     sspi_as_gpio: bool
     mspi_as_gpio: bool
+    block_rams: int
     flash: Flash
     clocks: list[Clock]
 
@@ -146,7 +147,15 @@ def load_board(path: Path) -> Board:
     """@brief Reads a board.toml."""
     root = _read(path).allow("board", "flash", "clock")
     b = root.table("board").allow(
-        "name", "device", "family", "synth_family", "loader", "pins", "sspi_as_gpio", "mspi_as_gpio"
+        "name",
+        "device",
+        "family",
+        "synth_family",
+        "loader",
+        "pins",
+        "sspi_as_gpio",
+        "mspi_as_gpio",
+        "block_rams",
     )
     flash = root.table("flash").allow("size", "slot_size")
     board = Board(
@@ -159,6 +168,7 @@ def load_board(path: Path) -> Board:
         pins=path.parent / b.get("pins", str),
         sspi_as_gpio=b.get("sspi_as_gpio", bool, False),
         mspi_as_gpio=b.get("mspi_as_gpio", bool, False),
+        block_rams=b.get("block_rams", int),
         flash=Flash(flash.get("size", int), flash.get("slot_size", int)),
         clocks=_clocks(root),
     )
