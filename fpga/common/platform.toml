@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# The platform every core shares: the top level with HDMI, SDRAM, the Companion's SPI with
+# OSD, SD card and RAM mirror. Third-party HDL is copied in with its original headers, see the
+# README.md in src/misc, the LICENSE in src/hdmi, and THIRD-PARTY.md:
+#   src/misc/   Till Harbaum's MiSTeryNano and Nanomig files for SPI, HID, OSD and SD card
+#   src/hdmi/   hdl-util/hdmi, MIT
+
+[platform]
+top = "game20k_top"
+core_clock = "clk_core"
+# the top's parameter that takes the core's rate (core.toml hz)
+core_hz_parameter = "CORE_HZ"
+primitives = ["rPLL", "OSER10", "ELVDS_OBUF", "CLKDIV", "DPB", "BUFG"]
+
+[sources]
+files = [
+  "src/hdmi/audio_clock_regeneration_packet.sv",
+  "src/hdmi/audio_info_frame.sv",
+  "src/hdmi/audio_sample_packet.sv",
+  "src/hdmi/auxiliary_video_information_info_frame.sv",
+  "src/hdmi/hdmi.sv",
+  "src/hdmi/packet_assembler.sv",
+  "src/hdmi/packet_picker.sv",
+  "src/hdmi/serializer.sv",
+  "src/hdmi/source_product_description_info_frame.sv",
+  "src/hdmi/tmds_channel.sv",
+  "src/pll_hdmi.v",
+  "src/pll_sdram.v",
+  "src/mcu/ram_mirror_pkg.sv",
+  # The SDRAM frame buffer. The normal build instantiates sdram_fb, fb_pack and
+  # fb_read_rotated (branch g_fb_live in the top). sdram_selftest, fb_check and fb_read_flat
+  # are read every time but only instantiated by the measurement builds. A module that is not
+  # instantiated costs nothing and stays syntactically alive this way.
+  "src/sdram_fb.v",
+  "src/sdram_selftest.sv",
+  "src/fb_pack.sv",
+  "src/fb_check.sv",
+  "src/fb_read_flat.sv",
+  "src/fb_read_rotated.sv",
+  "src/clkdiv5.v",
+  "src/arcade_scaler.sv",
+  "src/misc/mcu_spi.v",
+  "src/mcu/ram_spi.sv",
+  "src/mcu/snap_fifo.sv",
+  "src/mcu/snap_log.sv",
+  "src/misc/hid.v",
+  "src/misc/osd_u8g2.v",
+  "src/misc/sysctrl.v",
+  "src/mcu/sector_dpram.v",
+  "src/misc/sdcmd_ctrl.v",
+  "src/misc/sd_rw.v",
+  "src/misc/sd_card.v",
+  "src/mcu/rom_loader.sv",
+  "src/rom_sdram.sv",
+  "src/rom_slots.sv",
+  "src/sdram_share.sv",
+  "src/input_test_bar.sv",
+  "src/ra_overlay.sv",
+  "src/screen_sel.sv",
+  "src/audio_cdc.sv",
+  "{out}/iface_pkg.sv",
+  "{out}/menu_rom.v",
+  "src/game20k_top.sv",
+]
+
+# The interface tag and the menu ROM: make_menu.py fills menu/base.xml with the core's
+# menu_core.xml, checks the menu and writes iface_pkg.sv with IFACE_TAG, which ram_spi sends in
+# the RAM mirror header. Our fork has the menu built in and takes it only for this tag.
+# menu_rom.v holds a smaller menu for the upstream Companion firmware (READ_CFG).
+[[generate]]
+run = ["{root}/scripts/make_menu.py", "--out", "{out}", "{core}"]
+outputs = ["iface_pkg.sv", "menu_rom.v"]
+
+# Clock nets of the top level. clk_core runs at the core's rate (core.toml).
+[[clock]]
+name = "clk_x5"
+net = "clk_x5"
+hz = 371_250_000
+
+[[clock]]
+name = "clk_pixel"
+net = "clk_pixel"
+hz = 74_250_000
+
+[[clock]]
+name = "clk_core"
+net = "clk_core"
+
+# SPI clock from the Companion, at most 20 MHz
+[[clock]]
+name = "spi_sck"
+port = "spi_sck"
+hz = 20_000_000
+
+[[clock]]
+name = "clk_sdram"
+net = "clk_sdram"
+hz = 64_800_000

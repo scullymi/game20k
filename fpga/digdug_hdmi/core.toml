@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# Dig Dug with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror) comes from ../common, see
+# ../common/platform.toml. This folder holds the game: MiSTer-X's core in src/rtl_digdug
+# (MiSTer-devel/Arcade-DigDug_MiSTer 3022bcc, GPL-3.0, TV80 by Guy Hutchison, MIT-style), changed
+# to one clock with enables, the wrapper game_core, the package game_pkg, the RAM mirror
+# ram_mirror_n, the menu and the ROM manifest. The custom I/O chips are ../common/src/namco
+# (06XX, MB88 with the 51XX and 53XX programs from the ROM file).
+
+[core]
+name = "digdug_hdmi"
+platform = "../common"
+# Core clock: 371.25 MHz / 8. The core takes 8 clocks per pixel (5.80 MHz pixel, CPUs at
+# 2.90 MHz), the original 18.432 MHz / 3 and / 6, so everything runs 5.6 % slower
+hz = 46_406_250
+
+[sources]
+files = [
+  "src/rtl_digdug/cpu/tv80_alu.v",
+  "src/rtl_digdug/cpu/tv80_reg.v",
+  "src/rtl_digdug/cpu/tv80_mcode.v",
+  "src/rtl_digdug/cpu/tv80_core.v",
+  "src/rtl_digdug/cpu/tv80s.v",
+  "src/rtl_digdug/cpucore.v",
+  "src/rtl_digdug/dprams.v",
+  "src/rtl_digdug/wsg.v",
+  "src/rtl_digdug/DIGDUG_IODEV.v",
+  "src/rtl_digdug/DIGDUG_SPRITE.v",
+  "src/rtl_digdug/DIGDUG_VIDEO.v",
+  "src/rtl_digdug/DIGDUG_CORES.v",
+  "src/rtl_digdug/FPGA_DIGDUG.v",
+  "src/rtl_digdug/HVGEN.v",
+  "../common/src/namco/mb88_cpu.sv",
+  "../common/src/namco/namco_prom2.sv",
+  "../common/src/namco/namco_io.sv",
+  "src/ram_mirror_n.sv",
+  "src/game_pkg.sv",
+  "src/game_core.sv",
+  "{out}/rom_map_pkg.sv",
+]
+
+[synth]
+# Some of the sources set a time scale, others do not, which slang rejects. The delays are
+# ignored anyway (--ignore-timing, Yosys' frontend only).
+slang_options = ["--timescale", "1ns/1ps"]
+read_slang_options = ["--ignore-timing"]
+
+[[generate]]
+run = ["{root}/scripts/make_rom.py", "--package", "digdug.manifest", "{out}/rom_map_pkg.sv"]
+outputs = ["rom_map_pkg.sv"]

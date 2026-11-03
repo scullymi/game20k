@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# Galaga with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror) comes from ../common, see
+# ../common/platform.toml. This folder holds the game: Dar's core, the wrapper game_core, the
+# package game_pkg, the menu and the ROM manifest. Third-party HDL, copied into src/ with its
+# original headers, with a README.md on where it comes from, at which commit, and what game20k
+# changed:
+#   src/rtl_T80/   Z80 core by Daniel Wallner, unchanged
+#   src/rtl_dar/   Dar's Galaga core, changed. Its RAMs and the ROMs it loads at run time are
+#                  our own files in src/: g20k_spram, g20k_lutram, g20k_promram, g20k_promram2
+
+[core]
+name = "galaga_hdmi"
+platform = "../common"
+# Core clock: 371.25 MHz / 20, the platform derives its timers and the PLL divider from it
+hz = 18_562_500
+
+[sources]
+files = [
+  "src/game_pkg.sv",
+  "src/game_core.sv",
+  "src/ram_diag.sv",
+  "{out}/rom_map_pkg.sv",
+]
+
+[vhdl]
+tops = ["galaga"]
+open_inputs = 0
+x_ok = ["video_clk"]
+files = [
+  "src/rtl_T80/T80.vhd",
+  "src/rtl_T80/T80_ALU.vhd",
+  "src/rtl_T80/T80_MCode.vhd",
+  "src/rtl_T80/T80_Pack.vhd",
+  "src/rtl_T80/T80_Reg.vhd",
+  "src/rtl_T80/T80se.vhd",
+  "src/g20k_spram.vhd",
+  "src/g20k_lutram.vhd",
+  "src/g20k_promram.vhd",
+  "src/g20k_promram2.vhd",
+  "src/rtl_dar/gen_video.vhd",
+  "src/rtl_dar/mb88.vhd",
+  "src/rtl_dar/sound_machine.vhd",
+  "src/rtl_dar/stars.vhd",
+  "src/rtl_dar/stars_machine.vhd",
+  "src/namco_io.vhd",
+  "src/rtl_dar/galaga.vhd",
+]
+
+[synth]
+ram_block = [
+  "game.core.stars_data.*",
+]
+
+[[generate]]
+run = ["{root}/scripts/make_rom.py", "--package", "galaga.manifest", "{out}/rom_map_pkg.sv"]
+outputs = ["rom_map_pkg.sv"]

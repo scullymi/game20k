@@ -12,7 +12,7 @@ roms/*
 !roms/README.md
 # ... also when it ends up outside roms/ (every zip is caught further down)
 *.rom
-# generated tables and their compiled form: make_rom.py and build.tcl write into gen/
+# generated tables and their compiled form: make_menu.py without --out and the simulations write into gen/
 **/proms/*.vhd
 **/work/
 **/gen/
@@ -46,7 +46,7 @@ impl/
 *.bit
 *.log
 
-# --- Pico build output ---
+# --- build output: Pico firmware, cores (g20k.py) ---
 build/
 build_*/
 # A built firmware carries BTstack with its non-commercial clause: redistribution only with
@@ -75,3 +75,6 @@ __pycache__/
 # --- example card: the generated file carries secrets, the game files name the ROMs ---
 sdcard/config.ini
 sdcard/*.ini
+
+# --- the build engine (g20k.py): machine-specific settings ---
+/local.toml

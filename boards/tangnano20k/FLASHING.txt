@@ -1,0 +1,16 @@
+Flashing {project} {version} onto the Tang Nano 20K
+
+{name}.bin holds every game's core at its place in the board's flash. Write it
+with openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):
+
+  openFPGALoader -b tangnano20k -f --verify {name}.bin
+
+Gowin's programmer_cli works too, given the full path of the file:
+
+  programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/{name}.bin" --spiaddr 0x000000
+
+If it reports an error, run it once more. It must start at 0x000000: given another
+address, programmer_cli erases there but writes at 0x000000.
+
+Power the board off and on afterwards. The firmware of the same version goes onto the
+Pico 2 W, the ROM files onto the SD card, see the README of the release.

@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# game20k: the board and the cores in the configuration flash, in ring order. The FPGA loads the
+# first one at power-on. Each core takes one slot of the board's slot size, its address follows
+# from its place here. The header of each core's bitstream carries the address of the next
+# core, the last one points back to the first: the core switch (a low pulse on RECONFIG_N, see
+# game20k_top.sv) loads that one.
+
+[project]
+name = "game20k"
+board = "boards/tangnano20k"
+
+[[slot]]
+core = "fpga/galaga_hdmi"
+
+[[slot]]
+core = "fpga/pacman_hdmi"
+
+[[slot]]
+core = "fpga/g1942_hdmi"
+
+[[slot]]
+core = "fpga/g1943_hdmi"
+
+[[slot]]
+core = "fpga/gng_hdmi"
+
+[[slot]]
+core = "fpga/digdug_hdmi"
+
+[[slot]]
+core = "fpga/pang_hdmi"
+
+[[slot]]
+core = "fpga/timepilot_hdmi"

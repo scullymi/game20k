@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# Pang and Super Pang with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror) comes from
+# ../common. This folder holds the game: the wrapper game_core, the package game_pkg, the menu
+# and the ROM manifests. Third-party HDL comes from ../vendor, each folder with a README.md on
+# where it comes from, at which commit, and what game20k changed:
+#   ../vendor/jtcores/   jtpang and the parts of JTFRAME it uses (jotego, GPL-3.0-or-later, the
+#                        T80 inside JTFRAME by Daniel Wallner, BSD-style)
+#   ../vendor/jtopl/     the YM2413 (jotego, GPL-3.0-or-later)
+#   ../vendor/jt6295/    the OKI M6295 (jotego, GPL-3.0-or-later)
+#   ../vendor/jteeprom/  the 93C46 EEPROM (jotego, GPL-3.0-or-later)
+
+[core]
+name = "pang_hdmi"
+platform = "../common"
+# Core clock: 371.25 MHz / 10. jtframe_gated_cen makes exactly 8, 4 and 1 MHz from it
+# (64/297), see src/game_core.sv
+hz = 37_125_000
+
+[sources]
+files = [
+  # the global macros first: all files are read as one unit
+  "src/jtpang_defs.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_dual_ram.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_dual_nvram.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_obj_buffer.v",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/jtframe_z80wait.v",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/jtframe_z80.v",
+  "../vendor/jtcores/modules/jtframe/hdl/jtframe_sh.v",
+  "../vendor/jtcores/modules/jtframe/hdl/jtframe_bcd_cnt.v",
+  "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_freqinfo.v",
+  "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_gated_cen.v",
+  "../vendor/jtcores/modules/jtframe/hdl/video/jtframe_vtimer.v",
+  "../vendor/jtcores/modules/jtframe/hdl/video/jtframe_draw.v",
+  "../vendor/jtcores/modules/jtframe/hdl/video/jtframe_objdraw_gate.v",
+  "../vendor/jtcores/modules/jtframe/hdl/video/jtframe_objdraw.v",
+  "../vendor/jtopl/hdl/jtopl_*.v",
+  "../vendor/jtopl/hdl/jtopll_*.v",
+  "../vendor/jtopl/hdl/jt2413.v",
+  "../vendor/jt6295/hdl/jt12_comb.v",
+  "../vendor/jt6295/hdl/jt12_interpol.v",
+  "../vendor/jt6295/hdl/jt6295_sh_rst.v",
+  "../vendor/jt6295/hdl/jt6295_timing.v",
+  "../vendor/jt6295/hdl/jt6295_rom.v",
+  "../vendor/jt6295/hdl/jt6295_ctrl.v",
+  "../vendor/jt6295/hdl/jt6295_serial.v",
+  "../vendor/jt6295/hdl/jt6295_adpcm.v",
+  "../vendor/jt6295/hdl/jt6295_acc.v",
+  "../vendor/jt6295/hdl/jt6295.v",
+  "../vendor/jteeprom/hdl/jt9346.v",
+  "../vendor/jteeprom/hdl/jt9346_16b8b.v",
+  "../vendor/jtcores/cores/pang/hdl/jtpang_main.v",
+  "../vendor/jtcores/cores/pang/hdl/jtpang_snd.v",
+  "../vendor/jtcores/cores/pang/hdl/jtpang_char.v",
+  "../vendor/jtcores/cores/pang/hdl/jtpang_obj.v",
+  "../vendor/jtcores/cores/pang/hdl/jtpang_colmix.v",
+  "../vendor/jtcores/cores/pang/hdl/jtpang_video.v",
+  "src/gpang_mirror.sv",
+  "src/game_pkg.sv",
+  "src/game_core.sv",
+  "{out}/rom_map_pkg.sv",
+]
+
+# the Z80 of JTFRAME, files in the order GHDL analyses them
+[vhdl]
+tops = ["T80s"]
+open_inputs = 0
+files = [
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_ALU.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_MCode.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_Reg.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80s.vhd",
+]
+
+# The ROM layout for rom_loader and the screen, from the manifests: both games have one layout
+# and one size, the header section tells them apart
+[[generate]]
+run = ["{root}/scripts/make_rom.py", "--package", "pang.manifest", "{out}/rom_map_pkg.sv", "spang.manifest"]
+outputs = ["rom_map_pkg.sv"]
