@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
-// Tang Nano 20K, Galaga HDMI
+// Tang Nano 20K: the pins of the platform, the same for every core
 IO_LOC "sys_clk" 4;
 IO_PORT "sys_clk" IO_TYPE=LVCMOS33 PULL_MODE=NONE BANK_VCCIO=3.3;
 
@@ -24,15 +24,24 @@ IO_PORT "led[4]" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
 IO_LOC "led[5]" 20;
 IO_PORT "led[5]" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
 
-// HDMI, differential pairs
-IO_LOC "tmds_clk_p" 33,34;
-IO_PORT "tmds_clk_p" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
-IO_LOC "tmds_d_p[0]" 35,36;
-IO_PORT "tmds_d_p[0]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
-IO_LOC "tmds_d_p[1]" 37,38;
-IO_PORT "tmds_d_p[1]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
-IO_LOC "tmds_d_p[2]" 39,40;
-IO_PORT "tmds_d_p[2]" PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+// HDMI, differential pairs, one line per pin: nextpnr pairs a name ending in _p with its _n
+// only without a bus index, and Apicula needs the IO type on both pins
+IO_LOC "tmds_clk_p" 33;
+IO_LOC "tmds_clk_n" 34;
+IO_PORT "tmds_clk_p" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "tmds_clk_n" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "tmds_d_p[0]" 35;
+IO_LOC "tmds_d_n[0]" 36;
+IO_PORT "tmds_d_p[0]" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "tmds_d_n[0]" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "tmds_d_p[1]" 37;
+IO_LOC "tmds_d_n[1]" 38;
+IO_PORT "tmds_d_p[1]" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "tmds_d_n[1]" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "tmds_d_p[2]" 39;
+IO_LOC "tmds_d_n[2]" 40;
+IO_PORT "tmds_d_p[2]" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_PORT "tmds_d_n[2]" IO_TYPE=LVCMOS33D PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
 
 // Sigma-delta audio (as in the original port)
 IO_LOC "pwm_audio_l" 77;

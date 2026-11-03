@@ -424,9 +424,6 @@ def clock_lines(b: Build) -> list[str]:
 
 def place_and_route(b: Build) -> None:
     board, name, out = b.project.board, b.core.name, b.out
-    # board.cst is in the Gowin IDE's form. nextpnr needs each pin of a differential pair in its
-    # own line.
-    host.run(host.python(b.script("cst_pairs.py"), board.pins), cwd=out, stdout=out / "board_oss.cst")
     (out / "clocks.sdc").write_text("\n".join(clock_lines(b)) + "\n")
     step("nextpnr")
     cmd: list[host.Arg] = [
@@ -440,7 +437,7 @@ def place_and_route(b: Build) -> None:
         "--vopt",
         f"family={board.family}",
         "--vopt",
-        f"cst={out / 'board_oss.cst'}",
+        f"cst={board.pins}",
     ]
     if board.sspi_as_gpio:
         cmd += ["--vopt", "sspi_as_gpio"]
