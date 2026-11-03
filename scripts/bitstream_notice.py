@@ -540,12 +540,12 @@ def project(core):
 
 
 def check_iface(core):
-    """Stops unless gen/iface_pkg.sv holds the tag and gen/menu_rom.v the menu that make_menu.py
-    derives from today's sources.
+    """Stops unless gen/iface_pkg.sv holds the tag and the menu defaults and gen/menu_rom.v the
+    menu that make_menu.py derives from today's sources.
     The firmware of the release takes its menus from them, a core with an older tag would get
     the basic menu."""
     pkg = gen(core, "iface_pkg.sv")
-    if read(pkg) != make_menu.iface_pkg(core, make_menu.iface_tag(core)):
+    if read(pkg) != make_menu.iface_pkg(core, make_menu.iface_tag(core), make_menu.compose(core)):
         die("%s does not hold the tag of %s and fpga/%s/menu_core.xml, build %s again"
             % (pkg, make_menu.BASE, core, core))
     # the same for the menu that the core sends to the upstream Companion firmware
