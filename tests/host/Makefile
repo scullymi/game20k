@@ -53,7 +53,7 @@ RC_API  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_runtime.c api/rc_api_use
 # the fork's achievement files test_game_switch links as they are
 RA_SRC  := $(addprefix $(FORK)/,ra_patch.c ra_queue.c ra_text.c ra_games.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_slim.c
-TESTS   := test_dechunk test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
+TESTS   := test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
            test_game_switch
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,

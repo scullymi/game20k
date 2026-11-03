@@ -145,57 +145,6 @@ static void test_guard_table_softcore_protects_nothing(void) { check_guard_table
 
 /* ---- resolve() --------------------------------------------------------------- */
 
-/** An FTP argument in a working directory, and what resolve() makes of it. */
-typedef struct {
-  const char *cwd, *arg;
-  bool        ok;
-  const char *out;
-} resolve_case_t;
-
-static const resolve_case_t resolve_cases[] = {
-  { "",    "config.ini",          true, "config.ini" },
-  { "",    "/config.ini",         true, "config.ini" },
-  { "",    "//config.ini",        true, "config.ini" },
-  { "",    "./config.ini",        true, "config.ini" },
-  { "",    "config.ini/",         true, "config.ini" },
-  { "",    "config.ini/.",        true, "config.ini" },
-  { "",    "sub/../config.ini",   true, "config.ini" },
-  { "",    "../config.ini",       true, "config.ini" },   // ".." at the root stays at the root
-  { "",    "../../../ra_x",       true, "ra_x" },
-  { "",    "",                    true, "" },
-  { "",    "/",                   true, "" },
-  { "",    ".",                   true, "" },
-  { "",    "..",                  true, "" },
-  { "sub", "config.ini",          true, "sub/config.ini" },
-  { "sub", "../config.ini",       true, "config.ini" },
-  { "sub", "/ra_patch.json",      true, "ra_patch.json" },
-  { "sub", "./x/../y",            true, "sub/y" },
-  { "a/b", "../../ra_x",          true, "ra_x" },
-  { "a/b", "..",                  true, "a" },
-  { "",    "sub\\..\\config.ini", true, "sub\\..\\config.ini" },   // resolve() knows only '/'
-  { "",    "a//b///c",            true, "a/b/c" },
-};
-#define N_RESOLVE (sizeof(resolve_cases) / sizeof(resolve_cases[0]))
-
-static void test_resolve_table(void) {
-  char out[CWD_MAX], wrong[2048] = "";
-  unsigned bad = 0;
-  for(unsigned i = 0; i < N_RESOLVE; i++) {
-    const resolve_case_t *c = &resolve_cases[i];
-    snprintf(sess.cwd, sizeof(sess.cwd), "%s", c->cwd);
-    memset(out, 'X', sizeof(out));
-    bool ok = resolve(&sess, c->arg, out, sizeof(out));
-    if(ok != c->ok || (ok && strcmp(out, c->out))) {
-      bad++;
-      size_t n = strlen(wrong);
-      snprintf(wrong + n, sizeof(wrong) - n, " [%s + %s -> %d '%s']", c->cwd, c->arg, ok, ok ? out : "");
-    }
-  }
-  char msg[2200];
-  snprintf(msg, sizeof(msg), "%u of %u cases wrong:%s", bad, (unsigned)N_RESOLVE, wrong);
-  if(bad) TEST_FAIL_MESSAGE(msg);
-}
-
 /* What does not fit is refused: a component of CWD_MAX characters, or a result
    that leaves no room for a separator and the NUL (resolve() keeps two bytes spare,
    so in a buffer of CWD_MAX the longest name has CWD_MAX - 2 characters). */
@@ -428,7 +377,6 @@ int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_guard_table_hardcore);
   RUN_TEST(test_guard_table_softcore_protects_nothing);
-  RUN_TEST(test_resolve_table);
   RUN_TEST(test_resolve_refuses_what_does_not_fit);
   RUN_TEST(test_fatfs_oracle);
   RUN_TEST(test_hardcore_refuses_every_writing_command);

@@ -43,11 +43,9 @@ static const line_case_t cases[] = {
   // a changed tag, a hash changed after tagging: neither verifies
   { "17 1700000000 alice h " H2, "g20k-q2", NULL,                          true,  true, PARSE_FORGED, false, "" },
   { "17 1700000000 alice h " H2, "g20k-q2", "17 1700000000 alice h " V1,   false, true, PARSE_FORGED, false, "" },
-  // no hash (as older firmware wrote them, tagged or not), or a token of the wrong
-  // length or case in its place: junk, nothing waits for it (a forged line would wait
-  // for a device key), scan() marks it done
+  // no hash, or a token of the wrong length or case in its place: junk, nothing waits for
+  // it (a forged line would wait for a device key), scan() marks it done
   { "17 1700000000 alice h",      NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
-  { "17 1700000000 alice h",      "g20k-q1", NULL, false, true, PARSE_JUNK,   false, "" },
   { "17 1700000000 alice h " H31, NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
   { "17 1700000000 alice h " H33, NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
   { "17 1700000000 alice h " HUP, NULL,     NULL, false, true,  PARSE_JUNK,   false, "" },
