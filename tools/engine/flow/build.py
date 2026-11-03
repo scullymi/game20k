@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -363,8 +362,9 @@ def synth_script(b: Build, ram_block: list[str]) -> str:
     s.append(f"synth_gowin -family {fam} -top {top} -run map_gates:map_luts")
     s.append("sort; read_verilog -icells -lib -specify +/abc9_model.v; abc9 -maxlut 4 -dff; clean")
     s.append(f"synth_gowin -family {fam} -top {top} -run map_cells:")
-    # Yosys 0.69 leaves $buf cells, which nextpnr cannot place
-    s.append("techmap t:$buf")
+    # nextpnr has no place for a $buf cell. Yosys 0.69 left some (fixed in YosysHQ/yosys#6267),
+    # a netlist with one stops here
+    s.append("select -assert-none t:$buf")
     s.append("opt_clean")
     s.append(f"write_json {out / (b.core.name + '.json')}")
     s.append(f"tee -q -o {out / 'stat.txt'} stat")
@@ -447,48 +447,52 @@ def place_and_route(b: Build) -> None:
     cmd += [
         "--sdc",
         out / "clocks.sdc",
-        "--timing-allow-fail",
         "--report",
         out / "report.json",
         "-l",
         out / "nextpnr.log",
         "-q",
     ]
-    host.run(cmd, cwd=out)
-    # the table of the clocks, also when one misses its frequency: a bitstream with a failing
-    # clock may run on the board and fail now and then, so it stops the build
-    table = out / "fmax.txt"
+    # nextpnr fails on a clock below its frequency and on a hold violation, after it has written
+    # the netlist and the report. A bitstream with either may run on the board and fail now and
+    # then, so both stop the build, with the table of the clocks first.
     try:
-        host.run(host.python(b.script("check_fmax.py"), out / "report.json"), cwd=out, stdout=table)
+        host.run(cmd, cwd=out)
     except StepError:
-        print(table.read_text(), end="", flush=True)
-        raise StepError(f"a clock misses its frequency, see {table}") from None
-    print(table.read_text(), end="")
-    # nextpnr only warns about hold violations. On the board such a build fails now and then.
-    log = (out / "nextpnr.log").read_text()
-    if "Hold/min time violation for" in log:
-        raise StepError(f"nextpnr reports hold violations, see {out / 'nextpnr.log'}")
+        if (out / "report.json").exists():
+            print_clocks(b)
+        raise StepError(f"nextpnr failed, see {out / 'nextpnr.log'}") from None
+    print_clocks(b)
     host.run(host.python(b.script("check_unrouted.py"), out / f"{name}_pnr.json"), cwd=out)
     apicula(b, b.script("check_clock_gates.py"), out / f"{name}_pnr.json")
 
 
-def apicula(b: Build, script: Path, *args: host.Arg) -> None:
-    """@brief Runs script with the suite's Python and the Apicula of the fork.
+def print_clocks(b: Build) -> None:
+    """@brief Prints the table of the clocks from nextpnr's report, into fmax.txt as well."""
+    table = b.out / "fmax.txt"
+    try:
+        host.run(host.python(b.script("check_fmax.py"), b.out / "report.json"), cwd=b.out, stdout=table)
+    except StepError:
+        pass  # a clock below its frequency, nextpnr has stopped the build for it already
+    print(table.read_text(), end="", flush=True)
 
-    Apicula's own Python warnings are left out of the terminal."""
-    env = {"PYTHONPATH": str(b.tools.apicula)}
-    proc = subprocess.run(
-        [str(b.suite_bin("tabbypy3")), str(script), *map(str, args)],
-        cwd=b.out,
-        env={**os.environ, **env},
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    for line in proc.stderr.splitlines():
-        if "UserWarning" not in line and "warnings.warn" not in line:
-            print(line, file=sys.stderr)
-    if proc.returncode != 0:
-        raise StepError(f"{script.name} failed with exit code {proc.returncode}")
+
+#: Apicula's three warnings that the suite's Python lacks numpy, msgspec and fastcrc: the suite
+#: installs it pure Python on purpose. Any other warning still shows.
+APICULA_QUIET = [
+    "-W",
+    "ignore:Numpy is not available:UserWarning",
+    "-W",
+    "ignore:Msgspec is not available:UserWarning",
+    "-W",
+    "ignore:fastcrc is not available:UserWarning",
+]
+
+
+def apicula(b: Build, script: Path, *args: host.Arg) -> None:
+    """@brief Runs script with the suite's Python and the Apicula of the fork."""
+    cmd = [b.suite_bin("tabbypy3"), *APICULA_QUIET, script, *args]
+    host.run(cmd, cwd=b.out, env={"PYTHONPATH": str(b.tools.apicula)}, capture=False)
 
 
 def pack(b: Build) -> None:
