@@ -368,18 +368,16 @@ COMPONENTS = [
         "copyrights": True,
     },
     {
-        "name": "jtframe_frac_cen.v and spram.vhd from the Time Pilot repository",
+        "name": "jtframe_frac_cen.v from the Time Pilot repository",
         "short": "no licence statement, see the note",
         "url": "https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer at 5a148e2, "
-               "rtl/jtframe_frac_cen.v and rtl/ram_rom/spram.vhd",
-        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/(jtframe_frac_cen\.v|ram_rom/spram\.vhd)$",
+               "rtl/jtframe_frac_cen.v",
+        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/jtframe_frac_cen\.v$",
         "licence": "none stated, see the note",
-        "note": "Neither file has a header, and the repository has no licence file. "
+        "note": "The file has no header, and the repository has no licence file. "
                 "jtframe_frac_cen.v is an earlier version of a module of jotego's JTFRAME, which "
                 "jtcores carries as modules/jtframe/hdl/clocking/jtframe_frac_cen.v under "
-                "GPL-3.0-or-later. spram.vhd is a generic single-port RAM whose author is not "
-                "named. game20k declares its memory as a signal instead of a shared variable, "
-                "marked game20k.",
+                "GPL-3.0-or-later.",
         "show": [],
     },
     {

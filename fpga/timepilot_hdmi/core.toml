@@ -41,8 +41,8 @@ files = [
   "src/game_pkg.sv",
   "src/game_core.sv",
   "{out}/rom_map_pkg.sv",
-  "oss/dpram_dc.v",
-  "oss/spram.v",
+  "src/rtl_timepilot/ram_rom/dpram_dc.v",
+  "src/rtl_timepilot/ram_rom/spram.v",
 ]
 
 [vhdl]

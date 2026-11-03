@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 //! @file spram.v
-//! @brief Verilog twin of src/rtl_timepilot/ram_rom/spram.vhd for the free toolchain build.
+//! @brief Single-port RAM of the Time Pilot core (game20k), in place of the repository's spram.vhd.
 //!
-//! GHDL elaborates a VHDL entity with its default generics only, the core instantiates it with
-//! several widths. Same behaviour as the VHDL: a write shows the new data on q.
+//! Verilog, because the core instantiates it with several widths and GHDL elaborates a VHDL
+//! entity with one set of generics only. A write shows the new data on q, as spram.vhd did.
 module spram #(
     parameter DATA_WIDTH = 8,
     parameter ADDR_WIDTH = 10

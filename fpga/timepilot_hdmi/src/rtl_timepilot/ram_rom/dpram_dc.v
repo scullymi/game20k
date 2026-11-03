@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 //! @file dpram_dc.v
-//! @brief Verilog twin of src/rtl_timepilot/ram_rom/dpram_dc.vhd for the free toolchain build.
+//! @brief Dual-port RAM of the Time Pilot core (game20k), in place of the repository's Altera
+//!        wrapper dpram_dc.vhd.
 //!
-//! GHDL elaborates a VHDL entity with its default generics only, the core instantiates it with
-//! several widths. Same behaviour as the VHDL: both ports read on clock_a, a write on port A
-//! shows the new data on q_a. Port B and the byte enables are not written (as in the VHDL).
+//! Verilog, because the core instantiates it with several widths and GHDL elaborates a VHDL
+//! entity with one set of generics only. Both ports read on clock_a, a write on port A shows the
+//! new data on q_a. Port B and the byte enables are not written.
 module dpram_dc #(
     parameter init_file     = " ",
     parameter widthad_a     = 8,
