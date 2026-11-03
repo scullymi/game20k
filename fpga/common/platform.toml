@@ -96,10 +96,12 @@ hz = 74_250_000
 name = "clk_core"
 net = "clk_core"
 
-# SPI clock from the Companion, at most 20 MHz
+# SPI clock from the Companion, at most 20 MHz. On the net behind the input buffer: nextpnr
+# times a clock given on the port spi_sck only up to the buffer, and the registers behind it
+# at its default of 12 MHz.
 [[clock]]
 name = "spi_sck"
-port = "spi_sck"
+net = "mcu_spi.spi_io_clk"
 hz = 20_000_000
 
 [[clock]]
