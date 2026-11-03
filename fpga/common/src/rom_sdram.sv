@@ -11,8 +11,8 @@
 //! image, so filling it is a plain sequence of word writes.
 //!
 //! Both sides live in clk_core. The controller (sdram_fb.v, through sdram_share.sv) runs in
-//! clk_sdram, with a req/ack toggle per channel. The clock groups are asynchronous in
-//! board.sdc, so the tools time none of the crossing paths.
+//! clk_sdram, with a req/ack toggle per channel. The clocks are asynchronous (see the clocks
+//! in fpga/common/platform.toml), the timing analysis holds no crossing path against them.
 //!
 //! Write side: rom_loader hands over one byte at a time with its file offset. Four bytes
 //! make a word; while the previous word is still on its way, the next one is gathered in a

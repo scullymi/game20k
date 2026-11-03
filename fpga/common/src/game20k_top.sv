@@ -589,7 +589,7 @@ module game20k_top #(
     end
     // OSD data path from clk_core to clk_pixel: the strobe is a single clk_core pulse,
     // data and start flag stay stable until the next SPI byte. They change in the same
-    // clk_core edge as the strobe, and the two clocks are asynchronous (board.sdc): a
+    // clk_core edge as the strobe, and the two clocks are asynchronous (platform.toml): a
     // clk_pixel edge right after it may take the strobe but still the old byte. So the
     // byte is used one clk_pixel clock after the strobe was first seen.
     logic [3:0] osd_strobe_s = 0;

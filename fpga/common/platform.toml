@@ -73,6 +73,15 @@ run = ["{root}/scripts/make_menu.py", "--out", "{out}", "{core}"]
 outputs = ["iface_pkg.sv", "menu_rom.v"]
 
 # Clock nets of the top level. clk_core runs at the core's rate (core.toml).
+# clk_core and clk_pixel come from the same VCO, but through two dividers, CLKOUTD of the rPLL
+# and CLKDIV, whose phase to each other is not defined. Timed as related, the closest edges
+# would be one VCO period (2.69 ns) apart, at 46.4 against 74.25 MHz (8 and 5 VCO periods). So
+# they are asynchronous: single bits cross through two registers, words that must arrive whole
+# through a handshake (the audio word in audio_cdc.sv, the OSD byte in the top). The SPI clock
+# and the SDRAM clock are asynchronous to both as well. nextpnr reports paths between clocks
+# but does not hold them against a clock's frequency.
+# The 48 kHz audio clock (clk_audio_g, a slow register in clk_pixel) has no entry here and is
+# checked at nextpnr's default of 12 MHz, which is only stricter.
 [[clock]]
 name = "clk_x5"
 net = "clk_x5"

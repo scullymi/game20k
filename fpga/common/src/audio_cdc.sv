@@ -6,7 +6,7 @@
 //! @file audio_cdc.sv
 //! @brief The audio word from the core clock to the pixel clock, one word per request (game20k).
 //!
-//! Core and pixel clock are asynchronous (board.sdc). A 16-bit word taken bit by bit through
+//! Core and pixel clock are asynchronous (platform.toml). A 16-bit word taken bit by bit through
 //! two registers each can arrive torn, some bits from the old and some from the new sample.
 //! Here the pixel side asks with a toggle, the core side takes the word into a register of
 //! its own on the synchronised toggle and answers with a second toggle one clock later, and
