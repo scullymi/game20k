@@ -5,8 +5,8 @@
 
 A release comes from a clean tree on a tag. dev skips these checks for a trial run, the files
 then carry the version git describe gives. Every core of project.toml is built by this run and
-has to meet its clock frequencies. The cores build at the same time, at most as many as the
-machine has processors, each into a log of its own, which is printed in the ring's order
+has to meet its clock frequencies. The cores build at the same time, at most one per processor
+this process may use, each into a log of its own, which is printed in the ring's order
 afterwards.
 
 git config game20k.quiethours "D1-D2 H1-H2" names a window of weekdays and hours, as date +%u
@@ -57,7 +57,10 @@ def build_all(root: Path, cores: list[Path], logs: Path) -> None:
             cmd = [sys.executable, str(root / "g20k.py"), "build", str(core)]
             return subprocess.run(cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT).returncode == 0
 
-    jobs = min(len(cores), os.cpu_count() or 1)
+    # the processors this process may run on, fewer than the machine's in a container or a CI
+    # runner with a CPU set
+    cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    jobs = min(len(cores), cpus)
     print(f"building {len(cores)} cores, {jobs} at a time", flush=True)
     with ThreadPoolExecutor(jobs) as pool:
         ok = list(pool.map(one, cores))
