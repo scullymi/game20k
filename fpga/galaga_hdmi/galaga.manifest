@@ -4,8 +4,8 @@
 # the Companion streams from the SD card into the core. This is the only place the layout is
 # written down. Three things are made from it:
 #   scripts/make_rom.py         builds sdcard/galaga.rom from roms/, checking every chip
-#   build.tcl                   the section table of rom_loader, the board id and the mirror
-#                               size (gen/rom_map_pkg.sv)
+#   core.toml                   the section table of rom_loader, the board id and the mirror
+#                               size (gen/rom_map_pkg.sv, make_rom.py --package)
 #   scripts/make_fw_tables.py   the set's row in the firmware's game table, from the board,
 #                               known, ra, short and dip lines
 #

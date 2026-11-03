@@ -7,14 +7,14 @@
 //!
 //! One top for every game. The game sits behind game_core (fpga/<core>/src/game_core.sv),
 //! its raster, name and test bar labels come from game_pkg (fpga/<core>/src/game_pkg.sv),
-//! its ROM layout, board id and RAM mirror size from rom_map_pkg, which build.tcl generates
-//! from the game's manifest, its interface tag from iface_pkg, which files.tcl generates from
-//! the game's menu part.
+//! its ROM layout, board id and RAM mirror size from rom_map_pkg, which the build generates
+//! from the game's manifest, its interface tag from iface_pkg, which the build generates from
+//! the game's menu part (the [[generate]] steps of core.toml and ../platform.toml).
 //! Video and audio go out over HDMI.
 //!
 //! Clocks: 27 MHz crystal and TWO PLLs. pll_hdmi produces clk_x5 (371.25 MHz) and clk_core
-//! (game_pkg::CORE_HZ, 18.5625 or 37.125 MHz), clkdiv5 divides clk_x5 down to clk_pixel (74.25 MHz). pll_sdram provides
-//! a separate 64.8 MHz for the frame buffer in SDRAM.
+//! (CORE_HZ, 18.5625, 37.125 or 46.40625 MHz), clkdiv5 divides clk_x5 down to clk_pixel
+//! (74.25 MHz). pll_sdram provides a separate 64.8 MHz for the frame buffer in SDRAM.
 //!
 //! Buttons: S1 = reset. S2 = OSD button, reported to the Companion. Coin and start come
 //! from the arcade stick via the Companion, not from S2.
@@ -30,10 +30,11 @@
 //! SD card: attached to the FPGA (sd_card from Nanomig), operated by the Companion over
 //! SPI. The game's ROM file reaches the core's ROM memories the same way.
 //!
-//! The build parameters below are DIAGNOSTIC builds only and are all 0 in the normal
-//! build. They are set through environment variables, see build.tcl. The production
-//! branch is g_fb_live.
+//! CORE_HZ is the rate of the game's core clock, the build passes the hz of the core's
+//! core.toml, the one place that names it. The other parameters are DIAGNOSTIC builds only
+//! and are all 0 in the normal build. The production branch is g_fb_live.
 module game20k_top #(
+    parameter int CORE_HZ   = 0,   //!< rate of clk_core in Hz, from core.toml; 0 stops the build
     parameter bit TESTBAR   = 1,   //!< synthesise the input test bar (1 BSRAM)
     parameter bit ROMVIEW   = 0,   //!< 1: a diagnostic view of the game's own (Galaga: the character ROM)
     parameter bit SDRAMTEST = 0,   //!< 1: SDRAM controller plus phase self test
@@ -117,6 +118,15 @@ module game20k_top #(
     // when the core line is written: 20 for the rasters 224 high, FRAME_H - 4 for Pang.
     localparam int FRAME_HDMI = RATEPROBE ? 816 : FRAME_H;
     localparam int SYNC_Y = (Y0_L - 4 + FRAME_HDMI) % FRAME_HDMI;
+
+    // ---------------- Checks at elaboration ----------------
+    // PLL divider, timers and the timing analysis follow the core's rate
+    if (CORE_HZ <= 0)
+        $error("game20k_top: CORE_HZ is not set, the build passes the hz of the core's core.toml");
+    // The scanline counter counts HDMI lines modulo 3 from cy 0, the 3x picture keeps its
+    // pattern only when the frame has a multiple of 3 lines (768, 786, 816)
+    if (FRAME_H % 3 != 0)
+        $error("game20k_top: FRAME_H %0d is not a multiple of 3, the scanlines would drift", FRAME_H);
     // ---------------- Clocks ----------------
     logic clk_x5, clk_pixel, clk_core, pll_lock;
     // clk_core = 371.25 MHz / SDIV: 20 gives 18.5625 MHz (Galaga, Pac-Man), 10 gives 37.125
@@ -363,9 +373,9 @@ module game20k_top #(
     // ---------------- Core switch ----------------
     // The Companion sets Z to 0xA5. The logic then pulls RECONFIG_N low for 1 ms and the
     // FPGA loads the bitstream at the jump address in the header of the running one: the
-    // next core in fpga/common/slots.txt. The pin stays a configuration pin, the build has
-    // no -use_reconfign_as_gpio (gw_sh warns CT1122, expected). The Companion restarts
-    // once the core stops answering and waits for the new one at its start. It sends Z
+    // next core in the ring of project.toml. The pin stays a configuration pin, the build
+    // does not turn it into a GPIO, and the logic drives it all the same. The Companion
+    // restarts once the core stops answering and waits for the new one at its start. It sends Z
     // only with S1 and S2 released: they sit on MODE0 and MODE1, and one held while the
     // FPGA reloads selects another way of loading. Power-on always loads slot 0.
     // Z has no menu entry. The value 0xA5 keeps a menu of one's own that uses Z for
@@ -612,7 +622,7 @@ module game20k_top #(
        different from a CRT, but it is the best that can be done there.
 
        The counter stays aligned across frames because FRAME_H (768, 786, 816) is
-       divisible by 3 (files.tcl checks it) and it is reset at cy == 0.
+       divisible by 3 (checked at elaboration) and it is reset at cy == 0.
 
        Price: at 50 percent about half the brightness. Hence adjustable in
        steps and off by default. */

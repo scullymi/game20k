@@ -10,9 +10,6 @@ package game_pkg;
     //! visible raster of the core, MAME timeplt.cpp: 256 x 224 of 384 x 264, 6.144 MHz pixel
     localparam int W = 256;
     localparam int H = 224;
-    //! core clock: 371.25 MHz / 10. The core makes 12.375, 6.1875 and 3.09 MHz from it with a
-    //! counter modulo 12 (TimePilot_CPU.sv), the original's rates +0.7 % as with Pac-Man
-    localparam int CORE_HZ = 37_125_000;
     //! HDMI lines per frame: 1 core frame = 384 x 264 pixels x 6 core clocks = 608256 core
     //! clocks = 1584 x 768 HDMI clocks, the same as Pac-Man
     localparam int FRAME_H = 768;
