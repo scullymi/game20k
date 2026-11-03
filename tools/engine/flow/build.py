@@ -461,7 +461,7 @@ def place_and_route(b: Build) -> None:
         raise StepError(f"nextpnr failed, see {out / 'nextpnr.log'}") from None
     print_clocks(b)
     host.run(host.python(b.script("check_unrouted.py"), out / f"{name}_pnr.json"), cwd=out)
-    apicula(b, b.script("check_clock_gates.py"), out / f"{name}_pnr.json")
+    apicula(b, b.script("check_clock_gates.py"), board.family, out / f"{name}_pnr.json")
 
 
 def print_clocks(b: Build) -> None:
