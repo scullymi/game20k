@@ -12,7 +12,7 @@ roms/*
 !roms/README.md
 # ... also when it ends up outside roms/ (every zip is caught further down)
 *.rom
-# generated tables and their compiled form: make_menu.py without --out and the simulations write into gen/
+# generated tables and their compiled form: make_menu.py without --out writes into gen/
 **/proms/*.vhd
 **/work/
 **/gen/
