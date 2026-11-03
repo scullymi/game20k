@@ -180,9 +180,8 @@ def elaborate(b: Build, verilog: list[Path]) -> None:
     own = ["--empty-blackboxes", *b.core.synth.read_slang_options]
     lines.append(" ".join(["read_slang", args[0], *own, *args[1:]]))
     lines += [f"hierarchy -check -top {b.platform.top}", f"write_rtlil {b.out / 'elab.il'}"]
-    defaults = b.out / "vhdl_defaults.ys"
     if b.core.vhdl.tops:
-        lines += vhdl_default_lines(b, defaults)
+        lines += vhdl_input_lines(b)
     (b.out / "elab.ys").write_text("\n".join(lines) + "\n")
     step("yosys")
     host.run(
@@ -190,17 +189,6 @@ def elaborate(b: Build, verilog: list[Path]) -> None:
         cwd=b.root,
         env=YOSYS_ENV,
     )
-    if b.core.vhdl.tops:
-        connects = defaults.read_text()
-        print(connects, end="")
-        # an open input without its default would leave the CPU or chip behind it waiting or
-        # optimized away, with no error anywhere else
-        n = len(connects.splitlines())
-        if n != b.core.vhdl.open_inputs:
-            raise StepError(
-                f"{n} open inputs of the VHDL tops take their default, "
-                f"vhdl.open_inputs in core.toml says {b.core.vhdl.open_inputs}"
-            )
 
 
 def slang_args(b: Build, verilog: list[Path], prims: Path) -> list[str]:
@@ -276,20 +264,18 @@ def check_params(b: Build, args: list[str]) -> None:
             raise StepError(f"{name}={value} reaches {b.platform.top} as {got[name]}")
 
 
-def vhdl_default_lines(b: Build, defaults: Path) -> list[str]:
-    """@brief Yosys commands, after elab.il is written, that make the script with the VHDL
-    defaults for the open inputs of the VHDL tops.
+def vhdl_input_lines(b: Build) -> list[str]:
+    """@brief Yosys commands, after elab.il is written, that stop the build when an instance
+    leaves an input of a VHDL top open.
 
-    GHDL drops the defaults of VHDL input ports, an instance that leaves one open would get an
-    undriven input (Time Pilot's sound Z80 waited for ever with WAIT_n open). The instances and
-    the ports of the VHDL modules go out as JSON, which needs the processes converted.
-    vhdl_port_defaults.py answers with connect commands, which the synthesis runs first. proc
-    and the commands would advance Yosys' counter for generated names, which elab.il carries
-    into the synthesis, so they come after it."""
+    GHDL drops the defaults of VHDL input ports, an open one would be undriven (Time Pilot's
+    sound Z80 waited for ever with WAIT_n open). The instances and the ports of the VHDL modules
+    go out as JSON, which needs the processes converted, for vhdl_open_inputs.py. proc would
+    advance Yosys' counter for generated names, which elab.il carries into the synthesis, so it
+    comes after it."""
     tops = b.core.vhdl.tops
     found = b.out / "vhdl_instances.json"
-    vhdl = b.sources(b.core.vhdl.files, b.core.folder)
-    script = host.python(b.script("vhdl_port_defaults.py"), found, defaults, *tops, "--", *vhdl)
+    script = host.python(b.script("vhdl_open_inputs.py"), found, *tops)
     return [
         "proc",
         "select " + " ".join([*(f"t:{t}" for t in tops), *(f"{t}/i:*" for t in tops)]),
@@ -302,8 +288,6 @@ def synth_script(b: Build, ram_block: list[str]) -> str:
     """@brief The Yosys script from the elaborated design to the netlist for nextpnr."""
     top, fam, out = b.platform.top, b.project.board.synth_family, b.out
     s = [f"read_rtlil {out / 'elab.il'}", f"hierarchy -top {top}"]
-    if b.core.vhdl.tops:
-        s.append(f"script {out / 'vhdl_defaults.ys'}")
     # synth_gowin's coarse step, with one addition before alumacc: comparisons go to LUT-sized
     # chunks (cmp2lut, cmp2lcu) instead of a carry chain each, as synth_ice40 and synth_ecp5 do.
     # Without it every comparison with a constant costs one ALU per bit of the wider operand.

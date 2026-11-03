@@ -106,6 +106,12 @@ T80s C8
 	.CLK(clk_49m),
 	.CEN(cen_1m79),
 	.INT_n(n_irq),
+	//game20k: the inputs left to the defaults of T80s.vhd, connected to them: the build takes the
+	//VHDL through GHDL's Verilog, which has no defaults for its ports
+	.WAIT_n(1'b1),
+	.NMI_n(1'b1),
+	.BUSRQ_n(1'b1),
+	.OUT0(1'b0),
 	.M1_n(n_m1),
 	.MREQ_n(n_mreq),
 	.IORQ_n(n_iorq),

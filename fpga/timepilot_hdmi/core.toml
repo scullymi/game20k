@@ -47,8 +47,6 @@ files = [
 
 [vhdl]
 tops = ["T80s"]
-# INT_n, BUSRQ_n and OUT0 of the main Z80, WAIT_n, NMI_n, BUSRQ_n and OUT0 of the sound Z80
-open_inputs = 7
 files = [
   "src/rtl_timepilot/cpu/T80/T80_Pack.vhd",
   "src/rtl_timepilot/cpu/T80/T80_ALU.vhd",

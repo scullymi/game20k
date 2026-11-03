@@ -151,6 +151,11 @@ T80s E3
 	.CEN(cen_3m & ~pause),
 	.NMI_n(n_nmi),
 	.WAIT_n(n_wait & rom_wait_n),
+	//game20k: the inputs left to the defaults of T80s.vhd, connected to them: the build takes the
+	//VHDL through GHDL's Verilog, which has no defaults for its ports
+	.INT_n(1'b1),
+	.BUSRQ_n(1'b1),
+	.OUT0(1'b0),
 	.MREQ_n(n_mreq),
 	.RD_n(n_rd),
 	.RFSH_n(n_rfsh),

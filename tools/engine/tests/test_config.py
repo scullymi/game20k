@@ -97,7 +97,6 @@ CORE = """
     [vhdl]
     files = ["vhdl/T80*.vhd"]
     tops = ["T80s"]
-    open_inputs = 2
 
     [[generate]]
     run = ["scripts/make_rom.py", "--package", "pang.manifest", "{out}/rom_map_pkg.sv"]
@@ -120,7 +119,6 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(core.platform, (self.dir / "common").resolve())
         self.assertEqual(core.vhdl.tops, ["T80s"])
         self.assertEqual(core.vhdl.x_ok, [])
-        self.assertEqual(core.vhdl.open_inputs, 2)
         self.assertEqual(core.generate[0].outputs, ["rom_map_pkg.sv"])
 
     def test_sources_keep_order_and_sort_globs(self) -> None:
@@ -135,13 +133,6 @@ class CoreTest(unittest.TestCase):
         with self.assertRaises(config.ConfigError) as err:
             config.resolve(core.sources, core.folder)
         self.assertIn("src/a.v", str(err.exception))
-
-    def test_vhdl_tops_need_open_inputs(self) -> None:
-        # a forgotten number must not pass as 0
-        path = write(self.dir, "core/core.toml", CORE.replace("open_inputs = 2\n", ""))
-        with self.assertRaises(config.ConfigError) as err:
-            config.load_core(path)
-        self.assertIn("vhdl.open_inputs is missing", str(err.exception))
 
     def test_unknown_table(self) -> None:
         path = write(self.dir, "core/core.toml", CORE + "\n[sourcess]\nfiles = []\n")

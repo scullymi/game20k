@@ -62,7 +62,6 @@ include = ["src/inc", "../vendor/jtcores/modules/jtframe/hdl/inc", "../vendor/jt
 
 [vhdl]
 tops = ["T80s"]
-open_inputs = 0
 files = [
   "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_ALU.vhd",
   "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_MCode.vhd",

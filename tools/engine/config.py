@@ -236,14 +236,11 @@ class Vhdl:
     """@brief The VHDL side of a core: its files and the entities the Verilog side instantiates.
 
     tops are entity names as their sources declare them. x_ok names outputs of the tops that are
-    undefined on purpose, the build stops on any other undefined output. open_inputs is the
-    number of inputs of the tops that the instances leave open and that take the default of
-    their VHDL declaration, summed over the instances: the build stops when it finds another."""
+    undefined on purpose, the build stops on any other undefined output."""
 
     files: list[str] = field(default_factory=list)
     tops: list[str] = field(default_factory=list)
     x_ok: list[str] = field(default_factory=list)
-    open_inputs: int = 0
 
 
 @dataclass
@@ -283,10 +280,8 @@ def load_core(path: Path) -> Core:
     root = _read(path).allow("core", "sources", "vhdl", "generate", "synth")
     c = root.table("core").allow("name", "platform", "hz")
     s = root.table("sources").allow("files", "include")
-    v = root.table("vhdl", required=False).allow("files", "tops", "x_ok", "open_inputs")
+    v = root.table("vhdl", required=False).allow("files", "tops", "x_ok")
     vhdl = Vhdl(v.strings("files"), v.strings("tops"), v.strings("x_ok"))
-    # required with tops: a missing number must not pass as 0
-    vhdl.open_inputs = v.get("open_inputs", int) if vhdl.tops else v.get("open_inputs", int, 0)
     if bool(vhdl.files) != bool(vhdl.tops):
         raise v.error("vhdl needs both files and tops")
     y = root.table("synth", required=False).allow(
