@@ -27,7 +27,10 @@ permissions:
 
 jobs:
   sims:
+    # a pull request from a branch of this repository has run already as its push
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     env:
       # Ubuntu 24.04 has no nvc package, the release package of nvc instead
       NVC_DEB: nvc_1.23.0-1_amd64_ubuntu-24.04.deb

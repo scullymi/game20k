@@ -39,6 +39,7 @@ permissions:
 jobs:
   bitstreams:
     runs-on: ubuntu-24.04
+    timeout-minutes: 150
     steps:
       # full history and tags for git describe, which names the version
       - uses: actions/checkout@v7
