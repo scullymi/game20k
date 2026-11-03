@@ -303,6 +303,12 @@ def load_core(path: Path) -> Core:
     return core
 
 
+def include_dirs(core: Core, platform: Platform) -> list[Path]:
+    """@brief The folders an `include searches after the folder of the including file: the
+    core's, then the platform's, in the order of their descriptions."""
+    return [core.folder / d for d in core.include] + [platform.folder / d for d in platform.include]
+
+
 def resolve(patterns: list[str], base: Path) -> list[Path]:
     """@brief Expands the patterns relative to base, in the given order, each glob sorted.
 

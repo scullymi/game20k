@@ -206,7 +206,7 @@ def elaborate(b: Build, verilog: list[Path]) -> None:
 
 def slang_args(b: Build, verilog: list[Path], prims: Path) -> list[str]:
     """@brief The options and files for slang, the same for the elaboration and its check."""
-    include = [a for d in b.core.include for a in ("-I", b.rel(b.core.folder / d))]
+    include = [a for d in config.include_dirs(b.core, b.platform) for a in ("-I", b.rel(d))]
     # the core's rate, named once in its core.toml, then a diagnostic build's parameters
     params = {b.platform.core_hz_parameter: b.core.hz, **b.params}
     # slang defines SYNTHESIS, Gowin does not: with it serializer.sv picks its Xilinx branch.

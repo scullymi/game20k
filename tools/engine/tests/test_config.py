@@ -186,6 +186,13 @@ class PlatformTest(unittest.TestCase):
         self.assertEqual(platform.top, "game20k_top")
         self.assertEqual([c.hz for c in platform.clocks], [74_250_000, None])
 
+    def test_include_dirs_core_first(self) -> None:
+        core = config.load_core(write(self.dir, "core/core.toml", CORE))
+        text = PLATFORM.replace('files = ["src/top.sv"]', 'files = ["src/top.sv"]\n    include = ["inc"]')
+        platform = config.load_platform(write(self.dir, "common/platform.toml", text))
+        dirs = config.include_dirs(core, platform)
+        self.assertEqual(dirs, [self.dir / "core/src/inc", self.dir / "common/inc"])
+
     def test_core_clock_with_rate_is_an_error(self) -> None:
         text = PLATFORM.replace('net = "clk_core"', 'net = "clk_core"\nhz = 1')
         with self.assertRaises(config.ConfigError) as err:

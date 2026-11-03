@@ -618,19 +618,16 @@ def syn_params_set(core):
 
 
 def include_target(core, rel, name):
-    """The repository-relative file an `include in rel names: beside rel, else exactly one file
-    of that name in the core's src/ and fpga/vendor (the include folders of core.toml lie in
-    both)."""
-    beside = os.path.join(os.path.dirname(rel), name)
-    if os.path.isfile(os.path.join(ROOT, beside)):
-        return beside
-    hits = [os.path.relpath(os.path.join(d, name), ROOT)
-            for top in (os.path.join(ROOT, "fpga", core, "src"), os.path.join(ROOT, "fpga", "vendor"))
-            for d, _, fs in os.walk(top) if name in fs]
-    if len(hits) != 1:
-        die("%s includes %s, found %d files of that name under fpga/%s/src and fpga/vendor"
-            % (rel, name, len(hits), core))
-    return hits[0]
+    """The repository-relative file an `include in rel names, searched as the build's slang
+    does: beside rel, then in the include folders of core.toml and platform.toml in order."""
+    c = config.load_core(Path(ROOT) / "fpga" / core / "core.toml")
+    platform = config.load_platform(c.platform / "platform.toml")
+    dirs = [Path(ROOT) / os.path.dirname(rel)] + config.include_dirs(c, platform)
+    for d in dirs:
+        if (d / name).is_file():
+            return os.path.relpath(d / name, ROOT)
+    die("%s includes %s, which is in none of %s"
+        % (rel, name, ", ".join(os.path.relpath(d, ROOT) for d in dirs)))
 
 
 def file_reads(core, files):
