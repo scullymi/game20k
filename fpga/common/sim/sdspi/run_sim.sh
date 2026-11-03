@@ -18,7 +18,7 @@
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$here/../../../.." && pwd)
-suite=${OSS_CAD_SUITE:-$ROOT/external/oss-cad-suite}
+suite=${OSS_CAD_SUITE:-$(python3 "$ROOT/g20k.py" tools path suite)}
 source "$suite/environment" >/dev/null
 gen=$here/gen
 mkdir -p "$gen"
