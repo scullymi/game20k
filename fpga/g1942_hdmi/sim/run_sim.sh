@@ -21,10 +21,6 @@
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-G="$HERE/../src"
-V="$ROOT/fpga/vendor"
-J="$V/jtcores"
-FW="$J/modules/jtframe/hdl"
 SET="${SET:-1942}"
 W="${WORK:-${TMPDIR:-/tmp}/verilator_$SET}"
 mode="${1:-port}"
@@ -57,9 +53,6 @@ with open(w + "/id.hex", "w") as f:
 EOF
 id=""
 [ -s "$W/id.hex" ] && id="+define+ID_SECTION"
-# the package the build makes from the manifests (build.tcl), for FB_CCW
-python3 "$ROOT/scripts/make_rom.py" --package "$HERE/../vulgus.manifest" "$W/rom_map_pkg.sv" \
-  "$HERE/../1942.manifest" "$HERE/../higemaru.manifest"
 
 # the Verilog Z80 for simulation, once
 if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ]; then
@@ -71,30 +64,18 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
   fi
 fi
 
-# the sources in the order of build.tcl, the VHDL T80 replaced by T80s.v
+# the core's sources as the build reads them (core.toml, its generated files into $W/gen,
+# the package with FB_CCW among them), the VHDL T80 replaced by T80s.v
+files=$(python3 "$ROOT/g20k.py" sources "$ROOT/fpga/g1942_hdmi" --out "$W")
+incdirs=$(python3 "$ROOT/g20k.py" sources "$ROOT/fpga/g1942_hdmi" --out "$W" --include 2>/dev/null | sed 's|^|+incdir+|')
 verilator --binary --timing -j 8 -O3 --top-module tb_1942 -Mdir "$W/obj_$mode" $define $id ${EXTRA:-} \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
-  +define+TV80S +incdir+"$G/inc" +incdir+"$FW/inc" +incdir+"$J/cores/1942/hdl" \
-  "$G/jt1942_defs.v" \
-  "$FW/ram/jtframe_prom.v" "$FW/ram/jtframe_ram.v" "$W/T80s.v" \
-  "$FW/ram/jtframe_dual_ram.v" "$FW/ram/jtframe_dual_nvram.v" "$FW/cpu/jtframe_z80wait.v" \
-  "$FW/cpu/jtframe_z80.v" "$J/cores/1942/hdl/jt1942_main.v" \
-  "$V/jt49/hdl/jt49_cen.v" "$V/jt49/hdl/jt49_div.v" "$V/jt49/hdl/jt49_eg.v" \
-  "$V/jt49/hdl/jt49_exp.v" "$V/jt49/hdl/jt49_noise.v" "$V/jt49/hdl/jt49.v" "$V/jt49/hdl/jt49_bus.v" \
-  "$J/cores/1942/hdl/jt1942_sound.v" "$FW/jtframe_sh.v" "$FW/video/jtframe_blank.v" \
-  "$J/cores/1942/hdl/jt1942_colmix.v" "$J/cores/1942/hdl/jt1942_objdraw.v" \
-  "$J/cores/1942/hdl/jt1942_objram.v" "$J/cores/1942/hdl/jt1942_objtiming.v" \
-  "$J/cores/gng/hdl/jtgng_objpxl.v" "$J/cores/1942/hdl/jt1942_obj.v" \
-  "$FW/video/tilemap/jtframe_tilemap.v" \
-  "$J/cores/gng/hdl/jtgng_tile3.v" "$J/cores/gng/hdl/jtgng_tile4.v" "$J/cores/gng/hdl/jtgng_tilemap.v" \
-  "$J/cores/gng/hdl/jtgng_scroll.v" "$J/cores/gng/hdl/jtgng_timer.v" \
-  "$J/cores/1942/hdl/jt1942_video.v" "$J/cores/1942/hdl/jt1942_game.v" \
-  "$FW/jtframe_bcd_cnt.v" "$FW/clocking/jtframe_freqinfo.v" "$FW/clocking/jtframe_gated_cen.v" \
-  "$FW/ram/jtframe_dual_ram16.v" \
+  +define+TV80S $incdirs \
+  "$W/T80s.v" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \
-  "$G/g1942_mirror.sv" "$W/rom_map_pkg.sv" "$G/game_pkg.sv" "$G/game_core.sv" "$HERE/tb_1942.sv" \
+  "$HERE/tb_1942.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 
 cd "$W"

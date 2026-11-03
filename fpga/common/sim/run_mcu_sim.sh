@@ -23,8 +23,8 @@ $VL --top-module tb_rom_loader -Mdir "$W/loader" "$SRC/mcu/rom_loader.sv" "$HERE
 "$W/loader/Vtb_rom_loader" | grep -v '^- '
 "$W/loader/Vtb_rom_loader" | grep -q '^PASS$'
 
-# every game of slots.txt, its menu ROM freshly generated
-cores=$(awk '!/^#/ && NF { print $1 }' "$ROOT/fpga/common/slots.txt")
+# every game of the ring, its menu ROM freshly generated
+cores=$(python3 "$ROOT/g20k.py" cores | sed 's#^fpga/##')
 python3 "$ROOT/scripts/make_menu.py" $cores > /dev/null
 for core in $cores; do
   gz=$(grep -c "^    11'd" "$ROOT/fpga/$core/gen/menu_rom.v")
