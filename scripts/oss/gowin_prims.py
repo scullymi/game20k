@@ -6,7 +6,7 @@
 Usage: gowin_prims.py <yosys share/gowin dir> <out.v> NAME...
 Each NAME is copied from Yosys' cells_sim.v or cells_xtra_gw2a.v with its ports and
 parameters, without the body or specify block. A NAME found in neither becomes an empty
-stub (for vendor branches of generate blocks that are never built, e.g. Xilinx OSERDESE2).
+stub.
 """
 import re
 import sys

@@ -29,7 +29,7 @@ fake_commit=71d6b36f4df548b71dba1aa32a7ea14846fb5175
 misc=$ROOT/fpga/common/src/misc
 fast=${FAST:-0}
 src="$here/sdspi_dut.v $misc/mcu_spi.v $misc/sd_card.v $misc/sd_rw.v $misc/sdcmd_ctrl.v"
-defs="-U SYNTHESIS -D YOSYS -D VERILATOR -D INFER_DPRAM -D SDSPI_FAST=$fast"
+defs="-D YOSYS -D VERILATOR -D INFER_DPRAM -D SDSPI_FAST=$fast"
 d=$(yosys-config --datdir)
 case "${1:-}" in
 rtl)
