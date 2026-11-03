@@ -210,12 +210,11 @@ def slang_args(b: Build, verilog: list[Path], prims: Path) -> list[str]:
     params = {b.platform.core_hz_parameter: b.core.hz, **b.params}
     # SYNTHESIS as Yosys' slang frontend defines it, so that the check of the parameters sees the
     # same branches. YOSYS, as Yosys' own reader sets it, hides a $error in a process of
-    # sd_card.v, which the slang frontend cannot synthesize (povik/sv-elab#180). Till's files use
-    # names before their declaration. A time scale for the files without one: slang refuses a
-    # design in which some have one and others not, and the time scale means nothing to synthesis.
+    # sd_card.v, which the slang frontend cannot synthesize (povik/sv-elab#180). A time scale for
+    # the files without one: slang refuses a design in which some have one and others not, and
+    # the time scale means nothing to synthesis.
     return [
         "--single-unit",
-        "--allow-use-before-declare",
         "--timescale",
         "1ns/1ns",
         "-D",

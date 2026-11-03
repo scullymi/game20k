@@ -135,6 +135,32 @@ module game20k_top #(
                                       .lock(pll_lock));
     clkdiv5  div (.hclkin(clk_x5), .resetn(pll_lock), .clkout(clk_pixel));
 
+    // ---------------- Signals between the blocks ----------------
+    // Declared ahead of the first block that uses them: the core, the reset and the SPI of
+    // the Companion read them before the block further down that drives them.
+    logic [15:0] rom_wr_addr;
+    logic [7:0]  rom_wr_data;
+    logic [15:0] rom_wr_en;
+    logic        rom_ready;
+    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM, a stream
+    logic        rom_rd_push, rom_rd_ready, rom_rd_valid;
+    logic [31:0] rom_rd_data;
+    logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start;
+    logic [15:0] ram_last_count, ram_last_us;
+    logic [7:0]  ram_verdict;
+    logic [7:0] mcu_data_out, sys_data_out, hid_data_out, osd_data_out;
+    logic [7:0] int_ack;
+    logic       hid_int, sdc_int;
+    logic [7:0] sdc_data_out;
+    logic [1:0] system_reset, system_scanlines;
+    logic       cfg_we;             // one clock per value the Companion sets, for the game
+    logic [7:0] cfg_id, cfg_val;
+    logic [7:0] joystick [4];
+    logic [11:0] btns, btns2;
+    logic joy_fire, joy_fire2, joy_coin, joy_start1, joy_start2, joy_voldn, joy_volup;
+    logic [10:0] cx;
+    logic [9:0]  cy;
+
     // ---------------- Reset ----------------
     // rst_no counts the ends of core resets, whatever caused them: S1, R from the
     // Companion, a ROM load, a lost PLL lock. The RAM mirror carries it (header byte 8),
@@ -248,21 +274,14 @@ module game20k_top #(
     logic        rom_accepted, rom_data_strobe;
     logic        rom_loaded, rom_busy;
     logic [15:0] rom_count;
-    logic [15:0] rom_wr_addr;
     logic [ROM_AW-1:0] rom_wr_off;
-    logic [7:0]  rom_wr_data;
-    logic [15:0] rom_wr_en;
     // A game whose manifest marks sections sdram (1942) keeps its ROM in SDRAM bank 2:
     // rom_sdram takes those bytes and shares the SDRAM with the frame buffer through
     // sdram_share, the ROM first. The core leaves reset only once the last word has been
     // written.
     localparam bit ROM_IN_SDRAM = (ROM_SDRAM != 16'd0);
     logic        rom_wr_ready, rom_wr_idle;
-    logic        rom_ready;
     assign rom_ready = rom_loaded && (!ROM_IN_SDRAM || rom_wr_idle);
-    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM, a stream
-    logic        rom_rd_push, rom_rd_ready, rom_rd_valid;
-    logic [31:0] rom_rd_data;
 
     sd_card #(
         .CLK_DIV(CORE_HZ > 20_000_000 ? 3'd1 : 3'd0),
@@ -302,16 +321,10 @@ module game20k_top #(
 
 
     // ---------------- FPGA Companion: SPI, HID, system control ----------------
-    logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start;
     // SPI target channel 5, the RAM mirror (channel 4 is assigned in the Companion as
     // SPI_TARGET_AUDIO and implemented nowhere)
     logic       mcu_ram_strobe;
     logic [7:0] ram_data_out;
-    logic [15:0] ram_last_count, ram_last_us;
-    logic [7:0]  ram_verdict;
-    logic [7:0] mcu_data_out, sys_data_out, hid_data_out, osd_data_out;
-    logic [7:0] int_ack;
-    logic       hid_int, sdc_int;
     // Interrupt bit 5: a new RAM mirror snapshot is ready. Set when the harvest ends,
     // cleared by the Pico's acknowledge; setting wins if both come in the same clock.
     logic       harv_d = 1'b0, snap_int = 1'b0;
@@ -328,17 +341,12 @@ module game20k_top #(
             snap_rst_no <= rst_no;
         end
     end
-    logic [7:0] sdc_data_out;
     logic [1:0] mcu_leds;
     logic [23:0] mcu_color;
-    logic [1:0] system_reset, system_scanlines;
     logic [2:0] system_volume;
-    logic       cfg_we;             // one clock per value the Companion sets, for the game
-    logic [7:0] cfg_id, cfg_val;
     logic       system_inputtest;
     logic [1:0] system_screen;      // screen mode from the menu
     logic [3:0] system_fire_btn, system_coin_btn, system_start_btn, system_start2_btn, system_voldn_btn, system_volup_btn;
-    logic [7:0] joystick [4];
     logic [7:0] joystick_extra [4];
     logic [7:0] joystick_ax [4], joystick_ay [4];
 
@@ -404,7 +412,6 @@ module game20k_top #(
     // (DInput: 9 = Select, 10 = Start); for sticks from the Companion's SDL database bit2 is
     // Select and bit3 Start (= "button 7/8"). The mapping is therefore adjustable in the OSD
     // menu "Controller" (0 = none or all buttons, respectively).
-    logic [11:0] btns, btns2;
     assign btns  = {joystick_extra[0], joystick[0][7:4]};   // btns[n-1] = HID button n
     assign btns2 = {joystick_extra[1], joystick[1][7:4]};   // the second controller
     function automatic logic btn_sel(input logic [3:0] n, input logic [11:0] b);
@@ -412,7 +419,6 @@ module game20k_top #(
     endfunction
     // Directions go to the game as they are, the buttons through the menu's mapping. The
     // second controller uses the same mapping. Coin, start and volume come from the first.
-    logic joy_fire, joy_fire2, joy_coin, joy_start1, joy_start2, joy_voldn, joy_volup;
     assign joy_fire   = (system_fire_btn == 4'd0) ? |btns  : btn_sel(system_fire_btn, btns);
     assign joy_fire2  = (system_fire_btn == 4'd0) ? |btns2 : btn_sel(system_fire_btn, btns2);
     assign joy_coin   = btn_sel(system_coin_btn, btns);
@@ -444,8 +450,6 @@ module game20k_top #(
         if (mcu_hid_strobe && mcu_start && mcu_data_out == 8'd3) hid_seen <= 1'b1;
 
     // ---------------- Scaler + HDMI ----------------
-    logic [10:0] cx;
-    logic [9:0]  cy;
     logic        sync;
     logic [23:0] rgb;
     logic [23:0] rgb_scaler;             // picture from the line ring buffer (landscape 3x)

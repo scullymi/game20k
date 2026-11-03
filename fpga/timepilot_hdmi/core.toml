@@ -58,6 +58,10 @@ files = [
   "src/rtl_timepilot/cpu/T80/T80s.vhd",
 ]
 
+[synth]
+# Ace's sources use names before their declaration
+slang_options = ["--allow-use-before-declare"]
+
 [[generate]]
 run = ["{root}/scripts/make_rom.py", "--package", "timeplt.manifest", "{out}/rom_map_pkg.sv"]
 outputs = ["rom_map_pkg.sv"]

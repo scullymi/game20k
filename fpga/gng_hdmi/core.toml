@@ -123,6 +123,7 @@ files = [
 ]
 
 [synth]
+# slang reports an index out of range in a case branch that a constant never selects
 slang_options = ["-Wno-error=index-oob", "-Wno-error=range-oob"]
 
 [[generate]]

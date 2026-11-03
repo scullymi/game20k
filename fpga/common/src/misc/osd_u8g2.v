@@ -48,12 +48,6 @@ reg [9:0] vcntL;
 // OSD is active on current pixel, the shadow is active or the text area is active
 wire active, sactive, tactive;
    
-// draw active osd, add some shadow to those parts outside osd
-// that are covered by shadow
-assign r_out = !enabled?r_in:active?osd_r:sactive?{1'b0, r_in[5:1]}:r_in;
-assign g_out = !enabled?g_in:active?osd_g:sactive?{1'b0, g_in[5:1]}:g_in;
-assign b_out = !enabled?b_in:active?osd_b:sactive?{1'b0, b_in[5:1]}:b_in;   
-
 wire	   osd_pix;  
 wire [5:0] osd_pix_col;
 
@@ -61,6 +55,13 @@ wire [5:0] osd_pix_col;
 wire [5:0] osd_r = (tactive && osd_pix)?osd_pix_col:sactive?{4'b0000, r_in[5:4]}:{3'b000, r_in[5:3]};
 wire [5:0] osd_g = (tactive && osd_pix)?osd_pix_col:sactive?{4'b0100, g_in[5:4]}:{3'b010, g_in[5:3]};
 wire [5:0] osd_b = (tactive && osd_pix)?osd_pix_col:sactive?{4'b0000, b_in[5:4]}:{3'b000, b_in[5:3]};  
+
+// game20k: below the declarations of osd_r, osd_g and osd_b, which it uses
+// draw active osd, add some shadow to those parts outside osd
+// that are covered by shadow
+assign r_out = !enabled?r_in:active?osd_r:sactive?{1'b0, r_in[5:1]}:r_in;
+assign g_out = !enabled?g_in:active?osd_g:sactive?{1'b0, g_in[5:1]}:g_in;
+assign b_out = !enabled?b_in:active?osd_b:sactive?{1'b0, b_in[5:1]}:b_in;   
    
 `define BORDER 2
 `define SHADOW 4
@@ -151,9 +152,9 @@ wire [9:0] buf_addr = !rotate ? { vpix[7:5], hpixD[8:2] } :
 reg  [2:0] buf_bit;
 always @(posedge clk)
    buf_bit <= !rotate ? vpix[4:2] : flip ? ~hpixD[4:2] : hpixD[4:2];   // one pixel ahead, in step with buffer_byte
+reg [7:0] buffer_byte;   // game20k: declared before its first use
 assign osd_pix = buffer_byte[buf_bit];
 
-reg [7:0] buffer_byte;
 always @(posedge clk)
    buffer_byte <= buffer[buf_addr];
    
