@@ -211,10 +211,13 @@ def slang_args(b: Build, verilog: list[Path], prims: Path) -> list[str]:
     params = {b.platform.core_hz_parameter: b.core.hz, **b.params}
     # slang defines SYNTHESIS, Gowin does not: with it serializer.sv picks its Xilinx branch.
     # YOSYS, which Yosys' own reader sets, hides the $error in sd_card.v. Till's files use names
-    # before their declaration.
+    # before their declaration. A time scale for the files without one: slang refuses a design
+    # in which some have one and others not, and the time scale means nothing to synthesis.
     return [
         "--single-unit",
         "--allow-use-before-declare",
+        "--timescale",
+        "1ns/1ns",
         "-U",
         "SYNTHESIS",
         "-D",

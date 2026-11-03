@@ -40,9 +40,8 @@ files = [
 ]
 
 [synth]
-# Some of the sources set a time scale, others do not, which slang rejects. The delays are
-# ignored anyway (--ignore-timing, Yosys' frontend only).
-slang_options = ["--timescale", "1ns/1ps"]
+# TV80 delays its assignments (<= #1) for simulation, synthesis takes them without
+# (--ignore-timing, Yosys' frontend only)
 read_slang_options = ["--ignore-timing"]
 
 [[generate]]
