@@ -11,7 +11,7 @@ Usage:
                                                  simulations, which load the file as a whole)
   scripts/make_rom.py --package <manifest> <out> [<manifest> ...]
                                                  write the section table for rom_loader
-                                                 as a SystemVerilog package (build.tcl),
+                                                 as a SystemVerilog package (core.toml),
                                                  with the board id (BOARD_ID) and the RAM
                                                  mirror size (MIRROR_DATA) of the game.
                                                  Further manifests are sets of the same

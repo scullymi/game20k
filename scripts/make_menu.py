@@ -5,16 +5,17 @@
 @brief Puts a core's OSD menu together, derives the core's interface tag from it and packs the
        menu for the core's ROM.
 
-Usage: scripts/make_menu.py <core> [<core> ...]     core folders under fpga/, e.g. galaga_hdmi
+Usage: scripts/make_menu.py [--out <folder>] <core> [<core> ...]
+       core folders under fpga/, e.g. galaga_hdmi. --out (one core only) replaces fpga/<core>/gen.
 
 The menu is fpga/common/menu/base.xml with its gaps filled from fpga/<core>/menu_core.xml, see
 the head of base.xml for the format. The Companion's firmware holds the menus of all cores,
 scripts/make_fw_tables.py writes them with compose() and iface_tag() of this script. Here, at
-every build (files.tcl), the script writes the menu to fpga/<core>/gen/menu.xml for a look
-and the core's IFACE_TAG to fpga/<core>/gen/iface_pkg.sv, which ram_spi sends in the RAM mirror
-header. The firmware takes its menu for the core only when the tags agree. The script stops on
-an action the menu does not define and on a setting that the core's game_core.sv starts at
-another value than the menu's default.
+every build (platform.toml), the script writes the menu to gen/menu.xml for a look and the
+core's IFACE_TAG to gen/iface_pkg.sv, which ram_spi sends in the RAM mirror header. gen is
+fpga/<core>/gen, or the folder of --out. The firmware takes its menu for the core only when
+the tags agree. The script stops on an action the menu does not define and on a setting that
+the core's game_core.sv starts at another value than the menu's default.
 
 For the upstream Companion firmware, which has no menus of its own, the core carries a smaller
 menu without the entries only our fork answers (rom_menu()). The script writes it to
@@ -27,6 +28,7 @@ f_open on sys_get_config_name() first). Then a menu change has no effect no matt
 you rebuild and flash, and only the debug UART tells: "Loading XML config from file" versus
 "Loading the built-in XML config" (GP0, 921600 baud).
 """
+import argparse
 import os
 import re
 import struct
@@ -277,9 +279,14 @@ def menu_rom_v(core, gz):
             "`default_nettype wire\n" % (BASE, core, core, len(gz), rows))
 
 
-def write(rel, text):
+def shown(path):
+    """The path relative to the repository, or as it is when it lies outside."""
+    rel = os.path.relpath(path, ROOT)
+    return path if rel.startswith("..") else rel
+
+
+def write(path, text):
     """Writes the file unless it holds this text already, so its date tells when it changed."""
-    path = os.path.join(ROOT, rel)
     if os.path.isfile(path):
         with open(path, encoding="utf-8", newline="") as f:
             if f.read() == text:
@@ -290,25 +297,29 @@ def write(rel, text):
 
 
 def main():
-    if len(sys.argv) < 2:
-        fail("usage: make_menu.py <core> [<core> ...]")
-    for core in sys.argv[1:]:
+    ap = argparse.ArgumentParser(description="Writes the menu files of cores.")
+    ap.add_argument("--out", help="folder for the files of a single core, default fpga/<core>/gen")
+    ap.add_argument("cores", nargs="+", metavar="core", help="core folder under fpga/")
+    args = ap.parse_args()
+    if args.out and len(args.cores) > 1:
+        fail("make_menu.py: --out takes one core")
+    for core in args.cores:
+        out = os.path.abspath(args.out) if args.out else os.path.join(ROOT, "fpga", core, "gen")
         xml = compose(core)
-        write("fpga/%s/gen/menu.xml" % core, xml)
+        write(os.path.join(out, "menu.xml"), xml)
         check(core, xml)
         check_core_defaults(core, xml)
         tag = iface_tag(core)
-        write("fpga/%s/gen/iface_pkg.sv" % core, iface_pkg(core, tag))
-        print("make_menu.py: fpga/%s/gen/iface_pkg.sv, IFACE_TAG 0x%04x" % (core, tag))
+        write(os.path.join(out, "iface_pkg.sv"), iface_pkg(core, tag))
+        print("make_menu.py: %s, IFACE_TAG 0x%04x" % (shown(os.path.join(out, "iface_pkg.sv")), tag))
         xml = rom_menu(core)
-        write("fpga/%s/gen/menu_rom.xml" % core, xml)
+        write(os.path.join(out, "menu_rom.xml"), xml)
         check(core, xml)
         gz = pack(xml)
         if len(gz) > ROOM:
             fail("fpga/%s: the ROM menu is %d bytes packed, %d fit" % (core, len(gz), ROOM))
-        write("fpga/%s/gen/menu_rom.v" % core, menu_rom_v(core, gz))
-        print("make_menu.py: fpga/%s/gen/menu_rom.v, %d of %d bytes" % (core, len(gz), ROOM))
-
+        write(os.path.join(out, "menu_rom.v"), menu_rom_v(core, gz))
+        print("make_menu.py: %s, %d of %d bytes" % (shown(os.path.join(out, "menu_rom.v")), len(gz), ROOM))
 
 if __name__ == "__main__":
     main()

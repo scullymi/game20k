@@ -64,7 +64,7 @@ grep -q 'XFER_RESULT_SUCCESS == result' "$ROOT/external/tinyusb/src/class/hid/hi
 python3 "$ROOT/scripts/check_contracts.py" --root "$ROOT" --fork "$REPO" \
   || { echo "a contract between core, firmware and scripts is broken, see above"; exit 1; }
 # The firmware's tables come from this tree: the game table from the ROM manifests, the menus
-# and their interface tags from the menu parts of the cores in slots.txt. They go to
+# and their interface tags from the menu parts of the cores in project.toml. They go to
 # build/firmware/gen, outside the fork's tree, and CMake gets each one as a parameter. A build
 # without the parameters takes the fork's example tables, which hold no game and no menu.
 GEN="$ROOT/build/firmware/gen"

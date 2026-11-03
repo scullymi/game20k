@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 # Builds nextpnr, Apicula and sv-elab (Yosys' slang frontend, as a plugin) for the free toolchain
-# into external/oss-tools/. scripts/build_fpga_oss.sh takes them from there. nextpnr and Apicula come
+# into external/oss-tools/. The build finds them through local.toml. nextpnr and Apicula come
 # from game20k's forks, which carry fixes that are not upstream yet, sv-elab from upstream. Each is
 # pinned to the commit below. Also a Yosys plugin with the fixes in scripts/oss/yosys/.
 #   scripts/oss/build_tools.sh
 #
 # Needs git, cmake, ninja, a C++20 compiler, Boost (program_options, iostreams, thread), and the
-# oss-cad-suite under external/ for its Python, Yosys' headers and Apicula's chip databases (see the
-# head of scripts/build_fpga_oss.sh). On macOS: brew install cmake ninja boost
+# oss-cad-suite under external/ for its Python, Yosys' headers and Apicula's chip databases
+# (scripts/oss/fetch_suite.sh). On macOS: brew install cmake ninja boost
 # Eigen, which nextpnr's placer solves with, comes from the commit below as well, not from the
 # system: Eigen 3.4 and 5 give different placements, so macOS and the CI use the same headers.
 set -euo pipefail
@@ -29,7 +29,7 @@ YOSYS_REV=2f08661ddc20a812488972f57dc0547e08b28597
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 suite=${OSS_CAD_SUITE:-$ROOT/external/oss-cad-suite}
 out=$ROOT/external/oss-tools
-[ -x "$suite/py3bin/python3" ] || { echo "$suite/py3bin/python3 missing, see the head of scripts/build_fpga_oss.sh" >&2; exit 1; }
+[ -x "$suite/py3bin/python3" ] || { echo "$suite/py3bin/python3 missing, fetch it with scripts/oss/fetch_suite.sh main" >&2; exit 1; }
 mkdir -p "$out"
 
 # checkout <directory> <repository> <commit>
@@ -106,5 +106,5 @@ git -C "$out/yosys" apply "$ROOT"/scripts/oss/yosys/*.patch
 c++ $("$suite/bin/yosys-config" --cxxflags) -O2 -shared $([ "$(uname)" = Darwin ] && echo -undefined dynamic_lookup) \
     -o "$out/yosys/fixes.so" $(printf "$out/yosys/%s\n" $files | grep '\.cc$')
 echo "$out/yosys/fixes.so"
-# scripts/build_fpga_oss.sh loads both plugins only into this Yosys
+# the build loads both plugins only into this Yosys
 echo "$version" > "$out/yosys-version.txt"

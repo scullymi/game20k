@@ -1,9 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
-# Downloads the two builds of YosysHQ's oss-cad-suite the free build needs (see the head of
-# scripts/build_fpga_oss.sh) for this machine, checks each against its SHA-256 and unpacks them
-# under external/ (ignored by git). A suite that is already there with the same date stays.
+# Downloads two builds of YosysHQ's oss-cad-suite for this machine, checks each against its
+# SHA-256 and unpacks them under external/ (ignored by git). A suite that is already there
+# with the same date stays.
 #   scripts/oss/fetch_suite.sh [main]     main: the first one only, e.g. for Verilator alone
 #     external/oss-cad-suite           SUITE_DATE, everything but GHDL (OSS_CAD_SUITE elsewhere)
 #     external/oss-cad-suite-20260910  GHDL_DATE, GHDL only (GHDL_SUITE elsewhere)
