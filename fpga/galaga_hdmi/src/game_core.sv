@@ -85,11 +85,11 @@ module game_core #(
     // ---------------- DIP switches from the menu ----------------
     // The ids are the ones menu_core.xml uses. The defaults are the menu's defaults, they hold
     // until the Companion sends the saved values at start-up.
-    logic [1:0] lives      = 2'd2;    // 3 lives (MAME: 0x80 -> bits 7:6 = 10)
-    logic [2:0] bonus      = 3'd2;
-    logic [2:0] coinage    = 3'd7;    // 1 coin / 1 play
-    logic [1:0] difficulty = 2'd0;    // medium
-    logic       demosound  = 1'b1;    // 1 = on, inverted below onto DSW A bit 3
+    logic [1:0] lives      = 2'(iface_pkg::MENU_DEFAULT_L);    // 3 lives (MAME: 0x80 -> bits 7:6 = 10)
+    logic [2:0] bonus      = 3'(iface_pkg::MENU_DEFAULT_B);
+    logic [2:0] coinage    = 3'(iface_pkg::MENU_DEFAULT_C);    // 1 coin / 1 play
+    logic [1:0] difficulty = 2'(iface_pkg::MENU_DEFAULT_F);    // medium
+    logic       demosound  = 1'(iface_pkg::MENU_DEFAULT_M);    // 1 = on, inverted below onto DSW A bit 3
     always_ff @(posedge clk_core)
         if (cfg_we) case (cfg_id)
             "L": lives      <= cfg_val[1:0];

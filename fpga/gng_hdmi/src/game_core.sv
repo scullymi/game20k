@@ -89,10 +89,12 @@ module game_core #(
     // (3 normal), 4:3 bonus (3: 20K 70K every 70K), 2 cabinet (0 upright), 1:0 lives (3: 3).
     // The defaults are jotego's MRA (DF, FB). The switches reach the game only in reset,
     // every DIP list in menu_core.xml resets.
-    logic [1:0] difficulty = 2'd3, bonus = 2'd3, lives = 2'd3;
-    logic [3:0] coinage    = 4'hF;
-    logic       demo_snd   = 1'b0;
-    logic       no_flash   = 1'b0;          // jotego's OSD entry "Block yellow flashes"
+    logic [1:0] difficulty = 2'(iface_pkg::MENU_DEFAULT_F);
+    logic [1:0] bonus      = 2'(iface_pkg::MENU_DEFAULT_B);
+    logic [1:0] lives      = 2'(iface_pkg::MENU_DEFAULT_L);
+    logic [3:0] coinage    = 4'(iface_pkg::MENU_DEFAULT_C);
+    logic       demo_snd   = 1'(iface_pkg::MENU_DEFAULT_E);
+    logic       no_flash   = 1'(iface_pkg::MENU_DEFAULT_Y);          // jotego's OSD entry "Block yellow flashes"
     always_ff @(posedge clk)
         if (cfg_we) case (cfg_id)
             "F": difficulty <= cfg_val[1:0];
@@ -115,7 +117,7 @@ module game_core #(
     // joystick {button 2, button 1, up, down, left, right}. Button 1 fires (the platform's
     // fire), button 2 jumps: the raw HID button the menu names under K. Player 2 takes
     // turns on the same cabinet (cocktail ports), MAME and jotego read it from joystick2.
-    logic [3:0] jump_btn = 4'd2;
+    logic [3:0] jump_btn = 4'(iface_pkg::MENU_DEFAULT_K);
     always_ff @(posedge clk)
         if (cfg_we && cfg_id == "K") jump_btn <= cfg_val[3:0];
     wire p1_jump = (jump_btn != 4'd0) && p1_btns[jump_btn - 4'd1];

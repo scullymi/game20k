@@ -22,7 +22,6 @@ The script stops with a message on
   - known or dip lines without an ra line, or an ra line without a known line
   - a dip line whose id is no list of the core's menu_core.xml, or whose value that list lacks
   - a set twice, a board in two core folders, a board whose first row is not the ROM default
-  - a setting that a core starts at another value than its menu's default (make_menu.py)
   - a core of the ring without a menu part or without a manifest, a menu make_menu.py refuses
 Exit status 0 when the table is written, 1 otherwise.
 """
@@ -38,7 +37,7 @@ from pathlib import Path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 sys.path.insert(0, ROOT)
-import make_menu  # noqa: E402  the menu part's reader and the check of the cores' start values
+import make_menu  # noqa: E402  the menu part's reader
 import make_rom   # noqa: E402  the manifest reader, one parser for every user of the format
 from tools.engine import config  # noqa: E402  the ring of project.toml
 
@@ -127,10 +126,7 @@ def read_games():
         if first["set"] != g["default"]:
             fail("board %d: the ROM default %s.rom of the menu has no ra line, %s would be shown "
                  "without a ROM" % (g["board"], g["default"], first["set"]))
-    # the menus are made from the same parts: the cores start where their menus do
-    folders = sorted(set().union(*boards.values()))
-    started = sum(make_menu.check_core_defaults(c, make_menu.compose(c)) for c in folders)
-    return games, boards, started
+    return games, boards
 
 
 def read_menus(boards):
@@ -221,15 +217,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--out", required=True, help="folder for ra_games_data.c and menus_data.c")
     a = ap.parse_args()
-    games, boards, started = read_games()
+    games, boards = read_games()
     menus = read_menus(boards)
     path = os.path.join(a.out, "ra_games_data.c")
     write(path, table(games))
     write(os.path.join(a.out, "menus_data.c"), menu_table(menus))
-    print("make_fw_tables.py: %s, %d games on %d boards, %d files, %d DIP switches in the menus, "
-          "%d start values of %d cores as in their menus"
+    print("make_fw_tables.py: %s, %d games on %d boards, %d files, %d DIP switches in the menus"
           % (path, len(games), len({g["board"] for g in games}), sum(len(g["known"]) for g in games),
-             sum(len(g["dips"]) for g in games), started, len(set().union(*boards.values()))))
+             sum(len(g["dips"]) for g in games)))
     print("make_fw_tables.py: %s, %d menus of project.toml, IFACE_TAG %s"
           % (os.path.join(a.out, "menus_data.c"), len(menus),
              " ".join("%d:%04x" % (b, t) for _, b, t, _ in menus)))

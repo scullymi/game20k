@@ -66,7 +66,7 @@ verilator --binary --timing -j 8 -O3 --top-module tb_gng -Mdir "$W/obj_$mode" $d
   -GFRAMES="${FRAMES:-1500}" -GFRAME_EVERY="${FRAME_EVERY:-30}" \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
   +define+TV80S $incdirs \
-  "$W/T80s.v" $files \
+  "$W/T80s.v" "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \

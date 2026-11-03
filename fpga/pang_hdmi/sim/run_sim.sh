@@ -107,7 +107,7 @@ files=$(python3 "$ROOT/g20k.py" sources "$ROOT/fpga/pang_hdmi" --out "$W")
 verilator --binary --timing -j 8 -O3 --top-module tb_pang -Mdir "$W/obj_$mode" $define ${EXTRA:-} \
   -GFRAMES="$FRAMES" -GCOIN_F="$COIN_F" -GSTART_F="$START_F" -GFIRE_F="$FIRE_F" -GFIRE_N="$FIRE_N" \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD +define+TV80S \
-  "$W/T80s.v" $files \
+  "$W/T80s.v" "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$HERE/tb_pang.sv" \

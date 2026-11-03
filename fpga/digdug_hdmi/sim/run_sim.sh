@@ -20,8 +20,6 @@
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-G="$HERE/../src"
-D="$G/rtl_digdug"
 W="${WORK:-${TMPDIR:-/tmp}/verilator_digdug}"
 mode="${1:-port}"
 [ $# -gt 0 ] && shift
@@ -39,15 +37,15 @@ b = open(sys.argv[1], 'rb').read()
 open(sys.argv[2], 'w').writelines('%02x\n' % x for x in b)
 " "$W/digdug.rom" "$W/$mode/rom8.hex"
 
+# the core's sources as the build reads them (core.toml, its generated files into $W/gen, the
+# menu defaults in iface_pkg.sv among the platform's)
+files=$(python3 "$ROOT/g20k.py" sources "$ROOT/fpga/digdug_hdmi" --out "$W")
 verilator --cc --exe --build --no-timing -j 8 -O3 --top-module tb_digdug -Mdir "$W/obj_$mode" $define $cdef \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-STMTDLY -Wno-ASSIGNDLY -Wno-TIMESCALEMOD \
-  "$D/cpu/tv80_alu.v" "$D/cpu/tv80_reg.v" "$D/cpu/tv80_mcode.v" "$D/cpu/tv80_core.v" "$D/cpu/tv80s.v" \
-  "$D/cpucore.v" "$D/dprams.v" "$D/wsg.v" "$D/DIGDUG_IODEV.v" \
-  "$D/DIGDUG_SPRITE.v" "$D/DIGDUG_VIDEO.v" "$D/DIGDUG_CORES.v" "$D/FPGA_DIGDUG.v" "$D/HVGEN.v" \
+  "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
-  "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/namco/mb88_cpu.sv" \
-  "$ROOT/fpga/common/src/namco/namco_io.sv" "$ROOT/fpga/common/src/namco/namco_prom2.sv" \
-  "$G/ram_mirror_n.sv" "$G/game_pkg.sv" "$G/game_core.sv" "$HERE/tb_digdug.sv" "$HERE/sim_main.cpp" \
+  "$ROOT/fpga/common/src/rom_sdram.sv" \
+  "$HERE/tb_digdug.sv" "$HERE/sim_main.cpp" \
   > "$W/build_$mode.log" 2>&1 || { tail -40 "$W/build_$mode.log"; exit 1; }
 
 cd "$W/$mode"

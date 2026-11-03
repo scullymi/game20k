@@ -65,7 +65,7 @@ incdirs=$(python3 "$ROOT/g20k.py" sources "$G" --out "$W" --include 2>/dev/null 
 verilator --binary --timing -j 8 -O3 --top-module tb_1943 -Mdir "$W/obj_$mode" $define $SIM_DEFINES \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
   +define+TV80S $incdirs \
-  "$W/T80s.v" $files \
+  "$W/T80s.v" "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \

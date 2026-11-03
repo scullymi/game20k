@@ -132,11 +132,11 @@ module game_core #(
     // The defaults are the menu's defaults, they hold until the Companion sends the saved
     // values at start-up: 0xC9, MAME's default, 3 lives and 1 coin per play as the
     // RetroAchievements set expects.
-    logic [1:0] lives      = 2'd2;
-    logic [1:0] bonus      = 2'd0;
-    logic [1:0] coinage    = 2'd1;
-    logic       difficulty = 1'b1;
-    logic       ghost      = 1'b1;
+    logic [1:0] lives      = 2'(iface_pkg::MENU_DEFAULT_L);
+    logic [1:0] bonus      = 2'(iface_pkg::MENU_DEFAULT_B);
+    logic [1:0] coinage    = 2'(iface_pkg::MENU_DEFAULT_C);
+    logic       difficulty = 1'(iface_pkg::MENU_DEFAULT_F);
+    logic       ghost      = 1'(iface_pkg::MENU_DEFAULT_K);
     always_ff @(posedge clk_core)
         if (cfg_we) case (cfg_id)
             "L": lives      <= cfg_val[1:0];
