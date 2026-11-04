@@ -2,8 +2,9 @@
 # Copyright (C) 2026 scullymi
 # The programs the build runs, each in one version for every machine. python3 g20k.py tools fetch
 # downloads the archives into external/tools/ and checks each against its SHA-256, the one the
-# release page shows. python3 g20k.py tools build makes the programs of game20k's forks. A path in
-# local.toml ([tools]) takes the place of a folder here, its version is then checked, not fetched.
+# release page shows. python3 g20k.py tools build makes the programs of game20k's forks, from their
+# sources (--source) or from the archive of [prebuilt] (--prebuilt). A path in local.toml ([tools])
+# takes the place of a folder here, its version is then checked, not fetched.
 
 # YosysHQ's nightly build of Yosys with its slang frontend, openFPGALoader, Verilator and the
 # Python that Apicula runs with
@@ -55,3 +56,17 @@ commit = "0c3a4f55b14c73bbb8be2537ae7a65cf2d599659"
 [source.eigen]
 repo = "https://github.com/scullymi/eigen.git"
 commit = "bc3b39870ecb690a623a3f49149a358b95c5781d"
+
+# The programs of the forks above, built from these commits by tools.yml, one archive per machine
+# with a build provenance attestation. After a change of a commit above, run tools.yml and copy
+# the [prebuilt] table from the summary of its run to here.
+[prebuilt]
+release = "https://github.com/scullymi/game20k/releases/tag/tools-c8a63a1a0832"
+
+[prebuilt.darwin-arm64]
+url = "https://github.com/scullymi/game20k/releases/download/tools-c8a63a1a0832/game20k-forks-c8a63a1a0832-darwin-arm64.tar.gz"
+sha256 = "07154d4e6f88e9fc48d4c3543f931376acec28b6e275b4baa18f550676025cfb"
+
+[prebuilt.linux-x64]
+url = "https://github.com/scullymi/game20k/releases/download/tools-c8a63a1a0832/game20k-forks-c8a63a1a0832-linux-x64.tar.gz"
+sha256 = "29f6a089fbc562c452cdc5ed1dd08b466423742fe75eb3df1a7679c1fa3984ae"
