@@ -3,10 +3,11 @@
 # Copyright (C) 2026 scullymi
 # Builds the Pico firmware from external/FPGA-Companion, our fork of FPGA-Companion on the
 # branch game20k, a git submodule.
-# The firmware version is the version of this repository: git describe on its tags without the
-# leading v, so 0.1.0 on the tag v0.1.0, 0.1.0-5-gabc1234 five commits later, plus -dirty with
-# uncommitted changes. The firmware reports it to RetroAchievements in its User-Agent and
-# shows it under Status, Version. Without any tag (before the first release) it is the commit.
+# The firmware version is the version of this repository: git describe on its tags v<version>
+# (not the tools-<key> of tools.yml) without the leading v, so 0.1.0 on the tag v0.1.0,
+# 0.1.0-5-gabc1234 five commits later, plus -dirty with uncommitted changes. The firmware
+# reports it to RetroAchievements in its User-Agent and shows it under Status, Version.
+# Without any tag (before the first release) it is the commit.
 # Usage: scripts/build_companion.sh [pico2] [native|pio]
 #   pico2  = Pico 2 W (RP2350), the only supported board. The firmware needs more RAM than the
 #            Pico W (RP2040) has
@@ -70,7 +71,7 @@ python3 "$ROOT/scripts/check_contracts.py" --root "$ROOT" --fork "$REPO" \
 GEN="$ROOT/build/firmware/gen"
 python3 "$ROOT/scripts/make_fw_tables.py" --out "$GEN" \
   || { echo "the firmware tables cannot be made from the manifests and menus, see above"; exit 1; }
-VERSION=$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null | sed 's/^v//')
+VERSION=$(git -C "$ROOT" describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null | sed 's/^v//')
 echo "building fork commit $(git -C "$REPO" log -1 --format='%h %s') as game20k version ${VERSION:-unknown}"
 # local edits in the checkout go into the build, say so
 [ -z "$(git -C "$REPO" status --porcelain --untracked-files=no)" ] \

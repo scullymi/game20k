@@ -8,7 +8,8 @@
 #
 # A release comes from a clean tree on a tag, so that the version the firmware reports names
 # exactly the sources. DEV=1 skips these checks for a trial run, the files then carry the
-# version git describe gives, with -dirty or a commit.
+# version git describe gives, with -dirty or a commit. Only the tags v<version> count, not the
+# tools-<key> of tools.yml.
 # The image is for the Pico 2 W with its own USB port as host (pico2 native), the variant that
 # has been tested with RetroAchievements. cyw43-driver in it may be used and passed on only with
 # Raspberry Pi devices, the NOTICE says so at the top. The build has no Bluetooth, so no BTstack.
@@ -18,14 +19,14 @@ cd "$ROOT"
 
 # --- a release names its sources: tag, clean tree, submodules at the recorded commits ---
 if [ -z "$DEV" ]; then
-  git describe --tags --exact-match HEAD >/dev/null 2>&1 \
-    || { echo "HEAD is not on a tag, a release needs one (DEV=1 for a trial run)"; exit 1; }
+  git describe --tags --match 'v[0-9]*' --exact-match HEAD >/dev/null 2>&1 \
+    || { echo "HEAD is not on a version tag v<version>, a release needs one (DEV=1 for a trial run)"; exit 1; }
   [ -z "$(git status --porcelain)" ] \
     || { echo "the tree has uncommitted changes (DEV=1 for a trial run)"; exit 1; }
   ! git submodule status | grep -q '^[-+U]' \
     || { echo "a submodule is missing or not at the recorded commit, see git submodule status"; exit 1; }
 fi
-VERSION=$(git describe --tags --always --dirty | sed 's/^v//')
+VERSION=$(git describe --tags --match 'v[0-9]*' --always --dirty | sed 's/^v//')
 NAME="game20k-$VERSION-pico2w"
 
 # --- build from scratch: make rebuilds only what changed, and a release must not carry
