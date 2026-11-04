@@ -24,8 +24,7 @@ def command(
 ) -> list[host.Arg]:
     """@brief The openFPGALoader call for a core (into SRAM or its slot) or for an image."""
     project = config.load_project(root / "project.toml")
-    tools = toolchain.locate(root)
-    loader = tools.suite / "bin" / ("openFPGALoader" + host.EXE)
+    loader = toolchain.find(root, "suite") / "bin" / ("openFPGALoader" + host.EXE)
     board = ["-b", project.board.loader]
     if image is not None:
         if not image.is_file():

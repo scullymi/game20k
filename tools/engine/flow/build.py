@@ -35,10 +35,17 @@ class Build:
     project: config.Project
     platform: config.Platform
     core: config.Core
-    tools: config.Tools
+    #: the programs, None until the first use of tools: sources() needs none of them
+    found_tools: config.Tools | None
     out: Path
     #: parameters of the top for a diagnostic build, e.g. {"RAMDIAG": 1}
     params: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def tools(self) -> config.Tools:
+        if self.found_tools is None:
+            self.found_tools = toolchain.locate(self.root)
+        return self.found_tools
 
     @property
     def gen(self) -> Path:
@@ -528,7 +535,7 @@ def sources(root: Path, core_toml: Path, out: Path) -> tuple[list[Path], list[Pa
         config.load_project(root / "project.toml"),
         config.load_platform(core.platform / "platform.toml"),
         core,
-        toolchain.locate(root),
+        None,
         out.resolve(),
     )
     generate(b, sys.stderr)
