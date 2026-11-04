@@ -447,6 +447,9 @@ def place_and_route(b: Build) -> None:
         out / "nextpnr.log",
         "-q",
     ]
+    # a report of an earlier run would pass for this one when nextpnr stops before writing one
+    for old in (out / "report.json", out / "fmax.txt"):
+        old.unlink(missing_ok=True)
     # nextpnr fails on a clock below its frequency and on a hold violation, after it has written
     # the netlist and the report. A bitstream with either may run on the board and fail now and
     # then, so both stop the build, with the table of the clocks first.
