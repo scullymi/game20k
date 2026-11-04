@@ -148,9 +148,12 @@ def fetch(root: Path) -> None:
 
 
 def checkout(repo: str, commit: str, dest: Path) -> None:
-    """@brief A checkout of commit at dest, fetched alone."""
+    """@brief A checkout of commit at dest, fetched alone: an empty repository, not a clone,
+    which would fetch the whole history first."""
     if not (dest / ".git").is_dir():
-        host.run(["git", "clone", "-q", "--no-checkout", repo, dest], cwd=dest.parent)
+        dest.mkdir(parents=True, exist_ok=True)
+        host.run(["git", "-C", dest, "init", "-q"], cwd=dest.parent)
+        host.run(["git", "-C", dest, "remote", "add", "origin", repo], cwd=dest.parent)
     host.run(["git", "-C", dest, "remote", "set-url", "origin", repo], cwd=dest.parent)
     host.run(["git", "-C", dest, "fetch", "-q", "--depth", "1", "origin", commit], cwd=dest.parent)
     host.run(["git", "-C", dest, "checkout", "-q", "--detach", commit], cwd=dest.parent)
