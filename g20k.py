@@ -14,8 +14,10 @@
 
 import sys
 
-if sys.version_info < (3, 11):
-    sys.exit("game20k needs Python 3.11 or newer, this is " + sys.version.split()[0])
+# 3.11 for tomllib, 3.11.4 for the filter of tarfile.extractall, with which g20k.py tools
+# fetch unpacks the archives safely: 3.11.0 to 3.11.3 lack it and stop with a TypeError
+if sys.version_info < (3, 11, 4):
+    sys.exit("game20k needs Python 3.11.4 or newer, this is " + sys.version.split()[0])
 
 from tools.engine.cli import main  # noqa: E402  only after the version check
 
