@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import shutil
 import sys
@@ -202,7 +203,8 @@ def save_mode(local_toml: Path, mode: str) -> None:
 def find(root: Path, name: str) -> Path:
     """@brief Where one program of tools.toml is: a path of local.toml, else the folder that
     fetch or build made. A missing folder stops, a path of local.toml whose version does not
-    match tools.toml gives a warning."""
+    match tools.toml gives a warning. The folders of [download.<name>.<machine>] path go to the
+    front of PATH, so the programs of a download find what they need."""
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
     if name not in programs(toolset):
@@ -226,7 +228,21 @@ def find(root: Path, name: str) -> Path:
             f"{name} {want[:12]} is built from other sources or by another recipe, "
             "run python3 g20k.py tools build"
         )
+    archive = toolset.downloads[name].archives.get(machine()) if name in toolset.downloads else None
+    if archive and archive.path:
+        front = [str(path / p) for p in archive.path]
+        rest = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p not in front]
+        os.environ["PATH"] = os.pathsep.join(front + rest)
     return path
+
+
+def suite_python(root: Path) -> Path:
+    """@brief The Python of the suite, which runs Apicula and makes nextpnr's chip database."""
+    toolset = config.load_toolset(root / "tools.toml")
+    archive = toolset.downloads["suite"].archives.get(machine()) if "suite" in toolset.downloads else None
+    if archive is None or not archive.python:
+        raise StepError(f"tools.toml names no python for the suite on {machine()}")
+    return find(root, "suite") / archive.python
 
 
 def locate(root: Path) -> config.Tools:
@@ -234,7 +250,9 @@ def locate(root: Path) -> config.Tools:
     nextpnr = find(root, "nextpnr")
     if nextpnr.is_dir():
         nextpnr = nextpnr / "bin" / ("nextpnr-himbaechel" + host.EXE)
-    return config.Tools(find(root, "suite"), find(root, "ghdl"), nextpnr, find(root, "apicula"))
+    return config.Tools(
+        find(root, "suite"), find(root, "ghdl"), nextpnr, find(root, "apicula"), suite_python(root)
+    )
 
 
 def status(root: Path) -> None:

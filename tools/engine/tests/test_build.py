@@ -46,7 +46,7 @@ def make_build(root: Path) -> build.Build:
     )
     core = config.Core(root / "fpga" / "c", "c", root, 37_125_000, [], [])
     project = config.Project(root, "p", board, [core.folder])
-    tools = config.Tools(*(root for _ in range(4)))
+    tools = config.Tools(*(root for _ in range(5)))
     return build.Build(root, project, platform, core, tools, root / "build" / "c")
 
 
@@ -61,6 +61,15 @@ class ClockTest(unittest.TestCase):
                 "create_clock -name clk_core -period 26.936026936026938 [get_nets {clk_core}]",
             ],
         )
+
+
+class ShellLineTest(unittest.TestCase):
+    def test_quotes_for_sh_and_cmd(self) -> None:
+        args: list[str | Path] = ["C:\\Program Files\\Python\\python.exe", Path("s.py"), "a b"]
+        line = '"C:\\Program Files\\Python\\python.exe" "s.py" "a b"'
+        self.assertEqual(build.shell_line(args, windows=False), line)
+        # cmd /c drops the outer pair, the quotes of the arguments stay
+        self.assertEqual(build.shell_line(args, windows=True), f'"{line}"')
 
 
 class PlaceholderTest(unittest.TestCase):

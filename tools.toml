@@ -7,7 +7,8 @@
 # takes the place of a folder here, its version is then checked, not fetched.
 
 # YosysHQ's nightly build of Yosys with its slang frontend, openFPGALoader, Verilator and the
-# Python that Apicula runs with
+# Python that Apicula runs with (python). On Windows its programs find their DLLs through
+# path, the folders that go to the front of PATH.
 [download.suite]
 version = "20261102"
 release = "https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2026-11-02"
@@ -15,14 +16,18 @@ release = "https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2026-11-0
 [download.suite.darwin-arm64]
 url = "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-11-02/oss-cad-suite-darwin-arm64-20261102.tgz"
 sha256 = "d1191cdc3be3b63f52d0adbddb64436a4538897a193d157d1ca714706cc4ccf0"
+python = "bin/tabbypy3"
 
 [download.suite.linux-x64]
 url = "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-11-02/oss-cad-suite-linux-x64-20261102.tgz"
 sha256 = "b9424b9aad2cf0ad057b1d89387a29dcbf000da75cb870221f2e5d38f7b7d3b7"
+python = "bin/tabbypy3"
 
 [download.suite.windows-x64]
 url = "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-11-02/oss-cad-suite-windows-x64-20261102.tgz"
 sha256 = "f914e9890b86504b2b8f6b007ec1b195a338132036644f4b1b284f826cbec96e"
+python = "lib/python3.exe"
+path = ["bin", "lib"]
 
 # GHDL turns the VHDL of the cores into Verilog for Yosys
 [download.ghdl]

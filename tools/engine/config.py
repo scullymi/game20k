@@ -386,20 +386,27 @@ class Tools:
     """@brief Where the programs of the free toolchain are on this machine.
 
     suite is YosysHQ's oss-cad-suite (Yosys with its slang plugin, Apicula's Python,
-    openFPGALoader, Verilator), ghdl a GHDL release, the others the builds of game20k's forks."""
+    openFPGALoader, Verilator), python the Python in it, ghdl a GHDL release, the others the
+    builds of game20k's forks."""
 
     suite: Path
     ghdl: Path
     nextpnr: Path
     apicula: Path
+    python: Path
 
 
 @dataclass
 class Archive:
-    """@brief One archive of a download, for one kind of machine."""
+    """@brief One archive of a download, for one kind of machine.
+
+    python is the Python in it, relative to its folder, path the folders its programs need on
+    the search path (on Windows those with their DLLs)."""
 
     url: str
     sha256: str
+    python: str = ""
+    path: tuple[str, ...] = ()
 
 
 @dataclass
@@ -446,7 +453,7 @@ def load_toolset(path: Path) -> Toolset:
     d = root.table("download", required=False)
     for name in d.data:
         t = d.table(name)
-        downloads[name] = Download(name, t.get("version", str), t.get("release", str), _archives(t))
+        downloads[name] = Download(name, t.get("version", str), t.get("release", str), _archives(t, True))
     sources = {}
     s = root.table("source", required=False)
     for name in s.data:
@@ -462,16 +469,17 @@ def load_toolset(path: Path) -> Toolset:
     return Toolset(downloads, sources, prebuilt)
 
 
-def _archives(t: _Table) -> dict[str, Archive]:
+def _archives(t: _Table, programs: bool = False) -> dict[str, Archive]:
     """@brief The archives of a table, one subtable per kind of machine besides version and
     release."""
     archives = {}
     for k in [k for k in t.data if k not in ("version", "release")]:
-        a = t.table(k).allow("url", "sha256")
+        # python and path describe the programs of a download, the prebuilt forks have none
+        a = t.table(k).allow("url", "sha256", *(("python", "path") if programs else ()))
         sha = a.get("sha256", str)
         if len(sha) != 64 or not all(c in "0123456789abcdef" for c in sha):
             raise a.error(f"{a.prefix}.sha256 is no SHA-256 in lower-case hex")
-        archives[k] = Archive(a.get("url", str), sha)
+        archives[k] = Archive(a.get("url", str), sha, a.get("python", str, ""), tuple(a.strings("path")))
     return archives
 
 

@@ -62,8 +62,8 @@ class Build:
 
     def expand(self, arg: str) -> str:
         return (
-            arg.replace("{root}", str(self.root))
-            .replace("{out}", str(self.gen))
+            arg.replace("{root}", self.root.as_posix())
+            .replace("{out}", self.gen.as_posix())
             .replace("{core}", self.core.name)
         )
 
@@ -77,10 +77,13 @@ class Build:
         return Path(os.path.relpath(path, self.root)).as_posix()
 
 
-def shell_line(args: Sequence[host.Arg]) -> str:
+def shell_line(args: Sequence[host.Arg], windows: bool = os.name == "nt") -> str:
     """@brief A command line for Yosys' exec, which hands it to the shell as it is: every
     argument in double quotes, so a path with a space stays one (Python under C:\\Program Files)."""
-    return " ".join(f'"{Path(a).as_posix() if isinstance(a, Path) else a}"' for a in args)
+    line = " ".join(f'"{Path(a).as_posix() if isinstance(a, Path) else a}"' for a in args)
+    # On Windows the shell is cmd /c, which drops the first and the last quote of a line that
+    # starts with one: a pair of its own around the line keeps those of the arguments
+    return f'"{line}"' if windows else line
 
 
 def step(name: str) -> None:
@@ -488,7 +491,7 @@ APICULA_QUIET = [
 
 def apicula(b: Build, script: Path, *args: host.Arg) -> None:
     """@brief Runs script with the suite's Python and the Apicula of the fork."""
-    cmd = [b.suite_bin("tabbypy3"), *APICULA_QUIET, script, *args]
+    cmd = [b.tools.python, *APICULA_QUIET, script, *args]
     host.run(cmd, cwd=b.out, env={"PYTHONPATH": str(b.tools.apicula)}, capture=False)
 
 
