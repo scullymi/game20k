@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, flash, release, toolchain
+from tools.engine import config, flash, forks, release, toolchain
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
@@ -93,9 +93,9 @@ def main(argv: list[str]) -> int:
             if args.tools_command == "fetch":
                 toolchain.fetch(ROOT)
             elif args.tools_command == "build":
-                toolchain.build(ROOT, args.mode)
+                forks.build(ROOT, args.mode)
             elif args.tools_command == "pack":
-                toolchain.pack(ROOT, args.out.resolve())
+                forks.pack(ROOT, args.out.resolve())
             elif args.tools_command == "path":
                 print(toolchain.find(ROOT, args.name).as_posix())
             else:

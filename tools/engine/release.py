@@ -70,22 +70,38 @@ def build_all(root: Path, cores: list[Path], logs: Path) -> None:
             raise StepError(f"the build of {core.name} failed, its log is above")
 
 
+#: git describe on the tags that name a version, v<version>, not the tools-<key> of tools.yml
+DESCRIBE = ("describe", "--tags", "--match", "v[0-9]*")
+
+
+def on_version_tag(root: Path) -> bool:
+    return (
+        subprocess.run(
+            ["git", "-C", str(root), *DESCRIBE, "--exact-match", "HEAD"], capture_output=True
+        ).returncode
+        == 0
+    )
+
+
+def tree_version(root: Path) -> str:
+    """@brief The version of the tree without the leading v: 0.9.1 on its tag, 0.9.1-5-gabc1234
+    five commits later, plus -dirty with uncommitted changes, the commit before any tag."""
+    return git(root, *DESCRIBE, "--always", "--dirty").removeprefix("v")
+
+
 def release(root: Path, dev: bool) -> Path:
     """@brief Builds and packs a release under dist/ and returns the path of its zip."""
     project = config.load_project(root / "project.toml")
     if not dev:
-        if (
-            subprocess.run(
-                ["git", "-C", str(root), "describe", "--tags", "--exact-match", "HEAD"], capture_output=True
-            ).returncode
-            != 0
-        ):
-            raise StepError("HEAD is not on a tag, a release needs one (--dev for a trial run)")
+        if not on_version_tag(root):
+            raise StepError(
+                "HEAD is not on a version tag v<version>, a release needs one (--dev for a trial run)"
+            )
         if git(root, "status", "--porcelain"):
             raise StepError("the tree has uncommitted changes (--dev for a trial run)")
         check_clock(root)
     head = git(root, "rev-parse", "HEAD")
-    version = git(root, "describe", "--tags", "--always", "--dirty").removeprefix("v")
+    version = tree_version(root)
     name = f"{project.name}-{version}-{project.board.folder.name}"
 
     # a release of this name that is there already stays: another build of it is a decision of
