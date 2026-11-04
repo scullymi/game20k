@@ -68,8 +68,10 @@ def main(argv: list[str]) -> int:
     how.add_argument(
         "--prebuilt", action="store_const", const="prebuilt", dest="mode", help="from the releases"
     )
+    tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for tools.yml")
+    tk.add_argument("--out", type=Path, required=True, help="folder for the archive")
     tp = tsub.add_parser("path", help="print the folder a program of tools.toml is taken from")
-    tp.add_argument("name", choices=config.TOOL_KEYS)
+    tp.add_argument("name", help="a program of tools.toml, e.g. suite")
     s = sub.add_parser("sources", help="print a core's own source files, for a simulation")
     s.add_argument("core", type=Path, help="core folder, e.g. fpga/g1943_hdmi")
     s.add_argument("--out", type=Path, required=True, help="folder for the generated sources (in gen/)")
@@ -92,6 +94,8 @@ def main(argv: list[str]) -> int:
                 toolchain.fetch(ROOT)
             elif args.tools_command == "build":
                 toolchain.build(ROOT, args.mode)
+            elif args.tools_command == "pack":
+                toolchain.pack(ROOT, args.out.resolve())
             elif args.tools_command == "path":
                 print(toolchain.find(ROOT, args.name).as_posix())
             else:

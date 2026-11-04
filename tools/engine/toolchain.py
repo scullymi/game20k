@@ -6,9 +6,11 @@
 tools.toml names every program with its version and, per kind of machine, the archive and its
 SHA-256. fetch downloads the archives into external/tools/downloads/, checks them and unpacks
 each into a folder of its own, external/tools/<name>-<version>-<machine>/. build makes the
-programs of game20k's forks from the commits in tools.toml. Each folder gets a marker file
-with what is in it and where it came from, which locate() checks the version against. A path in
-local.toml takes the place of a folder, its version is then only checked, with a warning."""
+programs of game20k's forks from the commits in tools.toml, or unpacks them from the archive
+that pack made for this kind of machine and tools.yml put on a release. Each folder gets a
+marker file with what is in it and where it came from, which locate() checks the version
+against. A path in local.toml takes the place of a folder, its version is then only checked,
+with a warning."""
 
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ import hashlib
 import json
 import platform
 import shutil
+import struct
 import sys
 import tarfile
 import tempfile
@@ -30,6 +33,9 @@ from tools.engine.host import StepError
 #: the file in every tool folder that says what it holds
 MARKER = ".g20k-tool.toml"
 
+#: the programs make_forks builds from the sources of tools.toml
+BUILT = ("apicula", "nextpnr")
+
 
 def machine() -> str:
     """@brief The kind of machine as tools.toml names it, e.g. darwin-arm64."""
@@ -37,6 +43,15 @@ def machine() -> str:
     arch = platform.machine().lower()
     arch = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "x64", "amd64": "x64"}.get(arch, arch)
     return f"{system}-{arch}"
+
+
+def programs(toolset: config.Toolset) -> tuple[str, ...]:
+    """@brief The programs of tools.toml: its downloads and the ones built from its sources."""
+    return (*toolset.downloads, *BUILT)
+
+
+def load_local(root: Path, toolset: config.Toolset) -> config.Local:
+    return config.load_local(root / "local.toml", programs(toolset))
 
 
 def tools_dir(root: Path) -> Path:
@@ -111,13 +126,26 @@ def unpack(archive: Path, dest: Path) -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def fetched(root: Path, archive: config.Archive, what: str) -> Path:
+    """@brief The archive in external/tools/downloads/, downloaded when it is not there or
+    differs, checked against its SHA-256."""
+    downloads = tools_dir(root) / "downloads"
+    downloads.mkdir(parents=True, exist_ok=True)
+    file = downloads / archive.url.rsplit("/", 1)[1]
+    if not file.exists() or sha256(file) != archive.sha256:
+        print(f"== {what}: {archive.url}", flush=True)
+        download(archive.url, file)
+    got = sha256(file)
+    if got != archive.sha256:
+        raise StepError(f"{file}: SHA-256 {got}, tools.toml expects {archive.sha256}")
+    return file
+
+
 def fetch(root: Path) -> None:
     """@brief Fetches, checks and unpacks every download of tools.toml that is not there yet,
     and prints what came from where."""
     toolset = config.load_toolset(root / "tools.toml")
     here = machine()
-    downloads = tools_dir(root) / "downloads"
-    downloads.mkdir(parents=True, exist_ok=True)
     for d in toolset.downloads.values():
         archive = d.archives.get(here)
         if archive is None:
@@ -128,14 +156,7 @@ def fetch(root: Path) -> None:
         else:
             if dest.exists():
                 raise StepError(f"{dest} holds something else than {d.name} {d.version}, remove it")
-            file = downloads / archive.url.rsplit("/", 1)[1]
-            if not file.exists() or sha256(file) != archive.sha256:
-                print(f"== {d.name} {d.version}: {archive.url}", flush=True)
-                download(archive.url, file)
-            got = sha256(file)
-            if got != archive.sha256:
-                raise StepError(f"{file}: SHA-256 {got}, tools.toml expects {archive.sha256}")
-            unpack(file, dest)
+            unpack(fetched(root, archive, f"{d.name} {d.version}"), dest)
             write_marker(
                 dest, {"name": d.name, "version": d.version, "url": archive.url, "sha256": archive.sha256}
             )
@@ -175,15 +196,39 @@ def build(root: Path, mode: str | None) -> None:
     The first build needs the mode, which local.toml then keeps: from the sources, which needs
     cmake, ninja, a C++ compiler and Boost, or prebuilt from game20k's releases."""
     local_toml = root / "local.toml"
-    local = config.load_local(local_toml)
+    toolset = config.load_toolset(root / "tools.toml")
+    local = load_local(root, toolset)
     mode = mode or local.mode
     if not mode:
         raise StepError("choose how the forks come here: g20k.py tools build --source or --prebuilt")
     if mode == "prebuilt":
-        raise StepError("there are no prebuilt programs of the forks yet, build them with --source")
+        apicula, nextpnr = unpack_forks(root, toolset)
+    else:
+        apicula, nextpnr = make_forks(root, toolset, static=False)
+    # kept only once it worked, so a failed --prebuilt does not become the default
     if mode != local.mode:
         save_mode(local_toml, mode)
-    toolset = config.load_toolset(root / "tools.toml")
+    for name, path in zip(BUILT, (apicula, nextpnr), strict=True):
+        print(f"{name} {toolset.sources[name].commit[:12]}: {path.relative_to(root).as_posix()}")
+
+
+def source(toolset: config.Toolset, name: str) -> config.Source:
+    """@brief A source of tools.toml that building the forks needs."""
+    if name not in toolset.sources:
+        raise StepError(f"tools.toml has no [source.{name}], building the forks needs it")
+    return toolset.sources[name]
+
+
+def holds(values: dict[str, str], toolset: config.Toolset) -> bool:
+    """@brief Whether the marker of a nextpnr folder names the commits of every source of
+    tools.toml, which a build of nextpnr is made of."""
+    return all(values.get(s.name) == s.commit for s in toolset.sources.values())
+
+
+def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path, Path]:
+    """@brief Builds Apicula and nextpnr from the commits of tools.toml, where a folder does
+    not hold them already. static links Boost into nextpnr (on Linux everything), so the
+    program runs on a machine without them, as pack needs."""
     suite = find(root, "suite")
     python = suite / "py3bin" / ("python3" + host.EXE)
     src = tools_dir(root) / "src"
@@ -191,9 +236,10 @@ def build(root: Path, mode: str | None) -> None:
 
     # Apicula: the fork, with the chip databases of the suite's Apicula for the devices the fork
     # carries none of
-    a = toolset.sources["apicula"]
+    a = source(toolset, "apicula")
     apicula = folder(root, "apicula", a.commit)
-    if marker(apicula).get("commit") != a.commit:
+    # a folder from an archive is made again, so the mode chosen is the one that is used
+    if marker(apicula).get("commit") != a.commit or "archive" in marker(apicula):
         print(f"== apicula {a.commit[:12]}", flush=True)
         checkout(a.repo, a.commit, src / "apicula")
         if apicula.exists():
@@ -203,13 +249,12 @@ def build(root: Path, mode: str | None) -> None:
             if not (apicula / "apycula" / db.name).exists():
                 shutil.copy2(db, apicula / "apycula" / db.name)
         write_marker(apicula, {"name": "apicula", "version": a.commit, "repo": a.repo, "commit": a.commit})
-    print(f"apicula {a.commit[:12]}: {apicula.relative_to(root).as_posix()}")
 
-    n = toolset.sources["nextpnr"]
+    n, e = source(toolset, "nextpnr"), source(toolset, "eigen")
     nextpnr = folder(root, "nextpnr", n.commit)
-    if marker(nextpnr).get("commit") != n.commit or marker(nextpnr).get("apicula") != a.commit:
+    m = marker(nextpnr)
+    if not holds(m, toolset) or "archive" in m or (static and m.get("static") != "yes"):
         need("git", "cmake", "ninja")
-        e = toolset.sources["eigen"]
         print(f"== eigen {e.commit[:12]}", flush=True)
         checkout(e.repo, e.commit, src / "eigen")
         # only the headers and Eigen3Config.cmake, which nextpnr's find_package reads
@@ -228,7 +273,8 @@ def build(root: Path, mode: str | None) -> None:
         host.run(
             ["git", "-C", src / "nextpnr", "submodule", "update", "-q", "--init", "--depth", "1"], cwd=src
         )
-        build_dir = src / "nextpnr" / "build"
+        # a folder of its own per kind of linking, so the cmake caches of both do not mix
+        build_dir = src / "nextpnr" / ("build-static" if static else "build")
         # The build makes the chip database again only when gowin_arch_gen.py changes, not
         # when Apicula does
         for bba in build_dir.glob("himbaechel/uarch/gowin/chipdb-*.bba"):
@@ -236,6 +282,9 @@ def build(root: Path, mode: str | None) -> None:
         # The chip database depends on Python's hash order: a fixed seed makes every build the
         # same, else it and the bitstreams differ per run
         env = {"PYTHONHASHSEED": "0", "PYTHONPATH": str(apicula)}
+        # Static Boost on macOS names the compression libraries of Boost iostreams, which
+        # nextpnr does not call: the linker finds them through LIBRARY_PATH and drops them
+        link = "-Wl,-dead_strip_dylibs" if static and sys.platform == "darwin" else ""
         if nextpnr.exists():
             shutil.rmtree(nextpnr)
         host.run(
@@ -244,17 +293,121 @@ def build(root: Path, mode: str | None) -> None:
                 "-DARCH=himbaechel", "-DHIMBAECHEL_UARCH=gowin", "-DHIMBAECHEL_GOWIN_DEVICES=GW2A-18C",
                 "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_PYTHON=OFF", "-DBUILD_GUI=OFF",
                 f"-DPython3_EXECUTABLE={python}", f"-DEigen3_DIR={eigen / 'share' / 'eigen3' / 'cmake'}",
-                f"-DCMAKE_INSTALL_PREFIX={nextpnr}",
+                f"-DCMAKE_INSTALL_PREFIX={nextpnr}", f"-DSTATIC_BUILD={'ON' if static else 'OFF'}",
+                *([f"-DCMAKE_EXE_LINKER_FLAGS={link}"] if link else []),
             ],
             cwd=src, env=env, stdout=src / "nextpnr-cmake.log",
         )  # fmt: skip
         host.run(["ninja", "-C", build_dir], cwd=src, env=env, stdout=src / "nextpnr-build.log")
         host.run(["cmake", "--install", build_dir], cwd=src, stdout=src / "nextpnr-install.log")
-        write_marker(
-            nextpnr,
-            {"name": "nextpnr", "version": n.commit, "repo": n.repo, "commit": n.commit, "apicula": a.commit},
-        )
-    print(f"nextpnr {n.commit[:12]}: {nextpnr.relative_to(root).as_posix()}")
+        values = {"name": "nextpnr", "version": n.commit, "repo": n.repo}
+        values |= {s.name: s.commit for s in toolset.sources.values()}
+        write_marker(nextpnr, values | {"static": "yes" if static else "no"})
+    return apicula, nextpnr
+
+
+def forks_key(toolset: config.Toolset) -> str:
+    """@brief A short name for the commits of the sources of tools.toml, in the order of the
+    file, which the archives and the release of pack carry."""
+    text = "".join(f"{s.name} {s.commit}\n" for s in toolset.sources.values())
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
+def pack(root: Path, out: Path) -> Path:
+    """@brief Builds the forks with static linking and packs both folders into one archive for
+    this kind of machine, game20k-forks-<key>-<machine>.tar.gz, then prints what tools.toml
+    takes for it."""
+    toolset = config.load_toolset(root / "tools.toml")
+    apicula, nextpnr = make_forks(root, toolset, static=True)
+    program = nextpnr / "bin" / ("nextpnr-himbaechel" + host.EXE)
+    foreign = foreign_libraries(program)
+    if foreign:
+        raise StepError(f"{program} needs {', '.join(foreign)}, which another machine may not have")
+    key = forks_key(toolset)
+    out.mkdir(parents=True, exist_ok=True)
+    archive = out / f"game20k-forks-{key}-{machine()}.tar.gz"
+
+    # the bytecode that building nextpnr's chip database left in Apicula stays out
+    def clean(info: tarfile.TarInfo) -> tarfile.TarInfo | None:
+        if "__pycache__" in info.name.split("/"):
+            return None
+        info.uid = info.gid = 0
+        info.uname = info.gname = ""
+        return info
+
+    with tarfile.open(archive, "w:gz") as t:
+        for name, path in zip(BUILT, (apicula, nextpnr), strict=True):
+            t.add(path, arcname=name, filter=clean)
+    print(f"{archive.relative_to(root).as_posix() if archive.is_relative_to(root) else archive}")
+    print(f"[prebuilt.{machine()}]")
+    print(f'sha256 = "{sha256(archive)}"')
+    return archive
+
+
+def foreign_libraries(program: Path) -> list[str]:
+    """@brief The shared libraries a program needs beyond the system's: on macOS those
+    outside /usr/lib and /System, on Linux any, as a program with an ELF interpreter loads
+    them."""
+    if sys.platform == "darwin":
+        lines = host.run(["otool", "-L", program], cwd=program.parent).splitlines()[1:]
+        names = [line.split()[0] for line in lines if line.strip()]
+        return [n for n in names if not n.startswith(("/usr/lib/", "/System/"))]
+    if sys.platform == "linux":
+        return ["an ELF interpreter (dynamic linking)"] if elf_interpreter(program) else []
+    raise StepError(f"pack checks the linking on macOS and Linux only, not on {sys.platform}")
+
+
+def elf_interpreter(program: Path) -> bool:
+    """@brief Whether a 64-bit ELF program names an interpreter (PT_INTERP), the loader of its
+    shared libraries."""
+    with open(program, "rb") as f:
+        head = f.read(64)
+        # program headers at e_phoff, e_phnum entries of e_phentsize bytes
+        (phoff,) = struct.unpack_from("<Q", head, 0x20)
+        phentsize, phnum = struct.unpack_from("<HH", head, 0x36)
+        f.seek(phoff)
+        table = f.read(phentsize * phnum)
+    return any(struct.unpack_from("<I", table, i * phentsize)[0] == 3 for i in range(phnum))
+
+
+def unpack_forks(root: Path, toolset: config.Toolset) -> tuple[Path, Path]:
+    """@brief Apicula and nextpnr from the archive of [prebuilt] for this machine, which must
+    hold the commits of tools.toml."""
+    here = machine()
+    prebuilt = toolset.prebuilt
+    archive = prebuilt.archives.get(here) if prebuilt else None
+    if prebuilt is None or archive is None:
+        raise StepError(f"tools.toml has no prebuilt forks for {here}, build them with --source")
+    a = source(toolset, "apicula")
+    dests = {name: folder(root, name, source(toolset, name).commit) for name in BUILT}
+    # the folders of this archive, as long as it still holds the commits of tools.toml
+    unpacked = all(marker(d).get("archive") == archive.sha256 for d in dests.values())
+    if unpacked and holds(marker(dests["nextpnr"]), toolset):
+        return dests["apicula"], dests["nextpnr"]
+    file = fetched(root, archive, "prebuilt forks")
+    staging = tools_dir(root) / f".forks-{archive.sha256[:12]}"
+    shutil.rmtree(staging, ignore_errors=True)
+    unpack(file, staging)
+    try:
+        # an archive of other commits means [prebuilt] was not renewed with the forks
+        apicula_ok = marker(staging / "apicula").get("commit") == a.commit
+        if not apicula_ok or not holds(marker(staging / "nextpnr"), toolset):
+            raise StepError(
+                f"{archive.url} holds other commits of the forks than tools.toml, "
+                "build them with --source or renew [prebuilt] (tools.yml)"
+            )
+        for name, dest in dests.items():
+            if dest.exists():
+                shutil.rmtree(dest)
+            write_marker(staging / name, marker(staging / name) | {"archive": archive.sha256})
+            (staging / name).rename(dest)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    print(f"prebuilt forks ({here}): fetched and checked")
+    print(f"  from    {archive.url}")
+    print(f"  release {prebuilt.release}")
+    print(f"  sha256  {archive.sha256}")
+    return dests["apicula"], dests["nextpnr"]
 
 
 def save_mode(local_toml: Path, mode: str) -> None:
@@ -276,7 +429,9 @@ def find(root: Path, name: str) -> Path:
     fetch or build made. A missing folder stops, a path of local.toml whose version does not
     match tools.toml gives a warning."""
     toolset = config.load_toolset(root / "tools.toml")
-    local = config.load_local(root / "local.toml")
+    local = load_local(root, toolset)
+    if name not in programs(toolset):
+        raise StepError(f"tools.toml has no program {name}, it has {', '.join(programs(toolset))}")
     if name in toolset.downloads:
         want, how = toolset.downloads[name].version, "fetch"
     else:
@@ -290,6 +445,10 @@ def find(root: Path, name: str) -> Path:
             print(f"warning: {name} in local.toml is {has}, tools.toml has {want}", file=sys.stderr)
     elif got != want:
         raise StepError(f"{name} {want[:12]} is missing, run python3 g20k.py tools {how}")
+    # nextpnr carries Apicula's chip database and Eigen's placements: another commit of either
+    # in tools.toml means a build of its own
+    elif name == "nextpnr" and not holds(marker(path), toolset):
+        raise StepError(f"nextpnr {want[:12]} is built from other sources, run python3 g20k.py tools build")
     return path
 
 
@@ -304,10 +463,10 @@ def locate(root: Path) -> config.Tools:
 def status(root: Path) -> None:
     """@brief Prints each program of tools.toml with the folder it is taken from."""
     toolset = config.load_toolset(root / "tools.toml")
-    local = config.load_local(root / "local.toml")
+    local = load_local(root, toolset)
     print(f"machine {machine()}, forks {local.mode or 'not chosen yet'}")
     rows = [(d.name, d.version) for d in toolset.downloads.values()]
-    rows += [(s.name, s.commit) for s in toolset.sources.values() if s.name in config.TOOL_KEYS]
+    rows += [(s.name, s.commit) for s in toolset.sources.values() if s.name in BUILT]
     for name, version in rows:
         path = local.paths.get(name, folder(root, name, version))
         base = path.parent.parent if path.is_file() else path
