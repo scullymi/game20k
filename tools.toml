@@ -58,8 +58,9 @@ repo = "https://github.com/scullymi/eigen.git"
 commit = "bc3b39870ecb690a623a3f49149a358b95c5781d"
 
 # The programs of the forks above, built from these commits by tools.yml, one archive per machine
-# with a build provenance attestation. After a change of a commit above, run tools.yml and copy
-# the [prebuilt] table from the summary of its run to here.
+# with a build provenance attestation. After a change of a commit above, of the suite or of
+# tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run
+# to here: the archive carries the key of all three, and tools build --prebuilt stops on another.
 [prebuilt]
 release = "https://github.com/scullymi/game20k/releases/tag/tools-c8a63a1a0832"
 

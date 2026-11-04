@@ -3,12 +3,13 @@
 #
 # Builds the programs of game20k's forks (Apicula and nextpnr, from the commits of tools.toml)
 # with static linking, one archive per kind of machine, each with a build provenance
-# attestation, and puts them on a prerelease tools-<key>, where <key> names the commits. Started
-# by hand (Actions tab, "Run workflow", or gh workflow run tools.yml) after the commits of the
-# forks change. The summary of the run gives the [prebuilt] table for tools.toml, which
-# python3 g20k.py tools build --prebuilt then fetches. A release of these commits that exists
-# already stops the run before the builds: an archive on it does not change once tools.toml
-# names it.
+# attestation, and puts them on a prerelease tools-<key>. The key (toolchain.forks_key) names
+# what the archives are made of: the commits of the forks, the version of the suite and the text
+# of tools/engine/forks.py. Started by hand (Actions tab, "Run workflow", or gh workflow run
+# tools.yml) after one of them changes. The summary of the run gives the [prebuilt] table for
+# tools.toml, which python3 g20k.py tools build --prebuilt then fetches. A release of this key
+# that exists already stops the run before the builds: an archive on it does not change once
+# tools.toml names it.
 name: Tools
 
 on:
@@ -18,7 +19,7 @@ permissions:
   contents: read
 
 jobs:
-  # the key of the commits, and a stop when their release is there already
+  # the key, and a stop when its release is there already
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -114,7 +115,7 @@ jobs:
           path: dist
 
       # game20k-forks-<key>-<machine>.tar.gz: the key of the check job for all, else a job built
-      # other commits
+      # from another state
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -122,11 +123,13 @@ jobs:
         run: |
           ls -l dist
           keys=$(ls dist | sed -E 's/^game20k-forks-([0-9a-f]{12})-.*/\1/' | sort -u)
-          [ "$keys" = "$KEY" ] || { echo "the archives name $keys, the commits are $KEY"; exit 1; }
+          [ "$keys" = "$KEY" ] || { echo "the archives name $keys, the check job has $KEY"; exit 1; }
           TAG="tools-$KEY"
-          # the sources of tools.toml, which the archives are built from
-          python3 -c 'import tomllib; s = tomllib.load(open("tools.toml", "rb"))["source"]
-          for n, t in s.items(): print("-", n, t["repo"], t["commit"])' > notes.md
+          # what the key names: the sources of tools.toml, the suite and the recipe
+          python3 -c 'import tomllib; t = tomllib.load(open("tools.toml", "rb"))
+          for n, s in t["source"].items(): print("-", n, s["repo"], s["commit"])
+          print("- suite", t["download"]["suite"]["version"])' > notes.md
+          echo "- recipe tools/engine/forks.py at $GITHUB_SHA" >> notes.md
           gh release create "$TAG" dist/*.tar.gz --target "$GITHUB_SHA" --prerelease --latest=false \
             --title "game20k forks $KEY" --notes-file notes.md
           {
