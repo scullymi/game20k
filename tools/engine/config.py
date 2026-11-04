@@ -294,9 +294,13 @@ def load_core(path: Path) -> Core:
         y.strings("read_slang_options"),
         y.get("alu_lut", int, 8),
     )
+    # the folder's name: the build writes build/<name>, the release and the CI look for it there
+    name = c.get("name", str)
+    if name != path.parent.name:
+        raise c.error(f'core.name is "{name}", the folder is {path.parent.name}: both must be the same')
     core = Core(
         folder=path.parent,
-        name=c.get("name", str),
+        name=name,
         platform=(path.parent / c.get("platform", str)).resolve(),
         hz=c.get("hz", int),
         sources=s.strings("files", required=True),
