@@ -13,6 +13,7 @@ local.toml takes the place of a folder, its version is then only checked, with a
 from __future__ import annotations
 
 import hashlib
+import json
 import platform
 import shutil
 import sys
@@ -56,8 +57,14 @@ def marker(path: Path) -> dict[str, str]:
         return {}
 
 
+def toml_line(key: str, value: str) -> str:
+    """@brief key = "value" with the escapes of a TOML basic string, which JSON's string escapes
+    are a part of: a Windows path keeps its backslashes."""
+    return f"{key} = {json.dumps(value, ensure_ascii=False)}\n"
+
+
 def write_marker(path: Path, values: dict[str, str]) -> None:
-    text = "".join(f'{k} = "{v}"\n' for k, v in values.items())
+    text = "".join(toml_line(k, v) for k, v in values.items())
     (path / MARKER).write_text(text, encoding="utf-8", newline="\n")
 
 
@@ -248,15 +255,16 @@ def build(root: Path, mode: str | None) -> None:
 
 
 def save_mode(local_toml: Path, mode: str) -> None:
-    """@brief Writes the mode into local.toml, its other settings stay."""
+    """@brief Writes the mode into local.toml. Its other settings stay, its comments do not:
+    the file is written anew."""
     data: dict[str, dict[str, str]] = {}
     if local_toml.exists():
         with open(local_toml, "rb") as f:
             data = tomllib.load(f)
     data.setdefault("tools", {})["mode"] = mode
-    text = "# Machine-specific settings, not in git\n"
+    text = "# Machine-specific settings, not in git. g20k.py tools build writes it anew.\n"
     for table, values in data.items():
-        text += f"[{table}]\n" + "".join(f'{k} = "{v}"\n' for k, v in values.items())
+        text += f"[{table}]\n" + "".join(toml_line(k, v) for k, v in values.items())
     local_toml.write_text(text, encoding="utf-8", newline="\n")
 
 

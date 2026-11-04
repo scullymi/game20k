@@ -6,6 +6,7 @@
 import io
 import tarfile
 import tempfile
+import tomllib
 import unittest
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout
@@ -130,6 +131,12 @@ class LocateTest(unittest.TestCase):
         with redirect_stderr(warnings):
             self.assertEqual(toolchain.locate(self.root).suite, own)
         self.assertIn("20250101", warnings.getvalue())
+
+    def test_save_mode_keeps_a_windows_path(self) -> None:
+        write(self.root, "local.toml", "[tools]\nsuite = 'C:\\tools\\suite'\n")
+        toolchain.save_mode(self.root / "local.toml", "prebuilt")
+        with open(self.root / "local.toml", "rb") as f:
+            self.assertEqual(tomllib.load(f)["tools"], {"suite": "C:\\tools\\suite", "mode": "prebuilt"})
 
     def test_save_mode_keeps_paths(self) -> None:
         write(self.root, "local.toml", '[tools]\nsuite = "own-suite"\n')
