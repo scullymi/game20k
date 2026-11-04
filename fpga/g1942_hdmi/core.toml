@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# 1942, Vulgus and Higemaru with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror) comes
+# from ../common, see ../common/platform.toml. This folder holds the game: the wrapper game_core,
+# the package game_pkg, the menu and the ROM manifests. Third-party HDL comes from ../vendor,
+# each folder with a README.md on where it comes from, at which commit, and what game20k changed:
+#   ../vendor/jtcores/  jt1942 and the parts of JTFRAME it uses (jotego, GPL-3.0-or-later, the
+#                       T80 inside JTFRAME by Daniel Wallner, BSD-style)
+#   ../vendor/jt49/     two AY-3-8910 (jotego, GPL-3.0-or-later), unchanged
+
+[core]
+name = "g1942_hdmi"
+platform = "../common"
+# Core clock: 371.25 MHz / 10. jotego's clock enables make exactly 12, 6, 3 and 1.5 MHz
+# from it (jtframe_gated_cen, 32/99), see src/game_core.sv
+hz = 37_125_000
+
+[sources]
+files = [
+  "src/jt1942_defs.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_prom.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_ram.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_dual_ram.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_dual_nvram.v",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/jtframe_z80wait.v",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/jtframe_z80.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_main.v",
+  "../vendor/jt49/hdl/jt49_cen.v",
+  "../vendor/jt49/hdl/jt49_div.v",
+  "../vendor/jt49/hdl/jt49_eg.v",
+  "../vendor/jt49/hdl/jt49_exp.v",
+  "../vendor/jt49/hdl/jt49_noise.v",
+  "../vendor/jt49/hdl/jt49.v",
+  "../vendor/jt49/hdl/jt49_bus.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_sound.v",
+  "../vendor/jtcores/modules/jtframe/hdl/jtframe_sh.v",
+  "../vendor/jtcores/modules/jtframe/hdl/video/jtframe_blank.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_colmix.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_objdraw.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_objram.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_objtiming.v",
+  "../vendor/jtcores/cores/gng/hdl/jtgng_objpxl.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_obj.v",
+  "../vendor/jtcores/modules/jtframe/hdl/video/tilemap/jtframe_tilemap.v",
+  "../vendor/jtcores/cores/gng/hdl/jtgng_tile3.v",
+  "../vendor/jtcores/cores/gng/hdl/jtgng_tile4.v",
+  "../vendor/jtcores/cores/gng/hdl/jtgng_tilemap.v",
+  "../vendor/jtcores/cores/gng/hdl/jtgng_scroll.v",
+  "../vendor/jtcores/cores/gng/hdl/jtgng_timer.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_video.v",
+  "../vendor/jtcores/cores/1942/hdl/jt1942_game.v",
+  "../vendor/jtcores/modules/jtframe/hdl/jtframe_bcd_cnt.v",
+  "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_freqinfo.v",
+  "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_gated_cen.v",
+  "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_dual_ram16.v",
+  "src/g1942_mirror.sv",
+  "src/game_pkg.sv",
+  "src/game_core.sv",
+  "{out}/rom_map_pkg.sv",
+]
+include = ["src/inc", "../vendor/jtcores/modules/jtframe/hdl/inc", "../vendor/jtcores/cores/1942/hdl"]
+
+[vhdl]
+tops = ["T80s"]
+files = [
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_ALU.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_MCode.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80_Reg.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80.vhd",
+  "../vendor/jtcores/modules/jtframe/hdl/cpu/t80/T80s.vhd",
+]
+
+[synth]
+ram_block = [
+  "game.u_game.u_video.u_prom_d6.mem",
+  "game.u_game.u_video.u_prom_d2.mem",
+  "game.u_game.u_video.u_obj.u_pxlbuf.lineB_buf.mem",
+  "game.u_game.u_video.u_obj.u_pxlbuf.lineA_buf.mem",
+  "game.u_game.u_video.u_obj.u_draw.u_prom_k3.mem",
+  "game.u_game.u_video.u_chprom.mem",
+  "game.u_game.u_main.u_vprom.mem",
+  "game.u_game.u_video.u_obj.u_ram.u_ram.u_ram.mem",
+]
+
+[[generate]]
+run = ["{root}/scripts/make_rom.py", "--package", "vulgus.manifest", "{out}/rom_map_pkg.sv", "1942.manifest", "higemaru.manifest"]
+outputs = ["rom_map_pkg.sv"]

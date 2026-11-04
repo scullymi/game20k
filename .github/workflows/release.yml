@@ -33,6 +33,7 @@ jobs:
   draft:
     needs: [firmware, bitstreams]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write      # create the draft release
     steps:

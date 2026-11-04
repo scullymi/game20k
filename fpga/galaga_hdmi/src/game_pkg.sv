@@ -10,8 +10,6 @@ package game_pkg;
     //! visible raster of the core, MAME galaga.cpp: 288 x 224 of 384 x 264, 6.1875 MHz pixel
     localparam int W = 288;
     localparam int H = 224;
-    //! core clock: 371.25 MHz / 20, the platform derives its timers and the PLL divider from it
-    localparam int CORE_HZ = 18_562_500;
     //! HDMI lines per frame: 1 core frame = 384 x 264 pixels x 3 clocks x 4 = 1584 x 768
     localparam int FRAME_H = 768;
     //! core clocks per pixel. The scaler counts them itself, video_ce is not used (0 would

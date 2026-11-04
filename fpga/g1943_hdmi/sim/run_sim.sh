@@ -37,8 +37,6 @@ mkdir -p "$W/frames"
 rm -f "$W"/frames/*.ppm
 # the ROM image, as words for the SDRAM side, and the PROM and palette sections as bytes
 python3 "$ROOT/scripts/make_rom.py" --no-footer "$G/$SET.manifest" "$W/$SET.rom"
-# FB_CCW for the testbench's fb_read_rotated, as build.tcl makes it
-python3 "$ROOT/scripts/make_rom.py" --package "$G/1943.manifest" "$W/rom_map_pkg.sv"
 python3 - "$W" "$SET" <<'EOF'
 import sys
 w = sys.argv[1]
@@ -60,17 +58,17 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
   fi
 fi
 
-# the game's sources as build.tcl adds them, the VHDL T80 replaced by T80s.v
-files=$(sed -n -E 's#^add_file ((src|\.\./vendor)/.*\.v)$#\1#p' "$G/build.tcl" | sed "s|^|$G/|")
+# the core's sources as the build reads them (core.toml, its generated files into $W/gen),
+# the VHDL T80 replaced by T80s.v
+files=$(python3 "$ROOT/g20k.py" sources "$G" --out "$W")
+incdirs=$(python3 "$ROOT/g20k.py" sources "$G" --out "$W" --include 2>/dev/null | sed 's|^|+incdir+|')
 verilator --binary --timing -j 8 -O3 --top-module tb_1943 -Mdir "$W/obj_$mode" $define $SIM_DEFINES \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
-  +define+TV80S +incdir+"$G/src/inc" +incdir+"$ROOT/fpga/vendor/jtcores/modules/jtframe/hdl/inc" \
-  +incdir+"$ROOT/fpga/vendor/jtcores/cores/1943/hdl" +incdir+"$ROOT/fpga/vendor/jt12/hdl" \
-  "$W/T80s.v" $files \
+  +define+TV80S $incdirs \
+  "$W/T80s.v" "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \
-  "$G/src/g1943_mirror.sv" "$G/src/tile_prefetch.sv" "$G/src/map_prefetch.sv" "$W/rom_map_pkg.sv" "$G/src/game_pkg.sv" "$G/src/game_core.sv" \
   "$HERE/tb_1943.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 

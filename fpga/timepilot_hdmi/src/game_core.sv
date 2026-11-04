@@ -89,10 +89,10 @@ module game_core #(
     // difficulty 4, demo sounds on.
     // DSW0: 7:4 coin B, 3:0 coin A, both set from the one coinage entry.
     // DSW1: 7 demo sounds (0 on), 6:4 difficulty, 3 bonus, 2 cabinet (0 upright), 1:0 lives.
-    logic [1:0] lives      = 2'd3;
-    logic       bonus      = 1'b1;
-    logic [3:0] coinage    = 4'hF;
-    logic [2:0] difficulty = 3'd4;
+    logic [1:0] lives      = 2'(iface_pkg::MENU_DEFAULT_L);
+    logic       bonus      = 1'(iface_pkg::MENU_DEFAULT_B);
+    logic [3:0] coinage    = 4'(iface_pkg::MENU_DEFAULT_C);
+    logic [2:0] difficulty = 3'(iface_pkg::MENU_DEFAULT_F);
     always_ff @(posedge clk)
         if (cfg_we) case (cfg_id)
             "L": lives      <= cfg_val[1:0];

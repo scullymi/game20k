@@ -21,10 +21,6 @@
 set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-G="$HERE/../src"
-V="$ROOT/fpga/vendor"
-J="$V/jtcores"
-FW="$J/modules/jtframe/hdl"
 SET="${SET:-pang}"
 FRAMES="${FRAMES:-600}"
 COIN_F="${COIN_F:-0}"
@@ -62,7 +58,6 @@ with open(w + "/ee.hex", "w") as f:
 with open(w + "/id.hex", "w") as f:
     f.writelines("%02x\n" % x for x in b[0x170080:0x170084])
 EOF
-python3 "$ROOT/scripts/make_rom.py" --package "$HERE/../pang.manifest" "$W/rom_map_pkg.sv" "$HERE/../spang.manifest"
 
 # MAME: the decrypted views once, the frames of this run
 kab=""
@@ -106,27 +101,16 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
   fi
 fi
 
-# the sources in the order of build.tcl, the VHDL T80 replaced by T80s.v
-OPL="$V/jtopl/hdl"
-OKI="$V/jt6295/hdl"
-P="$J/cores/pang/hdl"
+# the core's sources as the build reads them (core.toml, its generated files into $W/gen,
+# the package with FB_CCW among them), the VHDL T80 replaced by T80s.v
+files=$(python3 "$ROOT/g20k.py" sources "$ROOT/fpga/pang_hdmi" --out "$W")
 verilator --binary --timing -j 8 -O3 --top-module tb_pang -Mdir "$W/obj_$mode" $define ${EXTRA:-} \
   -GFRAMES="$FRAMES" -GCOIN_F="$COIN_F" -GSTART_F="$START_F" -GFIRE_F="$FIRE_F" -GFIRE_N="$FIRE_N" \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD +define+TV80S \
-  "$G/jtpang_defs.v" \
-  "$FW/ram/jtframe_dual_ram.v" "$FW/ram/jtframe_dual_nvram.v" "$FW/ram/jtframe_obj_buffer.v" \
-  "$W/T80s.v" "$FW/cpu/jtframe_z80wait.v" "$FW/cpu/jtframe_z80.v" \
-  "$FW/jtframe_sh.v" "$FW/video/jtframe_vtimer.v" "$FW/video/jtframe_draw.v" \
-  "$FW/video/jtframe_objdraw_gate.v" "$FW/video/jtframe_objdraw.v" \
-  "$FW/jtframe_bcd_cnt.v" "$FW/clocking/jtframe_freqinfo.v" "$FW/clocking/jtframe_gated_cen.v" \
-  "$OPL"/jtopl_*.v "$OPL"/jtopll_*.v "$OPL/jt2413.v" \
-  "$OKI"/jt12_*.v "$OKI"/jt6295_*.v "$OKI/jt6295.v" \
-  "$V/jteeprom/hdl/jt9346.v" "$V/jteeprom/hdl/jt9346_16b8b.v" \
-  "$P/jtpang_main.v" "$P/jtpang_snd.v" "$P/jtpang_char.v" "$P/jtpang_obj.v" "$P/jtpang_colmix.v" \
-  "$P/jtpang_video.v" \
+  "$W/T80s.v" "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
-  "$G/gpang_mirror.sv" "$W/rom_map_pkg.sv" "$G/game_pkg.sv" "$G/game_core.sv" "$HERE/tb_pang.sv" \
+  "$HERE/tb_pang.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 
 cd "$W"

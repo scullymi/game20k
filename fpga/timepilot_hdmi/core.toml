@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# Time Pilot with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror) comes from ../common,
+# see ../common/platform.toml. This folder holds the game: Ace's core in src/rtl_timepilot
+# (MiSTer-devel/Arcade-TimePilot_MiSTer 5a148e2, MIT, T80 by Daniel Wallner, BSD-style, jt49 by
+# jotego, GPL-3.0-or-later), the wrapper game_core, the package game_pkg, the menu and the ROM
+# manifest. The RAM mirror tp_mirror.sv is 1942's, sized for 2 KB.
+
+[core]
+name = "timepilot_hdmi"
+platform = "../common"
+# Core clock: 371.25 MHz / 10. The core makes 12.375, 6.1875 and 3.09 MHz from it with a
+# counter modulo 12 (src/rtl_timepilot/TimePilot_CPU.sv), the original's rates +0.7 % as with Pac-Man
+hz = 37_125_000
+
+[sources]
+files = [
+  "src/timepilot_defs.v",
+  "src/rtl_timepilot/ram_rom/rom_loader.sv",
+  "src/rtl_timepilot/jtframe_frac_cen.v",
+  "src/rtl_timepilot/custom/k082.sv",
+  "src/rtl_timepilot/custom/k083.sv",
+  "src/rtl_timepilot/custom/k501.sv",
+  "src/rtl_timepilot/custom/k502.sv",
+  "src/rtl_timepilot/custom/k503.sv",
+  "src/rtl_timepilot/custom/k526.sv",
+  "src/rtl_timepilot/custom/k528.sv",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49_cen.v",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49_div.v",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49_eg.v",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49_exp.v",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49_noise.v",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49.v",
+  "src/rtl_timepilot/sound/jt49/hdl/jt49_bus.v",
+  "src/rtl_timepilot/sound/jt49/hdl/filter/jt49_dcrm2.v",
+  "src/rtl_timepilot/sound/tp_lpf_sel.sv",
+  "src/rtl_timepilot/TimePilot_CPU.sv",
+  "src/rtl_timepilot/TimePilot_SND.sv",
+  "src/rtl_timepilot/TimePilot.sv",
+  "src/tp_mirror.sv",
+  "src/game_pkg.sv",
+  "src/game_core.sv",
+  "{out}/rom_map_pkg.sv",
+  "src/rtl_timepilot/ram_rom/dpram_dc.v",
+  "src/rtl_timepilot/ram_rom/spram.v",
+]
+
+[vhdl]
+tops = ["T80s"]
+files = [
+  "src/rtl_timepilot/cpu/T80/T80_Pack.vhd",
+  "src/rtl_timepilot/cpu/T80/T80_ALU.vhd",
+  "src/rtl_timepilot/cpu/T80/T80_MCode.vhd",
+  "src/rtl_timepilot/cpu/T80/T80_Reg.vhd",
+  "src/rtl_timepilot/cpu/T80/T80.vhd",
+  "src/rtl_timepilot/cpu/T80/T80s.vhd",
+]
+
+[synth]
+# Ace's sources use names before their declaration
+slang_options = ["--allow-use-before-declare"]
+
+[[generate]]
+run = ["{root}/scripts/make_rom.py", "--package", "timeplt.manifest", "{out}/rom_map_pkg.sv"]
+outputs = ["rom_map_pkg.sv"]

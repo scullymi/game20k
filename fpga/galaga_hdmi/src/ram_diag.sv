@@ -5,8 +5,9 @@
 //! @file ram_diag.sv
 //! @brief Result bar for the RAM mirror and rcheevos (game20k), RAMDIAG=1 only
 //!
-//! Only in the diagnostic build RAMDIAG=1, see build.tcl. It is the permanent result bar
-//! of the RAM mirror: it only measures and builds nothing of the mirror itself.
+//! Only in the diagnostic build, g20k.py build fpga/galaga_hdmi -G RAMDIAG=1. It is the
+//! permanent result bar of the RAM mirror: it only measures and builds nothing of the mirror
+//! itself.
 //!
 //! This module changes nothing in the game. It only counts what the three Z80s write into
 //! the four working RAMs and thereby answers four questions that cannot be settled at the

@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# The cells of the synthesized netlist per board, written by g20k.py build --update-cells. The
+# build compares its netlist with them: LUT, DFF, ALU may move by 5 percent, every other
+# cell type must match.
+
+[tangnano20k]
+"$print" = 20
+"$scopeinfo" = 40
+"ALU" = 959
+"BUFG" = 1
+"CLKDIV" = 1
+"DFF" = 3944
+"DPB" = 33
+"DPX9B" = 8
+"ELVDS_OBUF" = 4
+"GND" = 1
+"IBUF" = 6
+"IOBUF" = 37
+"LUT" = 7189
+"MULT18X18" = 1
+"MULT9X9" = 1
+"OBUF" = 42
+"OSER10" = 3
+"RAM16SDP4" = 53
+"SDPX9B" = 1
+"SPX9" = 2
+"VCC" = 1
+"rPLL" = 2

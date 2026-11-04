@@ -22,6 +22,7 @@ permissions:
 jobs:
   firmware:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
       TOOLCHAIN: arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi
       # published by Arm next to the archive as <archive>.sha256asc

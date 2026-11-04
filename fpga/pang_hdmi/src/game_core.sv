@@ -106,8 +106,8 @@ module game_core #(
     // fire, menu id A). Button 2 ("Shot B") does nothing in the game, only some test screens
     // read it: the raw HID button the menu names under K, 1..12, 0 for none. The test switch (menu id X) is read at power-on, its list
     // resets. Two coin slots on the board, the platform has one coin.
-    logic [3:0] b2_btn = 4'd2;
-    logic       test_on = 1'b0;
+    logic [3:0] b2_btn = 4'(iface_pkg::MENU_DEFAULT_K);
+    logic       test_on = 1'(iface_pkg::MENU_DEFAULT_X);
     always_ff @(posedge clk)
         if (cfg_we) case (cfg_id)
             "K": b2_btn  <= cfg_val[3:0];

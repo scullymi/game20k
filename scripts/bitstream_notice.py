@@ -3,14 +3,14 @@
 # Copyright (C) 2026 scullymi
 """Writes the NOTICE file that accompanies the bitstreams of a release.
 
-Usage: scripts/bitstream_notice.py <output file> <version> <core> [<core> ...]
+Usage: scripts/bitstream_notice.py [--build <folder>] <output file> <version> <core> [<core> ...]
 
-The synthesis project of each core, fpga/<core>/impl/gwsynthesis/<core>.prj, lists the source
-files that went into its bitstream. With OSS=1 the bitstreams are those of the free toolchain
-(scripts/build_fpga_oss.sh), which lists them in fpga/<core>/impl/oss/sources.txt. Every one of them has to belong to a component below, and
+The bitstreams are those of g20k.py in <folder>/<core>/ (default build/), whose sources.txt lists
+the source files that went into the bitstream. Every one of them has to belong to a component
+below, and
 each component names the notice it needs. A file that no component claims ends the script with
 exit code 1, so new HDL cannot get into a release without its notice. So do a diagnostic build,
-a bitstream older than one of its sources or than its synthesis project, a source that reads a
+a bitstream older than one of its sources or than its sources.txt, a source that reads a
 data file, an interface tag that does not come from today's menu sources, and a source with
 uncommitted changes or one that git does not track (ALLOW_DIRTY=1 lets those two pass for a
 trial run): the NOTICE describes exactly the files it lists.
@@ -26,18 +26,27 @@ import re
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 
 import make_menu  # the menu generator, the interface tag in the bitstream comes from it
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+from tools.engine import config  # noqa: E402  the flash addresses of project.toml
+
 REPO_URL = "https://github.com/scullymi/game20k"
-# OSS=1: the bitstreams of the free toolchain in impl/oss, else Gowin's in impl/pnr
-OSS = os.environ.get("OSS") == "1"
+# the build folder of g20k.py: <folder>/<core>/ with the generated files in gen/ (--build)
+BUILD = os.path.join(ROOT, "build")
 
 
 def impl(core, name):
-    """A file of the core's build, of the free toolchain with OSS=1, else of Gowin's."""
-    return os.path.join(ROOT, "fpga", core, "impl", "oss" if OSS else "pnr", name)
+    """A file of the core's build."""
+    return os.path.join(BUILD, core, name)
+
+
+def gen(core, name):
+    """The repository-relative path of a file the build of core generates."""
+    return os.path.relpath(os.path.join(BUILD, core, "gen", name), ROOT)
 
 # Each component: the name in the NOTICE, a short licence label for the contents, where its
 # source comes from, a pattern on the repository-relative path, and what the NOTICE shows. The
@@ -359,18 +368,16 @@ COMPONENTS = [
         "copyrights": True,
     },
     {
-        "name": "jtframe_frac_cen.v and spram.vhd from the Time Pilot repository",
+        "name": "jtframe_frac_cen.v from the Time Pilot repository",
         "short": "no licence statement, see the note",
         "url": "https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer at 5a148e2, "
-               "rtl/jtframe_frac_cen.v and rtl/ram_rom/spram.vhd",
-        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/(jtframe_frac_cen\.v|ram_rom/spram\.vhd)$",
+               "rtl/jtframe_frac_cen.v",
+        "match": r"^fpga/timepilot_hdmi/src/rtl_timepilot/jtframe_frac_cen\.v$",
         "licence": "none stated, see the note",
-        "note": "Neither file has a header, and the repository has no licence file. "
+        "note": "The file has no header, and the repository has no licence file. "
                 "jtframe_frac_cen.v is an earlier version of a module of jotego's JTFRAME, which "
                 "jtcores carries as modules/jtframe/hdl/clocking/jtframe_frac_cen.v under "
-                "GPL-3.0-or-later. spram.vhd is a generic single-port RAM whose author is not "
-                "named. game20k declares its memory as a signal instead of a shared variable, "
-                "marked game20k.",
+                "GPL-3.0-or-later.",
         "show": [],
     },
     {
@@ -443,22 +450,20 @@ COMPONENTS = [
     },
 ]
 OWN = len(COMPONENTS) - 1
-# the normal top level, a diagnostic build replaces it with gen/game20k_top_gen.sv (build.tcl)
+# the top level, the same file in every build (a diagnostic build sets its parameters with -G)
 TOP = "fpga/common/src/game20k_top.sv"
 # the only files of a core's gen/ folder that belong into a release build
-GEN_OK = ("gen/rom_map_pkg.sv", "gen/iface_pkg.sv", "gen/menu_rom.v")
-# the files of a core that its build writes and no commit holds
-BUILT = GEN_OK
+GEN_OK = ("rom_map_pkg.sv", "iface_pkg.sv", "menu_rom.v")
 # Statements that pull a file into the design at synthesis. None is allowed, so no ROM image
 # reaches a bitstream unseen.
 FILE_READ = re.compile(r"\$readmem|`include|\$fopen|\$fread|textio|file_open", re.I)
 # generated files of ours without an SPDX line, with the line that proves where they come from
 GENERATED = {
-    r"^fpga/(galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi|gng_hdmi|digdug_hdmi|pang_hdmi|"
-    r"timepilot_hdmi)/gen/rom_map_pkg\.sv$": "// Generated by scripts/make_rom.py from",
-    r"^fpga/(galaga_hdmi|pacman_hdmi|g1942_hdmi|g1943_hdmi|gng_hdmi|digdug_hdmi|pang_hdmi|"
-    r"timepilot_hdmi)/gen/iface_pkg\.sv$": "// Generated by scripts/make_menu.py from",
+    "rom_map_pkg.sv": "// Generated by scripts/make_rom.py from",
+    "iface_pkg.sv": "// Generated by scripts/make_menu.py from",
 }
+# the generated files of the cores of this run, see gen(), filled in main()
+BUILT = set()
 
 
 def die(msg):
@@ -497,10 +502,8 @@ def own_file(rel):
     head = read(rel).split("\n")[:3]
     if any("SPDX-License-Identifier: GPL-3.0-only" in l for l in head):
         return True
-    for pattern, line in GENERATED.items():
-        if re.search(pattern, rel) and head and head[0].startswith(line):
-            return True
-    return False
+    line = GENERATED.get(os.path.basename(rel))
+    return rel in BUILT and line is not None and bool(head) and head[0].startswith(line)
 
 
 def inputs(core):
@@ -510,7 +513,7 @@ def inputs(core):
         die("%s missing, build %s first" % (os.path.relpath(prj, ROOT), core))
     with open(prj, encoding="utf-8") as f:
         text = f.read()
-    paths = text.split() if OSS else re.findall(r'<File path="([^"]+)"', text)
+    paths = text.split()
     if not paths:
         die("%s lists no files" % os.path.relpath(prj, ROOT))
     rel = []
@@ -520,7 +523,7 @@ def inputs(core):
             die("%s: %s lies outside the repository" % (core, p))
         rel.append(r)
     # a diagnostic build replaces the top level with a generated one, a release is the normal one
-    gen_ok = ["fpga/%s/%s" % (core, g) for g in GEN_OK]
+    gen_ok = [gen(core, g) for g in GEN_OK]
     odd = [r for r in rel if "/gen/" in r and r not in gen_ok]
     if odd or TOP not in rel:
         die("%s is not the normal build (%s), build it again without diagnostic variables"
@@ -532,24 +535,21 @@ def inputs(core):
 
 
 def project(core):
-    """The file of the build that lists its sources: Gowin's synthesis project, or the list the
-    free build writes."""
-    if OSS:
-        return impl(core, "sources.txt")
-    return os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".prj")
+    """The file of the build that lists its sources."""
+    return impl(core, "sources.txt")
 
 
 def check_iface(core):
-    """Stops unless gen/iface_pkg.sv holds the tag and gen/menu_rom.v the menu that make_menu.py
-    derives from today's sources.
+    """Stops unless gen/iface_pkg.sv holds the tag and the menu defaults and gen/menu_rom.v the
+    menu that make_menu.py derives from today's sources.
     The firmware of the release takes its menus from them, a core with an older tag would get
     the basic menu."""
-    pkg = "fpga/%s/gen/iface_pkg.sv" % core
-    if read(pkg) != make_menu.iface_pkg(core, make_menu.iface_tag(core)):
+    pkg = gen(core, "iface_pkg.sv")
+    if read(pkg) != make_menu.iface_pkg(core, make_menu.iface_tag(core), make_menu.compose(core)):
         die("%s does not hold the tag of %s and fpga/%s/menu_core.xml, build %s again"
             % (pkg, make_menu.BASE, core, core))
     # the same for the menu that the core sends to the upstream Companion firmware
-    rom = "fpga/%s/gen/menu_rom.v" % core
+    rom = gen(core, "menu_rom.v")
     if read(rom) != make_menu.menu_rom_v(core, make_menu.pack(make_menu.rom_menu(core))):
         die("%s does not hold the menu of %s and fpga/%s/menu_core.xml, build %s again"
             % (rom, make_menu.BASE, core, core))
@@ -600,42 +600,32 @@ def active_lines(text, defined):
 
 
 def syn_params_set(core):
-    """The compiled module lines of the synthesis log that set a SYN* parameter. The free build
-    has no such log: its sources are searched, without comments, for a SYN* parameter given a
-    file name, by an instance, as a module's default or by defparam. Handing one on, as
-    jtframe's wrappers do, sets nothing."""
-    if OSS:
-        setter = re.compile(r'(\.\s*SYN(HEX|FILE|BINFILE)\s*\(\s*|\bSYN(HEX|FILE|BINFILE)\s*=\s*)"[^"]+"')
-        hits = []
-        for f in read(project_rel(core)).split():
-            rel = os.path.relpath(f, ROOT)
-            if not re.search(r"\.(s?vh?)$", rel):
-                continue
-            text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), read(rel), flags=re.S)
-            hits += ["%s:%d: %s" % (rel, n, l.strip()) for n, l in enumerate(text.split("\n"), 1)
-                     if setter.search(l.split("//", 1)[0])]
-        return hits
-    log = os.path.join(ROOT, "fpga", core, "impl", "gwsynthesis", core + ".log")
-    if not os.path.isfile(log):
-        die("%s missing, build %s first" % (os.path.relpath(log, ROOT), core))
-    with open(log, encoding="utf-8", errors="replace") as f:
-        return [l.strip() for l in f if "Compiling module" in l and SYN_PARAM.search(l)]
+    """The source lines that set a SYN* parameter: the sources are searched, without comments,
+    for a SYN* parameter given a file name, by an instance, as a module's default or by
+    defparam. Handing one on, as jtframe's wrappers do, sets nothing."""
+    setter = re.compile(r'(\.\s*SYN(HEX|FILE|BINFILE)\s*\(\s*|\bSYN(HEX|FILE|BINFILE)\s*=\s*)"[^"]+"')
+    hits = []
+    for f in read(project_rel(core)).split():
+        rel = os.path.relpath(f, ROOT)
+        if not re.search(r"\.(s?vh?)$", rel):
+            continue
+        text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), read(rel), flags=re.S)
+        hits += ["%s:%d: %s" % (rel, n, l.strip()) for n, l in enumerate(text.split("\n"), 1)
+                 if setter.search(l.split("//", 1)[0])]
+    return hits
 
 
 def include_target(core, rel, name):
-    """The repository-relative file an `include in rel names: beside rel, else exactly one file
-    of that name in the core's src/ and fpga/vendor (build.tcl puts folders of both on the
-    include path)."""
-    beside = os.path.join(os.path.dirname(rel), name)
-    if os.path.isfile(os.path.join(ROOT, beside)):
-        return beside
-    hits = [os.path.relpath(os.path.join(d, name), ROOT)
-            for top in (os.path.join(ROOT, "fpga", core, "src"), os.path.join(ROOT, "fpga", "vendor"))
-            for d, _, fs in os.walk(top) if name in fs]
-    if len(hits) != 1:
-        die("%s includes %s, found %d files of that name under fpga/%s/src and fpga/vendor"
-            % (rel, name, len(hits), core))
-    return hits[0]
+    """The repository-relative file an `include in rel names, searched as the build's slang
+    does: beside rel, then in the include folders of core.toml and platform.toml in order."""
+    c = config.load_core(Path(ROOT) / "fpga" / core / "core.toml")
+    platform = config.load_platform(c.platform / "platform.toml")
+    dirs = [Path(ROOT) / os.path.dirname(rel)] + config.include_dirs(c, platform)
+    for d in dirs:
+        if (d / name).is_file():
+            return os.path.relpath(d / name, ROOT)
+    die("%s includes %s, which is in none of %s"
+        % (rel, name, ", ".join(os.path.relpath(d, ROOT) for d in dirs)))
 
 
 def file_reads(core, files):
@@ -691,11 +681,11 @@ def git(*args):
 
 
 def slot_of(core):
-    for line in read("fpga/common/slots.txt").split("\n"):
-        parts = line.split()
-        if len(parts) == 2 and not line.startswith("#") and parts[0] == core:
-            return parts[1]
-    die("fpga/common/slots.txt has no address for %s" % core)
+    try:
+        project = config.load_project(Path(ROOT) / "project.toml")
+        return "0x%06x" % project.address(Path(ROOT) / "fpga" / core)
+    except config.ConfigError as e:
+        die(str(e))
 
 
 def project_rel(core):
@@ -703,28 +693,12 @@ def project_rel(core):
 
 
 def tools(cores):
-    """The sentence on the tools: Gowin's version from the header of the .fs, or the line the
-    free build writes, which has to be the same for every core."""
-    if not OSS:
-        return ("with Gowin EDA %s. Gowin provides its Education edition for education, research "
-                "and other non-commercial purposes. These files were built for a non-commercial "
-                "open source project and are published free of charge. This describes how they "
-                "were made and adds no condition to the licences below." % gowin_version(cores[0]))
+    """The sentence on the tools: the line the build writes, which has to be the same for every
+    core."""
     lines = {read(os.path.relpath(impl(c, "tools.txt"), ROOT)).strip() for c in cores}
     if len(lines) != 1:
         die("the cores were built with different tools:\n  " + "\n  ".join(sorted(lines)))
     return "with the free toolchain, %s." % lines.pop()
-
-
-def gowin_version(core):
-    """The tool version in the header of the core's .fs, e.g. "V1.9.11.03 Education (81398)"."""
-    fs = os.path.join(ROOT, "fpga", core, "impl", "pnr", core + ".fs")
-    with open(fs, encoding="utf-8", errors="replace") as f:
-        head = f.read(2000)
-    m = re.search(r"^//Tool Version: (.+)$", head, re.M)
-    if not m:
-        die("%s has no tool version in its header" % os.path.relpath(fs, ROOT))
-    return m.group(1).strip()
 
 
 def copyright_lines(files):
@@ -739,9 +713,14 @@ def copyright_lines(files):
 
 
 def main():
-    if len(sys.argv) < 4:
-        die("usage: bitstream_notice.py <output file> <version> <core> [<core> ...]")
-    out_path, version, cores = sys.argv[1], sys.argv[2], sys.argv[3:]
+    global BUILD
+    args = sys.argv[1:]
+    if args[:1] == ["--build"]:
+        BUILD, args = os.path.abspath(args[1]), args[2:]
+    if len(args) < 3:
+        die("usage: bitstream_notice.py [--build <folder>] <output file> <version> <core> [<core> ...]")
+    out_path, version, cores = args[0], args[1], args[2:]
+    BUILT.update(gen(c, g) for c in cores for g in GEN_OK)
     allow_dirty = os.environ.get("ALLOW_DIRTY") == "1"
 
     claimed = {i: set() for i in range(len(COMPONENTS))}
@@ -774,7 +753,9 @@ def main():
             for i, comp in enumerate(COMPONENTS):
                 if core not in comp.get("cores", (core,)):
                     continue
-                if re.search(comp["match"], f) and (i != OWN or own_file(f)):
+                # the generated files are ours wherever the build put them
+                ours = i == OWN and f in BUILT
+                if (re.search(comp["match"], f) or ours) and (i != OWN or own_file(f)):
                     claimed[i].add(f)
                     break
             else:
@@ -789,8 +770,7 @@ def main():
     # writes aside, which no commit holds.
     every = sorted({f for fs in per_core.values() for f in fs})
     tracked = set(git("ls-files", "--", *every).split("\n")) - {""}
-    untracked = ["?? " + f for f in every
-                 if f not in tracked and not any(f.endswith("/" + g) for g in BUILT)]
+    untracked = ["?? " + f for f in every if f not in tracked and f not in BUILT]
     dirty = "\n".join([git("status", "--porcelain", "--", *sorted(tracked))] + untracked).strip()
     if dirty and not allow_dirty:
         die("sources with uncommitted changes or unknown to git, a NOTICE names committed files "

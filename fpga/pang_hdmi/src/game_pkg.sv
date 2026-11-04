@@ -10,9 +10,6 @@ package game_pkg;
     //! visible raster of the core, jtpang_video.v: 384 x 240 of 512 x 272, 8 MHz pixel
     localparam int W = 384;
     localparam int H = 240;
-    //! core clock: 371.25 MHz / 10. jtframe_gated_cen makes exactly 8, 4 and 1 MHz from it
-    //! (64/297), see game_core.sv
-    localparam int CORE_HZ = 37_125_000;
     //! HDMI lines per frame: 1 core frame = 512 x 272 pixels at 8 MHz = 646272 core clocks
     //! = 1584 x 816 HDMI clocks, 57.445 Hz. One core line is exactly three HDMI lines.
     localparam int FRAME_H = 816;

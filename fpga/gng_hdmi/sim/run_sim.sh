@@ -47,8 +47,6 @@ with open(w + "/rom32.hex", "w") as f:
     for i in range(0, len(b), 4):
         f.write("%08x\n" % int.from_bytes(b[i:i + 4], "little"))
 EOF
-# the package the build makes from the manifest (build.tcl), for FB_CCW
-python3 "$ROOT/scripts/make_rom.py" --package "$G/$SET.manifest" "$W/rom_map_pkg.sv"
 
 # the Verilog Z80 for simulation, once
 if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ]; then
@@ -60,18 +58,18 @@ if [ ! -f "$W/T80s.v" ] || [ "$(git hash-object "$W/T80s.v")" != "$T80S_BLOB" ];
   fi
 fi
 
-# the game's sources as build.tcl adds them, the VHDL T80 replaced by T80s.v
-files=$(sed -n -E 's#^add_file ((src|\.\./vendor)/.*\.v)$#\1#p' "$G/build.tcl" | sed "s|^|$G/|")
+# the core's sources as the build reads them (core.toml, its generated files into $W/gen, the
+# package with FB_CCW among them), the VHDL T80 replaced by T80s.v
+files=$(python3 "$ROOT/g20k.py" sources "$G" --out "$W")
+incdirs=$(python3 "$ROOT/g20k.py" sources "$G" --out "$W" --include 2>/dev/null | sed 's|^|+incdir+|')
 verilator --binary --timing -j 8 -O3 --top-module tb_gng -Mdir "$W/obj_$mode" $define $SIM_DEFINES \
   -GFRAMES="${FRAMES:-1500}" -GFRAME_EVERY="${FRAME_EVERY:-30}" \
   -Wno-fatal -Wno-lint -Wno-style -Wno-MULTIDRIVEN -Wno-TIMESCALEMOD \
-  +define+TV80S +incdir+"$G/src/inc" +incdir+"$ROOT/fpga/vendor/jtcores/modules/jtframe/hdl/inc" \
-  +incdir+"$ROOT/fpga/vendor/jtcores/cores/gng/hdl" +incdir+"$ROOT/fpga/vendor/jt12/hdl" \
-  "$W/T80s.v" $files \
+  +define+TV80S $incdirs \
+  "$W/T80s.v" "$W/gen/iface_pkg.sv" $files \
   "$ROOT/fpga/common/src/rom_slots.sv" "$ROOT/fpga/common/src/sdram_fb.v" \
   "$ROOT/fpga/common/src/rom_sdram.sv" "$ROOT/fpga/common/src/sdram_share.sv" \
   "$ROOT/fpga/common/src/fb_pack.sv" "$ROOT/fpga/common/src/fb_read_rotated.sv" \
-  "$G/src/mirror_n.sv" "$W/rom_map_pkg.sv" "$G/src/game_pkg.sv" "$G/src/game_core.sv" \
   "$HERE/tb_gng.sv" \
   > "$W/build_$mode.log" 2>&1 || { cat "$W/build_$mode.log"; exit 1; }
 

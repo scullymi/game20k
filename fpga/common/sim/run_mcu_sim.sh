@@ -23,12 +23,13 @@ $VL --top-module tb_rom_loader -Mdir "$W/loader" "$SRC/mcu/rom_loader.sv" "$HERE
 "$W/loader/Vtb_rom_loader" | grep -v '^- '
 "$W/loader/Vtb_rom_loader" | grep -q '^PASS$'
 
-# every game of slots.txt, its menu ROM freshly generated
-cores=$(awk '!/^#/ && NF { print $1 }' "$ROOT/fpga/common/slots.txt")
-python3 "$ROOT/scripts/make_menu.py" $cores > /dev/null
+# every game of the ring, its menu ROM freshly generated
+cores=$(python3 "$ROOT/g20k.py" cores | sed 's#^fpga/##')
 for core in $cores; do
-  gz=$(grep -c "^    11'd" "$ROOT/fpga/$core/gen/menu_rom.v")
-  $VL --top-module tb_sysctrl_menu -Mdir "$W/$core" "$ROOT/fpga/$core/gen/menu_rom.v" \
+  gen="$W/$core-gen"
+  python3 "$ROOT/scripts/make_menu.py" --out "$gen" "$core" > /dev/null
+  gz=$(grep -c "^    11'd" "$gen/menu_rom.v")
+  $VL --top-module tb_sysctrl_menu -Mdir "$W/$core" "$gen/menu_rom.v" \
     "$SRC/misc/sysctrl.v" "$HERE/tb_sysctrl_menu.sv" > "$W/$core.log" 2>&1 \
     || { cat "$W/$core.log"; exit 1; }
   "$W/$core/Vtb_sysctrl_menu" +bytes="$gz" +out="$W/$core.hex" | grep -q '^PASS$' \
@@ -40,6 +41,6 @@ xml = gzip.decompress(data).decode("utf-8")
 if xml != open(sys.argv[2], encoding="utf-8").read():
     sys.exit("FAIL %s: READ_CFG unpacks to another menu than gen/menu_rom.xml" % sys.argv[3])
 print("%s: READ_CFG sends %d bytes, they unpack to gen/menu_rom.xml" % (sys.argv[3], len(data)))
-' "$W/$core.hex" "$ROOT/fpga/$core/gen/menu_rom.xml" "$core"
+' "$W/$core.hex" "$gen/menu_rom.xml" "$core"
 done
 echo PASS

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# The games of the Pac-Man board with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror)
+# comes from ../common, see ../common/platform.toml. This folder holds the game: MikeJ's core,
+# the wrapper game_core, the package game_pkg, the menu and the ROM manifest. Third-party HDL,
+# copied into src/ with its original headers, with a README.md on where it comes from, at which
+# commit, and what game20k changed:
+#   src/rtl_T80/     Z80 core by Daniel Wallner, Ver 300 with MikeJ's T80sed, unchanged
+#   src/rtl_pacman/  MikeJ's Pac-Man core (MiSTer 648172de), changed, plus four files of ours:
+#                    the RAM primitive, the mirror, two sound-chip stubs
+
+[core]
+name = "pacman_hdmi"
+platform = "../common"
+# Core clock: 371.25 MHz / 20, the platform derives its timers and the PLL divider from it
+hz = 18_562_500
+
+[sources]
+files = [
+  "src/game_pkg.sv",
+  "src/game_core.sv",
+  "{out}/rom_map_pkg.sv",
+]
+
+[vhdl]
+tops = ["PACMAN", "pacman_mirror"]
+files = [
+  "src/rtl_T80/T80_Pack.vhd",
+  "src/rtl_T80/T80_ALU.vhd",
+  "src/rtl_T80/T80_MCode.vhd",
+  "src/rtl_T80/T80_Reg.vhd",
+  "src/rtl_T80/T80.vhd",
+  "src/rtl_T80/T80sed.vhd",
+  "src/rtl_pacman/g20k_dpram.vhd",
+  "src/rtl_pacman/sn76489_top.vhd",
+  "src/rtl_pacman/ym2149.vhd",
+  "src/rtl_pacman/pacman_vram_addr.vhd",
+  "src/rtl_pacman/pacman_video.vhd",
+  "src/rtl_pacman/pacman_audio.vhd",
+  "src/rtl_pacman/pacman_rom_descrambler.vhd",
+  "src/rtl_pacman/pacman.vhd",
+  "src/rtl_pacman/pacman_mirror.vhd",
+]
+
+[[generate]]
+run = ["{root}/scripts/make_rom.py", "--package", "pacplus.manifest", "{out}/rom_map_pkg.sv", "ponpoko.manifest", "jrpacman.manifest", "mspacman.manifest", "pacman.manifest", "puckman.manifest"]
+outputs = ["rom_map_pkg.sv"]

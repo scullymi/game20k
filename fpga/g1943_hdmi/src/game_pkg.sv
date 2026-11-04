@@ -10,9 +10,6 @@ package game_pkg;
     //! visible raster of the core, jtgng_timer.v: 256 x 224 of 384 x 262, 6 MHz pixel
     localparam int W = 256;
     localparam int H = 224;
-    //! core clock: 371.25 MHz / 10. jotego's clock enables make exactly 12, 6, 3 and 1.5 MHz
-    //! from it (jtframe_gated_cen, 32/99), see game_core.sv
-    localparam int CORE_HZ = 37_125_000;
     //! HDMI lines per frame: 1 core frame = 384 x 262 pixels at 6 MHz = 622512 core clocks
     //! = 1584 x 786 HDMI clocks, 59.637 Hz. One core line is exactly three HDMI lines.
     localparam int FRAME_H = 786;

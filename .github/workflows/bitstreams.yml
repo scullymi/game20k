@@ -2,15 +2,15 @@
 # Copyright (C) 2026 scullymi
 #
 # Builds the bitstreams of every core with the free toolchain and packs the flash image with its
-# NOTICE, through OSS=1 scripts/make_bitstream_release.sh, on a clean Linux machine from the
-# sources in this repository.
+# NOTICE, through python3 g20k.py release, on a clean Linux machine from the sources in this
+# repository.
 #
-# On a push that changes the FPGA sources or the free build: a trial build, the zip kept as an
+# On a push that changes the FPGA sources or the build: a trial build, the zip kept as an
 # artifact of the run. Called by release.yml on a pushed tag v<version>: the release build, its
-# zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run workflow", or
-# gh workflow run bitstreams.yml): a trial build of the chosen branch.
-# The tools are cached: the archives of the oss-cad-suite (scripts/oss/fetch_suite.sh) and the
-# forks built by scripts/oss/build_tools.sh, keyed by both scripts and the Yosys patches.
+# zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run
+# workflow", or gh workflow run bitstreams.yml): a trial build of the chosen branch.
+# The tools are cached, keyed by tools.toml: the archives g20k.py tools fetch downloads and the
+# programs of the forks g20k.py tools build makes.
 name: Bitstreams
 
 on:
@@ -18,12 +18,15 @@ on:
     branches: ['**']
     paths:
       - 'fpga/**'
-      - 'scripts/build_fpga_oss.sh'
+      - 'boards/**'
+      - 'tools/**'
       - 'scripts/oss/**'
-      - 'scripts/make_bitstream_release.sh'
       - 'scripts/bitstream_notice.py'
       - 'scripts/make_menu.py'
       - 'scripts/make_rom.py'
+      - 'g20k.py'
+      - 'project.toml'
+      - 'tools.toml'
       - '.github/workflows/bitstreams.yml'
   workflow_call:
   workflow_dispatch:
@@ -36,6 +39,7 @@ permissions:
 jobs:
   bitstreams:
     runs-on: ubuntu-24.04
+    timeout-minutes: 150
     steps:
       # full history and tags for git describe, which names the version
       - uses: actions/checkout@v7
@@ -43,28 +47,28 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # build_tools.sh compiles nextpnr and sv-elab, build_fpga_oss.sh runs build.tcl in tclsh
+      # what g20k.py tools build --source needs to build nextpnr
       - name: Build dependencies (apt)
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libboost-program-options-dev \
-            libboost-iostreams-dev libboost-thread-dev tcl
+            libboost-iostreams-dev libboost-thread-dev libboost-filesystem-dev
 
       - name: Tools from the cache
         id: tools
         uses: actions/cache/restore@v6
         with:
           path: |
-            external/oss-downloads
-            external/oss-tools
-          key: oss-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/oss/fetch_suite.sh', 'scripts/oss/build_tools.sh', 'scripts/oss/yosys/*.patch') }}
+            external/tools/downloads
+            external/tools/apicula-*
+            external/tools/nextpnr-*
+          key: tools-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml', 'tools/engine/toolchain.py') }}
 
-      - name: oss-cad-suite (scripts/oss/fetch_suite.sh)
-        run: SUITE_DOWNLOADS=external/oss-downloads scripts/oss/fetch_suite.sh
+      - name: Archives (g20k.py tools fetch)
+        run: python3 g20k.py tools fetch
 
-      - name: nextpnr, Apicula, sv-elab, Yosys fixes (scripts/oss/build_tools.sh)
-        if: steps.tools.outputs.cache-hit != 'true'
-        run: scripts/oss/build_tools.sh
+      - name: Forks (g20k.py tools build --source)
+        run: python3 g20k.py tools build --source
 
       # saved here, before the build: a failed build keeps the tools for the next run
       - name: Tools into the cache
@@ -72,17 +76,18 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: |
-            external/oss-downloads
-            external/oss-tools
+            external/tools/downloads
+            external/tools/apicula-*
+            external/tools/nextpnr-*
           key: ${{ steps.tools.outputs.cache-primary-key }}
 
-      # a tag builds a release, anything else a trial build (DEV=1: no tag needed)
+      # a tag builds a release, anything else a trial build (--dev: no tag needed)
       - name: Build and pack
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            OSS=1 scripts/make_bitstream_release.sh
+            python3 g20k.py release
           else
-            OSS=1 DEV=1 scripts/make_bitstream_release.sh
+            python3 g20k.py release --dev
           fi
 
       # per core the SHA-256 of its .bin and its clocks, also after a failed build, to compare
@@ -90,11 +95,16 @@ jobs:
       - name: Bitstreams and clocks
         if: always()
         run: |
-          for c in $(awk '!/^#/ && NF == 2 { print $1 }' fpga/common/slots.txt); do
-            echo "== $c"
-            sha256sum "fpga/$c/impl/oss/$c.bin" 2>/dev/null || echo "no $c.bin"
-            python3 scripts/oss/check_fmax.py "fpga/$c/impl/oss/report.json" 2>/dev/null || true
-          done
+          {
+            echo '## Bitstreams and clocks'
+            echo '```'
+            for c in $(python3 g20k.py cores); do
+              n=$(basename "$c")
+              sha256sum "build/$n/$n.bin" 2>/dev/null || echo "no $n.bin"
+              cat "build/$n/fmax.txt" 2>/dev/null || true
+            done
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
       # the logs and bitstreams of every core, also after a failed build
       - name: Keep the build outputs
@@ -103,11 +113,14 @@ jobs:
         with:
           name: oss-build-${{ github.run_id }}
           path: |
-            fpga/*/impl/oss/*.log
-            fpga/*/impl/oss/*.fs
-            fpga/*/impl/oss/*.bin
-            fpga/*/impl/oss/report.json
-            fpga/*/impl/oss/tools.txt
+            build/release-logs/*.log
+            build/*/*.log
+            build/*/*.fs
+            build/*/*.bin
+            build/*/report.json
+            build/*/fmax.txt
+            build/*/stat.json
+            build/*/tools.txt
           if-no-files-found: warn
 
       # the zip as it is, not zipped again: the artifact takes its name,

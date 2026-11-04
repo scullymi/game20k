@@ -8,7 +8,7 @@ Usage: scripts/make_fw_tables.py --out DIR
 
 Reads every fpga/<core>/*.manifest and writes DIR/ra_games_data.c, the rows that ra_games.c of
 the fork looks the games up in, and DIR/menus_data.c, the menu of every core in
-fpga/common/slots.txt with its board and IFACE_TAG (make_menu.py), plus the basic menu for a
+the ring of project.toml with its board and IFACE_TAG (make_menu.py), plus the basic menu for a
 core without one. scripts/build_companion.sh passes the files to CMake as GAME20K_GAMES_TABLE
 and GAME20K_MENU_TABLE, tests/host links the game table into test_games. The files carry the
 fork's licence, Apache-2.0, because they link into the fork's firmware.
@@ -22,8 +22,7 @@ The script stops with a message on
   - known or dip lines without an ra line, or an ra line without a known line
   - a dip line whose id is no list of the core's menu_core.xml, or whose value that list lacks
   - a set twice, a board in two core folders, a board whose first row is not the ROM default
-  - a setting that a core starts at another value than its menu's default (make_menu.py)
-  - a core of slots.txt without a menu part or without a manifest, a menu make_menu.py refuses
+  - a core of the ring without a menu part or without a manifest, a menu make_menu.py refuses
 Exit status 0 when the table is written, 1 otherwise.
 """
 import argparse
@@ -33,11 +32,14 @@ import os
 import re
 import sys
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
-import make_menu  # noqa: E402  the menu part's reader and the check of the cores' start values
+sys.path.insert(0, ROOT)
+import make_menu  # noqa: E402  the menu part's reader
 import make_rom   # noqa: E402  the manifest reader, one parser for every user of the format
+from tools.engine import config  # noqa: E402  the ring of project.toml
 
 HEAD = """/* SPDX-License-Identifier: Apache-2.0 */
 /* Copyright (C) 2026 scullymi */
@@ -124,29 +126,28 @@ def read_games():
         if first["set"] != g["default"]:
             fail("board %d: the ROM default %s.rom of the menu has no ra line, %s would be shown "
                  "without a ROM" % (g["board"], g["default"], first["set"]))
-    # the menus are made from the same parts: the cores start where their menus do
-    folders = sorted(set().union(*boards.values()))
-    started = sum(make_menu.check_core_defaults(c, make_menu.compose(c)) for c in folders)
-    return games, boards, started
+    return games, boards
 
 
 def read_menus(boards):
-    """Per core of slots.txt, in ring order: its board, IFACE_TAG and menu. No core of the ring
+    """Per core of the ring of project.toml, in ring order: its board, IFACE_TAG and menu. No core of the ring
     goes without a menu, the firmware would have none for it."""
     board_of = {c: b for b, cs in boards.items() for c in cs}
     menus = []
-    with open(os.path.join(ROOT, "fpga/common/slots.txt"), encoding="utf-8") as f:
-        ring = [line.split()[0] for line in f if line.strip() and not line.lstrip().startswith("#")]
+    try:
+        ring = [p.name for p in config.load_project(Path(ROOT) / "project.toml").slots]
+    except config.ConfigError as e:
+        fail(str(e))
     for core in ring:
         if not os.path.isfile(os.path.join(ROOT, "fpga", core, "menu_core.xml")):
-            fail("%s of fpga/common/slots.txt has no menu part fpga/%s/menu_core.xml" % (core, core))
+            fail("%s of project.toml has no menu part fpga/%s/menu_core.xml" % (core, core))
         if core not in board_of:
-            fail("%s of fpga/common/slots.txt has no manifest, so no board" % core)
+            fail("%s of project.toml has no manifest, so no board" % core)
         xml = make_menu.compose(core)
         make_menu.check(core, xml)
         menus.append((core, board_of[core], make_menu.iface_tag(core), xml))
     if not menus:
-        fail("fpga/common/slots.txt names no core")
+        fail("project.toml names no core")
     return menus
 
 
@@ -216,16 +217,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--out", required=True, help="folder for ra_games_data.c and menus_data.c")
     a = ap.parse_args()
-    games, boards, started = read_games()
+    games, boards = read_games()
     menus = read_menus(boards)
     path = os.path.join(a.out, "ra_games_data.c")
     write(path, table(games))
     write(os.path.join(a.out, "menus_data.c"), menu_table(menus))
-    print("make_fw_tables.py: %s, %d games on %d boards, %d files, %d DIP switches in the menus, "
-          "%d start values of %d cores as in their menus"
+    print("make_fw_tables.py: %s, %d games on %d boards, %d files, %d DIP switches in the menus"
           % (path, len(games), len({g["board"] for g in games}), sum(len(g["known"]) for g in games),
-             sum(len(g["dips"]) for g in games), started, len(set().union(*boards.values()))))
-    print("make_fw_tables.py: %s, %d menus of slots.txt, IFACE_TAG %s"
+             sum(len(g["dips"]) for g in games)))
+    print("make_fw_tables.py: %s, %d menus of project.toml, IFACE_TAG %s"
           % (os.path.join(a.out, "menus_data.c"), len(menus),
              " ".join("%d:%04x" % (b, t) for _, b, t, _ in menus)))
 

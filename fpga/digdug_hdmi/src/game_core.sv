@@ -89,13 +89,13 @@ module game_core #(
     // The defaults are MAME's: DSWA 0x99, DSWB 0x24.
     // DSWA: 7:6 lives, 5:3 bonus, 2:0 coin B. DSWB: 7:6 coin A, 5 freeze (1 off), 4 demo
     // sounds (0 on), 3 continue (0 yes), 2 cabinet (1 upright), 1:0 difficulty.
-    logic [1:0] lives      = 2'd2;
-    logic [2:0] bonus      = 3'd3;
-    logic [2:0] coin_b     = 3'd1;
-    logic [1:0] coin_a     = 2'd0;
-    logic       demo_off   = 1'b0;
-    logic       cont_off   = 1'b0;
-    logic [1:0] difficulty = 2'd0;
+    logic [1:0] lives      = 2'(iface_pkg::MENU_DEFAULT_L);
+    logic [2:0] bonus      = 3'(iface_pkg::MENU_DEFAULT_B);
+    logic [2:0] coin_b     = 3'(iface_pkg::MENU_DEFAULT_K);
+    logic [1:0] coin_a     = 2'(iface_pkg::MENU_DEFAULT_C);
+    logic       demo_off   = 1'(iface_pkg::MENU_DEFAULT_M);
+    logic       cont_off   = 1'(iface_pkg::MENU_DEFAULT_O);
+    logic [1:0] difficulty = 2'(iface_pkg::MENU_DEFAULT_F);
     always_ff @(posedge clk)
         if (cfg_we) case (cfg_id)
             "L": lives      <= cfg_val[1:0];

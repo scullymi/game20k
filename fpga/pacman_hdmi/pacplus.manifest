@@ -5,7 +5,7 @@
 # ../g1942_hdmi/1942.manifest.
 #
 # One bitstream runs every set of the board, and rom_loader has one section table, so this
-# file continues jrpacman.manifest's layout (sections 0 to 12) and build.tcl writes the table
+# file continues jrpacman.manifest's layout (sections 0 to 12) and the build writes the table
 # from this manifest. Pac-Man Plus fills the program and the graphics as Pac-Man does, the
 # other sections up to 12 are zeros. ponpoko.manifest has the same sections.
 #

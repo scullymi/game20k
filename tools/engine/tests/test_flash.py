@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT
+# Copyright (C) 2026 scullymi
+"""@file
+@brief Tests for the openFPGALoader calls of g20k.py flash."""
+
+import tempfile
+import unittest
+from pathlib import Path
+
+from tools.engine import config, flash, host, toolchain
+from tools.engine.host import StepError
+from tools.engine.tests.test_config import BOARD, CORE, PROJECT, write
+from tools.engine.tests.test_toolchain import fake_tools
+
+
+class FlashTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        write(self.root, "boards/b/board.toml", BOARD)
+        write(self.root, "project.toml", PROJECT)
+        fake_tools(self.root)
+        for name in ("one", "two", "three"):
+            write(self.root, f"fpga/{name}/core.toml", CORE.replace('"pang_hdmi"', f'"{name}"'))
+        suite = toolchain.folder(self.root, "suite", "20261102")
+        self.loader = suite / "bin" / ("openFPGALoader" + host.EXE)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def built(self, name: str) -> Path:
+        return write(self.root, f"build/{name}/{name}.fs", "")
+
+    def test_core_into_its_slot(self) -> None:
+        fs = self.built("two")
+        cmd = flash.command(self.root, self.root / "fpga/two")
+        self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", "-f", "-o", "0x100000", "--verify", fs])
+
+    def test_core_into_sram(self) -> None:
+        fs = self.built("one")
+        cmd = flash.command(self.root, self.root / "fpga/one", sram=True)
+        self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", fs])
+
+    def test_core_without_build(self) -> None:
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, self.root / "fpga/one")
+        self.assertIn("g20k.py build fpga/one", str(err.exception))
+
+    def test_core_outside_the_ring(self) -> None:
+        # a core of no slot has no flash address, only SRAM takes it
+        self.built("three")
+        flash.command(self.root, self.root / "fpga/three", sram=True)
+        with self.assertRaises(config.ConfigError) as err:
+            flash.command(self.root, self.root / "fpga/three")
+        self.assertIn("has no slot", str(err.exception))
+
+    def test_image_from_zero(self) -> None:
+        image = self.root / "x.bin"
+        image.write_bytes(b"\xff" * 0x200000)
+        cmd = flash.command(self.root, image=image)
+        self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", "-f", "-o", "0x000000", "--verify", image])
+
+    def test_image_larger_than_the_flash(self) -> None:
+        image = self.root / "x.bin"
+        image.write_bytes(b"\xff" * (0x200000 + 1))
+        with self.assertRaises(StepError):
+            flash.command(self.root, image=image)
+
+
+if __name__ == "__main__":
+    unittest.main()

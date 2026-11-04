@@ -3,85 +3,60 @@
 # Copyright (C) 2026 scullymi
 """Marks read-during-write between different ports of a memory as undefined.
 
-Reads RTLIL written after memory_unpack. For each clocked $memrd_v2 and each clocked $memwr_v2
-of the same memory on the same clock, with another address and without transparency, it sets
-the collision bit. memory_libmap then needs no logic around a block RAM for it. The result is a
-Yosys script of setparam commands, so the design stays in the running Yosys.
+Reads the $memrd_v2 and $memwr_v2 cells as JSON, written after memory_unpack. For each clocked
+read port and each clocked write port of the same memory on the same clock, with another address
+and without transparency, it sets the collision bit. memory_libmap then needs no logic around a
+block RAM for it. The result is a Yosys script of setparam commands, so the design stays in the
+running Yosys.
 
-    rw_collision.py <in.il> <out.ys>
+    rw_collision.py <memports.json> <out.ys>
 """
-import re
+import json
 import sys
 
-src = open(sys.argv[1]).read().split("\n")
+modules = json.load(open(sys.argv[1]))["modules"]
 
-# The memory port cells with their parameters and connections
-cells = []
-module = None
-i = 0
-while i < len(src):
-    line = src[i]
-    m = re.match(r"module (\S+)", line)
-    if m:
-        module = m.group(1)
-    m = re.match(r"  cell \$(memrd_v2|memwr_v2) (\S+)", line)
-    if m:
-        cell = {"module": module, "kind": m.group(1), "name": m.group(2), "params": {}, "conns": {}}
-        i += 1
-        while src[i] != "  end":
-            p = re.match(r"    parameter \\(\S+) (.*)", src[i])
-            if p:
-                cell["params"][p.group(1)] = (p.group(2), i)
-            c = re.match(r"    connect \\(\S+) (.*)", src[i])
-            if c:
-                cell["conns"][c.group(1)] = c.group(2)
-            i += 1
-        cells.append(cell)
-    i += 1
-
-def bits(value):
-    # RTLIL constant <width>'<bits>, MSB first. Small parameters are plain integers.
-    if "'" not in value:
-        return ["1" if int(value) else "0"]
-    width, b = value.split("'")
-    return list(b)
+# The memory port cells with their module. JSON gives parameters as bit strings, MSB first, an
+# integer parameter with 32 bits, and connections as lists of bit numbers.
+cells = [(mod, name, c) for mod, m in modules.items() for name, c in m["cells"].items()
+         if c["type"] in ("$memrd_v2", "$memwr_v2")]
+# every design here has memories, none found means the selection or the format changed
+if not any(c["type"] == "$memrd_v2" for _, _, c in cells):
+    sys.exit("rw_collision: no $memrd_v2 cell in " + sys.argv[1])
 
 writes = {}
-for c in cells:
-    if c["kind"] == "memwr_v2":
-        key = (c["module"], c["params"]["MEMID"][0])
-        writes.setdefault(key, []).append(c)
-
-def sel(name):
-    return name[1:] if name.startswith("\\") else name
+for mod, _, c in cells:
+    if c["type"] == "$memwr_v2":
+        writes.setdefault((mod, c["parameters"]["MEMID"]), []).append(c)
 
 changed = 0
 cmds = []
-for r in cells:
-    if r["kind"] != "memrd_v2" or bits(r["params"]["CLK_ENABLE"][0]) != ["1"]:
+for mod, name, r in cells:
+    p = r["parameters"]
+    if r["type"] != "$memrd_v2" or int(p["CLK_ENABLE"], 2) != 1:
         continue
-    ws = writes.get((r["module"], r["params"]["MEMID"][0]), [])
+    ws = writes.get((mod, p["MEMID"]), [])
     if not ws:
         continue
-    trans = bits(r["params"]["TRANSPARENCY_MASK"][0])
-    coll = bits(r["params"]["COLLISION_X_MASK"][0])
+    trans = list(p["TRANSPARENCY_MASK"])
+    coll = list(p["COLLISION_X_MASK"])
     before = list(coll)
     n = len(coll)
     for w in ws:
-        pid = int(w["params"]["PORTID"][0])
-        pos = n - 1 - pid  # MSB first
-        if bits(w["params"]["CLK_ENABLE"][0]) != ["1"]:
+        wp = w["parameters"]
+        pos = n - 1 - int(wp["PORTID"], 2)  # MSB first
+        if int(wp["CLK_ENABLE"], 2) != 1:
             continue
-        if w["conns"]["CLK"] != r["conns"]["CLK"] or w["params"]["CLK_POLARITY"][0] != r["params"]["CLK_POLARITY"][0]:
+        if w["connections"]["CLK"] != r["connections"]["CLK"] or int(wp["CLK_POLARITY"], 2) != int(p["CLK_POLARITY"], 2):
             continue
         if trans[pos] == "1" or coll[pos] == "1":
             continue
-        if w["conns"]["ADDR"] == r["conns"]["ADDR"]:
+        if w["connections"]["ADDR"] == r["connections"]["ADDR"]:
             continue  # same port: read-first or no-change stays as written
         coll[pos] = "1"
         changed += 1
     if coll != before:
-        cmds.append(f"setparam -set COLLISION_X_MASK {n}'b{''.join(coll)} {sel(r['module'])}/{sel(r['name'])}")
+        cmds.append(f"setparam -set COLLISION_X_MASK {n}'b{''.join(coll)} {mod}/{name}")
 
 open(sys.argv[2], "w").write("".join(c + "\n" for c in cmds))
 print(f"rw_collision: {changed} read/write port pairs marked undefined")

@@ -203,6 +203,9 @@ if [ "$MODE" = push ]; then
   fi
   [ -f "$T/tags" ] && tee -a "$T/text" < "$T/tags" >> "$T/plain"
   SAMPLE="$(wc -l < "$T/commits" | tr -d ' ') commits, $(wc -l < "$T/text" | tr -d ' ') lines"
+  # a ref whose commits are all on the remote already (a renamed branch, a second name): no
+  # new text leaves, so an empty text is no blind scan
+  [ -s "$T/commits" ] || [ -f "$T/tags" ] || SAMPLE="no new commits, all on ${REMOTE:-the remote} already"
 fi
 check_paths
 # the text the secret and RA scans read: lines of the tracked text files, or of the push

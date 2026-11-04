@@ -10,9 +10,6 @@ package game_pkg;
     //! visible raster of the core, MAME galaga.cpp (digdug): 288 x 224
     localparam int W = 288;
     localparam int H = 224;
-    //! core clock: 371.25 MHz / 8. The core takes 8 clocks per pixel (5.80 MHz pixel, CPUs at
-    //! 2.90 MHz), the original 18.432 MHz / 3 and / 6, so everything runs 5.6 % slower
-    localparam int CORE_HZ = 46_406_250;
     //! HDMI lines per frame: the raster is cut to 360 x 264 (rtl_digdug/HVGEN.v), 1 core frame
     //! = 360 x 264 x 8 core clocks x 1.6 = 1584 x 768 HDMI clocks, 61.03 Hz as Galaga
     localparam int FRAME_H = 768;

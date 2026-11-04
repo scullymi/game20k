@@ -10,7 +10,7 @@
 #
 # One bitstream runs every set of the board, and rom_loader has one section table. So this
 # file starts with mspacman.rom's layout (sections 0 to 6), and pacplus.manifest continues
-# it, build.tcl writes the table from that one. Of those seven, Jr. uses two: gfx takes the tiles (2c),
+# it, the build writes the table from that one. Of those seven, Jr. uses two: gfx takes the tiles (2c),
 # the first half of Jr.'s 16 KB graphics, at the same place as Pac-Man's, and timing_3m the
 # timing PROM 5s (the same chip as 3m, in the file for the digest only). The others are zeros.
 #

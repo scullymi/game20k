@@ -197,16 +197,17 @@ generate
     endcase
 endgenerate
 
+// game20k: blocking assignments in always_comb, upstream has <= (Verilator: COMBDLY)
 always_comb begin
-    hsync <= invert ^ (cx >= screen_width + hsync_pulse_start && cx < screen_width + hsync_pulse_start + hsync_pulse_size);
+    hsync = invert ^ (cx >= screen_width + hsync_pulse_start && cx < screen_width + hsync_pulse_start + hsync_pulse_size);
     // vsync pulses should begin and end at the start of hsync, so special
     // handling is required for the lines on which vsync starts and ends
     if (cy == screen_height + vsync_pulse_start)
-        vsync <= invert ^ (cx >= screen_width + hsync_pulse_start);
+        vsync = invert ^ (cx >= screen_width + hsync_pulse_start);
     else if (cy == screen_height + vsync_pulse_start + vsync_pulse_size)
-        vsync <= invert ^ (cx < screen_width + hsync_pulse_start);
+        vsync = invert ^ (cx < screen_width + hsync_pulse_start);
     else
-        vsync <= invert ^ (cy >= screen_height + vsync_pulse_start && cy < screen_height + vsync_pulse_start + vsync_pulse_size);
+        vsync = invert ^ (cy >= screen_height + vsync_pulse_start && cy < screen_height + vsync_pulse_start + vsync_pulse_size);
 end
 
 localparam real VIDEO_RATE = (VIDEO_ID_CODE == 1 ? 25.2E6

@@ -88,8 +88,8 @@ module game_core #(
     // Raw bits of MAME 1943.cpp. DSWA: 7 service (1 off), 6 screen stop (1 off), 5 flip
     // (1 off), 4 two-player cost (1: 2 credits), 3:0 difficulty (8 normal). DSWB: 7 demo
     // sounds, 6 continue, 5:3 coin B, 2:0 coin A, both set from the one coinage entry.
-    logic [3:0] difficulty = 4'h8;
-    logic [2:0] coinage    = 3'd7;
+    logic [3:0] difficulty = 4'(iface_pkg::MENU_DEFAULT_F);
+    logic [2:0] coinage    = 3'(iface_pkg::MENU_DEFAULT_C);
     always_ff @(posedge clk)
         if (cfg_we) case (cfg_id)
             "F": difficulty <= cfg_val[3:0];
@@ -108,7 +108,7 @@ module game_core #(
     // joystick {button 3, button 2, button 1, up, down, left, right}. Button 1 shoots (the
     // platform's fire), button 2 is the bomb: the raw HID button the menu names under K.
     // jt1943_main turns button 3 into "both at once", it is not used here.
-    logic [3:0] bomb_btn = 4'd2;
+    logic [3:0] bomb_btn = 4'(iface_pkg::MENU_DEFAULT_K);
     always_ff @(posedge clk)
         if (cfg_we && cfg_id == "K") bomb_btn <= cfg_val[3:0];
     wire p1_bomb = (bomb_btn != 4'd0) && p1_btns[bomb_btn - 4'd1];

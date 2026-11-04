@@ -7,14 +7,14 @@
 //!
 //! One top for every game. The game sits behind game_core (fpga/<core>/src/game_core.sv),
 //! its raster, name and test bar labels come from game_pkg (fpga/<core>/src/game_pkg.sv),
-//! its ROM layout, board id and RAM mirror size from rom_map_pkg, which build.tcl generates
-//! from the game's manifest, its interface tag from iface_pkg, which files.tcl generates from
-//! the game's menu part.
+//! its ROM layout, board id and RAM mirror size from rom_map_pkg, which the build generates
+//! from the game's manifest, its interface tag from iface_pkg, which the build generates from
+//! the game's menu part (the [[generate]] steps of core.toml and ../platform.toml).
 //! Video and audio go out over HDMI.
 //!
 //! Clocks: 27 MHz crystal and TWO PLLs. pll_hdmi produces clk_x5 (371.25 MHz) and clk_core
-//! (game_pkg::CORE_HZ, 18.5625 or 37.125 MHz), clkdiv5 divides clk_x5 down to clk_pixel (74.25 MHz). pll_sdram provides
-//! a separate 64.8 MHz for the frame buffer in SDRAM.
+//! (CORE_HZ, 18.5625, 37.125 or 46.40625 MHz), clkdiv5 divides clk_x5 down to clk_pixel
+//! (74.25 MHz). pll_sdram provides a separate 64.8 MHz for the frame buffer in SDRAM.
 //!
 //! Buttons: S1 = reset. S2 = OSD button, reported to the Companion. Coin and start come
 //! from the arcade stick via the Companion, not from S2.
@@ -30,10 +30,11 @@
 //! SD card: attached to the FPGA (sd_card from Nanomig), operated by the Companion over
 //! SPI. The game's ROM file reaches the core's ROM memories the same way.
 //!
-//! The build parameters below are DIAGNOSTIC builds only and are all 0 in the normal
-//! build. They are set through environment variables, see build.tcl. The production
-//! branch is g_fb_live.
+//! CORE_HZ is the rate of the game's core clock, the build passes the hz of the core's
+//! core.toml, the one place that names it. The other parameters are DIAGNOSTIC builds only
+//! and are all 0 in the normal build. The production branch is g_fb_live.
 module game20k_top #(
+    parameter int CORE_HZ   = 0,   //!< rate of clk_core in Hz, from core.toml; 0 stops the build
     parameter bit TESTBAR   = 1,   //!< synthesise the input test bar (1 BSRAM)
     parameter bit ROMVIEW   = 0,   //!< 1: a diagnostic view of the game's own (Galaga: the character ROM)
     parameter bit SDRAMTEST = 0,   //!< 1: SDRAM controller plus phase self test
@@ -117,6 +118,15 @@ module game20k_top #(
     // when the core line is written: 20 for the rasters 224 high, FRAME_H - 4 for Pang.
     localparam int FRAME_HDMI = RATEPROBE ? 816 : FRAME_H;
     localparam int SYNC_Y = (Y0_L - 4 + FRAME_HDMI) % FRAME_HDMI;
+
+    // ---------------- Checks at elaboration ----------------
+    // PLL divider, timers and the timing analysis follow the core's rate
+    if (CORE_HZ <= 0)
+        $error("game20k_top: CORE_HZ is not set, the build passes the hz of the core's core.toml");
+    // The scanline counter counts HDMI lines modulo 3 from cy 0, the 3x picture keeps its
+    // pattern only when the frame has a multiple of 3 lines (768, 786, 816)
+    if (FRAME_H % 3 != 0)
+        $error("game20k_top: FRAME_H %0d is not a multiple of 3, the scanlines would drift", FRAME_H);
     // ---------------- Clocks ----------------
     logic clk_x5, clk_pixel, clk_core, pll_lock;
     // clk_core = 371.25 MHz / SDIV: 20 gives 18.5625 MHz (Galaga, Pac-Man), 10 gives 37.125
@@ -124,6 +134,32 @@ module game20k_top #(
     pll_hdmi #(.SDIV(CORE_SDIV)) pll (.clkin(sys_clk), .clkout(clk_x5), .clkoutd(clk_core),
                                       .lock(pll_lock));
     clkdiv5  div (.hclkin(clk_x5), .resetn(pll_lock), .clkout(clk_pixel));
+
+    // ---------------- Signals between the blocks ----------------
+    // Declared ahead of the first block that uses them: the core, the reset and the SPI of
+    // the Companion read them before the block further down that drives them.
+    logic [15:0] rom_wr_addr;
+    logic [7:0]  rom_wr_data;
+    logic [15:0] rom_wr_en;
+    logic        rom_ready;
+    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM, a stream
+    logic        rom_rd_push, rom_rd_ready, rom_rd_valid;
+    logic [31:0] rom_rd_data;
+    logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start;
+    logic [15:0] ram_last_count, ram_last_us;
+    logic [7:0]  ram_verdict;
+    logic [7:0] mcu_data_out, sys_data_out, hid_data_out, osd_data_out;
+    logic [7:0] int_ack;
+    logic       hid_int, sdc_int;
+    logic [7:0] sdc_data_out;
+    logic [1:0] system_reset, system_scanlines;
+    logic       cfg_we;             // one clock per value the Companion sets, for the game
+    logic [7:0] cfg_id, cfg_val;
+    logic [7:0] joystick [4];
+    logic [11:0] btns, btns2;
+    logic joy_fire, joy_fire2, joy_coin, joy_start1, joy_start2, joy_voldn, joy_volup;
+    logic [10:0] cx;
+    logic [9:0]  cy;
 
     // ---------------- Reset ----------------
     // rst_no counts the ends of core resets, whatever caused them: S1, R from the
@@ -238,21 +274,14 @@ module game20k_top #(
     logic        rom_accepted, rom_data_strobe;
     logic        rom_loaded, rom_busy;
     logic [15:0] rom_count;
-    logic [15:0] rom_wr_addr;
     logic [ROM_AW-1:0] rom_wr_off;
-    logic [7:0]  rom_wr_data;
-    logic [15:0] rom_wr_en;
     // A game whose manifest marks sections sdram (1942) keeps its ROM in SDRAM bank 2:
     // rom_sdram takes those bytes and shares the SDRAM with the frame buffer through
     // sdram_share, the ROM first. The core leaves reset only once the last word has been
     // written.
     localparam bit ROM_IN_SDRAM = (ROM_SDRAM != 16'd0);
     logic        rom_wr_ready, rom_wr_idle;
-    logic        rom_ready;
     assign rom_ready = rom_loaded && (!ROM_IN_SDRAM || rom_wr_idle);
-    logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM, a stream
-    logic        rom_rd_push, rom_rd_ready, rom_rd_valid;
-    logic [31:0] rom_rd_data;
 
     sd_card #(
         .CLK_DIV(CORE_HZ > 20_000_000 ? 3'd1 : 3'd0),
@@ -292,16 +321,10 @@ module game20k_top #(
 
 
     // ---------------- FPGA Companion: SPI, HID, system control ----------------
-    logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start;
     // SPI target channel 5, the RAM mirror (channel 4 is assigned in the Companion as
     // SPI_TARGET_AUDIO and implemented nowhere)
     logic       mcu_ram_strobe;
     logic [7:0] ram_data_out;
-    logic [15:0] ram_last_count, ram_last_us;
-    logic [7:0]  ram_verdict;
-    logic [7:0] mcu_data_out, sys_data_out, hid_data_out, osd_data_out;
-    logic [7:0] int_ack;
-    logic       hid_int, sdc_int;
     // Interrupt bit 5: a new RAM mirror snapshot is ready. Set when the harvest ends,
     // cleared by the Pico's acknowledge; setting wins if both come in the same clock.
     logic       harv_d = 1'b0, snap_int = 1'b0;
@@ -318,17 +341,12 @@ module game20k_top #(
             snap_rst_no <= rst_no;
         end
     end
-    logic [7:0] sdc_data_out;
     logic [1:0] mcu_leds;
     logic [23:0] mcu_color;
-    logic [1:0] system_reset, system_scanlines;
     logic [2:0] system_volume;
-    logic       cfg_we;             // one clock per value the Companion sets, for the game
-    logic [7:0] cfg_id, cfg_val;
     logic       system_inputtest;
     logic [1:0] system_screen;      // screen mode from the menu
     logic [3:0] system_fire_btn, system_coin_btn, system_start_btn, system_start2_btn, system_voldn_btn, system_volup_btn;
-    logic [7:0] joystick [4];
     logic [7:0] joystick_extra [4];
     logic [7:0] joystick_ax [4], joystick_ay [4];
 
@@ -363,9 +381,9 @@ module game20k_top #(
     // ---------------- Core switch ----------------
     // The Companion sets Z to 0xA5. The logic then pulls RECONFIG_N low for 1 ms and the
     // FPGA loads the bitstream at the jump address in the header of the running one: the
-    // next core in fpga/common/slots.txt. The pin stays a configuration pin, the build has
-    // no -use_reconfign_as_gpio (gw_sh warns CT1122, expected). The Companion restarts
-    // once the core stops answering and waits for the new one at its start. It sends Z
+    // next core in the ring of project.toml. The pin stays a configuration pin, the build
+    // does not turn it into a GPIO, and the logic drives it all the same. The Companion
+    // restarts once the core stops answering and waits for the new one at its start. It sends Z
     // only with S1 and S2 released: they sit on MODE0 and MODE1, and one held while the
     // FPGA reloads selects another way of loading. Power-on always loads slot 0.
     // Z has no menu entry. The value 0xA5 keeps a menu of one's own that uses Z for
@@ -394,7 +412,6 @@ module game20k_top #(
     // (DInput: 9 = Select, 10 = Start); for sticks from the Companion's SDL database bit2 is
     // Select and bit3 Start (= "button 7/8"). The mapping is therefore adjustable in the OSD
     // menu "Controller" (0 = none or all buttons, respectively).
-    logic [11:0] btns, btns2;
     assign btns  = {joystick_extra[0], joystick[0][7:4]};   // btns[n-1] = HID button n
     assign btns2 = {joystick_extra[1], joystick[1][7:4]};   // the second controller
     function automatic logic btn_sel(input logic [3:0] n, input logic [11:0] b);
@@ -402,7 +419,6 @@ module game20k_top #(
     endfunction
     // Directions go to the game as they are, the buttons through the menu's mapping. The
     // second controller uses the same mapping. Coin, start and volume come from the first.
-    logic joy_fire, joy_fire2, joy_coin, joy_start1, joy_start2, joy_voldn, joy_volup;
     assign joy_fire   = (system_fire_btn == 4'd0) ? |btns  : btn_sel(system_fire_btn, btns);
     assign joy_fire2  = (system_fire_btn == 4'd0) ? |btns2 : btn_sel(system_fire_btn, btns2);
     assign joy_coin   = btn_sel(system_coin_btn, btns);
@@ -434,8 +450,6 @@ module game20k_top #(
         if (mcu_hid_strobe && mcu_start && mcu_data_out == 8'd3) hid_seen <= 1'b1;
 
     // ---------------- Scaler + HDMI ----------------
-    logic [10:0] cx;
-    logic [9:0]  cy;
     logic        sync;
     logic [23:0] rgb;
     logic [23:0] rgb_scaler;             // picture from the line ring buffer (landscape 3x)
@@ -579,7 +593,7 @@ module game20k_top #(
     end
     // OSD data path from clk_core to clk_pixel: the strobe is a single clk_core pulse,
     // data and start flag stay stable until the next SPI byte. They change in the same
-    // clk_core edge as the strobe, and the two clocks are asynchronous (board.sdc): a
+    // clk_core edge as the strobe, and the two clocks are asynchronous (platform.toml): a
     // clk_pixel edge right after it may take the strobe but still the old byte. So the
     // byte is used one clk_pixel clock after the strobe was first seen.
     logic [3:0] osd_strobe_s = 0;
@@ -612,7 +626,7 @@ module game20k_top #(
        different from a CRT, but it is the best that can be done there.
 
        The counter stays aligned across frames because FRAME_H (768, 786, 816) is
-       divisible by 3 (files.tcl checks it) and it is reset at cy == 0.
+       divisible by 3 (checked at elaboration) and it is reset at cy == 0.
 
        Price: at 50 percent about half the brightness. Hence adjustable in
        steps and off by default. */
