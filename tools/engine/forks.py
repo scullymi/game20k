@@ -10,6 +10,7 @@ differently, so it asks for a build of their own and for new archives."""
 
 from __future__ import annotations
 
+import os
 import shutil
 import struct
 import sys
@@ -77,7 +78,7 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path,
     program runs on a machine without them, as pack needs."""
     key = toolchain.forks_key(toolset)
     suite = toolchain.find(root, "suite")
-    python = suite / "py3bin" / ("python3" + host.EXE)
+    python = toolchain.suite_python(root)
     src = toolchain.tools_dir(root) / "src"
     src.mkdir(parents=True, exist_ok=True)
 
@@ -134,6 +135,13 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path,
         # Static Boost on macOS names the compression libraries of Boost iostreams, which
         # nextpnr does not call: the linker finds them through LIBRARY_PATH and drops them
         link = "-Wl,-dead_strip_dylibs" if static and sys.platform == "darwin" else ""
+        # STATIC_BUILD under MSVC sets the release flags to /MT alone, without /O2 and /DNDEBUG:
+        # on Windows the C++ runtime is static through CMake instead, Boost through the triplet
+        # of vcpkg (tools.yml)
+        if static and sys.platform == "win32":
+            linking = ["-DSTATIC_BUILD=OFF", "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
+        else:
+            linking = [f"-DSTATIC_BUILD={'ON' if static else 'OFF'}"]
         if nextpnr.exists():
             shutil.rmtree(nextpnr)
         host.run(
@@ -142,7 +150,7 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path,
                 "-DARCH=himbaechel", "-DHIMBAECHEL_UARCH=gowin", "-DHIMBAECHEL_GOWIN_DEVICES=GW2A-18C",
                 "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_PYTHON=OFF", "-DBUILD_GUI=OFF",
                 f"-DPython3_EXECUTABLE={python}", f"-DEigen3_DIR={eigen / 'share' / 'eigen3' / 'cmake'}",
-                f"-DCMAKE_INSTALL_PREFIX={nextpnr}", f"-DSTATIC_BUILD={'ON' if static else 'OFF'}",
+                f"-DCMAKE_INSTALL_PREFIX={nextpnr}", *linking,
                 *([f"-DCMAKE_EXE_LINKER_FLAGS={link}"] if link else []),
             ],
             cwd=src, env=env, stdout=src / "nextpnr-cmake.log",
@@ -190,14 +198,22 @@ def pack(root: Path, out: Path) -> Path:
 def foreign_libraries(program: Path) -> list[str]:
     """@brief The shared libraries a program needs beyond the system's: on macOS those
     outside /usr/lib and /System, on Linux any, as a program with an ELF interpreter loads
-    them."""
+    them, on Windows the DLLs outside System32 and those of the Visual C++ runtime, which a
+    machine without its redistributable lacks."""
     if sys.platform == "darwin":
         lines = host.run(["otool", "-L", program], cwd=program.parent).splitlines()[1:]
         names = [line.split()[0] for line in lines if line.strip()]
         return [n for n in names if not n.startswith(("/usr/lib/", "/System/"))]
     if sys.platform == "linux":
         return ["an ELF interpreter (dynamic linking)"] if elf_interpreter(program) else []
-    raise StepError(f"pack checks the linking on macOS and Linux only, not on {sys.platform}")
+    if sys.platform == "win32":
+        # dumpbin of the MSVC the forks were built with lists the DLLs under "dependencies"
+        lines = host.run(["dumpbin", "/nologo", "/dependents", program], cwd=program.parent).splitlines()
+        names = [line.strip() for line in lines if line.strip().lower().endswith(".dll")]
+        system = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32"
+        runtime = ("msvcp", "vcruntime", "concrt", "vcomp")
+        return [n for n in names if not (system / n).exists() or n.lower().startswith(runtime)]
+    raise StepError(f"pack checks the linking on macOS, Linux and Windows only, not on {sys.platform}")
 
 
 def elf_interpreter(program: Path) -> bool:

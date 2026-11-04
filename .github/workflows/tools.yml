@@ -47,8 +47,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-24.04  # linux-x64, fully static
-          - os: macos-14      # darwin-arm64, Boost static, runs on macOS 14 and later
+          - os: ubuntu-24.04    # linux-x64, fully static
+            python: python3
+          - os: macos-14        # darwin-arm64, Boost static, runs on macOS 14 and later
+            python: python3
+          - os: windows-2025    # windows-x64, Boost and the C++ runtime static
+            python: python
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     permissions:
@@ -77,12 +81,26 @@ jobs:
           brew install cmake ninja boost
           echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
 
+      # MSVC's environment (cl, cmake, ninja, dumpbin) for the steps after this one, and Boost
+      # built static by vcpkg, which cmake finds through the toolchain file and the triplet
+      - name: Build dependencies (MSVC, vcpkg)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" > nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { "$($Matches[1])=$($Matches[2])" >> $env:GITHUB_ENV }
+          }
+          vcpkg install --triplet x64-windows-static boost-program-options boost-iostreams boost-thread boost-filesystem
+          "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_TRIPLET=x64-windows-static" >> $env:GITHUB_ENV
+
       # the suite's Python makes nextpnr's chip database
       - name: Archives (g20k.py tools fetch)
-        run: python3 g20k.py tools fetch
+        run: ${{ matrix.python }} g20k.py tools fetch
 
       - name: Forks (g20k.py tools pack)
-        run: python3 g20k.py tools pack --out dist
+        run: ${{ matrix.python }} g20k.py tools pack --out dist
 
       - name: Build provenance
         uses: actions/attest-build-provenance@v4
