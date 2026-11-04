@@ -3,14 +3,14 @@
 #
 # Builds the bitstreams of every core with the free toolchain and packs the flash image with its
 # NOTICE, through python3 g20k.py release, on a clean Linux machine from the sources in this
-# repository.
+# repository. The programs of the forks come from the archive of [prebuilt] in tools.toml.
 #
 # On a push that changes the FPGA sources or the build: a trial build, the zip kept as an
 # artifact of the run. Called by release.yml on a pushed tag v<version>: the release build, its
 # zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run
 # workflow", or gh workflow run bitstreams.yml): a trial build of the chosen branch.
-# The tools are cached, keyed by tools.toml: the archives g20k.py tools fetch downloads and the
-# programs of the forks g20k.py tools build makes.
+# The tool archives are cached, keyed by tools.toml: the downloads of g20k.py tools fetch and the
+# archive of the forks (made by tools.yml) that g20k.py tools build --prebuilt fetches.
 name: Bitstreams
 
 on:
@@ -44,38 +44,26 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # what g20k.py tools build --source needs to build nextpnr
-      - name: Build dependencies (apt)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libboost-program-options-dev \
-            libboost-iostreams-dev libboost-thread-dev libboost-filesystem-dev
-
-      - name: Tools from the cache
+      # its own key: the cache of sims.yml has no archive of the forks
+      - name: Tool archives from the cache
         id: tools
         uses: actions/cache/restore@v6
         with:
-          path: |
-            external/tools/downloads
-            external/tools/apicula-*
-            external/tools/nextpnr-*
-          key: tools-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml', 'tools/engine/toolchain.py') }}
+          path: external/tools/downloads
+          key: tool-archives-forks-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
 
       - name: Archives (g20k.py tools fetch)
         run: python3 g20k.py tools fetch
 
-      - name: Forks (g20k.py tools build --source)
-        run: python3 g20k.py tools build --source
+      - name: Forks (g20k.py tools build --prebuilt)
+        run: python3 g20k.py tools build --prebuilt
 
-      # saved here, before the build: a failed build keeps the tools for the next run
-      - name: Tools into the cache
+      # saved here, before the build: a failed build keeps the archives for the next run
+      - name: Tool archives into the cache
         if: steps.tools.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: |
-            external/tools/downloads
-            external/tools/apicula-*
-            external/tools/nextpnr-*
+          path: external/tools/downloads
           key: ${{ steps.tools.outputs.cache-primary-key }}
 
       # a tag builds a release, anything else a trial build (--dev: no tag needed)
