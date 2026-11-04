@@ -82,7 +82,9 @@ jobs:
           echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
 
       # MSVC's environment (cl, cmake, ninja, dumpbin) for the steps after this one, and Boost
-      # built static by vcpkg, which cmake finds through the toolchain file and the triplet
+      # built static by vcpkg, which cmake finds through CMAKE_PREFIX_PATH: vcpkg's toolchain
+      # file takes its triplet only from the cmake command line. nextpnr calls none of the
+      # compression libraries of Boost iostreams
       - name: Build dependencies (MSVC, vcpkg)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -91,9 +93,8 @@ jobs:
           cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" > nul && set" | ForEach-Object {
             if ($_ -match '^([^=]+)=(.*)$') { "$($Matches[1])=$($Matches[2])" >> $env:GITHUB_ENV }
           }
-          vcpkg install --triplet x64-windows-static boost-program-options boost-iostreams boost-thread boost-filesystem
-          "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
-          "VCPKG_DEFAULT_TRIPLET=x64-windows-static" >> $env:GITHUB_ENV
+          vcpkg install --triplet x64-windows-static boost-program-options "boost-iostreams[core]" boost-thread boost-filesystem
+          "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static" >> $env:GITHUB_ENV
 
       # the suite's Python makes nextpnr's chip database
       - name: Archives (g20k.py tools fetch)
