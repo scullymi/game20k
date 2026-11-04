@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
@@ -35,10 +36,17 @@ class Build:
     project: config.Project
     platform: config.Platform
     core: config.Core
-    tools: config.Tools
+    #: the programs, None until the first use of tools: sources() needs none of them
+    found_tools: config.Tools | None
     out: Path
     #: parameters of the top for a diagnostic build, e.g. {"RAMDIAG": 1}
     params: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def tools(self) -> config.Tools:
+        if self.found_tools is None:
+            self.found_tools = toolchain.locate(self.root)
+        return self.found_tools
 
     @property
     def gen(self) -> Path:
@@ -67,6 +75,12 @@ class Build:
         locations get it: the netlist then holds the same names on every machine and for every
         output folder."""
         return Path(os.path.relpath(path, self.root)).as_posix()
+
+
+def shell_line(args: Sequence[host.Arg]) -> str:
+    """@brief A command line for Yosys' exec, which hands it to the shell as it is: every
+    argument in double quotes, so a path with a space stays one (Python under C:\\Program Files)."""
+    return " ".join(f'"{Path(a).as_posix() if isinstance(a, Path) else a}"' for a in args)
 
 
 def step(name: str) -> None:
@@ -133,7 +147,7 @@ def vhdl(b: Build) -> None:
                 b.suite_bin("yosys"),
                 "-q",
                 "-p",
-                f"read_verilog {b.rel(verilog)}; hierarchy -top {top}; write_rtlil {il}",
+                f"read_verilog {b.rel(verilog)}; hierarchy -top {top}; write_rtlil {b.rel(il)}",
             ],
             cwd=b.root,
             env=YOSYS_ENV,
@@ -147,8 +161,8 @@ def vhdl(b: Build) -> None:
                 b.suite_bin("yosys"),
                 "-q",
                 "-p",
-                f"read_rtlil {il}; hierarchy -top {top}; proc; flatten; opt -full; "
-                f"opt_clean -purge; write_json {flat}",
+                f"read_rtlil {il.name}; hierarchy -top {top}; proc; flatten; opt -full; "
+                f"opt_clean -purge; write_json {flat.name}",
             ],
             cwd=b.out,
             env=YOSYS_ENV,
@@ -175,11 +189,11 @@ def elaborate(b: Build, verilog: list[Path]) -> None:
     args = slang_args(b, verilog, prims)
     if b.params:
         check_params(b, args)
-    lines = [f"read_rtlil -nooverwrite {b.out / f'vhdl_{t}.il'}" for t in b.core.vhdl.tops]
+    lines = [f"read_rtlil -nooverwrite {b.rel(b.out / f'vhdl_{t}.il')}" for t in b.core.vhdl.tops]
     # --empty-blackboxes is sv-elab's: modules it only knows by name become empty boxes
     own = ["--empty-blackboxes", *b.core.synth.read_slang_options]
     lines.append(" ".join(["read_slang", args[0], *own, *args[1:]]))
-    lines += [f"hierarchy -check -top {b.platform.top}", f"write_rtlil {b.out / 'elab.il'}"]
+    lines += [f"hierarchy -check -top {b.platform.top}", f"write_rtlil {b.rel(b.out / 'elab.il')}"]
     if b.core.vhdl.tops:
         lines += vhdl_input_lines(b)
     (b.out / "elab.ys").write_text("\n".join(lines) + "\n")
@@ -279,15 +293,16 @@ def vhdl_input_lines(b: Build) -> list[str]:
     return [
         "proc",
         "select " + " ".join([*(f"t:{t}" for t in tops), *(f"{t}/i:*" for t in tops)]),
-        f"write_json -selected {found}",
-        f"exec -expect-return 0 -- {' '.join(map(str, script))}",
+        f"write_json -selected {b.rel(found)}",
+        f"exec -expect-return 0 -- {shell_line(script)}",
     ]
 
 
 def synth_script(b: Build, ram_block: list[str]) -> str:
-    """@brief The Yosys script from the elaborated design to the netlist for nextpnr."""
-    top, fam, out = b.platform.top, b.project.board.synth_family, b.out
-    s = [f"read_rtlil {out / 'elab.il'}", f"hierarchy -top {top}"]
+    """@brief The Yosys script from the elaborated design to the netlist for nextpnr. It runs in
+    the output folder and names the files there without a folder."""
+    top, fam = b.platform.top, b.project.board.synth_family
+    s = ["read_rtlil elab.il", f"hierarchy -top {top}"]
     # synth_gowin's coarse step, with one addition before alumacc: comparisons go to LUT-sized
     # chunks (cmp2lut, cmp2lcu) instead of a carry chain each, as synth_ice40 and synth_ecp5 do.
     # Without it every comparison with a constant costs one ALU per bit of the wider operand.
@@ -326,13 +341,11 @@ def synth_script(b: Build, ram_block: list[str]) -> str:
     s.append("alumacc; opt; memory -nomap; opt_clean")
     # Read-during-write between different ports is undefined, as with Gowin. Else memory_libmap
     # builds logic around a block RAM to deliver the old data.
-    s.append(f"memory_unpack; select t:$memrd_v2 t:$memwr_v2; write_json -selected {out / 'memports.json'}")
-    s.append(
-        f"select -clear; exec -expect-return 0 -- {sys.executable} {b.script('rw_collision.py')} "
-        f"{out / 'memports.json'} {out / 'rw_collision.ys'}"
-    )
-    s.append(f"script {out / 'rw_collision.ys'}; memory_collect")
-    s.append(f"select t:$mem_v2; write_json -selected {out / 'mems.json'}; select -clear")
+    s.append("memory_unpack; select t:$memrd_v2 t:$memwr_v2; write_json -selected memports.json")
+    script = shell_line(host.python(b.script("rw_collision.py"), "memports.json", "rw_collision.ys"))
+    s.append(f"select -clear; exec -expect-return 0 -- {script}")
+    s.append("script rw_collision.ys; memory_collect")
+    s.append("select t:$mem_v2; write_json -selected mems.json; select -clear")
     # Gowin's syn_ramstyle values in Yosys' words
     s.append('setattr -set syn_ramstyle "distributed" a:syn_ramstyle=distributed_ram')
     s.append('setattr -set syn_ramstyle "block" a:syn_ramstyle=block_ram')
@@ -350,9 +363,9 @@ def synth_script(b: Build, ram_block: list[str]) -> str:
     # a netlist with one stops here
     s.append("select -assert-none t:$buf")
     s.append("opt_clean")
-    s.append(f"write_json {out / (b.core.name + '.json')}")
-    s.append(f"tee -q -o {out / 'stat.txt'} stat")
-    s.append(f"tee -q -o {out / 'stat.json'} stat -json")
+    s.append(f"write_json {b.core.name}.json")
+    s.append("tee -q -o stat.txt stat")
+    s.append("tee -q -o stat.json stat -json")
     return "\n".join(s) + "\n"
 
 
@@ -434,6 +447,9 @@ def place_and_route(b: Build) -> None:
         out / "nextpnr.log",
         "-q",
     ]
+    # a report of an earlier run would pass for this one when nextpnr stops before writing one
+    for old in (out / "report.json", out / "fmax.txt"):
+        old.unlink(missing_ok=True)
     # nextpnr fails on a clock below its frequency and on a hold violation, after it has written
     # the netlist and the report. A bitstream with either may run on the board and fail now and
     # then, so both stop the build, with the table of the clocks first.
@@ -528,7 +544,7 @@ def sources(root: Path, core_toml: Path, out: Path) -> tuple[list[Path], list[Pa
         config.load_project(root / "project.toml"),
         config.load_platform(core.platform / "platform.toml"),
         core,
-        toolchain.locate(root),
+        None,
         out.resolve(),
     )
     generate(b, sys.stderr)
@@ -560,9 +576,12 @@ def build(
         raise config.ConfigError(f"{platform.core_hz_parameter} comes from {core_toml}, not from -G")
     name = core.name + "".join(f"-{k}.{v}" for k, v in sorted(params.items()))
     b = Build(root, project, platform, core, tools, (out or root / "build" / name).resolve(), params)
-    if any(c in b.rel(b.out) for c in "=,"):
+    # the scripts name every file relative to the root, a space is the one thing they cannot
+    # take: Yosys' script and read_slang keep quotes as part of a name
+    if any(c in b.rel(b.out) for c in "=, "):
         raise config.ConfigError(
-            f"{b.rel(b.out)}: no = or comma in the output folder, slang splits file names there"
+            f"{b.rel(b.out)}: no space, = or comma in the output folder, slang splits file names "
+            "at = and comma"
         )
     b.out.mkdir(parents=True, exist_ok=True)
     project.address(core.folder)  # a core without a slot stops before any work

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import glob
 import tomllib
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
@@ -294,9 +295,13 @@ def load_core(path: Path) -> Core:
         y.strings("read_slang_options"),
         y.get("alu_lut", int, 8),
     )
+    # the folder's name: the build writes build/<name>, the release and the CI look for it there
+    name = c.get("name", str)
+    if name != path.parent.name:
+        raise c.error(f'core.name is "{name}", the folder is {path.parent.name}: both must be the same')
     core = Core(
         folder=path.parent,
-        name=c.get("name", str),
+        name=name,
         platform=(path.parent / c.get("platform", str)).resolve(),
         hz=c.get("hz", int),
         sources=s.strings("files", required=True),
@@ -417,29 +422,31 @@ class Source:
 
 
 @dataclass
+class Prebuilt:
+    """@brief The forks built by tools.yml: one archive per kind of machine, on one release."""
+
+    release: str
+    archives: dict[str, Archive]
+
+
+@dataclass
 class Toolset:
-    """@brief The programs of tools.toml: downloads and sources by name."""
+    """@brief The programs of tools.toml: downloads and sources by name, and the prebuilt forks
+    when there are any."""
 
     downloads: dict[str, Download]
     sources: dict[str, Source]
+    prebuilt: Prebuilt | None = None
 
 
 def load_toolset(path: Path) -> Toolset:
     """@brief Reads a tools.toml."""
-    root = _read(path).allow("download", "source")
+    root = _read(path).allow("download", "source", "prebuilt")
     downloads = {}
     d = root.table("download", required=False)
     for name in d.data:
         t = d.table(name)
-        keys = [k for k in t.data if k not in ("version", "release")]
-        archives = {}
-        for k in keys:
-            a = t.table(k).allow("url", "sha256")
-            sha = a.get("sha256", str)
-            if len(sha) != 64 or not all(c in "0123456789abcdef" for c in sha):
-                raise a.error(f"{a.prefix}.sha256 is no SHA-256 in lower-case hex")
-            archives[k] = Archive(a.get("url", str), sha)
-        downloads[name] = Download(name, t.get("version", str), t.get("release", str), archives)
+        downloads[name] = Download(name, t.get("version", str), t.get("release", str), _archives(t))
     sources = {}
     s = root.table("source", required=False)
     for name in s.data:
@@ -448,7 +455,24 @@ def load_toolset(path: Path) -> Toolset:
         if len(commit) != 40:
             raise t.error(f"{t.prefix}.commit must be a full commit hash")
         sources[name] = Source(name, t.get("repo", str), commit)
-    return Toolset(downloads, sources)
+    prebuilt = None
+    if "prebuilt" in root.data:
+        p = root.table("prebuilt")
+        prebuilt = Prebuilt(p.get("release", str), _archives(p))
+    return Toolset(downloads, sources, prebuilt)
+
+
+def _archives(t: _Table) -> dict[str, Archive]:
+    """@brief The archives of a table, one subtable per kind of machine besides version and
+    release."""
+    archives = {}
+    for k in [k for k in t.data if k not in ("version", "release")]:
+        a = t.table(k).allow("url", "sha256")
+        sha = a.get("sha256", str)
+        if len(sha) != 64 or not all(c in "0123456789abcdef" for c in sha):
+            raise a.error(f"{a.prefix}.sha256 is no SHA-256 in lower-case hex")
+        archives[k] = Archive(a.get("url", str), sha)
+    return archives
 
 
 @dataclass
@@ -463,18 +487,15 @@ class Local:
     paths: dict[str, Path] = field(default_factory=dict)
 
 
-#: the programs a path in local.toml may replace
-TOOL_KEYS = ("suite", "ghdl", "nextpnr", "apicula")
-
-
-def load_local(path: Path) -> Local:
-    """@brief Reads local.toml, an empty Local when there is none."""
+def load_local(path: Path, programs: Sequence[str]) -> Local:
+    """@brief Reads local.toml, an empty Local when there is none. programs are the names a
+    path may be given for."""
     if not path.exists():
         return Local()
     root = _read(path).allow("tools")
-    t = root.table("tools", required=False).allow("mode", *TOOL_KEYS)
+    t = root.table("tools", required=False).allow("mode", *programs)
     mode = t.get("mode", str, "")
     if mode not in ("", "source", "prebuilt"):
         raise t.error(f'tools.mode is "{mode}", expected "source" or "prebuilt"')
-    paths = {k: (path.parent / t.get(k, str)).resolve() for k in TOOL_KEYS if k in t.data}
+    paths = {k: (path.parent / t.get(k, str)).resolve() for k in programs if k in t.data}
     return Local(mode, paths)

@@ -3,6 +3,7 @@
 """@file
 @brief Tests for the openFPGALoader calls of g20k.py flash."""
 
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,7 +11,7 @@ from pathlib import Path
 from tools.engine import config, flash, host, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import BOARD, CORE, PROJECT, write
-from tools.engine.tests.test_toolchain import fake_tools
+from tools.engine.tests.test_toolchain import COMMIT, fake_tools
 
 
 class FlashTest(unittest.TestCase):
@@ -40,6 +41,12 @@ class FlashTest(unittest.TestCase):
         fs = self.built("one")
         cmd = flash.command(self.root, self.root / "fpga/one", sram=True)
         self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", fs])
+
+    def test_suite_is_enough(self) -> None:
+        # flashing needs openFPGALoader of the suite, not the forks
+        shutil.rmtree(toolchain.folder(self.root, "nextpnr", COMMIT))
+        fs = self.built("one")
+        self.assertEqual(flash.command(self.root, self.root / "fpga/one", sram=True)[-1], fs)
 
     def test_core_without_build(self) -> None:
         with self.assertRaises(StepError) as err:

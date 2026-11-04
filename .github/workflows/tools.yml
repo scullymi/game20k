@@ -1,0 +1,146 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# Builds the programs of game20k's forks (Apicula and nextpnr, from the commits of tools.toml)
+# with static linking, one archive per kind of machine, each with a build provenance
+# attestation, and puts them on a prerelease tools-<key>, where <key> names the commits. Started
+# by hand (Actions tab, "Run workflow", or gh workflow run tools.yml) after the commits of the
+# forks change. The summary of the run gives the [prebuilt] table for tools.toml, which
+# python3 g20k.py tools build --prebuilt then fetches. A release of these commits that exists
+# already stops the run before the builds: an archive on it does not change once tools.toml
+# names it.
+name: Tools
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # the key of the commits, and a stop when their release is there already
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Release of these commits
+        id: key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          key=$(python3 -c 'from pathlib import Path; from tools.engine import config, toolchain
+          print(toolchain.forks_key(config.load_toolset(Path("tools.toml"))))')
+          if gh release view "tools-$key" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "tools-$key is there already"; exit 1
+          fi
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+  pack:
+    needs: check
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04  # linux-x64, fully static
+          - os: macos-14      # darwin-arm64, Boost static, runs on macOS 14 and later
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # what building nextpnr needs, Boost with its static libraries and those of the
+      # compression libraries static Boost iostreams names
+      - name: Build dependencies (apt)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libboost-program-options-dev \
+            libboost-iostreams-dev libboost-thread-dev libboost-filesystem-dev \
+            libbz2-dev liblzma-dev zlib1g-dev libzstd-dev
+
+      # LIBRARY_PATH: the linker finds the libraries static Boost names in Homebrew's folder
+      - name: Build dependencies (Homebrew)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja boost
+          echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
+
+      # the suite's Python makes nextpnr's chip database
+      - name: Archives (g20k.py tools fetch)
+        run: python3 g20k.py tools fetch
+
+      - name: Forks (g20k.py tools pack)
+        run: python3 g20k.py tools pack --out dist
+
+      - name: Build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*.tar.gz
+
+      # the archive as it is, not zipped again: the artifact takes its name
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.tar.gz
+          archive: false
+          if-no-files-found: error
+
+  # the only job that creates the release, once every archive exists
+  release:
+    needs: [check, pack]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write      # create the release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: game20k-forks-*
+          merge-multiple: true
+          path: dist
+
+      # game20k-forks-<key>-<machine>.tar.gz: the key of the check job for all, else a job built
+      # other commits
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ needs.check.outputs.key }}
+        run: |
+          ls -l dist
+          keys=$(ls dist | sed -E 's/^game20k-forks-([0-9a-f]{12})-.*/\1/' | sort -u)
+          [ "$keys" = "$KEY" ] || { echo "the archives name $keys, the commits are $KEY"; exit 1; }
+          TAG="tools-$KEY"
+          # the sources of tools.toml, which the archives are built from
+          python3 -c 'import tomllib; s = tomllib.load(open("tools.toml", "rb"))["source"]
+          for n, t in s.items(): print("-", n, t["repo"], t["commit"])' > notes.md
+          gh release create "$TAG" dist/*.tar.gz --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "game20k forks $KEY" --notes-file notes.md
+          {
+            echo '## [prebuilt] for tools.toml'
+            echo '```toml'
+            echo '[prebuilt]'
+            echo "release = \"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG\""
+            for f in dist/*.tar.gz; do
+              n=$(basename "$f")
+              m=${n#game20k-forks-$KEY-}
+              echo
+              echo "[prebuilt.${m%.tar.gz}]"
+              echo "url = \"$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TAG/$n\""
+              echo "sha256 = \"$(sha256sum "$f" | cut -d' ' -f1)\""
+            done
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

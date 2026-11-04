@@ -4,8 +4,11 @@
 @brief Tests for tools.toml, local.toml and finding, unpacking and checking the programs."""
 
 import io
+import shutil
+import struct
 import tarfile
 import tempfile
+import tomllib
 import unittest
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout
@@ -42,6 +45,10 @@ TOOLS = f"""
     [source.nextpnr]
     repo = "https://example.org/nextpnr.git"
     commit = "{COMMIT}"
+
+    [source.eigen]
+    repo = "https://example.org/eigen.git"
+    commit = "{COMMIT}"
 """
 
 
@@ -54,7 +61,11 @@ def fake_tools(root: Path) -> None:
     for name, version in versions.items():
         made = toolchain.folder(root, name, version)
         made.mkdir(parents=True)
-        toolchain.write_marker(made, {"name": name, "version": version})
+        values = {"name": name, "version": version}
+        # nextpnr names the sources it is built from
+        if name == "nextpnr":
+            values |= {s.name: s.commit for s in toolset.sources.values()}
+        toolchain.write_marker(made, values)
 
 
 class ToolsetTest(unittest.TestCase):
@@ -77,13 +88,13 @@ class ToolsetTest(unittest.TestCase):
         self.assertIn("sha256", str(err.exception))
 
     def test_local_mode_and_paths(self) -> None:
-        self.assertEqual(config.load_local(self.root / "local.toml"), config.Local())
+        self.assertEqual(config.load_local(self.root / "local.toml", ("suite",)), config.Local())
         path = write(self.root, "local.toml", '[tools]\nmode = "source"\nsuite = "my/suite"\n')
-        local = config.load_local(path)
+        local = config.load_local(path, ("suite",))
         self.assertEqual((local.mode, local.paths), ("source", {"suite": self.root / "my/suite"}))
         write(self.root, "local.toml", '[tools]\nmode = "fast"\n')
         with self.assertRaises(config.ConfigError):
-            config.load_local(path)
+            config.load_local(path, ("suite",))
 
 
 class LocateTest(unittest.TestCase):
@@ -107,6 +118,13 @@ class LocateTest(unittest.TestCase):
             toolchain.locate(self.root)
         self.assertIn("g20k.py tools fetch", str(err.exception))
 
+    def test_nextpnr_of_other_sources(self) -> None:
+        nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
+        toolchain.write_marker(nextpnr, toolchain.marker(nextpnr) | {"eigen": "2" * 40})
+        with self.assertRaises(StepError) as err:
+            toolchain.locate(self.root)
+        self.assertIn("built from other sources", str(err.exception))
+
     def test_suite_without_the_forks(self) -> None:
         # tools build needs the suite before nextpnr exists
         (toolchain.folder(self.root, "nextpnr", COMMIT) / toolchain.MARKER).unlink()
@@ -114,6 +132,14 @@ class LocateTest(unittest.TestCase):
         with self.assertRaises(StepError) as err:
             toolchain.locate(self.root)
         self.assertIn("g20k.py tools build", str(err.exception))
+
+    def test_programs_from_tools_toml(self) -> None:
+        toolset = config.load_toolset(self.root / "tools.toml")
+        self.assertEqual(toolchain.programs(toolset), ("suite", "ghdl", "apicula", "nextpnr"))
+        # Eigen is a source of nextpnr, not a program of the build
+        with self.assertRaises(StepError) as err:
+            toolchain.find(self.root, "eigen")
+        self.assertIn("no program eigen", str(err.exception))
 
     def test_build_needs_a_mode(self) -> None:
         with self.assertRaises(StepError) as err:
@@ -131,10 +157,16 @@ class LocateTest(unittest.TestCase):
             self.assertEqual(toolchain.locate(self.root).suite, own)
         self.assertIn("20250101", warnings.getvalue())
 
+    def test_save_mode_keeps_a_windows_path(self) -> None:
+        write(self.root, "local.toml", "[tools]\nsuite = 'C:\\tools\\suite'\n")
+        toolchain.save_mode(self.root / "local.toml", "prebuilt")
+        with open(self.root / "local.toml", "rb") as f:
+            self.assertEqual(tomllib.load(f)["tools"], {"suite": "C:\\tools\\suite", "mode": "prebuilt"})
+
     def test_save_mode_keeps_paths(self) -> None:
         write(self.root, "local.toml", '[tools]\nsuite = "own-suite"\n')
         toolchain.save_mode(self.root / "local.toml", "source")
-        local = config.load_local(self.root / "local.toml")
+        local = config.load_local(self.root / "local.toml", ("suite",))
         self.assertEqual((local.mode, local.paths), ("source", {"suite": self.root / "own-suite"}))
 
 
@@ -172,6 +204,127 @@ class UnpackTest(unittest.TestCase):
         with self.assertRaises(tarfile.TarError):
             toolchain.unpack(archive, self.dir / "out")
         self.assertFalse((self.dir / "evil").exists())
+
+
+class PrebuiltTest(unittest.TestCase):
+    """@brief tools build --prebuilt on an archive given as a file:// URL, no network."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        fake_tools(self.root)
+        for name in ("apicula", "nextpnr"):
+            shutil.rmtree(toolchain.folder(self.root, name, COMMIT))
+        self.sources = config.load_toolset(self.root / "tools.toml").sources
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def archive(self, commit: str = COMMIT) -> Path:
+        """@brief An archive as pack makes it, its forks built from commit."""
+        archive = self.root / "forks.tar.gz"
+        made = self.root / "made"
+        for name in ("apicula", "nextpnr"):
+            (made / name / "bin").mkdir(parents=True)
+            (made / name / "bin" / "tool").write_text("x")
+            values = {"name": name, "version": commit, "commit": commit}
+            toolchain.write_marker(made / name, values | {f: commit for f in self.sources})
+        with tarfile.open(archive, "w:gz") as t:
+            t.add(made / "apicula", arcname="apicula")
+            t.add(made / "nextpnr", arcname="nextpnr")
+        shutil.rmtree(made)
+        return archive
+
+    def prebuilt(self, archive: Path, machine: str = toolchain.machine()) -> None:
+        sha = toolchain.sha256(archive)
+        text = (self.root / "tools.toml").read_text()
+        text += f'[prebuilt]\nrelease = "https://example.org/forks"\n[prebuilt.{machine}]\n'
+        write(self.root, "tools.toml", text + f'url = "{archive.as_uri()}"\nsha256 = "{sha}"\n')
+
+    def test_reads_prebuilt(self) -> None:
+        self.prebuilt(self.archive())
+        prebuilt = config.load_toolset(self.root / "tools.toml").prebuilt
+        assert prebuilt is not None
+        self.assertEqual(prebuilt.release, "https://example.org/forks")
+        self.assertIn(toolchain.machine(), prebuilt.archives)
+
+    def test_unpacks_checks_and_keeps(self) -> None:
+        archive = self.archive()
+        self.prebuilt(archive)
+        with redirect_stdout(io.StringIO()):
+            toolchain.build(self.root, "prebuilt")
+        nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
+        self.assertTrue((nextpnr / "bin/tool").is_file())
+        self.assertEqual(toolchain.marker(nextpnr)["archive"], toolchain.sha256(archive))
+        self.assertEqual(config.load_local(self.root / "local.toml", ("suite",)).mode, "prebuilt")
+        # a second build takes the folders as they are, without the archive
+        archive.unlink()
+        shutil.rmtree(self.root / "external/tools/downloads")
+        with redirect_stdout(io.StringIO()):
+            toolchain.build(self.root, None)
+        self.assertEqual(toolchain.locate(self.root).nextpnr.parent, nextpnr / "bin")
+
+    def test_new_eigen_needs_a_new_archive(self) -> None:
+        self.prebuilt(self.archive())
+        with redirect_stdout(io.StringIO()):
+            toolchain.build(self.root, "prebuilt")
+        # Eigen moves on, [prebuilt] does not: the folders of the old archive must not stay
+        text = (self.root / "tools.toml").read_text()
+        eigen = text.index("[source.eigen]")
+        text = text[:eigen] + text[eigen:].replace(COMMIT, "2" * 40, 1)
+        write(self.root, "tools.toml", text)
+        with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
+            toolchain.build(self.root, "prebuilt")
+        self.assertIn("other commits", str(err.exception))
+
+    def test_archive_of_other_commits_stops(self) -> None:
+        self.prebuilt(self.archive("2" * 40))
+        with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
+            toolchain.build(self.root, "prebuilt")
+        self.assertIn("other commits", str(err.exception))
+        self.assertFalse(toolchain.folder(self.root, "nextpnr", COMMIT).exists())
+
+    def test_no_archive_for_this_machine(self) -> None:
+        self.prebuilt(self.archive(), "plan9-mips")
+        with self.assertRaises(StepError) as err:
+            toolchain.build(self.root, "prebuilt")
+        self.assertIn("--source", str(err.exception))
+        # a mode that failed is not kept
+        self.assertFalse((self.root / "local.toml").exists())
+
+    def test_nextpnr_holds_every_fork(self) -> None:
+        toolset = config.load_toolset(self.root / "tools.toml")
+        values = {name: COMMIT for name in toolset.sources}
+        self.assertTrue(toolchain.holds(values, toolset))
+        # another Eigen gives other placements, so nextpnr is built again
+        self.assertFalse(toolchain.holds(values | {"eigen": "2" * 40}, toolset))
+        key = toolchain.forks_key(toolset)
+        toolset.sources["eigen"].commit = "2" * 40
+        self.assertNotEqual(toolchain.forks_key(toolset), key)
+
+
+class ElfTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def elf(self, types: list[int]) -> Path:
+        """@brief An ELF64 head with program headers of the types given, at offset 64."""
+        head = bytearray(64)
+        head[:4] = b"\x7fELF"
+        struct.pack_into("<Q", head, 0x20, 64)
+        struct.pack_into("<HH", head, 0x36, 56, len(types))
+        table = b"".join(struct.pack("<I", t) + bytes(52) for t in types)
+        path = self.dir / "program"
+        path.write_bytes(bytes(head) + table)
+        return path
+
+    def test_static_and_dynamic(self) -> None:
+        self.assertFalse(toolchain.elf_interpreter(self.elf([1, 1, 4])))
+        self.assertTrue(toolchain.elf_interpreter(self.elf([6, 3, 1])))
 
 
 class FetchTest(unittest.TestCase):

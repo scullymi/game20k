@@ -50,6 +50,10 @@ def main():
     # HDL instantiates itself.
     in_block = {m.group(1) for m in (re.fullmatch(r"(.+)\.\d+\.\d+", n) for n in blocks)
                 if m and m.group(1) in mems}
+    # none of them named after a memory: the netlist names its block RAM cells in another way
+    # (the names are Yosys' own, a Yosys version may change them), and every memory would look
+    # free to move. A design whose
+    # memories all went into LUT RAM stops here too, loudly and never with a wrong result.
     if mems and not in_block:
         sys.exit("block_fill: no block RAM cell of %s is named after a memory of %s"
                  % (netlist, mems_json))

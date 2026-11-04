@@ -11,7 +11,6 @@ from pathlib import Path
 from tools.engine import config
 from tools.engine.flow import build
 from tools.engine.tests.test_config import BOARD, PLATFORM, PROJECT, write
-from tools.engine.tests.test_toolchain import fake_tools
 
 
 def make_build(root: Path) -> build.Build:
@@ -118,7 +117,7 @@ class SourcesTest(unittest.TestCase):
             root = Path(tmp).resolve()
             write(root, "boards/b/board.toml", BOARD)
             write(root, "project.toml", PROJECT.replace("fpga/one", "fpga/c"))
-            fake_tools(root)
+            # no tools.toml and no tools: a simulation takes the sources without them
             write(root, "fpga/common/platform.toml", PLATFORM.split("[[generate]]")[0])
             write(root, "fpga/c/src/a.v", "")
             write(root, "fpga/c/src/inc/x.vh", "")

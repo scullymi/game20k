@@ -113,7 +113,7 @@ class CoreTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_reads_core(self) -> None:
-        core = config.load_core(write(self.dir, "core/core.toml", CORE))
+        core = config.load_core(write(self.dir, "pang_hdmi/core.toml", CORE))
         self.assertEqual(core.name, "pang_hdmi")
         self.assertEqual(core.hz, 37_125_000)
         self.assertEqual(core.platform, (self.dir / "common").resolve())
@@ -123,19 +123,24 @@ class CoreTest(unittest.TestCase):
 
     def test_sources_keep_order_and_sort_globs(self) -> None:
         for name in ["src/b_2.v", "src/b_1.v", "src/a.v"]:
-            write(self.dir, "core/" + name, "")
-        core = config.load_core(write(self.dir, "core/core.toml", CORE))
+            write(self.dir, "pang_hdmi/" + name, "")
+        core = config.load_core(write(self.dir, "pang_hdmi/core.toml", CORE))
         names = [p.name for p in config.resolve(core.sources, core.folder)]
         self.assertEqual(names, ["a.v", "b_1.v", "b_2.v"])
 
     def test_glob_without_match_is_an_error(self) -> None:
-        core = config.load_core(write(self.dir, "core/core.toml", CORE))
+        core = config.load_core(write(self.dir, "pang_hdmi/core.toml", CORE))
         with self.assertRaises(config.ConfigError) as err:
             config.resolve(core.sources, core.folder)
         self.assertIn("src/a.v", str(err.exception))
 
+    def test_name_is_the_folder(self) -> None:
+        with self.assertRaises(config.ConfigError) as err:
+            config.load_core(write(self.dir, "pang/core.toml", CORE))
+        self.assertIn("both must be the same", str(err.exception))
+
     def test_unknown_table(self) -> None:
-        path = write(self.dir, "core/core.toml", CORE + "\n[sourcess]\nfiles = []\n")
+        path = write(self.dir, "pang_hdmi/core.toml", CORE + "\n[sourcess]\nfiles = []\n")
         with self.assertRaises(config.ConfigError) as err:
             config.load_core(path)
         self.assertIn("sourcess", str(err.exception))
@@ -179,11 +184,11 @@ class PlatformTest(unittest.TestCase):
         self.assertEqual([c.hz for c in platform.clocks], [74_250_000, None])
 
     def test_include_dirs_core_first(self) -> None:
-        core = config.load_core(write(self.dir, "core/core.toml", CORE))
+        core = config.load_core(write(self.dir, "pang_hdmi/core.toml", CORE))
         text = PLATFORM.replace('files = ["src/top.sv"]', 'files = ["src/top.sv"]\n    include = ["inc"]')
         platform = config.load_platform(write(self.dir, "common/platform.toml", text))
         dirs = config.include_dirs(core, platform)
-        self.assertEqual(dirs, [self.dir / "core/src/inc", self.dir / "common/inc"])
+        self.assertEqual(dirs, [self.dir / "pang_hdmi/src/inc", self.dir / "common/inc"])
 
     def test_core_clock_with_rate_is_an_error(self) -> None:
         text = PLATFORM.replace('net = "clk_core"', 'net = "clk_core"\nhz = 1')
