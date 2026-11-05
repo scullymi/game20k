@@ -53,7 +53,7 @@ commit = "d4eba7de04e7f007fd83e1b8599a269017c36e7f"
 
 [source.nextpnr]
 repo = "https://github.com/scullymi/nextpnr.git"
-commit = "0c3a4f55b14c73bbb8be2537ae7a65cf2d599659"
+commit = "36f9fe6d162301f8491f475fdceb190b138c6cd5"
 
 # The headers nextpnr's placer solves with, only for building nextpnr. Eigen 3.4 and 5 give
 # different placements, so every machine builds against this commit (5.0.1), from a GitHub
