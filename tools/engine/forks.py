@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 scullymi
 """@file
-@brief The programs of game20k's forks, Apicula and nextpnr: building, packing, unpacking them.
+@brief The programs of game20k's forks, Apicula, nextpnr and Yosys: building, packing, unpacking them.
 
 build makes them from the commits of tools.toml, or unpacks them from the archive that pack made
 for this kind of machine and tools.yml put on a release. Their folders and archives carry the key
@@ -19,6 +19,9 @@ from pathlib import Path
 
 from tools.engine import config, host, toolchain
 from tools.engine.host import StepError
+
+#: the submodules of Yosys that its build needs, without slang, whose frontend the fork leaves out
+YOSYS_SUBMODULES = ("abc", "libs/boost_regex", "libs/cxxopts", "libs/fmt", "libs/symfpu", "libs/tomlplusplus")
 
 
 def checkout(repo: str, commit: str, dest: Path) -> None:
@@ -47,21 +50,18 @@ def build(root: Path, mode: str | None) -> None:
     """@brief Makes the programs of the forks in the mode given or the one chosen before.
 
     The first build needs the mode, which local.toml then keeps: from the sources, which needs
-    cmake, ninja, a C++ compiler and Boost, or prebuilt from game20k's releases."""
+    cmake, ninja, a C++ compiler, Boost, Flex and Bison, or prebuilt from game20k's releases."""
     local_toml = root / "local.toml"
     toolset = config.load_toolset(root / "tools.toml")
     local = toolchain.load_local(root, toolset)
     mode = mode or local.mode
     if not mode:
         raise StepError("choose how the forks come here: g20k.py tools build --source or --prebuilt")
-    if mode == "prebuilt":
-        apicula, nextpnr = unpack_forks(root, toolset)
-    else:
-        apicula, nextpnr = make_forks(root, toolset, static=False)
+    made = unpack_forks(root, toolset) if mode == "prebuilt" else make_forks(root, toolset, static=False)
     # kept only once it worked, so a failed --prebuilt does not become the default
     if mode != local.mode:
         toolchain.save_mode(local_toml, mode)
-    for name, path in zip(toolchain.BUILT, (apicula, nextpnr), strict=True):
+    for name, path in made.items():
         print(f"{name} {toolset.sources[name].commit[:12]}: {path.relative_to(root).as_posix()}")
 
 
@@ -72,10 +72,10 @@ def source(toolset: config.Toolset, name: str) -> config.Source:
     return toolset.sources[name]
 
 
-def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path, Path]:
-    """@brief Builds Apicula and nextpnr from the commits of tools.toml, where a folder does
-    not carry their key already. static links Boost into nextpnr (on Linux everything), so the
-    program runs on a machine without them, as pack needs."""
+def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, Path]:
+    """@brief Builds Apicula, nextpnr and Yosys from the commits of tools.toml, where a folder
+    does not carry their key already, and gives their folders by name. static links Boost into
+    nextpnr (on Linux everything), so the programs run on a machine without them, as pack needs."""
     key = toolchain.forks_key(toolset)
     suite = toolchain.find(root, "suite")
     python = toolchain.suite_python(root)
@@ -161,19 +161,59 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path,
         # the commits of every source, to read off which Eigen a nextpnr has, the key is what is checked
         values |= {s.name: s.commit for s in toolset.sources.values()}
         toolchain.write_marker(nextpnr, values | {"key": key, "static": "yes" if static else "no"})
-    return apicula, nextpnr
+
+    # Yosys: the fork runs the synthesis only, the suite's Yosys with its slang plugin reads the
+    # sources. Slang, Tcl, readline, zlib and libffi stay out, the synthesis calls none of them
+    y = source(toolset, "yosys")
+    yosys = toolchain.folder(root, "yosys", y.commit)
+    m = toolchain.marker(yosys)
+    if m.get("key") != key or "archive" in m or (static and m.get("static") != "yes"):
+        need("git", "cmake", "ninja")
+        print(f"== yosys {y.commit[:12]}", flush=True)
+        checkout(y.repo, y.commit, src / "yosys")
+        host.run(
+            ["git", "-C", src / "yosys", "submodule", "update", "-q", "--init", "--depth", "1", *YOSYS_SUBMODULES],
+            cwd=src,
+        )
+        # a folder of its own per kind of linking, so the cmake caches of both do not mix
+        build_dir = src / "yosys" / ("build-static" if static else "build")
+        linking = []
+        if sys.platform == "win32":
+            linking = ["-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
+        elif static and sys.platform == "linux":
+            linking = ["-DCMAKE_EXE_LINKER_FLAGS=-static"]
+        if yosys.exists():
+            shutil.rmtree(yosys)
+        host.run(
+            [
+                "cmake", "-S", src / "yosys", "-B", build_dir, "-G", "Ninja", "-Wno-dev",
+                "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_INSTALL_PREFIX={yosys}", "-DBUILD_SHARED_LIBS=OFF",
+                "-DYOSYS_USE_BUNDLED_LIBS=ON",
+                f"-DPython3_EXECUTABLE={python}", "-DYOSYS_ENABLE_UNIT_TESTS=OFF", "-DYOSYS_WITHOUT_SLANG=ON",
+                "-DYOSYS_WITHOUT_TCL=ON", "-DYOSYS_WITHOUT_READLINE=ON", "-DYOSYS_WITHOUT_EDITLINE=ON",
+                "-DYOSYS_WITHOUT_ZLIB=ON", "-DYOSYS_WITHOUT_LIBFFI=ON", *linking,
+            ],
+            cwd=src, stdout=src / "yosys-cmake.log",
+        )  # fmt: skip
+        host.run(["ninja", "-C", build_dir], cwd=src, stdout=src / "yosys-build.log")
+        host.run(["cmake", "--install", build_dir], cwd=src, stdout=src / "yosys-install.log")
+        values = {"name": "yosys", "version": y.commit, "repo": y.repo, "commit": y.commit}
+        toolchain.write_marker(yosys, values | {"key": key, "static": "yes" if static else "no"})
+    return {"apicula": apicula, "nextpnr": nextpnr, "yosys": yosys}
 
 
 def pack(root: Path, out: Path) -> Path:
-    """@brief Builds the forks with static linking and packs both folders into one archive for
+    """@brief Builds the forks with static linking and packs their folders into one archive for
     this kind of machine, game20k-forks-<key>-<machine>.tar.gz, then prints what tools.toml
     takes for it."""
     toolset = config.load_toolset(root / "tools.toml")
-    apicula, nextpnr = make_forks(root, toolset, static=True)
-    program = nextpnr / "bin" / ("nextpnr-himbaechel" + host.EXE)
-    foreign = foreign_libraries(program)
-    if foreign:
-        raise StepError(f"{program} needs {', '.join(foreign)}, which another machine may not have")
+    made = make_forks(root, toolset, static=True)
+    programs = [made["nextpnr"] / "bin" / ("nextpnr-himbaechel" + host.EXE)]
+    programs += [made["yosys"] / "bin" / (name + host.EXE) for name in ("yosys", "yosys-abc")]
+    for program in programs:
+        foreign = foreign_libraries(program)
+        if foreign:
+            raise StepError(f"{program} needs {', '.join(foreign)}, which another machine may not have")
     key = toolchain.forks_key(toolset)
     out.mkdir(parents=True, exist_ok=True)
     archive = out / f"game20k-forks-{key}-{toolchain.machine()}.tar.gz"
@@ -187,7 +227,7 @@ def pack(root: Path, out: Path) -> Path:
         return info
 
     with tarfile.open(archive, "w:gz") as t:
-        for name, path in zip(toolchain.BUILT, (apicula, nextpnr), strict=True):
+        for name, path in made.items():
             t.add(path, arcname=name, filter=clean)
     print(f"{archive.relative_to(root).as_posix() if archive.is_relative_to(root) else archive}")
     print(f"[prebuilt.{toolchain.machine()}]")
@@ -231,9 +271,9 @@ def elf_interpreter(program: Path) -> bool:
     return any(struct.unpack_from("<I", table, i * phentsize)[0] == 3 for i in range(phnum))
 
 
-def unpack_forks(root: Path, toolset: config.Toolset) -> tuple[Path, Path]:
-    """@brief Apicula and nextpnr from the archive of [prebuilt] for this machine, which must
-    carry the key of tools.toml and this file."""
+def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Path]:
+    """@brief The forks from the archive of [prebuilt] for this machine, which must carry the key
+    of tools.toml and this file, and their folders by name."""
     here = toolchain.machine()
     prebuilt = toolset.prebuilt
     archive = prebuilt.archives.get(here) if prebuilt else None
@@ -246,7 +286,7 @@ def unpack_forks(root: Path, toolset: config.Toolset) -> tuple[Path, Path]:
         toolchain.marker(d).get("archive") == archive.sha256 and toolchain.marker(d).get("key") == key
         for d in dests.values()
     ):
-        return dests["apicula"], dests["nextpnr"]
+        return dests
     file = toolchain.fetched(root, archive, "prebuilt forks")
     staging = toolchain.tools_dir(root) / f".forks-{archive.sha256[:12]}"
     shutil.rmtree(staging, ignore_errors=True)
@@ -271,4 +311,4 @@ def unpack_forks(root: Path, toolset: config.Toolset) -> tuple[Path, Path]:
     print(f"  from    {archive.url}")
     print(f"  release {prebuilt.release}")
     print(f"  sha256  {archive.sha256}")
-    return dests["apicula"], dests["nextpnr"]
+    return dests

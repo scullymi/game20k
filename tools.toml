@@ -62,6 +62,13 @@ commit = "36f9fe6d162301f8491f475fdceb190b138c6cd5"
 repo = "https://github.com/scullymi/eigen.git"
 commit = "bc3b39870ecb690a623a3f49149a358b95c5781d"
 
+# Yosys for the synthesis: the suite's commit with fixes that are not upstream yet. The suite's
+# Yosys still reads the sources through its slang plugin. Once the suite has the fixes, the
+# synthesis goes back to the suite's Yosys.
+[source.yosys]
+repo = "https://github.com/scullymi/yosys.git"
+commit = "86935b9cf4fe50f18cc2fb7877a677f89cd3a44d"
+
 # The programs of the forks above, built from these commits by tools.yml, one archive per machine
 # with a build provenance attestation. After a change of a commit above, of the suite or of
 # tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run

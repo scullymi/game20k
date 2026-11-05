@@ -387,13 +387,15 @@ class Tools:
 
     suite is YosysHQ's oss-cad-suite (Yosys with its slang plugin, Apicula's Python,
     openFPGALoader, Verilator), python the Python in it, ghdl a GHDL release, the others the
-    builds of game20k's forks."""
+    builds of game20k's forks. yosys is the fork's program, which runs the synthesis, while the
+    suite's Yosys reads the sources."""
 
     suite: Path
     ghdl: Path
     nextpnr: Path
     apicula: Path
     python: Path
+    yosys: Path
 
 
 @dataclass

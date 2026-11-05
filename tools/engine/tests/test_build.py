@@ -46,7 +46,7 @@ def make_build(root: Path) -> build.Build:
     )
     core = config.Core(root / "fpga" / "c", "c", root, 37_125_000, [], [])
     project = config.Project(root, "p", board, [core.folder])
-    tools = config.Tools(*(root for _ in range(5)))
+    tools = config.Tools(*(root for _ in range(6)))
     return build.Build(root, project, platform, core, tools, root / "build" / "c")
 
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# Builds the programs of game20k's forks (Apicula and nextpnr, from the commits of tools.toml)
+# Builds the programs of game20k's forks (Apicula, nextpnr and Yosys, from the commits of tools.toml)
 # with static linking, one archive per kind of machine, each with a build provenance
 # attestation, and puts them on a prerelease tools-<key>. The key (toolchain.forks_key) names
 # what the archives are made of: the commits of the forks, the version of the suite and the text
@@ -65,12 +65,12 @@ jobs:
           persist-credentials: false
 
       # what building nextpnr needs, Boost with its static libraries and those of the
-      # compression libraries static Boost iostreams names
+      # compression libraries static Boost iostreams names, and Flex and Bison for Yosys
       - name: Build dependencies (apt)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libboost-program-options-dev \
+          sudo apt-get install -y cmake ninja-build flex bison libboost-program-options-dev \
             libboost-iostreams-dev libboost-thread-dev libboost-filesystem-dev \
             libbz2-dev liblzma-dev zlib1g-dev libzstd-dev
 
@@ -78,13 +78,13 @@ jobs:
       - name: Build dependencies (Homebrew)
         if: runner.os == 'macOS'
         run: |
-          brew install cmake ninja boost
+          brew install cmake ninja boost flex bison
           echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
 
       # MSVC's environment (cl, cmake, ninja, dumpbin) for the steps after this one, and Boost
       # built static by vcpkg, which cmake finds through CMAKE_PREFIX_PATH: vcpkg's toolchain
       # file takes its triplet only from the cmake command line. nextpnr calls none of the
-      # compression libraries of Boost iostreams
+      # compression libraries of Boost iostreams. Flex and Bison for Yosys as its own CI gets them
       - name: Build dependencies (MSVC, vcpkg)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -93,6 +93,8 @@ jobs:
           cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" > nul && set" | ForEach-Object {
             if ($_ -match '^([^=]+)=(.*)$') { "$($Matches[1])=$($Matches[2])" >> $env:GITHUB_ENV }
           }
+          choco install winflexbison3 --no-progress
+          "C:\ProgramData\chocolatey\lib\winflexbison3\tools" >> $env:GITHUB_PATH
           vcpkg install --triplet x64-windows-static boost-program-options "boost-iostreams[core]" boost-thread boost-filesystem
           "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static" >> $env:GITHUB_ENV
 

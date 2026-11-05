@@ -53,6 +53,10 @@ TOOLS = f"""
     [source.eigen]
     repo = "https://example.org/eigen.git"
     commit = "{COMMIT}"
+
+    [source.yosys]
+    repo = "https://example.org/yosys.git"
+    commit = "{COMMIT}"
 """
 
 
@@ -126,6 +130,7 @@ class LocateTest(unittest.TestCase):
         self.assertEqual(tools.suite, toolchain.folder(self.root, "suite", "20261102"))
         nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
         self.assertEqual(tools.nextpnr.parent, nextpnr / "bin")
+        self.assertEqual(tools.yosys.parent, toolchain.folder(self.root, "yosys", COMMIT) / "bin")
 
     def test_python_and_path_of_the_suite(self) -> None:
         suite = toolchain.folder(self.root, "suite", "20261102")
@@ -178,7 +183,7 @@ class LocateTest(unittest.TestCase):
 
     def test_programs_from_tools_toml(self) -> None:
         toolset = config.load_toolset(self.root / "tools.toml")
-        self.assertEqual(toolchain.programs(toolset), ("suite", "ghdl", "apicula", "nextpnr"))
+        self.assertEqual(toolchain.programs(toolset), ("suite", "ghdl", "apicula", "nextpnr", "yosys"))
         # Eigen is a source of nextpnr, not a program of the build
         with self.assertRaises(StepError) as err:
             toolchain.find(self.root, "eigen")
@@ -256,7 +261,7 @@ class PrebuiltTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name).resolve()
         fake_tools(self.root)
-        for name in ("apicula", "nextpnr"):
+        for name in toolchain.BUILT:
             shutil.rmtree(toolchain.folder(self.root, name, COMMIT))
 
     def tearDown(self) -> None:
@@ -267,14 +272,14 @@ class PrebuiltTest(unittest.TestCase):
         key = key or toolchain.forks_key(config.load_toolset(self.root / "tools.toml"))
         archive = self.root / "forks.tar.gz"
         made = self.root / "made"
-        for name in ("apicula", "nextpnr"):
+        for name in toolchain.BUILT:
             (made / name / "bin").mkdir(parents=True)
             (made / name / "bin" / "tool").write_text("x")
             values = {"name": name, "version": COMMIT, "commit": COMMIT, "key": key}
             toolchain.write_marker(made / name, values)
         with tarfile.open(archive, "w:gz") as t:
-            t.add(made / "apicula", arcname="apicula")
-            t.add(made / "nextpnr", arcname="nextpnr")
+            for name in toolchain.BUILT:
+                t.add(made / name, arcname=name)
         shutil.rmtree(made)
         return archive
 

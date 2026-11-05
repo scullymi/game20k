@@ -33,7 +33,7 @@ from tools.engine.host import StepError
 MARKER = ".g20k-tool.toml"
 
 #: the programs forks.py builds from the sources of tools.toml
-BUILT = ("apicula", "nextpnr")
+BUILT = ("apicula", "nextpnr", "yosys")
 
 #: how the forks are built, packed and unpacked, part of their key
 RECIPE = Path(__file__).with_name("forks.py")
@@ -214,7 +214,7 @@ def find(root: Path, name: str) -> Path:
     else:
         want, how = toolset.sources[name].commit, "build"
     path = local.paths.get(name, folder(root, name, want))
-    # nextpnr may be given as the program itself
+    # nextpnr and yosys may be given as the program itself
     got = marker(path.parent.parent if path.is_file() else path).get("version")
     if name in local.paths:
         if got != want:
@@ -250,8 +250,11 @@ def locate(root: Path) -> config.Tools:
     nextpnr = find(root, "nextpnr")
     if nextpnr.is_dir():
         nextpnr = nextpnr / "bin" / ("nextpnr-himbaechel" + host.EXE)
+    yosys = find(root, "yosys")
+    if yosys.is_dir():
+        yosys = yosys / "bin" / ("yosys" + host.EXE)
     return config.Tools(
-        find(root, "suite"), find(root, "ghdl"), nextpnr, find(root, "apicula"), suite_python(root)
+        find(root, "suite"), find(root, "ghdl"), nextpnr, find(root, "apicula"), suite_python(root), yosys
     )
 
 

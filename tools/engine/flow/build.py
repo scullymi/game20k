@@ -379,7 +379,7 @@ def synthesize(b: Build) -> None:
         # that runs out of time, so synthesis runs in the output folder
         host.run(
             [
-                b.suite_bin("yosys"),
+                b.tools.yosys,
                 "-q",
                 "-l",
                 b.out / "yosys.log",
@@ -524,16 +524,17 @@ def version(folder: Path) -> str:
 
 def tool_line(b: Build) -> str:
     """@brief The tools of this build in one line, for the NOTICE of a release."""
-    yosys = " ".join(host.run([b.suite_bin("yosys"), "-V"], cwd=b.out).split()[:2])
     ghdl = host.run([b.tools.ghdl / "bin" / ("ghdl" + host.EXE), "--version"], cwd=b.out).split()[:2]
     # the plugin prints "sv-elab revision <sha>" and "slang revision <sha>"
     revs = host.run([b.suite_bin("yosys"), "-m", "slang", "-p", "slang_version"], cwd=b.out).split()
     slang = revs[revs.index("sv-elab") + 2][:12]
-    # nextpnr is the program in bin/ of its folder
+    # nextpnr and yosys are programs in bin/ of their folders
     nextpnr = version(b.tools.nextpnr.parent.parent)
+    yosys = version(b.tools.yosys.parent.parent)
     return (
-        f"{yosys} and yosys-slang {slang} from YosysHQ's oss-cad-suite {version(b.tools.suite)}, "
-        f"{' '.join(ghdl)}, nextpnr-himbaechel {nextpnr} and Apicula {version(b.tools.apicula)}"
+        f"yosys-slang {slang} from YosysHQ's oss-cad-suite {version(b.tools.suite)}, "
+        f"{' '.join(ghdl)}, Yosys {yosys}, nextpnr-himbaechel {nextpnr} and "
+        f"Apicula {version(b.tools.apicula)}"
     )
 
 
