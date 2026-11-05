@@ -199,7 +199,8 @@ def foreign_libraries(program: Path) -> list[str]:
     """@brief The shared libraries a program needs beyond the system's: on macOS those
     outside /usr/lib and /System, on Linux any, as a program with an ELF interpreter loads
     them, on Windows the DLLs outside System32 and those of the Visual C++ runtime, which a
-    machine without its redistributable lacks."""
+    machine without its redistributable lacks. A delay-loaded DLL does not count, Windows loads
+    it only on the first call into it."""
     if sys.platform == "darwin":
         lines = host.run(["otool", "-L", program], cwd=program.parent).splitlines()[1:]
         names = [line.split()[0] for line in lines if line.strip()]
@@ -208,7 +209,8 @@ def foreign_libraries(program: Path) -> list[str]:
         return ["an ELF interpreter (dynamic linking)"] if elf_interpreter(program) else []
     if sys.platform == "win32":
         # dumpbin of the MSVC the forks were built with lists the DLLs under "dependencies"
-        lines = host.run(["dumpbin", "/nologo", "/dependents", program], cwd=program.parent).splitlines()
+        text = host.run(["dumpbin", "/nologo", "/dependents", program], cwd=program.parent)
+        lines = text.split("delay load dependencies")[0].splitlines()
         names = [line.strip() for line in lines if line.strip().lower().endswith(".dll")]
         system = Path(os.environ.get("SystemRoot", "C:/Windows")) / "System32"
         runtime = ("msvcp", "vcruntime", "concrt", "vcomp")

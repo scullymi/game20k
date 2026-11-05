@@ -403,5 +403,37 @@ class FetchTest(unittest.TestCase):
         self.assertFalse(toolchain.folder(self.root, "suite", "20261102").exists())
 
 
+class ForeignLibrariesTest(unittest.TestCase):
+    """@brief The check of pack on the output of dumpbin, on any machine."""
+
+    DUMPBIN = """Dump of file yosys-abc.exe
+
+File Type: EXECUTABLE IMAGE
+
+  Image has the following dependencies:
+
+    KERNEL32.dll
+    VCRUNTIME140.dll
+    other.dll
+
+  Image has the following delay load dependencies:
+
+    pthreadVC2.dll
+"""
+
+    def test_delay_loaded_dll_does_not_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            system = Path(tmp) / "System32"
+            system.mkdir()
+            (system / "KERNEL32.dll").touch()
+            with (
+                unittest.mock.patch.object(forks.sys, "platform", "win32"),
+                unittest.mock.patch.dict(os.environ, {"SystemRoot": tmp}),
+                unittest.mock.patch.object(forks.host, "run", return_value=self.DUMPBIN),
+            ):
+                found = forks.foreign_libraries(Path(tmp) / "yosys-abc.exe")
+        self.assertEqual(found, ["VCRUNTIME140.dll", "other.dll"])
+
+
 if __name__ == "__main__":
     unittest.main()
