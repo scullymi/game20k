@@ -260,7 +260,7 @@ def menu_rom_v(core, gz):
 
 def shown(path):
     """The path relative to the repository, or as it is when it lies outside."""
-    rel = os.path.relpath(path, ROOT)
+    rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
     return path if rel.startswith("..") else rel
 
 
