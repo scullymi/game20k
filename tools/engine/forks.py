@@ -171,10 +171,8 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
         need("git", "cmake", "ninja")
         print(f"== yosys {y.commit[:12]}", flush=True)
         checkout(y.repo, y.commit, src / "yosys")
-        host.run(
-            ["git", "-C", src / "yosys", "submodule", "update", "-q", "--init", "--depth", "1", *YOSYS_SUBMODULES],
-            cwd=src,
-        )
+        submodules = ["submodule", "update", "-q", "--init", "--depth", "1", *YOSYS_SUBMODULES]
+        host.run(["git", "-C", src / "yosys", *submodules], cwd=src)
         # a folder of its own per kind of linking, so the cmake caches of both do not mix
         build_dir = src / "yosys" / ("build-static" if static else "build")
         linking = []

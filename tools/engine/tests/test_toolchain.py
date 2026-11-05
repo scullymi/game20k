@@ -7,6 +7,7 @@ import io
 import os
 import shutil
 import struct
+import sys
 import tarfile
 import tempfile
 import tomllib
@@ -16,7 +17,7 @@ import zipfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from tools.engine import config, forks, toolchain
+from tools.engine import config, forks, host, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import write
 
@@ -432,9 +433,9 @@ File Type: EXECUTABLE IMAGE
             system.mkdir()
             (system / "KERNEL32.dll").touch()
             with (
-                unittest.mock.patch.object(forks.sys, "platform", "win32"),
+                unittest.mock.patch.object(sys, "platform", "win32"),
                 unittest.mock.patch.dict(os.environ, {"SystemRoot": tmp}),
-                unittest.mock.patch.object(forks.host, "run", return_value=self.DUMPBIN),
+                unittest.mock.patch.object(host, "run", return_value=self.DUMPBIN),
             ):
                 found = forks.foreign_libraries(Path(tmp) / "yosys-abc.exe")
         self.assertEqual(found, ["VCRUNTIME140.dll", "other.dll"])
