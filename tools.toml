@@ -7,7 +7,8 @@
 # takes the place of a folder here, its version is then checked, not fetched.
 
 # YosysHQ's nightly build of Yosys with its slang frontend, openFPGALoader, Verilator and the
-# Python that Apicula runs with
+# Python that Apicula runs with (python). On Windows its programs find their DLLs through
+# path, the folders that go to the front of PATH.
 [download.suite]
 version = "20261102"
 release = "https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2026-11-02"
@@ -15,14 +16,18 @@ release = "https://github.com/YosysHQ/oss-cad-suite-build/releases/tag/2026-11-0
 [download.suite.darwin-arm64]
 url = "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-11-02/oss-cad-suite-darwin-arm64-20261102.tgz"
 sha256 = "d1191cdc3be3b63f52d0adbddb64436a4538897a193d157d1ca714706cc4ccf0"
+python = "bin/tabbypy3"
 
 [download.suite.linux-x64]
 url = "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-11-02/oss-cad-suite-linux-x64-20261102.tgz"
 sha256 = "b9424b9aad2cf0ad057b1d89387a29dcbf000da75cb870221f2e5d38f7b7d3b7"
+python = "bin/tabbypy3"
 
 [download.suite.windows-x64]
 url = "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-11-02/oss-cad-suite-windows-x64-20261102.tgz"
 sha256 = "f914e9890b86504b2b8f6b007ec1b195a338132036644f4b1b284f826cbec96e"
+python = "lib/python3.exe"
+path = ["bin", "lib"]
 
 # GHDL turns the VHDL of the cores into Verilog for Yosys
 [download.ghdl]
@@ -48,7 +53,7 @@ commit = "d4eba7de04e7f007fd83e1b8599a269017c36e7f"
 
 [source.nextpnr]
 repo = "https://github.com/scullymi/nextpnr.git"
-commit = "0c3a4f55b14c73bbb8be2537ae7a65cf2d599659"
+commit = "36f9fe6d162301f8491f475fdceb190b138c6cd5"
 
 # The headers nextpnr's placer solves with, only for building nextpnr. Eigen 3.4 and 5 give
 # different placements, so every machine builds against this commit (5.0.1), from a GitHub
@@ -57,17 +62,28 @@ commit = "0c3a4f55b14c73bbb8be2537ae7a65cf2d599659"
 repo = "https://github.com/scullymi/eigen.git"
 commit = "bc3b39870ecb690a623a3f49149a358b95c5781d"
 
+# Yosys for the synthesis: the suite's commit with fixes that are not upstream yet. The suite's
+# Yosys still reads the sources through its slang plugin. Once the suite has the fixes, the
+# synthesis goes back to the suite's Yosys.
+[source.yosys]
+repo = "https://github.com/scullymi/yosys.git"
+commit = "86935b9cf4fe50f18cc2fb7877a677f89cd3a44d"
+
 # The programs of the forks above, built from these commits by tools.yml, one archive per machine
 # with a build provenance attestation. After a change of a commit above, of the suite or of
 # tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run
 # to here: the archive carries the key of all three, and tools build --prebuilt stops on another.
 [prebuilt]
-release = "https://github.com/scullymi/game20k/releases/tag/tools-8c374ecc3452"
+release = "https://github.com/scullymi/game20k/releases/tag/tools-d114a5166905"
 
 [prebuilt.darwin-arm64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-8c374ecc3452/game20k-forks-8c374ecc3452-darwin-arm64.tar.gz"
-sha256 = "e366a277e01c959ea5fb87cf6fec2c0d0990be8d8d30fb8e15ac1839db5f126c"
+url = "https://github.com/scullymi/game20k/releases/download/tools-d114a5166905/game20k-forks-d114a5166905-darwin-arm64.tar.gz"
+sha256 = "8aed0b5e2328cb41aff7dea667eb99ef86f2d893a9ef2a41417bb773f12f73b9"
 
 [prebuilt.linux-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-8c374ecc3452/game20k-forks-8c374ecc3452-linux-x64.tar.gz"
-sha256 = "2897edfad1d7c4febf0719aa75f4d9552318d1f01ff55f5fd172eda5bfb6bf3f"
+url = "https://github.com/scullymi/game20k/releases/download/tools-d114a5166905/game20k-forks-d114a5166905-linux-x64.tar.gz"
+sha256 = "70f50238537ca4633ad3f1725fddf451cccf2cb2fa6225b590cb85b2f97b9a0b"
+
+[prebuilt.windows-x64]
+url = "https://github.com/scullymi/game20k/releases/download/tools-d114a5166905/game20k-forks-d114a5166905-windows-x64.tar.gz"
+sha256 = "b588cfe9fb1edd8a11643c2d05c4476ca1242cd3890f584785ba2d869b060ab1"

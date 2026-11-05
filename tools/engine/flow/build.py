@@ -62,8 +62,8 @@ class Build:
 
     def expand(self, arg: str) -> str:
         return (
-            arg.replace("{root}", str(self.root))
-            .replace("{out}", str(self.gen))
+            arg.replace("{root}", self.root.as_posix())
+            .replace("{out}", self.gen.as_posix())
             .replace("{core}", self.core.name)
         )
 
@@ -77,10 +77,13 @@ class Build:
         return Path(os.path.relpath(path, self.root)).as_posix()
 
 
-def shell_line(args: Sequence[host.Arg]) -> str:
+def shell_line(args: Sequence[host.Arg], windows: bool = os.name == "nt") -> str:
     """@brief A command line for Yosys' exec, which hands it to the shell as it is: every
     argument in double quotes, so a path with a space stays one (Python under C:\\Program Files)."""
-    return " ".join(f'"{Path(a).as_posix() if isinstance(a, Path) else a}"' for a in args)
+    line = " ".join(f'"{Path(a).as_posix() if isinstance(a, Path) else a}"' for a in args)
+    # On Windows the shell is cmd /c, which drops the first and the last quote of a line that
+    # starts with one: a pair of its own around the line keeps those of the arguments
+    return f'"{line}"' if windows else line
 
 
 def step(name: str) -> None:
@@ -376,7 +379,7 @@ def synthesize(b: Build) -> None:
         # that runs out of time, so synthesis runs in the output folder
         host.run(
             [
-                b.suite_bin("yosys"),
+                b.tools.yosys,
                 "-q",
                 "-l",
                 b.out / "yosys.log",
@@ -455,10 +458,10 @@ def place_and_route(b: Build) -> None:
     # then, so both stop the build, with the table of the clocks first.
     try:
         host.run(cmd, cwd=out)
-    except StepError:
+    except StepError as e:
         if (out / "report.json").exists():
             print_clocks(b)
-        raise StepError(f"nextpnr failed, see {out / 'nextpnr.log'}") from None
+        raise StepError(f"{e}, see {out / 'nextpnr.log'}") from None
     print_clocks(b)
     host.run(host.python(b.script("check_unrouted.py"), out / f"{name}_pnr.json"), cwd=out)
     apicula(b, b.script("check_clock_gates.py"), board.family, out / f"{name}_pnr.json")
@@ -488,7 +491,7 @@ APICULA_QUIET = [
 
 def apicula(b: Build, script: Path, *args: host.Arg) -> None:
     """@brief Runs script with the suite's Python and the Apicula of the fork."""
-    cmd = [b.suite_bin("tabbypy3"), *APICULA_QUIET, script, *args]
+    cmd = [b.tools.python, *APICULA_QUIET, script, *args]
     host.run(cmd, cwd=b.out, env={"PYTHONPATH": str(b.tools.apicula)}, capture=False)
 
 
@@ -521,16 +524,17 @@ def version(folder: Path) -> str:
 
 def tool_line(b: Build) -> str:
     """@brief The tools of this build in one line, for the NOTICE of a release."""
-    yosys = " ".join(host.run([b.suite_bin("yosys"), "-V"], cwd=b.out).split()[:2])
     ghdl = host.run([b.tools.ghdl / "bin" / ("ghdl" + host.EXE), "--version"], cwd=b.out).split()[:2]
     # the plugin prints "sv-elab revision <sha>" and "slang revision <sha>"
     revs = host.run([b.suite_bin("yosys"), "-m", "slang", "-p", "slang_version"], cwd=b.out).split()
     slang = revs[revs.index("sv-elab") + 2][:12]
-    # nextpnr is the program in bin/ of its folder
+    # nextpnr and yosys are programs in bin/ of their folders
     nextpnr = version(b.tools.nextpnr.parent.parent)
+    yosys = version(b.tools.yosys.parent.parent)
     return (
-        f"{yosys} and yosys-slang {slang} from YosysHQ's oss-cad-suite {version(b.tools.suite)}, "
-        f"{' '.join(ghdl)}, nextpnr-himbaechel {nextpnr} and Apicula {version(b.tools.apicula)}"
+        f"yosys-slang {slang} from YosysHQ's oss-cad-suite {version(b.tools.suite)}, "
+        f"{' '.join(ghdl)}, Yosys {yosys}, nextpnr-himbaechel {nextpnr} and "
+        f"Apicula {version(b.tools.apicula)}"
     )
 
 

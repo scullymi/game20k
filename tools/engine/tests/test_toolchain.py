@@ -4,8 +4,10 @@
 @brief Tests for tools.toml, local.toml and fetching, finding, unpacking and checking the programs."""
 
 import io
+import os
 import shutil
 import struct
+import sys
 import tarfile
 import tempfile
 import tomllib
@@ -15,7 +17,7 @@ import zipfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
-from tools.engine import config, forks, toolchain
+from tools.engine import config, forks, host, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import write
 
@@ -30,6 +32,8 @@ TOOLS = f"""
     [download.suite.{toolchain.machine()}]
     url = "https://example.org/suite.tgz"
     sha256 = "{SHA}"
+    python = "bin/tabbypy3"
+    path = ["lib"]
 
     [download.ghdl]
     version = "6.0.0"
@@ -49,6 +53,10 @@ TOOLS = f"""
 
     [source.eigen]
     repo = "https://example.org/eigen.git"
+    commit = "{COMMIT}"
+
+    [source.yosys]
+    repo = "https://example.org/yosys.git"
     commit = "{COMMIT}"
 """
 
@@ -110,6 +118,10 @@ class LocateTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name).resolve()
         fake_tools(self.root)
+        # locate() puts the suite in front of PATH, the tests keep the PATH of the process
+        path = unittest.mock.patch.dict(os.environ, {"PATH": os.environ.get("PATH", "")})
+        path.start()
+        self.addCleanup(path.stop)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -119,6 +131,22 @@ class LocateTest(unittest.TestCase):
         self.assertEqual(tools.suite, toolchain.folder(self.root, "suite", "20261102"))
         nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
         self.assertEqual(tools.nextpnr.parent, nextpnr / "bin")
+        self.assertEqual(tools.yosys.parent, toolchain.folder(self.root, "yosys", COMMIT) / "bin")
+
+    def test_python_and_path_of_the_suite(self) -> None:
+        suite = toolchain.folder(self.root, "suite", "20261102")
+        os.environ["PATH"] = os.pathsep.join(["/usr/bin", str(suite / "lib")])
+        tools = toolchain.locate(self.root)
+        toolchain.locate(self.root)
+        # in front, and once
+        self.assertEqual(os.environ["PATH"], os.pathsep.join([str(suite / "lib"), "/usr/bin"]))
+        self.assertEqual(tools.python, suite / "bin/tabbypy3")
+
+    def test_python_of_a_local_suite_on_a_machine_without_a_download(self) -> None:
+        suite = toolchain.folder(self.root, "suite", "20261102")
+        (self.root / "local.toml").write_text(f'[tools]\nsuite = "{suite.as_posix()}"\n')
+        with unittest.mock.patch.object(toolchain, "machine", return_value="linux-riscv64"):
+            self.assertEqual(toolchain.suite_python(self.root), suite / "bin/tabbypy3")
 
     def test_missing_folder_says_what_to_run(self) -> None:
         (toolchain.folder(self.root, "ghdl", "6.0.0") / toolchain.MARKER).unlink()
@@ -145,7 +173,8 @@ class LocateTest(unittest.TestCase):
         toolset = config.load_toolset(self.root / "tools.toml")
         key = toolchain.forks_key(toolset)
         recipe = self.root / "forks.py"
-        text = toolchain.RECIPE.read_bytes()
+        # LF, as on macOS and Linux, from a checkout of either kind
+        text = toolchain.RECIPE.read_bytes().replace(b"\r\n", b"\n")
         for changed, same in ((text + b"# another recipe\n", False), (text.replace(b"\n", b"\r\n"), True)):
             recipe.write_bytes(changed)
             with self.subTest(same=same), unittest.mock.patch.object(toolchain, "RECIPE", recipe):
@@ -161,7 +190,7 @@ class LocateTest(unittest.TestCase):
 
     def test_programs_from_tools_toml(self) -> None:
         toolset = config.load_toolset(self.root / "tools.toml")
-        self.assertEqual(toolchain.programs(toolset), ("suite", "ghdl", "apicula", "nextpnr"))
+        self.assertEqual(toolchain.programs(toolset), ("suite", "ghdl", "apicula", "nextpnr", "yosys"))
         # Eigen is a source of nextpnr, not a program of the build
         with self.assertRaises(StepError) as err:
             toolchain.find(self.root, "eigen")
@@ -239,7 +268,7 @@ class PrebuiltTest(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name).resolve()
         fake_tools(self.root)
-        for name in ("apicula", "nextpnr"):
+        for name in toolchain.BUILT:
             shutil.rmtree(toolchain.folder(self.root, name, COMMIT))
 
     def tearDown(self) -> None:
@@ -250,14 +279,14 @@ class PrebuiltTest(unittest.TestCase):
         key = key or toolchain.forks_key(config.load_toolset(self.root / "tools.toml"))
         archive = self.root / "forks.tar.gz"
         made = self.root / "made"
-        for name in ("apicula", "nextpnr"):
+        for name in toolchain.BUILT:
             (made / name / "bin").mkdir(parents=True)
             (made / name / "bin" / "tool").write_text("x")
             values = {"name": name, "version": COMMIT, "commit": COMMIT, "key": key}
             toolchain.write_marker(made / name, values)
         with tarfile.open(archive, "w:gz") as t:
-            t.add(made / "apicula", arcname="apicula")
-            t.add(made / "nextpnr", arcname="nextpnr")
+            for name in toolchain.BUILT:
+                t.add(made / name, arcname=name)
         shutil.rmtree(made)
         return archive
 
@@ -273,6 +302,13 @@ class PrebuiltTest(unittest.TestCase):
         assert prebuilt is not None
         self.assertEqual(prebuilt.release, "https://example.org/forks")
         self.assertIn(toolchain.machine(), prebuilt.archives)
+
+    def test_prebuilt_has_no_programs_of_its_own(self) -> None:
+        self.prebuilt(self.archive())
+        write(self.root, "tools.toml", (self.root / "tools.toml").read_text() + 'path = ["bin"]\n')
+        with self.assertRaises(config.ConfigError) as err:
+            config.load_toolset(self.root / "tools.toml")
+        self.assertIn("path", str(err.exception))
 
     def test_unpacks_checks_and_keeps(self) -> None:
         archive = self.archive()
@@ -377,6 +413,38 @@ class FetchTest(unittest.TestCase):
             toolchain.fetch(self.root)
         self.assertIn("SHA-256", str(err.exception))
         self.assertFalse(toolchain.folder(self.root, "suite", "20261102").exists())
+
+
+class ForeignLibrariesTest(unittest.TestCase):
+    """@brief The check of pack on the output of dumpbin, on any machine."""
+
+    DUMPBIN = """Dump of file yosys-abc.exe
+
+File Type: EXECUTABLE IMAGE
+
+  Image has the following dependencies:
+
+    KERNEL32.dll
+    VCRUNTIME140.dll
+    other.dll
+
+  Image has the following delay load dependencies:
+
+    pthreadVC2.dll
+"""
+
+    def test_delay_loaded_dll_does_not_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            system = Path(tmp) / "System32"
+            system.mkdir()
+            (system / "KERNEL32.dll").touch()
+            with (
+                unittest.mock.patch.object(sys, "platform", "win32"),
+                unittest.mock.patch.dict(os.environ, {"SystemRoot": tmp}),
+                unittest.mock.patch.object(host, "run", return_value=self.DUMPBIN),
+            ):
+                found = forks.foreign_libraries(Path(tmp) / "yosys-abc.exe")
+        self.assertEqual(found, ["VCRUNTIME140.dll", "other.dll"])
 
 
 if __name__ == "__main__":

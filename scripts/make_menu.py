@@ -258,9 +258,14 @@ def menu_rom_v(core, gz):
             "`default_nettype wire\n" % (BASE, core, core, len(gz), rows))
 
 
+def rel_path(path):
+    """A path relative to the repository, with / as the separator on every system."""
+    return os.path.relpath(path, ROOT).replace(os.sep, "/")
+
+
 def shown(path):
     """The path relative to the repository, or as it is when it lies outside."""
-    rel = os.path.relpath(path, ROOT)
+    rel = rel_path(path)
     return path if rel.startswith("..") else rel
 
 

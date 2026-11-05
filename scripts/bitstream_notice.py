@@ -29,6 +29,7 @@ import textwrap
 from pathlib import Path
 
 import make_menu  # the menu generator, the interface tag in the bitstream comes from it
+from make_menu import rel_path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -46,7 +47,7 @@ def impl(core, name):
 
 def gen(core, name):
     """The repository-relative path of a file the build of core generates."""
-    return os.path.relpath(os.path.join(BUILD, core, "gen", name), ROOT)
+    return rel_path(os.path.join(BUILD, core, "gen", name))
 
 # Each component: the name in the NOTICE, a short licence label for the contents, where its
 # source comes from, a pattern on the repository-relative path, and what the NOTICE shows. The
@@ -510,15 +511,15 @@ def inputs(core):
     """The repository-relative source files of a core's last synthesis."""
     prj = project(core)
     if not os.path.isfile(prj):
-        die("%s missing, build %s first" % (os.path.relpath(prj, ROOT), core))
+        die("%s missing, build %s first" % (rel_path(prj), core))
     with open(prj, encoding="utf-8") as f:
         text = f.read()
     paths = text.split()
     if not paths:
-        die("%s lists no files" % os.path.relpath(prj, ROOT))
+        die("%s lists no files" % rel_path(prj))
     rel = []
     for p in paths:
-        r = os.path.relpath(os.path.realpath(p), ROOT)
+        r = rel_path(os.path.realpath(p))
         if r.startswith(".."):
             die("%s: %s lies outside the repository" % (core, p))
         rel.append(r)
@@ -606,7 +607,7 @@ def syn_params_set(core):
     setter = re.compile(r'(\.\s*SYN(HEX|FILE|BINFILE)\s*\(\s*|\bSYN(HEX|FILE|BINFILE)\s*=\s*)"[^"]+"')
     hits = []
     for f in read(project_rel(core)).split():
-        rel = os.path.relpath(f, ROOT)
+        rel = rel_path(f)
         if not re.search(r"\.(s?vh?)$", rel):
             continue
         text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), read(rel), flags=re.S)
@@ -623,9 +624,9 @@ def include_target(core, rel, name):
     dirs = [Path(ROOT) / os.path.dirname(rel)] + config.include_dirs(c, platform)
     for d in dirs:
         if (d / name).is_file():
-            return os.path.relpath(d / name, ROOT)
+            return rel_path(d / name)
     die("%s includes %s, which is in none of %s"
-        % (rel, name, ", ".join(os.path.relpath(d, ROOT) for d in dirs)))
+        % (rel, name, ", ".join(rel_path(d) for d in dirs)))
 
 
 def file_reads(core, files):
@@ -689,13 +690,13 @@ def slot_of(core):
 
 
 def project_rel(core):
-    return os.path.relpath(project(core), ROOT)
+    return rel_path(project(core))
 
 
 def tools(cores):
     """The sentence on the tools: the line the build writes, which has to be the same for every
     core."""
-    lines = {read(os.path.relpath(impl(c, "tools.txt"), ROOT)).strip() for c in cores}
+    lines = {read(rel_path(impl(c, "tools.txt"))).strip() for c in cores}
     if len(lines) != 1:
         die("the cores were built with different tools:\n  " + "\n  ".join(sorted(lines)))
     return "with the free toolchain, %s." % lines.pop()
@@ -735,7 +736,7 @@ def main():
         base = impl(core, core)
         for out in (base + ".fs", base + ".bin"):
             if not os.path.isfile(out):
-                die("%s missing, build %s first" % (os.path.relpath(out, ROOT), core))
+                die("%s missing, build %s first" % (rel_path(out), core))
         built = min(os.path.getmtime(base + ".fs"), os.path.getmtime(base + ".bin"))
         prj = project_rel(core)
         newer = [f for f in [prj] + files if os.path.getmtime(os.path.join(ROOT, f)) > built]

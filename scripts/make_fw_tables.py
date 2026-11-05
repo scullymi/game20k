@@ -87,7 +87,7 @@ def read_games():
     """The rows of the table in their order, each a parsed manifest with core and path."""
     games, boards, cores = [], {}, {}
     for path in sorted(glob.glob(os.path.join(ROOT, "fpga", "*", "*.manifest"))):
-        rel = os.path.relpath(path, ROOT)
+        rel = make_menu.rel_path(path)
         try:
             m = make_rom.read_manifest(path)
         except make_rom.ManifestError as e:
