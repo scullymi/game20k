@@ -29,6 +29,7 @@ import textwrap
 from pathlib import Path
 
 import make_menu  # the menu generator, the interface tag in the bitstream comes from it
+from make_menu import rel_path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -42,11 +43,6 @@ BUILD = os.path.join(ROOT, "build")
 def impl(core, name):
     """A file of the core's build."""
     return os.path.join(BUILD, core, name)
-
-
-def rel_path(path):
-    """A path relative to the repository, with / as the separator on every system."""
-    return os.path.relpath(path, ROOT).replace(os.sep, "/")
 
 
 def gen(core, name):
