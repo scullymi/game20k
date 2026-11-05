@@ -135,10 +135,10 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> tuple[Path,
         # Static Boost on macOS names the compression libraries of Boost iostreams, which
         # nextpnr does not call: the linker finds them through LIBRARY_PATH and drops them
         link = "-Wl,-dead_strip_dylibs" if static and sys.platform == "darwin" else ""
-        # STATIC_BUILD under MSVC sets the release flags to /MT alone, without /O2 and /DNDEBUG:
-        # on Windows the C++ runtime is static through CMake instead, Boost through the triplet
-        # of vcpkg (tools.yml)
-        if static and sys.platform == "win32":
+        # Windows has no Boost of its own: it comes static from vcpkg (x64-windows-static, see
+        # tools.yml), so the C++ runtime is static in every build. STATIC_BUILD under MSVC sets
+        # the release flags to /MT alone, without /O2 and /DNDEBUG: CMake sets the runtime instead
+        if sys.platform == "win32":
             linking = ["-DSTATIC_BUILD=OFF", "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
         else:
             linking = [f"-DSTATIC_BUILD={'ON' if static else 'OFF'}"]
