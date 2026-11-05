@@ -458,10 +458,10 @@ def place_and_route(b: Build) -> None:
     # then, so both stop the build, with the table of the clocks first.
     try:
         host.run(cmd, cwd=out)
-    except StepError:
+    except StepError as e:
         if (out / "report.json").exists():
             print_clocks(b)
-        raise StepError(f"nextpnr failed, see {out / 'nextpnr.log'}") from None
+        raise StepError(f"{e}, see {out / 'nextpnr.log'}") from None
     print_clocks(b)
     host.run(host.python(b.script("check_unrouted.py"), out / f"{name}_pnr.json"), cwd=out)
     apicula(b, b.script("check_clock_gates.py"), board.family, out / f"{name}_pnr.json")
