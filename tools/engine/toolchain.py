@@ -240,7 +240,10 @@ def suite_python(root: Path) -> Path:
     """@brief The Python of the suite, which runs Apicula and makes nextpnr's chip database."""
     toolset = config.load_toolset(root / "tools.toml")
     archive = toolset.downloads["suite"].archives.get(machine()) if "suite" in toolset.downloads else None
-    if archive is None or not archive.python:
+    # a machine without a download of its own has its suite from local.toml, laid out as on Unix
+    if archive is None:
+        return find(root, "suite") / "bin" / "tabbypy3"
+    if not archive.python:
         raise StepError(f"tools.toml names no python for the suite on {machine()}")
     return find(root, "suite") / archive.python
 

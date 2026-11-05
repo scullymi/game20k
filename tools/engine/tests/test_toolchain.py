@@ -142,6 +142,12 @@ class LocateTest(unittest.TestCase):
         self.assertEqual(os.environ["PATH"], os.pathsep.join([str(suite / "lib"), "/usr/bin"]))
         self.assertEqual(tools.python, suite / "bin/tabbypy3")
 
+    def test_python_of_a_local_suite_on_a_machine_without_a_download(self) -> None:
+        suite = toolchain.folder(self.root, "suite", "20261102")
+        (self.root / "local.toml").write_text(f'[tools]\nsuite = "{suite.as_posix()}"\n')
+        with unittest.mock.patch.object(toolchain, "machine", return_value="linux-riscv64"):
+            self.assertEqual(toolchain.suite_python(self.root), suite / "bin/tabbypy3")
+
     def test_missing_folder_says_what_to_run(self) -> None:
         (toolchain.folder(self.root, "ghdl", "6.0.0") / toolchain.MARKER).unlink()
         with self.assertRaises(StepError) as err:
