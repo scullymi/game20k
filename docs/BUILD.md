@@ -20,7 +20,7 @@ export GOWIN_IDE=/opt/gowin/IDE          # the folder that contains bin/gw_sh
 export PICO_TOOLCHAIN_PATH=/opt/arm-gnu-toolchain-14.2
 ```
 
-Windows has not been tested. The scripts are POSIX shell, so they should run under WSL.
+On Windows, `py g20k.py` builds the bitstreams natively with the free toolchain.
 
 ## 1. Sources
 
