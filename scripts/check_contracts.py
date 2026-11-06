@@ -4,7 +4,7 @@
 """@file check_contracts.py
 @brief Values that live in two places of game20k and must agree, compared without boards.
 
-  mirror   the RAM mirror layout constants: ram_mirror_pkg.sv (core) against main.c (firmware)
+  mirror   the RAM mirror layout constants: ram_mirror_pkg.sv (core) against ram_mirror.c (firmware)
 The firmware's game table and menus need none: scripts/make_fw_tables.py generates them from the
 ROM manifests and menu parts at every firmware build and host test run, and checks them as it
 goes. The interface tag of a core comes from the same parts through make_menu.py.
@@ -24,7 +24,7 @@ DEFAULT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # the files the contracts read, relative to the game20k root ("root") or the fork ("fork")
 F_PKG = ("root", "fpga/common/src/mcu/ram_mirror_pkg.sv")
-F_MAIN = ("fork", "src/main.c")
+F_MIRROR = ("fork", "src/game20k/ram_mirror.c")
 # one localparam per line in the package, "localparam <type> RAM_MIRROR_X = <expr>;"
 RE_PKG = r"\blocalparam\b[^;=]*?\b(RAM_MIRROR_\w+)\s*=\s*([^;]+);"
 
@@ -84,15 +84,15 @@ def contract_mirror(t):
     """RAM_MIRROR_* in the core package and in the firmware: same names, same values."""
     core = dict(re.findall(RE_PKG, t.read(F_PKG)))
     fw = dict(re.findall(r"^[ \t]*#[ \t]*define[ \t]+(RAM_MIRROR_\w+)[ \t]+(.+?)[ \t]*$",
-                         t.read(F_MAIN), re.M))
+                         t.read(F_MIRROR), re.M))
     need(core, "no RAM_MIRROR_* localparam in %s" % t.path(F_PKG))
-    need(fw, "no #define RAM_MIRROR_* in %s" % t.path(F_MAIN))
+    need(fw, "no #define RAM_MIRROR_* in %s" % t.path(F_MIRROR))
     need(set(core) == set(fw), "names differ: only in the core %s, only in the firmware %s"
          % (sorted(set(core) - set(fw)), sorted(set(fw) - set(core))))
     diffs = ["%s: core %d, firmware %d" % (n, value(core, n), value(fw, n))
              for n in sorted(core) if value(core, n) != value(fw, n)]
     need(not diffs, "; ".join(diffs))
-    return "%d of %d constants agree (ram_mirror_pkg.sv, main.c)" % (len(core), len(core))
+    return "%d of %d constants agree (ram_mirror_pkg.sv, ram_mirror.c)" % (len(core), len(core))
 
 
 CONTRACTS = [("mirror", contract_mirror)]

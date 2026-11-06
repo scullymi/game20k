@@ -126,7 +126,7 @@ def build(root: Path, usb: str, version: str | None = None) -> Path:
     """@brief Builds the firmware and returns its folder. Without a version it is the tree's."""
     init_submodules(root)
     # the contract between core and firmware, compared without a board: the RAM mirror layout
-    # of the core against main.c, or the firmware refuses the core or reads garbage
+    # of the core against ram_mirror.c, or the firmware refuses the core or reads garbage
     host.run(
         host.python(root / "scripts" / "check_contracts.py", "--root", root, "--fork", root / FORK),
         cwd=root,

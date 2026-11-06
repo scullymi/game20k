@@ -4,7 +4,7 @@
 //! @brief Layout of the RAM mirror block on SPI target 5 (game20k)
 //!
 //! The one place for what is the same for every game: seven constants, identical in the
-//! firmware under the same names (RAM_MIRROR_* in src/main.c of the FPGA-Companion fork,
+//! firmware under the same names (RAM_MIRROR_* in src/game20k/ram_mirror.c of the FPGA-Companion fork,
 //! branch game20k), scripts/check_contracts.py compares them. ram_spi.sv slices the byte
 //! stream with them, the top counts the FIFO with them, ram_diag.sv checks the received
 //! length against them.

@@ -231,7 +231,7 @@ module tb_pang;
     // ---------------- RAM mirror: a Pico model and the truth ----------------
     // The model fetches a snapshot about every 50 ms, as the firmware does. Each snapshot is
     // checked twice:
-    //   - oracle, as main.c does: for every address logged during the harvest window, the
+    //   - oracle, as ram_mirror.c does: for every address logged during the harvest window, the
     //     snapshot holds the last logged value
     //   - truth: the work RAM and the tile map window of jtpang itself, read hierarchically at
     //     the end of the harvest, equal the snapshot byte for byte, and every other byte is 0

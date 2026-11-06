@@ -11,9 +11,9 @@ PROJECT_NAME           = "game20k companion"
 PROJECT_BRIEF          = "RetroAchievements on the FPGA-Companion fork"
 OUTPUT_DIRECTORY       = $(OUT)
 
-# our files only: ra_* and game20k_* (new ones are picked up by name)
-INPUT                  = $(FORK)/src $(FORK)/src/rp2040
-FILE_PATTERNS          = ra_*.c ra_*.h game20k_*.h
+# our files only: the folder src/game20k and the mbedTLS configuration
+INPUT                  = $(FORK)/src/game20k $(FORK)/src/rp2040/game20k_mbedtls_config.h
+FILE_PATTERNS          = *.c *.h
 RECURSIVE              = NO
 
 OPTIMIZE_OUTPUT_FOR_C  = YES

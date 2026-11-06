@@ -298,7 +298,7 @@ module tb_1943;
     // ---------------- RAM mirror: a Pico model and the truth ----------------
     // The model fetches a snapshot about every 50 ms, as the firmware does: only when no
     // harvest runs, then snap_run for the whole delivery. Each snapshot is checked twice:
-    //   - oracle, as main.c does: for every address logged during the harvest window, the
+    //   - oracle, as ram_mirror.c does: for every address logged during the harvest window, the
     //     snapshot holds the last logged value
     //   - truth: the main RAM of jt1943 itself (E000-FFFF in one 8 KiB RAM), read
     //     hierarchically at the end of the harvest: E000-EFFF equals 0x0000-0x0FFF of the

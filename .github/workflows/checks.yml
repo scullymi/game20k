@@ -8,7 +8,7 @@
 #   engine-windows  the tests of the build engine on Windows, where paths, line ends and the
 #                   shell of Yosys' exec differ
 #   firmware        the release build of g20k.py firmware (--dev) on Linux and Windows, then no
-#                   compiler warning in the fork's own RetroAchievements files src/ra_*.c
+#                   compiler warning in the fork's own files src/game20k/*.c
 #   firmware-same   the image and the NOTICE of both are the same bytes
 # The simulations run in sims.yml, only when fpga/ changes.
 # The fork is checked through its gitlink, it has no workflow of its own. No schedule on
@@ -118,15 +118,15 @@ jobs:
         run: ${{ matrix.python }} g20k.py firmware --release --dev
 
       # the full build's log: ra_patch.c must show up in it, else no warning proves nothing
-      - name: No warning in the fork's src/ra_*.c
+      - name: No warning in the fork's src/game20k/*.c
         if: runner.os == 'Linux'
         run: |
           log=build/firmware/pico2-native/ninja.log
           n=$(grep -c 'ra_patch\.c' "$log" || true)
           echo "ra_patch.c appears in ${n:-0} lines of $log"
           [ "${n:-0}" -gt 0 ] || { echo "::error::ra_patch.c was not built, $log proves nothing"; exit 1; }
-          if grep -E 'src/ra_[a-z_]+\.c:[0-9]+:[0-9]+: warning' "$log"; then
-            echo "::error::compiler warnings in the fork's src/ra_*.c, see above"; exit 1
+          if grep -E 'src/game20k/[a-z0-9_]+\.[ch]:[0-9]+:[0-9]+: warning' "$log"; then
+            echo "::error::compiler warnings in the fork's src/game20k/*.c, see above"; exit 1
           fi
 
       - name: Keep the image and its NOTICE
