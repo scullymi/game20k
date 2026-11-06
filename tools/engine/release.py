@@ -29,13 +29,17 @@ from tools.engine import config, host
 from tools.engine.host import StepError
 
 
-def git(root: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True).stdout.strip()
+def git(root: Path, *args: str, check: bool = True) -> str:
+    """@brief What git prints. A failing git stops, unless check is off."""
+    done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
+    if check and done.returncode != 0:
+        raise StepError(f"git {' '.join(args)} failed: {done.stderr.strip()}")
+    return done.stdout.strip()
 
 
 def check_clock(root: Path) -> None:
     """@brief Stops inside the window of git config game20k.quiethours."""
-    quiet = git(root, "config", "--get", "game20k.quiethours")
+    quiet = git(root, "config", "--get", "game20k.quiethours", check=False)  # exit 1 when not set
     if not quiet:
         return
     m = re.fullmatch(r"([1-7])-([1-7]) ([0-2][0-9])-([0-2][0-9])", quiet)
@@ -86,31 +90,55 @@ def on_version_tag(root: Path) -> bool:
 def tree_version(root: Path) -> str:
     """@brief The version of the tree without the leading v: 0.9.1 on its tag, 0.9.1-5-gabc1234
     five commits later, plus -dirty with uncommitted changes, the commit before any tag."""
-    return git(root, *DESCRIBE, "--always", "--dirty").removeprefix("v")
+    version = git(root, *DESCRIBE, "--always", "--dirty").removeprefix("v")
+    if not version:
+        raise StepError("git describe gives no version")
+    return version
+
+
+def check_tree(root: Path) -> None:
+    """@brief A release names its sources: a tag, a clean tree, outside the quiet hours."""
+    if not on_version_tag(root):
+        raise StepError(
+            "HEAD is not on a version tag v<version>, a release needs one (--dev for a trial run)"
+        )
+    if git(root, "status", "--porcelain"):
+        raise StepError("the tree has uncommitted changes (--dev for a trial run)")
+    check_clock(root)
+
+
+def new_dist(root: Path, name: str) -> tuple[Path, Path]:
+    """@brief The folder and the zip of a release under dist/. A release of this name that is
+    there already stays: another build of it is a decision of whoever removes the old one."""
+    dist = root / "dist" / name
+    archive = root / "dist" / f"{name}.zip"
+    for old in (dist, archive):
+        if old.exists():
+            raise StepError(f"{old.relative_to(root)} is there already, remove it for a new build")
+    return dist, archive
+
+
+def pack(root: Path, dist: Path, archive: Path, name: str) -> None:
+    """@brief Zips the release folder and prints its files with the SHA-256 of the zip."""
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(dist.iterdir()):
+            z.write(f, f"{name}/{f.name}")
+    print("release files:")
+    for f in sorted(dist.iterdir()) + [archive]:
+        print(f"  {f.stat().st_size:9d}  {f.relative_to(root)}")
+    print(f"  {hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.relative_to(root)}")
 
 
 def release(root: Path, dev: bool) -> Path:
     """@brief Builds and packs a release under dist/ and returns the path of its zip."""
     project = config.load_project(root / "project.toml")
     if not dev:
-        if not on_version_tag(root):
-            raise StepError(
-                "HEAD is not on a version tag v<version>, a release needs one (--dev for a trial run)"
-            )
-        if git(root, "status", "--porcelain"):
-            raise StepError("the tree has uncommitted changes (--dev for a trial run)")
-        check_clock(root)
+        check_tree(root)
     head = git(root, "rev-parse", "HEAD")
     version = tree_version(root)
     name = f"{project.name}-{version}-{project.board.folder.name}"
 
-    # a release of this name that is there already stays: another build of it is a decision of
-    # whoever removes the old one
-    dist = root / "dist" / name
-    archive = root / "dist" / f"{name}.zip"
-    for old in (dist, archive):
-        if old.exists():
-            raise StepError(f"{old.relative_to(root)} is there already, remove it for a new build")
+    dist, archive = new_dist(root, name)
 
     start = time.time()
     build_all(root, project.slots, root / "build" / "release-logs")
@@ -161,11 +189,5 @@ def release(root: Path, dev: bool) -> Path:
             project=project.name, version=version, board=project.board.name, name=name
         )
     )
-    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
-        for f in sorted(dist.iterdir()):
-            z.write(f, f"{name}/{f.name}")
-    print("release files:")
-    for f in sorted(dist.iterdir()) + [archive]:
-        print(f"  {f.stat().st_size:9d}  {f.relative_to(root)}")
-    print(f"  {hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.relative_to(root)}")
+    pack(root, dist, archive, name)
     return archive
