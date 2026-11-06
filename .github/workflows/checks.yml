@@ -7,8 +7,8 @@
 #                   scripts/check_contracts.py, and the tests, ruff and mypy of the build engine
 #   engine-windows  the tests of the build engine on Windows, where paths, line ends and the
 #                   shell of Yosys' exec differ
-#   firmware        the release build of g20k.py firmware (--dev) on Linux and Windows, then no
-#                   compiler warning in the fork's own files src/game20k/*.c
+#   firmware        the release build of g20k.py firmware (--dev) on Linux and Windows, a warning
+#                   in src/game20k stops it
 #   firmware-same   the image and the NOTICE of both are the same bytes
 # The simulations run in sims.yml, only when fpga/ changes.
 # The fork is checked through its gitlink, it has no workflow of its own. No schedule on
@@ -55,8 +55,8 @@ jobs:
       - name: Build engine tests (tools/engine/tests)
         run: python3 -m unittest discover -s tools/engine/tests -t .
 
-      # ruff and mypy in the versions of the dev group of pyproject.toml
-      - name: Build engine ruff and mypy
+      # ruff, mypy and clang-format in the versions of the dev group of pyproject.toml
+      - name: Build engine ruff and mypy, clang-format of the fork's own code
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
           python3 -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["dependency-groups"]["dev"]))' \
@@ -65,6 +65,7 @@ jobs:
           "$RUNNER_TEMP/venv/bin/ruff" check
           "$RUNNER_TEMP/venv/bin/ruff" format --check
           "$RUNNER_TEMP/venv/bin/mypy"
+          "$RUNNER_TEMP/venv/bin/clang-format" --dry-run -Werror external/FPGA-Companion/src/game20k/*.[ch]
 
   engine-windows:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
@@ -116,18 +117,6 @@ jobs:
 
       - name: Build (g20k.py firmware --release --dev)
         run: ${{ matrix.python }} g20k.py firmware --release --dev
-
-      # the full build's log: ra_patch.c must show up in it, else no warning proves nothing
-      - name: No warning in the fork's src/game20k/*.c
-        if: runner.os == 'Linux'
-        run: |
-          log=build/firmware/pico2-native/ninja.log
-          n=$(grep -c 'ra_patch\.c' "$log" || true)
-          echo "ra_patch.c appears in ${n:-0} lines of $log"
-          [ "${n:-0}" -gt 0 ] || { echo "::error::ra_patch.c was not built, $log proves nothing"; exit 1; }
-          if grep -E 'src/game20k/[a-z0-9_]+\.[ch]:[0-9]+:[0-9]+: warning' "$log"; then
-            echo "::error::compiler warnings in the fork's src/game20k/*.c, see above"; exit 1
-          fi
 
       - name: Keep the image and its NOTICE
         uses: actions/upload-artifact@v7
