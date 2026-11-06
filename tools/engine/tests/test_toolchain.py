@@ -251,6 +251,17 @@ class UnpackTest(unittest.TestCase):
         toolchain.unpack(archive, self.dir / "out")
         self.assertTrue((self.dir / "out/bin/tool.exe").is_file())
 
+    @unittest.skipIf(os.name == "nt", "Windows has no mode bits")
+    def test_zip_keeps_the_mode_of_a_program(self) -> None:
+        archive = self.dir / "a.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            info = zipfile.ZipInfo("bin/tool")
+            info.external_attr = 0o755 << 16
+            z.writestr(info, "x")
+            z.writestr("lib/x", "y")
+        toolchain.unpack(archive, self.dir / "out")
+        self.assertTrue(os.access(self.dir / "out/bin/tool", os.X_OK))
+
     def test_path_outside_the_folder_is_refused(self) -> None:
         archive = self.dir / "a.tgz"
         with tarfile.open(archive, "w:gz") as t:
@@ -406,6 +417,15 @@ class FetchTest(unittest.TestCase):
         self.assertTrue((dest / "bin/tool").is_file())
         self.assertEqual(toolchain.marker(dest)["sha256"], self.sha)
         self.assertIn("is there", out.getvalue())
+
+    def test_fetches_only_the_named(self) -> None:
+        self.tools(self.sha)
+        with redirect_stdout(io.StringIO()):
+            toolchain.fetch(self.root, ["suite"])
+        self.assertTrue(toolchain.folder(self.root, "suite", "20261102").exists())
+        with self.assertRaises(StepError) as err:
+            toolchain.fetch(self.root, ["nosuch"])
+        self.assertIn("nosuch", str(err.exception))
 
     def test_wrong_sha256_stops(self) -> None:
         self.tools("f" * 64)
