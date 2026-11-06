@@ -102,9 +102,9 @@ COMPONENTS = [
         "url": "https://github.com/scullymi/FPGA-Companion (branch game20k), "
                "fork of https://github.com/MiSTle-Dev/FPGA-Companion",
         "checkout": "external/FPGA-Companion",
-        # the Companion's own files, the files of src/rp2040 that CMake names relative to the
-        # build directory (bluetooth.c, mcu_hw.c, freertos_callbacks.c), and the tables that
-        # scripts/build_companion.sh generates for it under build/firmware/gen
+        # the Companion's own files, the files of src/rp2040 that CMake names relative to its
+        # source folder (bluetooth.c, mcu_hw.c, freertos_callbacks.c), and the tables that
+        # g20k.py firmware generates for it under build/firmware/gen
         "match": r"/external/FPGA-Companion/src/|^CMakeFiles/fpga_companion\.dir/[^/]+\.o$"
                  r"|/build/firmware/gen/[^/]+\.c\.o$",
         "licence": "Apache-2.0",
@@ -299,13 +299,14 @@ def linked_objects(map_path):
         # the section on the next line
         m = re.match(r"\s+(?:\S+\s+)?0x([0-9a-f]+)\s+0x([0-9a-f]+)\s+(\S+)\s*$", line)
         if m and int(m.group(2), 16) > 0 and not m.group(3).startswith("0x"):
-            objs.add(m.group(3))
+            # the linker of the Windows toolchain writes some paths with backslashes
+            objs.add(m.group(3).replace("\\", "/"))
     if not objs:
         die("no linked object files found in %s" % map_path)
     return objs
 
 
-def source_of(obj, build_dir):
+def source_of(obj):
     """The source file an object came from, where it can be found, else None."""
     m = re.match(r"(?:.*/)?libu8g2\.a\((.+)\.o\)$", obj)
     if m:
@@ -314,7 +315,10 @@ def source_of(obj, build_dir):
     if not m:
         return None
     rel = m.group(1)
-    candidates = ["/" + rel, os.path.join(build_dir, "..", rel)]
+    # CMake names an object by the source's absolute path, a drive as C_ on Windows, or relative
+    # to the source folder
+    drive = re.sub(r"^([A-Za-z])_/", r"\1:/", rel)
+    candidates = [drive, "/" + rel, os.path.join(COMPANION, "src", "rp2040", rel)]
     for c in candidates:
         if os.path.isfile(c):
             return os.path.normpath(c)
@@ -375,8 +379,11 @@ def main():
     if len(sys.argv) != 4:
         die("usage: firmware_notice.py <fpga_companion.elf.map> <output file> <version>")
     map_path, out_path, version = sys.argv[1:]
-    build_dir = os.path.dirname(os.path.abspath(map_path))
     objs = linked_objects(map_path)
+    # an object without its source would lose its copyright lines without a word
+    lost = sorted(o for o in objs if o.startswith("CMakeFiles/") and not source_of(o))
+    if lost:
+        die("no source found for these linked files:\n  " + "\n  ".join(lost))
 
     # assign every linked object to the first component that matches it
     claimed = {i: set() for i in range(len(COMPONENTS))}
@@ -445,7 +452,7 @@ def main():
         out.append("Linked:  %d object file%s" % (k, "" if k == 1 else "s"))
         if comp.get("note"):
             out += ["", textwrap.fill(comp["note"], 78, break_long_words=False, break_on_hyphens=False)]
-        sources = [s for s in (source_of(o, build_dir) for o in claimed[i]) if s]
+        sources = [s for s in (source_of(o) for o in claimed[i]) if s]
         lines = copyright_lines(sources)
         if lines:
             out += ["", "Copyright lines in the linked source files:"]
@@ -460,7 +467,7 @@ def main():
                 out.append(read(t).rstrip("\n"))
         out.append("")
 
-    with open(out_path, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out).rstrip("\n") + "\n")
     print("%s: %d components, %d linked object files, all claimed"
           % (out_path, len(present), len(objs)))

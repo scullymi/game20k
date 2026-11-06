@@ -56,7 +56,7 @@ jobs:
       # ("attempted to destroy locked Thread Pool")
       - name: Verilator (oss-cad-suite) and nvc 1.23.0
         run: |
-          python3 g20k.py tools fetch
+          python3 g20k.py tools fetch suite ghdl
           suite=$(python3 g20k.py tools path suite)
           echo "$suite/bin" >> "$GITHUB_PATH"
           curl -fsSL -o "$RUNNER_TEMP/$NVC_DEB" "https://github.com/nickg/nvc/releases/download/r1.23.0/$NVC_DEB"

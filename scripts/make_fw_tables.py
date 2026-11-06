@@ -9,7 +9,7 @@ Usage: scripts/make_fw_tables.py --out DIR
 Reads every fpga/<core>/*.manifest and writes DIR/ra_games_data.c, the rows that ra_games.c of
 the fork looks the games up in, and DIR/menus_data.c, the menu of every core in
 the ring of project.toml with its board and IFACE_TAG (make_menu.py), plus the basic menu for a
-core without one. scripts/build_companion.sh passes the files to CMake as GAME20K_GAMES_TABLE
+core without one. g20k.py firmware passes the files to CMake as GAME20K_GAMES_TABLE
 and GAME20K_MENU_TABLE, tests/host links the game table into test_games. The files carry the
 fork's licence, Apache-2.0, because they link into the fork's firmware.
 
