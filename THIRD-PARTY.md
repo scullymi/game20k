@@ -20,7 +20,7 @@ Neither grants "or later", hence GPL-3.0-only. Our own source files carry
 `SPDX-License-Identifier: GPL-3.0-only` and `Copyright (C) 2026 scullymi`. Where one of them
 contains no code by others, it can be made available under another licence on request, file by
 file. Our changes to Till Harbaum's files in `misc/` are GPL-3.0-or-later, like his files, which
-carry that SPDX tag. The files we add to the FPGA-Companion fork (`src/ra_*.c`, `src/ra_*.h` and
+carry that SPDX tag. The files we add to the FPGA-Companion fork (`src/game20k/` and
 `src/rp2040/game20k_mbedtls_config.h`) are Apache-2.0, like the Companion, so they can go
 upstream.
 
@@ -155,7 +155,7 @@ Builds on other machines have not been compared yet.
 
 ## Notes
 
-- `src/ra_ca.h` in the fork contains the root certificate **GTS Root R4** by Google Trust
+- `src/game20k/ra_ca.h` in the fork contains the root certificate **GTS Root R4** by Google Trust
   Services, published at [pki.goog](https://pki.goog/repository/) for inclusion in trust
   stores. Its fingerprint is documented in the file. A root certificate is functional data, not
   a work.

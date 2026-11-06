@@ -110,8 +110,8 @@ COMPONENTS = [
         "licence": "Apache-2.0",
         "texts": ["external/FPGA-Companion/LICENSE"],
         "note": "Written by Till Harbaum, Stefan Voss and further contributors, the "
-                "RetroAchievements client (src/ra_*), the menus of the cores (src/menus*) and "
-                "the tables of both, generated from the ROM manifests and menu sources of "
+                "RetroAchievements client, the game switch, the menus of the cores (src/game20k) and "
+                "the tables of the games and the menus, generated from the ROM manifests and menu sources of "
                 "game20k, Copyright (C) 2026 scullymi. "
                 "{bluetooth}"
                 "The image also holds the root certificate GTS Root R4 of Google Trust Services "

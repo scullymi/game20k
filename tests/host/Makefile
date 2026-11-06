@@ -21,7 +21,7 @@ BUILD   ?= build/$(if $(filter 1,$(SAN)),san,plain)
 
 # a missing submodule would only show as a confusing compile error
 ifneq ($(MAKECMDGOALS),clean)
-$(foreach f,$(FORK)/ra_slim.c $(UNITY)/unity.c,\
+$(foreach f,$(FORK)/game20k/ra_slim.c $(UNITY)/unity.c,\
   $(if $(wildcard $(f)),,$(error $(f) is missing, run: git submodule update --init --recursive)))
 endif
 
@@ -32,7 +32,7 @@ COMMON += -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame
 endif
 # the firmware's include paths, the generated stand-in headers first. Of rcheevos its JSON
 # reader for test_text
-INC     := -I$(BUILD)/inc -Istubs -I$(UNITY) -I$(FORK) -I$(FORK)/fatfs/source -I$(FORK)/rp2040 \
+INC     := -I$(BUILD)/inc -Istubs -I$(UNITY) -I$(FORK) -I$(FORK)/game20k -I$(FORK)/fatfs/source -I$(FORK)/rp2040 \
            -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src
 DEFINES := -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\"
 # third-party code (FatFs, Unity) as it is, ours with full warnings and every stand-in declared
@@ -51,8 +51,8 @@ RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_common.c util/rc_util.c 
 # rcheevos' requests and replies, for test_game_switch
 RC_API  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_runtime.c api/rc_api_user.c util/md5.c)
 # the fork's achievement files test_game_switch links as they are
-RA_SRC  := $(addprefix $(FORK)/,ra_patch.c ra_queue.c ra_text.c ra_games.c)
-OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/ra_slim.c
+RA_SRC  := $(addprefix $(FORK)/game20k/,ra_patch.c ra_queue.c ra_text.c ra_games.c)
+OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/game20k/ra_slim.c
 TESTS   := test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
            test_game_switch
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
@@ -64,8 +64,8 @@ SHARED  := $(foreach s,$(LIB_SRC) $(OWN_SRC),$(call obj,$(s)))
 # it, linked into test_menus. The fork's example tables are only compiled, so a build of the
 # fork alone does not break unseen
 GEN     := $(BUILD)/gen/ra_games_data.c
-MENUS   := $(FORK)/menus.c $(BUILD)/gen/menus_data.c
-EXAMPLE := $(FORK)/ra_games_example.c $(FORK)/menus_example.c
+MENUS   := $(FORK)/game20k/menus.c $(BUILD)/gen/menus_data.c
+EXAMPLE := $(FORK)/game20k/ra_games_example.c $(FORK)/game20k/menus_example.c
 
 .PHONY: all check build clean
 all check: build
@@ -96,7 +96,7 @@ $(GEN): FORCE
 $(BUILD)/gen/menus_data.c: $(GEN)
 $(BUILD)/test_games: $(call obj,$(GEN))
 $(BUILD)/test_menus: $(foreach s,$(MENUS),$(call obj,$(s)))
-$(BUILD)/test_text: $(foreach s,$(FORK)/ra_text.c $(RC_SRC),$(call obj,$(s)))
+$(BUILD)/test_text: $(foreach s,$(FORK)/game20k/ra_text.c $(RC_SRC),$(call obj,$(s)))
 $(BUILD)/test_game_switch: $(foreach s,$(RA_SRC) $(GEN) $(RC_SRC) $(RC_API),$(call obj,$(s)))
 
 # the reference footer of test_games_file, from scripts/make_rom.py footer() as a ROM file gets it:

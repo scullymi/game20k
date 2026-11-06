@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FORK="${FORK:-$ROOT/external/FPGA-Companion}"
 OUT="$ROOT/build/doxygen"
 command -v doxygen >/dev/null || { echo "doxygen missing: brew install doxygen"; exit 1; }
-[ -f "$FORK/src/ra_task.c" ] || { echo "no fork sources at $FORK: run git submodule update --init, or set FORK=<checkout>"; exit 1; }
+[ -f "$FORK/src/game20k/ra_task.c" ] || { echo "no fork sources at $FORK: run git submodule update --init, or set FORK=<checkout>"; exit 1; }
 mkdir -p "$OUT"
 export FORK OUT
 doxygen "$ROOT/scripts/Doxyfile"

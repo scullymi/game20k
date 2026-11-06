@@ -247,7 +247,7 @@ module tb_gng;
     // ---------------- RAM mirror: a Pico model and the truth ----------------
     // The model fetches a snapshot about every 50 ms, as the firmware does: only when no
     // harvest runs, then snap_run for the whole delivery. Each snapshot is checked twice:
-    //   - oracle, as main.c does: for every address logged during the harvest window, the
+    //   - oracle, as ram_mirror.c does: for every address logged during the harvest window, the
     //     snapshot holds the last logged value
     //   - truth: the 6809's work RAM itself (jtframe_sys6809_dma, 8 KiB), copied at the end
     //     of the harvest by ram_probe below: 0x0000-0x167F equals the snapshot
