@@ -22,8 +22,8 @@ import sys
 import tarfile
 import tempfile
 import tomllib
-import urllib.request
 import zipfile
+from collections.abc import Sequence
 from pathlib import Path
 
 from tools.engine import config, host
@@ -94,19 +94,23 @@ def sha256(path: Path) -> str:
 
 
 def download(url: str, dest: Path) -> None:
-    """@brief Downloads url to dest, through a .part file, with a line of progress."""
+    """@brief Downloads url to dest, through a .part file. curl, not Python's own client: Windows
+    fetches a root certificate only when its own TLS layer asks for it, Python's OpenSSL finds
+    it missing and refuses the server."""
     part = dest.with_name(dest.name + ".part")
-    request = urllib.request.Request(url, headers={"User-Agent": "game20k"})
-    with urllib.request.urlopen(request) as r, open(part, "wb") as f:
-        total = int(r.headers.get("Content-Length") or 0)
-        done, shown = 0, -1
-        for chunk in iter(lambda: r.read(1 << 20), b""):
-            f.write(chunk)
-            done += len(chunk)
-            percent = done * 100 // total if total else 0
-            if percent // 10 != shown:
-                shown = percent // 10
-                print(f"  {done >> 20} of {total >> 20} MB", flush=True)
+    shown = "--progress-bar" if sys.stderr.isatty() else "--no-progress-meter"
+    cmd: list[host.Arg] = [
+        "curl",
+        "--fail",
+        "--location",
+        shown,
+        "--user-agent",
+        "game20k",
+        "--output",
+        part,
+        url,
+    ]
+    host.run(cmd, cwd=dest.parent, capture=False)
     part.replace(dest)
 
 
@@ -116,7 +120,12 @@ def unpack(archive: Path, dest: Path) -> None:
     try:
         if archive.name.endswith(".zip"):
             with zipfile.ZipFile(archive) as z:
-                z.extractall(tmp)
+                # zipfile drops the mode bits, a program would not start
+                for info in z.infolist():
+                    target = Path(z.extract(info, tmp))
+                    mode = info.external_attr >> 16
+                    if mode and not info.is_dir():
+                        target.chmod(mode & 0o777)
         else:
             with tarfile.open(archive) as t:
                 # the data filter refuses absolute paths and links that leave the folder
@@ -143,12 +152,17 @@ def fetched(root: Path, archive: config.Archive, what: str) -> Path:
     return file
 
 
-def fetch(root: Path) -> None:
-    """@brief Fetches, checks and unpacks every download of tools.toml that is not there yet,
-    and prints what came from where."""
+def fetch(root: Path, names: Sequence[str] = ()) -> None:
+    """@brief Fetches, checks and unpacks the downloads of tools.toml that are not there yet,
+    the ones named or else all, and prints what came from where."""
     toolset = config.load_toolset(root / "tools.toml")
     here = machine()
+    unknown = sorted(set(names) - set(toolset.downloads))
+    if unknown:
+        raise StepError(f"tools.toml has no download {', '.join(unknown)}")
     for d in toolset.downloads.values():
+        if names and d.name not in names:
+            continue
         archive = d.archives.get(here)
         if archive is None:
             raise StepError(f"tools.toml has no {d.name} for {here}")

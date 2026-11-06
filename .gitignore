@@ -54,12 +54,11 @@ build_*/
 *.uf2
 *.elf
 
-# --- release output of scripts/make_firmware_release.sh, published on the release page ---
+# --- release output of g20k.py, published on the release page ---
 dist/
 
 # --- third-party repositories under external/ ---
-# FPGA-Companion, pico-sdk, tinyusb and unity are git submodules and therefore tracked. The SDK
-# caches picotool there (picotool-src), that stays untracked.
+# FPGA-Companion, pico-sdk, tinyusb and unity are git submodules and therefore tracked.
 external/*
 !external/FPGA-Companion
 !external/pico-sdk

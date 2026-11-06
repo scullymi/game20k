@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, flash, forks, release, toolchain
+from tools.engine import config, firmware, flash, forks, release, toolchain
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
@@ -48,6 +48,15 @@ def main(argv: list[str]) -> int:
     )
     r = sub.add_parser("release", help="build every core of project.toml and pack a release")
     r.add_argument("--dev", action="store_true", help="trial run: no tag, uncommitted changes allowed")
+    w = sub.add_parser("firmware", help="build the Pico firmware")
+    w.add_argument(
+        "--usb",
+        choices=("native", "pio"),
+        default="native",
+        help="USB host: the Pico's own port (OTG adapter) or a USB A socket on GP2/GP3",
+    )
+    w.add_argument("--release", action="store_true", help="build from scratch and pack a release")
+    w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
     what = f.add_mutually_exclusive_group(required=True)
     what.add_argument(
@@ -61,7 +70,8 @@ def main(argv: list[str]) -> int:
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
     t = sub.add_parser("tools", help="the programs of tools.toml: without a command where they are")
     tsub = t.add_subparsers(dest="tools_command")
-    tsub.add_parser("fetch", help="download and check the programs that come as archives")
+    tf = tsub.add_parser("fetch", help="download and check the programs that come as archives")
+    tf.add_argument("names", nargs="*", help="only these programs of tools.toml, e.g. suite ghdl")
     tb = tsub.add_parser("build", help="make the programs of game20k's forks")
     how = tb.add_mutually_exclusive_group()
     how.add_argument("--source", action="store_const", const="source", dest="mode", help="from their sources")
@@ -79,19 +89,28 @@ def main(argv: list[str]) -> int:
     args = ap.parse_args(argv)
     if args.command == "flash" and args.sram and args.image:
         f.error("--sram takes a core, not an image")
+    if args.command == "firmware" and args.dev and not args.release:
+        w.error("--dev goes with --release")
+    if args.command == "firmware" and args.release and args.usb != "native":
+        w.error("a release is the native variant")
     try:
         if args.command == "build":
             core_toml = args.core.resolve() / "core.toml"
             print(build.build(ROOT, core_toml, args.out, dict(args.params), args.update_cells))
         elif args.command == "release":
             release.release(ROOT, args.dev)
+        elif args.command == "firmware":
+            if args.release:
+                firmware.make_release(ROOT, args.dev)
+            else:
+                firmware.build(ROOT, args.usb)
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
             flash.flash(ROOT, core, args.sram, image, args.dry_run)
         elif args.command == "tools":
             if args.tools_command == "fetch":
-                toolchain.fetch(ROOT)
+                toolchain.fetch(ROOT, args.names)
             elif args.tools_command == "build":
                 forks.build(ROOT, args.mode)
             elif args.tools_command == "pack":

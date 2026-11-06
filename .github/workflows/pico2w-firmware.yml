@@ -2,7 +2,7 @@
 # Copyright (C) 2026 scullymi
 #
 # Builds the firmware image for the Pico 2 W with its NOTICE, through
-# scripts/make_firmware_release.sh, on a clean Linux machine from the sources in this repository.
+# g20k.py firmware --release, on a clean Linux machine from the sources in this repository.
 #
 # Called by release.yml on a pushed tag v<version>: the release build, its zip kept as an artifact
 # of the run for the draft release, plus a build provenance attestation.
@@ -23,35 +23,34 @@ jobs:
   firmware:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    env:
-      TOOLCHAIN: arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi
-      # published by Arm next to the archive as <archive>.sha256asc
-      TOOLCHAIN_SHA256: 62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823
     steps:
-      # full history and tags for git describe, and the submodules with their own submodules;
-      # a full clone of the fork also gives origin/game20k, which build_companion.sh checks
+      # full history and tags for git describe, and the submodules with their own submodules
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           submodules: recursive
           persist-credentials: false
 
-      # the same toolchain release as on the development machine, checked against Arm's sum
-      - name: Arm GNU Toolchain 14.2.rel1
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/$TOOLCHAIN.tar.xz" \
-            "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/$TOOLCHAIN.tar.xz"
-          echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/$TOOLCHAIN.tar.xz" | sha256sum -c -
-          tar -xJf "$RUNNER_TEMP/$TOOLCHAIN.tar.xz" -C "$RUNNER_TEMP"
-          echo "PICO_TOOLCHAIN_PATH=$RUNNER_TEMP/$TOOLCHAIN" >> "$GITHUB_ENV"
+      # the prebuilt picotool of Linux links the system's libusb
+      - name: libusb
+        run: sudo apt-get update -q && sudo apt-get install -y -q libusb-1.0-0
 
-      # a tag builds a release, anything else a trial build (DEV=1: no tag needed)
+      - name: Tool archives from the cache
+        uses: actions/cache@v6
+        with:
+          path: external/tools/downloads
+          key: tool-archives-firmware-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
+
+      - name: Archives (g20k.py tools fetch)
+        run: python3 g20k.py tools fetch arm armlibs pioasm picotool cmake ninja
+
+      # a tag builds a release, anything else a trial build (--dev: no tag needed)
       - name: Build and pack
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            scripts/make_firmware_release.sh
+            python3 g20k.py firmware --release
           else
-            DEV=1 scripts/make_firmware_release.sh
+            python3 g20k.py firmware --release --dev
           fi
 
       # the zip as it is, not zipped again: the artifact takes its name,

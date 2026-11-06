@@ -100,7 +100,7 @@ jobs:
 
       # the suite's Python makes nextpnr's chip database
       - name: Archives (g20k.py tools fetch)
-        run: ${{ matrix.python }} g20k.py tools fetch
+        run: ${{ matrix.python }} g20k.py tools fetch suite ghdl
 
       - name: Forks (g20k.py tools pack)
         run: ${{ matrix.python }} g20k.py tools pack --out dist

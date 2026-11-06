@@ -46,6 +46,114 @@ sha256 = "e0064cd3d1569e7fca27b186b0d71e80c087de90db4e466ed77dc669a574d8bc"
 url = "https://github.com/ghdl/ghdl/releases/download/v6.0.0/ghdl-mcode-6.0.0-ucrt64.zip"
 sha256 = "76e160ceec35834c73ada6e4e484416d13aed4b64cbc7c74c5cca53a7ef60e41"
 
+# The compiler of the firmware, cmake and ninja below build it. Arm publishes each SHA-256 next to its archive as .sha256asc.
+[download.arm]
+version = "14.2.rel1"
+release = "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads"
+
+[download.arm.darwin-arm64]
+url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-darwin-arm64-arm-none-eabi.tar.xz"
+sha256 = "c7c78ffab9bebfce91d99d3c24da6bf4b81c01e16cf551eb2ff9f25b9e0a3818"
+
+[download.arm.linux-x64]
+url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz"
+sha256 = "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
+
+[download.arm.windows-x64]
+url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-mingw-w64-x86_64-arm-none-eabi.zip"
+sha256 = "f074615953f76036e9a51b87f6577fdb4ed8e77d3322a6f68214e92e7859888f"
+
+# The libraries the firmware links, from the same archive on every machine. Arm builds them with
+# each toolchain, and the archives for macOS, Linux and Windows hold them in another order and
+# with other bytes, which would move functions in the image.
+[download.armlibs]
+version = "14.2.rel1"
+release = "https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads"
+
+[download.armlibs.darwin-arm64]
+url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz"
+sha256 = "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
+
+[download.armlibs.linux-x64]
+url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz"
+sha256 = "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
+
+[download.armlibs.windows-x64]
+url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz"
+sha256 = "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
+
+# pioasm and picotool for the Pico SDK, in the versions of external/pico-sdk. With them the
+# firmware needs no compiler for the machine it is built on.
+[download.pioasm]
+version = "2.2.0-4"
+release = "https://github.com/raspberrypi/pico-sdk-tools/releases/tag/v2.2.0-4"
+
+[download.pioasm.darwin-arm64]
+url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/pico-sdk-tools-2.2.0-mac.zip"
+sha256 = "a945e45a2c26ed32cb9020147f0e233d0a91e99bc12d1e841f2e03174fad23ab"
+
+[download.pioasm.linux-x64]
+url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/pico-sdk-tools-2.2.0-x86_64-lin.tar.gz"
+sha256 = "210c0465d0a1063d304450e2b1b676e5a1b05f6b0e4fa7b3038863b46e82e693"
+
+[download.pioasm.windows-x64]
+url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/pico-sdk-tools-2.2.0-x64-win.zip"
+sha256 = "be536f01d01c66309a492291a22de4f82120c07e74c12d2dcbd0f70a35846888"
+
+[download.picotool]
+version = "2.2.0-a4"
+release = "https://github.com/raspberrypi/pico-sdk-tools/releases/tag/v2.2.0-4"
+
+[download.picotool.darwin-arm64]
+url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/picotool-2.2.0-a4-mac.zip"
+sha256 = "96ddfe2abc4a390621e25c8b975195d073d2c0acda018a3223494addab12c6a0"
+
+[download.picotool.linux-x64]
+url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/picotool-2.2.0-a4-x86_64-lin.tar.gz"
+sha256 = "163e1b5fd66b8ab27c44a4c5104e0243fc06ea46e2ce0e6614f42d6f144a1afa"
+
+[download.picotool.windows-x64]
+url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/picotool-2.2.0-a4-x64-win.zip"
+sha256 = "42cd263ed17dd3987d0830fa239424b3958ec0407afd6985bfbf83a5fc5a55f2"
+
+[download.cmake]
+version = "4.4.5"
+release = "https://github.com/Kitware/CMake/releases/tag/v4.4.5"
+
+[download.cmake.darwin-arm64]
+url = "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-macos-universal.tar.gz"
+sha256 = "679e77a96b9ef9484cc6c1445255fc4f84206b48a65420efbedf16bdab55fbff"
+path = ["CMake.app/Contents/bin"]
+
+[download.cmake.linux-x64]
+url = "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-x86_64.tar.gz"
+sha256 = "ed85135c5a5135b45e50423cb406dea04ca3338da0b8ef3c9ede963559680be0"
+path = ["bin"]
+
+[download.cmake.windows-x64]
+url = "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-x86_64.zip"
+sha256 = "326c826486d46a23cf9d5a1c9ee3a567d427bdd02c4a34071937a2a675cff004"
+path = ["bin"]
+
+[download.ninja]
+version = "1.13.2"
+release = "https://github.com/ninja-build/ninja/releases/tag/v1.13.2"
+
+[download.ninja.darwin-arm64]
+url = "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-mac.zip"
+sha256 = "c99048673aa765960a99cf10c6ddb9f1fad506099ff0a0e137ad8960a88f321b"
+path = ["."]
+
+[download.ninja.linux-x64]
+url = "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip"
+sha256 = "5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6"
+path = ["."]
+
+[download.ninja.windows-x64]
+url = "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-win.zip"
+sha256 = "07fc8261b42b20e71d1720b39068c2e14ffcee6396b76fb7a795fb460b78dc65"
+path = ["."]
+
 # game20k's forks, which carry fixes that are not upstream yet. Built from the commit below.
 [source.apicula]
 repo = "https://github.com/scullymi/apicula.git"

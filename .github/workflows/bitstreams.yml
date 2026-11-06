@@ -53,7 +53,7 @@ jobs:
           key: tool-archives-forks-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
 
       - name: Archives (g20k.py tools fetch)
-        run: python3 g20k.py tools fetch
+        run: python3 g20k.py tools fetch suite ghdl
 
       - name: Forks (g20k.py tools build --prebuilt)
         run: python3 g20k.py tools build --prebuilt

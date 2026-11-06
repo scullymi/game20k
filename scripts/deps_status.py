@@ -20,6 +20,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.request
 from pathlib import Path
 
@@ -226,10 +227,9 @@ def main():
         rows.append((name, pinned, newest, state, remark))
 
     # the toolchain has no git repository to ask, only the pinned name is shown
-    wf = (ROOT / '.github/workflows/pico2w-firmware.yml').read_text(encoding='utf-8')
-    tc = re.search(r'arm-gnu-toolchain-([0-9.]+rel[0-9]+)', wf)
-    rows.append(('Arm toolchain', tc.group(1) if tc else '?', '-', 'check developer.arm.com',
-                 'CI only, same SHA-256 in both workflows'))
+    with open(ROOT / 'tools.toml', 'rb') as f:
+        arm = tomllib.load(f)['download']['arm']['version']
+    rows.append(('Arm toolchain', arm, '-', 'check developer.arm.com', 'from tools.toml'))
 
     widths = [max(len(r[i]) for r in rows) for i in range(4)]
     for r in rows:

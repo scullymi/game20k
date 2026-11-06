@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 from tools.engine import release
+from tools.engine.host import StepError
 
 # no hooks, no signing: plumbing only, and a signer that would fail
 GIT = ["git", "-c", "gpg.ssh.program=false", "-c", "tag.gpgSign=false", "-c", "tag.forceSignAnnotated=false"]
@@ -50,6 +51,15 @@ class VersionTest(unittest.TestCase):
         self.assertEqual(version, "1.2.3-1")
         self.assertTrue(self.head.startswith(commit))
         self.assertFalse(release.on_version_tag(self.root))
+
+    def test_a_failing_git_stops(self) -> None:
+        with self.assertRaises(StepError):
+            release.git(self.root, "rev-parse", "--verify", "no-such-ref")
+        self.assertEqual(release.git(self.root, "config", "--get", "no.such", check=False), "")
+
+    def test_no_repository_gives_no_version(self) -> None:
+        with tempfile.TemporaryDirectory() as other, self.assertRaises(StepError):
+            release.tree_version(Path(other))
 
 
 if __name__ == "__main__":
