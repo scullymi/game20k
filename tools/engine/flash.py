@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 scullymi
 """@file
-@brief Loads bitstreams into the board with the suite's openFPGALoader.
+@brief Loads bitstreams into the board with the suite's openFPGALoader, and the Companion into
+the onboard BL616 with Bouffalo's flash tool.
 
 Three ways: a core into the FPGA's SRAM (gone at the next power cut, the FPGA then boots the
 core at slot 0), a core into the configuration flash at the address of its slot (the other
@@ -9,14 +10,29 @@ slots stay, openFPGALoader erases only the sectors it writes), or a whole flash 
 
 After writing the flash, power the board off and on. openFPGALoader reloads the FPGA after
 writing, but that is no power-on: it once brought up the core at 0x100000, and the firmware
-reads the menu from the FPGA only at power-up."""
+reads the menu from the FPGA only at power-up.
+
+The BL616 of the Tang Nano 20K boots Sipeed's encrypted debugger firmware at 0x0. Without a
+computer on its USB port it starts a second image at 0x40000, the Companion. Only that address is
+written, an image at 0x0 would leave the board in the boot ROM's download mode."""
 
 from __future__ import annotations
 
+import platform
 from pathlib import Path
 
-from tools.engine import config, host, toolchain
+from tools.engine import config, firmware, host, toolchain
 from tools.engine.host import StepError
+
+#: the BL616's flash address of the Companion, behind Sipeed's firmware
+BL616_ADDRESS = 0x40000
+
+#: Bouffalo's flash tool in the SDK, one program per system
+BL616_TOOLS = {
+    "Darwin": "BLFlashCommand-macos",
+    "Linux": "BLFlashCommand-ubuntu",
+    "Windows": "BLFlashCommand.exe",
+}
 
 
 def command(
@@ -64,3 +80,54 @@ def flash(
     print(" ".join(str(a) for a in cmd), flush=True)
     if not dry_run:
         host.run(cmd, cwd=root, capture=False)
+
+
+def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
+    """@brief The flash tool's call that writes the Companion of board, built by g20k.py firmware
+    --bl616, to BL616_ADDRESS. Its configuration file goes next to the image."""
+    out = firmware.bl616_folder(root, board)
+    image = out / "build_out" / "fpga_companion_bl616.bin"
+    if not image.is_file():
+        raise StepError(
+            f"{image.relative_to(root)} is missing, build it first: g20k.py firmware --bl616 {board}"
+        )
+    try:
+        name = BL616_TOOLS[platform.system()]
+    except KeyError:
+        raise StepError(f"no flash tool of the Bouffalo SDK for {platform.system()}") from None
+    tool = toolchain.find(root, "bouffalo_sdk") / "tools" / "bflb_tools" / "bouffalo_flash_cube" / name
+    # the image alone: the SDK's own flash_prog_cfg.ini also writes its boot2 to 0x0
+    ini = out / "companion.ini"
+    ini.write_text(
+        "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
+        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{BL616_ADDRESS:x}\n"
+    )
+    return [
+        tool,
+        "--interface=uart",
+        "--chipname=bl616",
+        f"--port={port}",
+        "--baudrate=2000000",
+        f"--config={ini}",
+    ]
+
+
+def flash_bl616(root: Path, board: str, port: str, dry_run: bool) -> None:
+    """@brief Runs the call of bl616_command(), or only prints it with dry_run.
+
+    The BL616 has to be in its download mode: unplug the board, hold UPDATE, plug it in. The
+    tool reads back the SHA-256 of what it wrote. It leaves its loader running, so a second call
+    needs the board plugged in with UPDATE again."""
+    cmd = bl616_command(root, board, port)
+    print(" ".join(str(a) for a in cmd), flush=True)
+    if dry_run:
+        return
+    # the tool writes its log to stderr
+    log = firmware.bl616_folder(root, board) / "flash.log"
+    try:
+        host.run(cmd, cwd=log.parent, stdout=log.with_suffix(".out"), stderr=log)
+    finally:
+        print("\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-6:]))
+    # the tool's exit code alone is not known to stop on a failed check, its last lines say it
+    if "Verification succeeded" not in log.read_text(encoding="utf-8", errors="replace"):
+        raise StepError(f"the flash tool reports no verified write, see {log}")

@@ -89,6 +89,13 @@ def main(argv: list[str]) -> int:
         "core", type=Path, nargs="?", help="core folder: its build into the slot of project.toml"
     )
     what.add_argument("--image", type=Path, help="a flash image from 0, as a release packs it")
+    what.add_argument(
+        "--bl616",
+        type=str.lower,
+        metavar="BOARD",
+        help="the Companion of g20k.py firmware --bl616 BOARD into the onboard BL616, in download mode",
+    )
+    f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(
         "--sram", action="store_true", help="the core into the FPGA's SRAM, gone at the next power cut"
     )
@@ -116,6 +123,10 @@ def main(argv: list[str]) -> int:
     args = ap.parse_args(argv)
     if args.command == "flash" and args.sram and args.image:
         f.error("--sram takes a core, not an image")
+    if args.command == "flash" and bool(args.bl616) != bool(args.port):
+        f.error("--bl616 and --port go together")
+    if args.command == "flash" and args.bl616 and (args.sram or args.board):
+        f.error("--bl616 takes no --sram or --board")
     if args.command == "firmware" and args.dev and not args.release:
         w.error("--dev goes with --release")
     if args.command == "firmware" and args.release and (args.usb != "native" or args.without_ra):
@@ -141,6 +152,8 @@ def main(argv: list[str]) -> int:
                 firmware.build_bl616(ROOT, args.bl616)
             else:
                 firmware.build(ROOT, args.usb, ra=not args.without_ra)
+        elif args.command == "flash" and args.bl616:
+            flash.flash_bl616(ROOT, args.bl616, args.port, args.dry_run)
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
