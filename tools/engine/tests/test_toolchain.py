@@ -406,6 +406,35 @@ class ElfTest(unittest.TestCase):
         self.assertTrue(forks.elf_interpreter(self.elf([6, 3, 1])))
 
 
+class MovedCacheTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def cache(self, made_in: Path) -> Path:
+        """@brief A build folder with a cmake cache made in made_in."""
+        build_dir = self.dir / "build"
+        build_dir.mkdir()
+        (build_dir / "CMakeCache.txt").write_text(f"CMAKE_CACHEFILE_DIR:INTERNAL={made_in.as_posix()}\n")
+        return build_dir
+
+    def test_cache_of_another_folder_goes(self) -> None:
+        build_dir = self.cache(self.dir / "old" / "build")
+        with redirect_stdout(io.StringIO()) as out:
+            forks.drop_moved_cache(build_dir)
+        self.assertFalse(build_dir.exists())
+        self.assertIn("building afresh", out.getvalue())
+
+    def test_own_cache_and_no_cache_stay(self) -> None:
+        build_dir = self.cache(self.dir / "build")
+        forks.drop_moved_cache(build_dir)
+        self.assertTrue((build_dir / "CMakeCache.txt").is_file())
+        forks.drop_moved_cache(self.dir / "none")
+
+
 class FetchTest(unittest.TestCase):
     """@brief fetch on archives given as file:// URLs, no network."""
 

@@ -46,6 +46,21 @@ def need(*programs: str) -> None:
         )
 
 
+def drop_moved_cache(build_dir: Path) -> None:
+    """@brief Removes a cmake build folder whose cache was made in another folder, as after the
+    tools folder moved: cmake refuses such a cache and names the folder it was made in."""
+    cache = build_dir / "CMakeCache.txt"
+    if not cache.is_file():
+        return
+    for line in cache.read_text(encoding="utf-8", errors="replace").splitlines():
+        if line.startswith("CMAKE_CACHEFILE_DIR:INTERNAL="):
+            made_in = Path(line.partition("=")[2])
+            if made_in.resolve() != build_dir.resolve():
+                print(f"{build_dir}: cache made in {made_in}, building afresh", flush=True)
+                shutil.rmtree(build_dir)
+            return
+
+
 def build(root: Path, mode: str | None) -> None:
     """@brief Makes the programs of the forks in the mode given or the one chosen before.
 
@@ -110,6 +125,7 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
         checkout(e.repo, e.commit, src / "eigen")
         # only the headers and Eigen3Config.cmake, which nextpnr's find_package reads
         eigen = src / "eigen-install"
+        drop_moved_cache(src / "eigen-build")
         host.run(
             [
                 "cmake", "-S", src / "eigen", "-B", src / "eigen-build", "-G", "Ninja", "-Wno-dev",
@@ -126,6 +142,7 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
         )
         # a folder of its own per kind of linking, so the cmake caches of both do not mix
         build_dir = src / "nextpnr" / ("build-static" if static else "build")
+        drop_moved_cache(build_dir)
         # The build makes the chip database again only when gowin_arch_gen.py changes, not
         # when Apicula does
         for bba in build_dir.glob("himbaechel/uarch/gowin/chipdb-*.bba"):
@@ -176,6 +193,7 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
         host.run(["git", "-C", src / "yosys", *submodules], cwd=src)
         # a folder of its own per kind of linking, so the cmake caches of both do not mix
         build_dir = src / "yosys" / ("build-static" if static else "build")
+        drop_moved_cache(build_dir)
         linking = []
         if sys.platform == "win32":
             linking = ["-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
