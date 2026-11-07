@@ -35,7 +35,7 @@ SUBMODULE_FILES = (
     FORK / "src" / "rp2040" / "CMakeLists.txt",
     Path("external") / "pico-sdk" / "pico_sdk_init.cmake",
     Path("external") / "tinyusb" / "src" / "tusb.h",
-    Path("external") / "tinyusb" / "hw" / "mcu" / "raspberry_pi" / "Pico-PIO-USB" / "src" / "pio_usb.c",
+    Path("external") / "Pico-PIO-USB" / "src" / "pio_usb.c",
 )
 
 #: the folders of the libraries the Pico 2 W links, in a toolchain
@@ -112,6 +112,7 @@ def sdk_args(root: Path, out: Path, board: str) -> list[host.Arg]:
         f"-DCMAKE_USER_MAKE_RULES_OVERRIDE:FILEPATH={RULES.as_posix()}",
         f"-DBOARD={board}",
         f"-DPICO_TINYUSB_PATH:PATH={(root / 'external' / 'tinyusb').as_posix()}",
+        f"-DPICO_PIO_USB_PATH:PATH={(root / 'external' / 'Pico-PIO-USB').as_posix()}",
         f"-Dpioasm_DIR:PATH={(toolchain.find(root, 'pioasm') / 'pioasm').as_posix()}",
         f"-Dpicotool_DIR:PATH={(toolchain.find(root, 'picotool') / 'picotool').as_posix()}",
     ]
