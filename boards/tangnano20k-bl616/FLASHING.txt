@@ -1,0 +1,19 @@
+Flashing {project} {version} onto the Tang Nano 20K with the onboard BL616
+
+{name}.bin holds every game's core at its place in the board's flash. The cores
+talk to the Companion on the board's own BL616, not to a Pico on the header. Write
+the image with openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):
+
+  openFPGALoader -b tangnano20k -f --verify {name}.bin
+
+Gowin's programmer_cli works too, given the full path of the file:
+
+  programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/{name}.bin" --spiaddr 0x000000
+
+If it reports an error, run it once more. It must start at 0x000000: given another
+address, programmer_cli erases there but writes at 0x000000.
+
+The Companion firmware of the same version goes into the BL616 at 0x40000, behind
+Sipeed's debugger firmware at 0x0, which has to stay: see the README of the release.
+The BL616 starts the Companion only when no computer is on the board's USB port, so
+power the board from a power supply or a powered hub to play.

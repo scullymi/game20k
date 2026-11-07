@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 scullymi
+// Tang Nano 20K: the pins of the Companion on the onboard BL616, joined to board.cst by the
+// build. The SPI is the same as the Pico's, on other pins (MiSTeryNano src/tang/nano20k/atarist.cst).
+// Board revisions 3921 and 3923 wire two of the lines to other BL616 pins but to the same FPGA
+// pins: one core build serves both, the firmware differs.
+IO_LOC "spi_csn" 86;
+IO_PORT "spi_csn" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+IO_LOC "spi_sck" 13;
+IO_PORT "spi_sck" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+IO_LOC "spi_mosi" 76;
+IO_PORT "spi_mosi" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+IO_LOC "spi_miso" 75;
+IO_PORT "spi_miso" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "spi_irqn" 69;
+IO_PORT "spi_irqn" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+// The BL616's console (its UART TX on pin 70) leaves the board only through the FPGA: the top
+// passes it on to pin 51 on the header, the Pico's IRQn on boards/tangnano20k
+IO_LOC "bl616_con" 70;
+IO_PORT "bl616_con" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+IO_LOC "bl616_con_out" 51;
+IO_PORT "bl616_con_out" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
