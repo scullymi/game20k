@@ -284,7 +284,9 @@ static void make_games(void) {
 static bool stream(const char *name, const unsigned char *sha, const unsigned char *want) {
   game_rom_start(name);
   game_rom_data(sha, 32);
-  return game_rom_end(want);
+  bool damaged = game_rom_end(want);
+  game_settle();   // as sdc.c does once it gave the lock back
+  return damaged;
 }
 
 static bool blocked(unsigned bit) { return (ra_task_hardcore_blocked() & bit) != 0; }
@@ -318,6 +320,7 @@ static void test_stream_blocks_until_its_end(void) {
   TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
   TEST_ASSERT_FALSE(game_rom_end(g_one->roms[0].sha));
   TEST_ASSERT_FALSE(game_rom_pending());
+  game_settle();
   TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_ROM));
 }
 
