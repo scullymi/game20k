@@ -27,6 +27,10 @@ from tools.engine.host import StepError
 #: the BL616's flash address of the Companion, behind Sipeed's firmware
 BL616_ADDRESS = 0x40000
 
+#: the boards of g20k.py firmware --bl616 whose BL616 starts an image at BL616_ADDRESS, the Tang
+#: Nano 20K with Sipeed's firmware at 0x0. The other boards of the Companion need a whole image.
+BL616_BOARDS = ("nano20k", "nano20k_v3923")
+
 #: Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
     "Darwin": "BLFlashCommand-macos",
@@ -58,9 +62,10 @@ def command(
     fs = project.build_folder(name) / f"{name}.fs"
     if not fs.is_file():
         folder = core.relative_to(root).as_posix()
-        option = (
-            f" --board {project.board.folder.relative_to(root).as_posix()}" if project.other_board else ""
-        )
+        board_folder = project.board.folder
+        if board_folder.is_relative_to(root):
+            board_folder = board_folder.relative_to(root)
+        option = f" --board {board_folder.as_posix()}" if project.other_board else ""
         raise StepError(f"{fs.relative_to(root)} is missing, build it first: g20k.py build {folder}{option}")
     if sram:
         return [loader, *loader_board, fs]
@@ -85,6 +90,8 @@ def flash(
 def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     """@brief The flash tool's call that writes the Companion of board, built by g20k.py firmware
     --bl616, to BL616_ADDRESS. Its configuration file goes next to the image."""
+    if board not in BL616_BOARDS:
+        raise StepError(f"--bl616 {board}: only {' and '.join(BL616_BOARDS)} start the Companion at 0x40000")
     out = firmware.bl616_folder(root, board)
     image = out / "build_out" / "fpga_companion_bl616.bin"
     if not image.is_file():

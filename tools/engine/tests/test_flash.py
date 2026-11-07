@@ -79,6 +79,13 @@ class FlashTest(unittest.TestCase):
         with self.assertRaises(StepError) as err:
             flash.command(self.root, self.root / "fpga/two", board=board)
         self.assertIn("g20k.py build fpga/two --board boards/c", str(err.exception))
+        # a board folder outside the project is named as it is
+        outside = Path(self.tmp.name).resolve().parent / f"{self.root.name}-board"
+        write(outside, "board.toml", BOARD)
+        self.addCleanup(shutil.rmtree, outside)
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, self.root / "fpga/two", board=outside)
+        self.assertIn(f"--board {outside.as_posix()}", str(err.exception))
         # the build of the other board, not that of project.toml's
         self.built("two")
         fs = write(self.root, "build/c/two/two.fs", "")
@@ -117,6 +124,12 @@ class Bl616Test(unittest.TestCase):
         with self.assertRaises(StepError) as err:
             flash.bl616_command(self.root, "nano20k", "COM3")
         self.assertIn("g20k.py firmware --bl616 nano20k", str(err.exception))
+
+    def test_only_the_boards_with_sipeeds_firmware(self) -> None:
+        write(firmware.bl616_folder(self.root, "m0sdock"), "build_out/fpga_companion_bl616.bin", "")
+        with self.assertRaises(StepError) as err:
+            flash.bl616_command(self.root, "m0sdock", "COM3")
+        self.assertIn("0x40000", str(err.exception))
 
 
 if __name__ == "__main__":
