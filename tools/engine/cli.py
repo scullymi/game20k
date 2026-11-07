@@ -28,6 +28,13 @@ def parameter(text: str) -> tuple[str, int]:
         raise argparse.ArgumentTypeError(f"{text}: the value is not a whole number") from None
 
 
+def board_name(text: str) -> str:
+    """@brief A board of --upstream: a name as CMakeLists.txt has it, which also names its folder."""
+    if not text.replace("_", "").isalnum() or not text.isascii():
+        raise argparse.ArgumentTypeError(f"{text}: expected a board name such as PICO2")
+    return text.upper()
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="g20k.py")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -58,6 +65,7 @@ def main(argv: list[str]) -> int:
     w.add_argument("--without-ra", action="store_true", help="no RetroAchievements, only for a trial build")
     w.add_argument(
         "--upstream",
+        type=board_name,
         metavar="BOARD",
         help="a board of FPGA Companion's src/rp2040/CMakeLists.txt without game20k's code, e.g. PICO",
     )

@@ -3,12 +3,13 @@
 """@file
 @brief Tests for the firmware build: its options and the checks on the image."""
 
+import argparse
 import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
 
-from tools.engine import firmware, toolchain
+from tools.engine import cli, firmware, toolchain
 from tools.engine.host import StepError
 
 
@@ -49,6 +50,12 @@ class SwitchTest(unittest.TestCase):
             args = firmware.sdk_args(root, root / "o", "PICO")
         self.assertIn("-DBOARD=PICO", args)
         self.assertFalse([a for a in args if "GAME20K" in str(a)])
+
+    def test_a_board_is_a_name_not_a_path(self) -> None:
+        self.assertEqual(cli.board_name("msp2_20k"), "MSP2_20K")
+        for bad in ("../x", "PICO/2", "", "PÏCO"):
+            with self.assertRaises(argparse.ArgumentTypeError):
+                cli.board_name(bad)
 
 
 class LibrariesTest(unittest.TestCase):
