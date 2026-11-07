@@ -55,6 +55,7 @@ def main(argv: list[str]) -> int:
         default="native",
         help="USB host: the Pico's own port (OTG adapter) or a USB A socket on GP2/GP3",
     )
+    w.add_argument("--without-ra", action="store_true", help="no RetroAchievements, only for a trial build")
     w.add_argument("--release", action="store_true", help="build from scratch and pack a release")
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
@@ -91,8 +92,8 @@ def main(argv: list[str]) -> int:
         f.error("--sram takes a core, not an image")
     if args.command == "firmware" and args.dev and not args.release:
         w.error("--dev goes with --release")
-    if args.command == "firmware" and args.release and args.usb != "native":
-        w.error("a release is the native variant")
+    if args.command == "firmware" and args.release and (args.usb != "native" or args.without_ra):
+        w.error("a release is the native variant with RetroAchievements")
     try:
         if args.command == "build":
             core_toml = args.core.resolve() / "core.toml"
@@ -103,7 +104,7 @@ def main(argv: list[str]) -> int:
             if args.release:
                 firmware.make_release(ROOT, args.dev)
             else:
-                firmware.build(ROOT, args.usb)
+                firmware.build(ROOT, args.usb, ra=not args.without_ra)
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None

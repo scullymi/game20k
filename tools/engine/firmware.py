@@ -8,7 +8,8 @@ programs come from tools.toml, so that the build needs no compiler for the machi
 The firmware's version is the version of this repository, the firmware reports it to
 RetroAchievements in its User-Agent and shows it under Status, Version.
 
-The result goes to build/firmware/pico2-<usb>/. The image for a release is the variant with the
+The result goes to build/firmware/pico2-<usb>/, a build without RetroAchievements (--without-ra)
+to pico2-<usb>-no-ra/. The image for a release is the variant with the
 Pico's own USB port as host, the one tested with RetroAchievements. cyw43-driver in it may be
 used and passed on only with Raspberry Pi devices, its NOTICE says so at the top."""
 
@@ -46,8 +47,8 @@ RULES = Path(__file__).with_name("firmware_rules.cmake")
 SECRETS = ("SSID", "PASS", "TOKEN")
 
 
-def out_folder(root: Path, usb: str) -> Path:
-    return root / "build" / "firmware" / f"pico2-{usb}"
+def out_folder(root: Path, usb: str, ra: bool = True) -> Path:
+    return root / "build" / "firmware" / (f"pico2-{usb}" if ra else f"pico2-{usb}-no-ra")
 
 
 def init_submodules(root: Path) -> None:
@@ -88,7 +89,9 @@ def prefix_flags(root: Path, arm: Path, out: Path) -> str:
     return " ".join(f'"-ffile-prefix-map={p.as_posix()}={to}"' for p, to in pairs)
 
 
-def cmake_args(root: Path, out: Path, usb: str, version: str, tables: tuple[Path, Path]) -> list[host.Arg]:
+def cmake_args(
+    root: Path, out: Path, usb: str, version: str, tables: tuple[Path, Path], ra: bool = True
+) -> list[host.Arg]:
     """@brief The first cmake call. The paths go into the cache, so a later run of ninja that
     configures again finds the same ones."""
     return [
@@ -102,6 +105,7 @@ def cmake_args(root: Path, out: Path, usb: str, version: str, tables: tuple[Path
         f"-DCMAKE_USER_MAKE_RULES_OVERRIDE:FILEPATH={RULES.as_posix()}",
         "-DBOARD=PICO2",
         f"-DNATIVE_USB={'ON' if usb == 'native' else 'OFF'}",
+        f"-DGAME20K_RA={'ON' if ra else 'OFF'}",
         f"-DGAME20K_VERSION={version}",
         f"-DGAME20K_GAMES_TABLE:FILEPATH={tables[0].as_posix()}",
         f"-DGAME20K_MENU_TABLE:FILEPATH={tables[1].as_posix()}",
@@ -122,11 +126,12 @@ def step(cmd: list[host.Arg], root: Path, log: Path, env: dict[str, str]) -> Non
         raise
 
 
-def build(root: Path, usb: str, version: str | None = None) -> Path:
-    """@brief Builds the firmware and returns its folder. Without a version it is the tree's."""
+def build(root: Path, usb: str, version: str | None = None, ra: bool = True) -> Path:
+    """@brief Builds the firmware and returns its folder. Without a version it is the tree's. With
+    ra off it builds without RetroAchievements."""
     init_submodules(root)
     # the contract between core and firmware, compared without a board: the RAM mirror layout
-    # of the core against ram_mirror.c, or the firmware refuses the core or reads garbage
+    # of the core against ram_mirror.c. Otherwise the firmware refuses the core or reads garbage
     host.run(
         host.python(root / "scripts" / "check_contracts.py", "--root", root, "--fork", root / FORK),
         cwd=root,
@@ -139,7 +144,7 @@ def build(root: Path, usb: str, version: str | None = None) -> Path:
     if release.git(fork, "status", "--porcelain", "--untracked-files=no"):
         print("note: the checkout of the fork has uncommitted changes, this build contains them")
 
-    out = out_folder(root, usb)
+    out = out_folder(root, usb, ra)
     out.mkdir(parents=True, exist_ok=True)
     toolchain.find(root, "cmake")  # both are found through PATH from here on
     toolchain.find(root, "ninja")
@@ -160,7 +165,7 @@ def build(root: Path, usb: str, version: str | None = None) -> Path:
         "CXXFLAGS": flags,
         "ASMFLAGS": flags,
     }
-    step(cmake_args(root, out, usb, version, tables), root, out / "cmake.log", env)
+    step(cmake_args(root, out, usb, version, tables, ra), root, out / "cmake.log", env)
     step(["ninja", "-C", out], root, out / "ninja.log", env)
     print((out / "fpga_companion.uf2").as_posix())
     return out
