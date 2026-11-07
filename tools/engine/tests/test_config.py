@@ -247,6 +247,23 @@ class ProjectTest(unittest.TestCase):
         # the last core of the ring switches back to the first
         self.assertEqual(project.next_address(self.dir / "fpga/two"), 0)
 
+    def test_build_folder(self) -> None:
+        project = config.load_project(write(self.dir, "project.toml", PROJECT))
+        self.assertFalse(project.other_board)
+        self.assertEqual(project.build_folder("one"), self.dir / "build" / "one")
+
+    def test_other_board(self) -> None:
+        # the cores and their slots stay, the board and the build folder change
+        write(self.dir, "boards/c/board.toml", BOARD.replace('"Tang Nano 20K"', '"Other"'))
+        path = write(self.dir, "project.toml", PROJECT)
+        project = config.load_project(path, self.dir / "boards" / "c")
+        self.assertEqual(project.board.name, "Other")
+        self.assertTrue(project.other_board)
+        self.assertEqual(project.address(self.dir / "fpga/two"), 0x100000)
+        self.assertEqual(project.build_folder("one"), self.dir / "build" / "c" / "one")
+        # the board of project.toml given by name is no other board
+        self.assertFalse(config.load_project(path, self.dir / "boards" / "b").other_board)
+
     def test_core_outside_the_ring(self) -> None:
         project = config.load_project(write(self.dir, "project.toml", PROJECT))
         with self.assertRaises(config.ConfigError):

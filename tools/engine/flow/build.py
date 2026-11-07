@@ -565,6 +565,7 @@ def build(
     out: Path | None = None,
     params: dict[str, int] | None = None,
     update_cells: bool = False,
+    board: Path | None = None,
 ) -> Path:
     """@brief Builds the core described by core_toml and returns the path of its .fs.
 
@@ -572,8 +573,9 @@ def build(
     them in the name, build/<core>-RAMDIAG.1, so that it never replaces the normal build. The name
     holds no = or comma: slang reads both inside a file name of -v as separators. The cells of
     the netlist are compared with the core's cells.toml, update_cells writes them there instead.
-    A diagnostic build has other cells and is not compared."""
-    project = config.load_project(root / "project.toml")
+    A diagnostic build has other cells and is not compared. board is a board folder in place of
+    the one project.toml names."""
+    project = config.load_project(root / "project.toml", board)
     core = config.load_core(core_toml)
     platform = config.load_platform(core.platform / "platform.toml")
     tools = toolchain.locate(root)
@@ -583,7 +585,7 @@ def build(
     if platform.core_hz_parameter in params:
         raise config.ConfigError(f"{platform.core_hz_parameter} comes from {core_toml}, not from -G")
     name = core.name + "".join(f"-{k}.{v}" for k, v in sorted(params.items()))
-    b = Build(root, project, platform, core, tools, (out or root / "build" / name).resolve(), params)
+    b = Build(root, project, platform, core, tools, (out or project.build_folder(name)).resolve(), params)
     # the scripts name every file relative to the root, a space is the one thing they cannot
     # take: Yosys' script and read_slang keep quotes as part of a name
     if any(c in b.rel(b.out) for c in "=, "):

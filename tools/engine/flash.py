@@ -20,32 +20,47 @@ from tools.engine.host import StepError
 
 
 def command(
-    root: Path, core: Path | None = None, sram: bool = False, image: Path | None = None
+    root: Path,
+    core: Path | None = None,
+    sram: bool = False,
+    image: Path | None = None,
+    board: Path | None = None,
 ) -> list[host.Arg]:
-    """@brief The openFPGALoader call for a core (into SRAM or its slot) or for an image."""
-    project = config.load_project(root / "project.toml")
+    """@brief The openFPGALoader call for a core (into SRAM or its slot) or for an image. board is
+    a board folder in place of the one project.toml names, whose build of the core it loads."""
+    project = config.load_project(root / "project.toml", board)
     loader = toolchain.find(root, "suite") / "bin" / ("openFPGALoader" + host.EXE)
-    board = ["-b", project.board.loader]
+    loader_board = ["-b", project.board.loader]
     if image is not None:
         if not image.is_file():
             raise StepError(f"{image}: no such file")
         if image.stat().st_size > project.board.flash.size:
             raise StepError(f"{image} is larger than the flash of {project.board.name}")
-        return [loader, *board, "-f", "-o", "0x000000", "--verify", image]
+        return [loader, *loader_board, "-f", "-o", "0x000000", "--verify", image]
     assert core is not None
     name = config.load_core(core / "core.toml").name
-    fs = root / "build" / name / f"{name}.fs"
+    fs = project.build_folder(name) / f"{name}.fs"
     if not fs.is_file():
         folder = core.relative_to(root).as_posix()
-        raise StepError(f"{fs.relative_to(root)} is missing, build it first: g20k.py build {folder}")
+        option = (
+            f" --board {project.board.folder.relative_to(root).as_posix()}" if project.other_board else ""
+        )
+        raise StepError(f"{fs.relative_to(root)} is missing, build it first: g20k.py build {folder}{option}")
     if sram:
-        return [loader, *board, fs]
-    return [loader, *board, "-f", "-o", f"0x{project.address(core):06x}", "--verify", fs]
+        return [loader, *loader_board, fs]
+    return [loader, *loader_board, "-f", "-o", f"0x{project.address(core):06x}", "--verify", fs]
 
 
-def flash(root: Path, core: Path | None, sram: bool, image: Path | None, dry_run: bool) -> None:
+def flash(
+    root: Path,
+    core: Path | None,
+    sram: bool,
+    image: Path | None,
+    dry_run: bool,
+    board: Path | None = None,
+) -> None:
     """@brief Runs the call of command(), or only prints it with dry_run."""
-    cmd = command(root, core, sram, image)
+    cmd = command(root, core, sram, image, board)
     print(" ".join(str(a) for a in cmd), flush=True)
     if not dry_run:
         host.run(cmd, cwd=root, capture=False)

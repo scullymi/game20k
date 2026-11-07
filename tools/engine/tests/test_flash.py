@@ -73,6 +73,17 @@ class FlashTest(unittest.TestCase):
         with self.assertRaises(StepError):
             flash.command(self.root, image=image)
 
+    def test_core_of_another_board(self) -> None:
+        write(self.root, "boards/c/board.toml", BOARD)
+        board = self.root / "boards" / "c"
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, self.root / "fpga/two", board=board)
+        self.assertIn("g20k.py build fpga/two --board boards/c", str(err.exception))
+        # the build of the other board, not that of project.toml's
+        self.built("two")
+        fs = write(self.root, "build/c/two/two.fs", "")
+        self.assertEqual(flash.command(self.root, self.root / "fpga/two", board=board)[-2:], ["--verify", fs])
+
 
 if __name__ == "__main__":
     unittest.main()

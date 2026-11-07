@@ -35,6 +35,10 @@ def board_name(text: str) -> str:
     return text.upper()
 
 
+#: --board of build, release and flash
+BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-bl616"
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="g20k.py")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -53,8 +57,10 @@ def main(argv: list[str]) -> int:
     b.add_argument(
         "--update-cells", action="store_true", help="write the netlist's cells as the core's measure"
     )
+    b.add_argument("--board", type=Path, help=BOARD_HELP)
     r = sub.add_parser("release", help="build every core of project.toml and pack a release")
     r.add_argument("--dev", action="store_true", help="trial run: no tag, uncommitted changes allowed")
+    r.add_argument("--board", type=Path, help=BOARD_HELP)
     w = sub.add_parser("firmware", help="build the Pico firmware")
     w.add_argument(
         "--usb",
@@ -86,6 +92,7 @@ def main(argv: list[str]) -> int:
     f.add_argument(
         "--sram", action="store_true", help="the core into the FPGA's SRAM, gone at the next power cut"
     )
+    f.add_argument("--board", type=Path, help=BOARD_HELP)
     f.add_argument("--dry-run", action="store_true", help="print the command only")
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
     t = sub.add_parser("tools", help="the programs of tools.toml: without a command where they are")
@@ -122,9 +129,9 @@ def main(argv: list[str]) -> int:
     try:
         if args.command == "build":
             core_toml = args.core.resolve() / "core.toml"
-            print(build.build(ROOT, core_toml, args.out, dict(args.params), args.update_cells))
+            print(build.build(ROOT, core_toml, args.out, dict(args.params), args.update_cells, args.board))
         elif args.command == "release":
-            release.release(ROOT, args.dev)
+            release.release(ROOT, args.dev, args.board)
         elif args.command == "firmware":
             if args.release:
                 firmware.make_release(ROOT, args.dev)
@@ -137,7 +144,7 @@ def main(argv: list[str]) -> int:
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
-            flash.flash(ROOT, core, args.sram, image, args.dry_run)
+            flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board)
         elif args.command == "tools":
             if args.tools_command == "fetch":
                 toolchain.fetch(ROOT, args.names)
