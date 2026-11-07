@@ -33,7 +33,7 @@ endif
 # the firmware's include paths, the generated stand-in headers first. Of rcheevos its JSON
 # reader for test_text
 INC     := -I$(BUILD)/inc -Istubs -I$(UNITY) -I$(FORK) -I$(FORK)/game20k -I$(FORK)/fatfs/source -I$(FORK)/rp2040 \
-           -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src
+           -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src -I$(FORK)/u8g2/csrc
 DEFINES := -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\"
 # third-party code (FatFs, Unity) as it is, ours with full warnings and every stand-in declared
 LIB_CFLAGS := $(COMMON) -w $(INC) $(DEFINES)
@@ -51,10 +51,10 @@ RC_SRC  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_common.c util/rc_util.c 
 # rcheevos' requests and replies, for test_game_switch
 RC_API  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_runtime.c api/rc_api_user.c util/md5.c)
 # the fork's achievement files test_game_switch links as they are
-RA_SRC  := $(addprefix $(FORK)/game20k/,ra_patch.c ra_queue.c ra_text.c ra_games.c)
+RA_SRC  := $(addprefix $(FORK)/game20k/,game.c ra_patch.c ra_queue.c ra_text.c ra_games.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/game20k/ra_slim.c
 TESTS   := test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
-           test_game_switch
+           test_game_switch test_ram_mirror test_banner
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
 # test_games ra_games.c, test_games_file games_file.c and test_game_switch ra_task.c themselves
