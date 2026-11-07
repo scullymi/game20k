@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (C) 2026 scullymi
 """@file
-@brief Builds the firmware of the Pico 2 W and packs it for a release.
+@brief Builds the firmware of the Pico 2 W and packs it for a release, and the firmware of the
+Tang Nano 20K's onboard BL616.
 
 The sources are the fork in external/FPGA-Companion with the Pico SDK and TinyUSB beside it. The
 programs come from tools.toml, so that the build needs no compiler for the machine it runs on.
@@ -11,7 +12,8 @@ RetroAchievements in its User-Agent and shows it under Status, Version.
 The result goes to build/firmware/pico2-<usb>/, a build without RetroAchievements (--without-ra)
 to pico2-<usb>-no-ra/. --upstream builds a board of FPGA Companion without game20k's code into
 upstream-<board>/, a check that those boards still build. Such an image belongs to no release, its
-libraries are the toolchain's own.
+libraries are the toolchain's own. --bl616 builds the firmware of the onboard BL616 with the
+Bouffalo SDK and the RISC-V toolchain of tools.toml into bl616-<board>/, without RetroAchievements.
 
 The image for a release is the variant with the Pico's own USB port as host, the one tested with
 RetroAchievements. cyw43-driver in it may be used and passed on only with Raspberry Pi devices,
@@ -22,6 +24,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from tools.engine import config, host, release, toolchain
@@ -42,6 +45,12 @@ SUBMODULE_FILES = (
 LIBRARIES = (
     Path("arm-none-eabi") / "lib" / "thumb" / "v8-m.main+fp" / "softfp",
     Path("lib") / "gcc" / "arm-none-eabi" / "14.2.1" / "thumb" / "v8-m.main+fp" / "softfp",
+)
+
+#: the folders of the libraries the BL616 links, in a toolchain
+RISCV_LIBRARIES = (
+    Path("riscv64-unknown-elf") / "lib" / "rv32imafc_zicsr_zifencei" / "ilp32f",
+    Path("lib") / "gcc" / "riscv64-unknown-elf" / "14.3.0" / "rv32imafc_zicsr_zifencei" / "ilp32f",
 )
 
 #: CMake's rules for this build
@@ -84,20 +93,20 @@ def make_tables(root: Path) -> tuple[Path, Path]:
     return gen / "ra_games_data.c", gen / "menus_data.c"
 
 
-def use_one_library_set(arm: Path, libraries: Path) -> None:
-    """@brief Puts the libraries of [download.armlibs] in the place of the toolchain's own, so
-    that every machine links the same bytes in the same order. The folders are replaced as a
-    whole: the Windows toolchain has a libc.a in the folder of GCC, which comes first. The
-    toolchain's marker says when this is done, it is written last, so a run that stops halfway
-    is done again."""
-    marks = toolchain.marker(arm)
+def use_one_library_set(compiler: Path, libraries: Path, folders: tuple[Path, ...] = LIBRARIES) -> None:
+    """@brief Puts the libraries of [download.armlibs] or [download.riscvlibs] in the place of the
+    toolchain's own, so that every machine links the same bytes in the same order. The folders
+    are replaced as a whole: the Windows toolchain of Arm has a libc.a in the folder of GCC,
+    which comes first. The toolchain's marker says when this is done, it is written last, so a
+    run that stops halfway is done again."""
+    marks = toolchain.marker(compiler)
     done = toolchain.marker(libraries)["sha256"]
     if marks.get("libraries") == done:
         return
-    for folder in LIBRARIES:
-        shutil.rmtree(arm / folder, ignore_errors=True)
-        shutil.copytree(libraries / folder, arm / folder)
-    toolchain.write_marker(arm, {**marks, "libraries": done})
+    for folder in folders:
+        shutil.rmtree(compiler / folder, ignore_errors=True)
+        shutil.copytree(libraries / folder, compiler / folder)
+    toolchain.write_marker(compiler, {**marks, "libraries": done})
 
 
 def prefix_flags(root: Path, arm: Path, out: Path) -> str:
@@ -135,6 +144,13 @@ def cmake_args(
     return [
         *sdk_args(root, out, "PICO2"),
         f"-DNATIVE_USB={'ON' if usb == 'native' else 'OFF'}",
+        *game20k_args(version, tables, ra),
+    ]
+
+
+def game20k_args(version: str, tables: tuple[Path, Path], ra: bool) -> list[host.Arg]:
+    """@brief The options of game20k's code in the fork, on the Pico and on the BL616."""
+    return [
         "-DGAME20K=ON",
         f"-DGAME20K_RA={'ON' if ra else 'OFF'}",
         f"-DGAME20K_VERSION={version}",
@@ -169,10 +185,17 @@ def build_bl616(root: Path, board: str, version: str | None = None) -> Path:
     toolchain.find(root, "ninja")
     sdk = toolchain.find(root, "bouffalo_sdk")
     riscv = toolchain.find(root, "riscv")
+    if "riscv" in toolchain.load_local(root, config.load_toolset(root / "tools.toml")).paths:
+        print("note: the toolchain of local.toml links its own libraries, the image may differ")
+    else:
+        use_one_library_set(riscv, toolchain.find(root, "riscvlibs"), RISCV_LIBRARIES)
     src = root / FORK / "src" / "bl616"
     env = {
         "BL_SDK_BASE": sdk.as_posix(),
         "SOURCE_DATE_EPOCH": release.git(root, "log", "-1", "--format=%ct"),
+        # The SDK puts the git version of its folder into the image. Git stops at the SDK's own
+        # folder, not at a repository around it, as external/tools inside a clone of game20k
+        "GIT_CEILING_DIRECTORIES": str(sdk.parent),
     }
     # the SDK's configuration from the Companion's defconfig and the SDK's Kconfig
     seed = host.python(
@@ -198,12 +221,10 @@ def build_bl616(root: Path, board: str, version: str | None = None) -> Path:
         f"-DBUILD_DIR={out.as_posix()}",
         f"-DSDK_DEMO_PATH={src.as_posix()}",
         f"-DCROSS_COMPILE={(riscv / 'bin').as_posix()}/{BL616_PREFIX}",
+        # the SDK's tools run with the Python of this build
+        f"-DPython3_EXECUTABLE={Path(sys.executable).as_posix()}",
         f"-DTANG_BOARD={board}",
-        "-DGAME20K=ON",
-        "-DGAME20K_RA=OFF",
-        f"-DGAME20K_VERSION={version}",
-        f"-DGAME20K_GAMES_TABLE:FILEPATH={tables[0].as_posix()}",
-        f"-DGAME20K_MENU_TABLE:FILEPATH={tables[1].as_posix()}",
+        *game20k_args(version, tables, ra=False),
     ]
     step(cmake, root, out / "cmake.log", env)
     step(["ninja", "-C", out], root, out / "ninja.log", env)
