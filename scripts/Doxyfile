@@ -12,7 +12,9 @@ PROJECT_BRIEF          = "RetroAchievements on the FPGA-Companion fork"
 OUTPUT_DIRECTORY       = $(OUT)
 
 # our files only: the folder src/game20k and the mbedTLS configuration
-INPUT                  = $(FORK)/src/game20k $(FORK)/src/rp2040/game20k_mbedtls_config.h
+INPUT                  = $(FORK)/src/game20k
+# the headers as game20k's release build sees them, not the stubs of game20k.h and ra.h
+PREDEFINED             = GAME20K GAME20K_RA=1
 FILE_PATTERNS          = *.c *.h
 RECURSIVE              = NO
 

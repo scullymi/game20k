@@ -38,6 +38,17 @@ class SwitchTest(unittest.TestCase):
             off = firmware.cmake_args(root, root / "o", "native", "1", tables, ra=False)
         self.assertIn("-DGAME20K_RA=ON", on)
         self.assertIn("-DGAME20K_RA=OFF", off)
+        self.assertIn("-DGAME20K=ON", off)
+
+    def test_upstream_builds_without_game20k(self) -> None:
+        root = Path("/r")
+        self.assertEqual(
+            firmware.upstream_folder(root, "WS2040ZERO"), root / "build/firmware/upstream-ws2040zero"
+        )
+        with unittest.mock.patch.object(toolchain, "find", return_value=root / "t"):
+            args = firmware.sdk_args(root, root / "o", "PICO")
+        self.assertIn("-DBOARD=PICO", args)
+        self.assertFalse([a for a in args if "GAME20K" in str(a)])
 
 
 class LibrariesTest(unittest.TestCase):
