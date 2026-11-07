@@ -30,8 +30,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DEPS = [
     ('pico-sdk', 'external/pico-sdk', 'raspberrypi/pico-sdk', None,
      'brings lwIP, mbedTLS, BTstack, cyw43'),
-    ('TinyUSB', 'external/tinyusb', 'hathach/tinyusb', 'scullymi/tinyusb',
-     'our fork carries the hid_host fix'),
+    ('TinyUSB', 'external/tinyusb', 'hathach/tinyusb', None,
+     'a commit of master with tuh_hid_report_failed_cb(), until a release has it'),
+    ('Pico-PIO-USB', 'external/Pico-PIO-USB', 'sekigon-gonnoc/Pico-PIO-USB', None,
+     "the commit TinyUSB's tools/get_deps.py names"),
     ('FPGA-Companion', 'external/FPGA-Companion', 'MiSTle-Dev/FPGA-Companion',
      'scullymi/FPGA-Companion', "Till's upstream, merged into branch game20k"),
     ('rcheevos', 'external/FPGA-Companion/src/rcheevos', 'RetroAchievements/rcheevos', None,

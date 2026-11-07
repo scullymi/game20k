@@ -58,9 +58,10 @@ build_*/
 dist/
 
 # --- third-party repositories under external/ ---
-# FPGA-Companion, pico-sdk, tinyusb and unity are git submodules and therefore tracked.
+# FPGA-Companion, Pico-PIO-USB, pico-sdk, tinyusb and unity are git submodules and therefore tracked.
 external/*
 !external/FPGA-Companion
+!external/Pico-PIO-USB
 !external/pico-sdk
 !external/tinyusb
 !external/unity

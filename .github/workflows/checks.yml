@@ -133,15 +133,20 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           ${{ matrix.python }} g20k.py firmware --without-ra
-          ! grep -E 'ra_(task|patch|net)\.c\.o' build/firmware/pico2-native-no-ra/fpga_companion.elf.map
+          map=build/firmware/pico2-native-no-ra/fpga_companion.elf.map
+          test -s "$map"
+          if grep -E 'ra_(task|patch|net)\.c\.o' "$map"; then exit 1; fi
 
       # the fork keeps the boards of FPGA Companion: they build without game20k's code
       - name: Build (g20k.py firmware --upstream PICO, PICO2)
         if: runner.os == 'Linux'
         run: |
-          ${{ matrix.python }} g20k.py firmware --upstream PICO
-          ${{ matrix.python }} g20k.py firmware --upstream PICO2
-          ! grep -E 'src/(game20k|rcheevos)/[^ ]*\.c\.o|/firmware/gen/[^ ]*\.c\.o' build/firmware/upstream-*/fpga_companion.elf.map
+          for board in PICO PICO2; do
+            ${{ matrix.python }} g20k.py firmware --upstream $board
+            map=build/firmware/upstream-${board,,}/fpga_companion.elf.map
+            test -s "$map"
+            if grep -E 'src/(game20k|rcheevos)/[^ ]*\.c\.o|/firmware/gen/[^ ]*\.c\.o' "$map"; then exit 1; fi
+          done
 
   firmware-same:
     needs: firmware
