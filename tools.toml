@@ -82,6 +82,42 @@ sha256 = "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
 url = "https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi.tar.xz"
 sha256 = "62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
 
+# The RISC-V toolchain of the BL616 firmware, Bouffalo's GCC, the one the Bouffalo SDK is built
+# for (cmake/toolchain.cmake of the SDK).
+[download.riscv]
+version = "14.3.0"
+release = "https://github.com/bouffalolab/toolchain/releases/tag/default"
+
+[download.riscv.darwin-arm64]
+url = "https://github.com/bouffalolab/toolchain/releases/download/default/gcc-riscv-14.3.0-macos-arm64.tar.xz"
+sha256 = "460c57933454dafc78592d4b7fc160bfdfe406560d06bb72a976e319aec1d7d7"
+
+[download.riscv.linux-x64]
+url = "https://github.com/bouffalolab/toolchain/releases/download/default/gcc-riscv-14.3.0-linux-x86_64.tar.xz"
+sha256 = "93128c0da22cbbcf8473fae8c38b63232ebcd8d51969a14dc8491e77721b63a5"
+
+[download.riscv.windows-x64]
+url = "https://github.com/bouffalolab/toolchain/releases/download/default/gcc-riscv-14.3.0-windows-x86_64.7z"
+sha256 = "64b074f523ce8ad56f46bf59b29dbf14ffd38ee2b16ef624cb3fe3bfdc9a039a"
+
+# The Bouffalo SDK of the BL616 firmware, game20k's fork with a fix for ninja 1.13 (a CR in a
+# COMMENT of its CMake files).
+[download.bouffalo_sdk]
+version = "cf7c7f6e4b6ac42dda920c844e0db3980a11c027"
+release = "https://github.com/scullymi/bouffalo_sdk/tree/game20k"
+
+[download.bouffalo_sdk.darwin-arm64]
+url = "https://github.com/scullymi/bouffalo_sdk/archive/cf7c7f6e4b6ac42dda920c844e0db3980a11c027.tar.gz"
+sha256 = "b458bced504ee74bbaadbf82ccf225a0ba5d169ae4d53964c47adb80ce56466f"
+
+[download.bouffalo_sdk.linux-x64]
+url = "https://github.com/scullymi/bouffalo_sdk/archive/cf7c7f6e4b6ac42dda920c844e0db3980a11c027.tar.gz"
+sha256 = "b458bced504ee74bbaadbf82ccf225a0ba5d169ae4d53964c47adb80ce56466f"
+
+[download.bouffalo_sdk.windows-x64]
+url = "https://github.com/scullymi/bouffalo_sdk/archive/cf7c7f6e4b6ac42dda920c844e0db3980a11c027.tar.gz"
+sha256 = "b458bced504ee74bbaadbf82ccf225a0ba5d169ae4d53964c47adb80ce56466f"
+
 # pioasm and picotool for the Pico SDK, in the versions of external/pico-sdk. With them the
 # firmware needs no compiler for the machine it is built on.
 [download.pioasm]

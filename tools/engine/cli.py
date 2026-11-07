@@ -69,6 +69,12 @@ def main(argv: list[str]) -> int:
         metavar="BOARD",
         help="a board of FPGA Companion's src/rp2040/CMakeLists.txt without game20k's code, e.g. PICO",
     )
+    w.add_argument(
+        "--bl616",
+        type=str.lower,
+        metavar="BOARD",
+        help="the onboard BL616 instead of the Pico, BOARD as src/bl616/CMakeLists.txt has it, e.g. nano20k",
+    )
     w.add_argument("--release", action="store_true", help="build from scratch and pack a release")
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
@@ -124,6 +130,8 @@ def main(argv: list[str]) -> int:
                 firmware.make_release(ROOT, args.dev)
             elif args.upstream:
                 firmware.build_upstream(ROOT, args.upstream)
+            elif args.bl616:
+                firmware.build_bl616(ROOT, args.bl616)
             else:
                 firmware.build(ROOT, args.usb, ra=not args.without_ra)
         elif args.command == "flash":

@@ -50,6 +50,12 @@ RULES = Path(__file__).with_name("firmware_rules.cmake")
 #: the settings of config.ini that must not end up in an image
 SECRETS = ("SSID", "PASS", "TOKEN")
 
+#: the BL616 build: the chip and the board of the Bouffalo SDK, which the Companion's own
+#: Makefile names, and the toolchain's prefix
+BL616_CHIP = "bl616"
+BL616_SDK_BOARD = "bl616dk"
+BL616_PREFIX = "riscv64-unknown-elf-"
+
 
 def out_folder(root: Path, usb: str, ra: bool = True) -> Path:
     return root / "build" / "firmware" / (f"pico2-{usb}" if ra else f"pico2-{usb}-no-ra")
@@ -57,6 +63,10 @@ def out_folder(root: Path, usb: str, ra: bool = True) -> Path:
 
 def upstream_folder(root: Path, board: str) -> Path:
     return root / "build" / "firmware" / f"upstream-{board.lower()}"
+
+
+def bl616_folder(root: Path, board: str) -> Path:
+    return root / "build" / "firmware" / f"bl616-{board}"
 
 
 def init_submodules(root: Path) -> None:
@@ -142,6 +152,65 @@ def step(cmd: list[host.Arg], root: Path, log: Path, env: dict[str, str]) -> Non
         for f in (log, errors):
             print("\n".join(f.read_text(encoding="utf-8", errors="replace").splitlines()[-30:]))
         raise
+
+
+def build_bl616(root: Path, board: str, version: str | None = None) -> Path:
+    """@brief Builds the firmware of the onboard BL616, board as the Companion's
+    src/bl616/CMakeLists.txt names it (TANG_BOARD), and returns its folder. The SDK's Makefile
+    is left out, it needs GNU make 4: its configuration step and cmake are called as it calls
+    them."""
+    init_submodules(root)
+    tables = make_tables(root)
+    version = version or release.tree_version(root)
+    out = bl616_folder(root, board)
+    gen = out / "generated"
+    gen.mkdir(parents=True, exist_ok=True)
+    toolchain.find(root, "cmake")  # both are found through PATH from here on
+    toolchain.find(root, "ninja")
+    sdk = toolchain.find(root, "bouffalo_sdk")
+    riscv = toolchain.find(root, "riscv")
+    src = root / FORK / "src" / "bl616"
+    env = {
+        "BL_SDK_BASE": sdk.as_posix(),
+        "SOURCE_DATE_EPOCH": release.git(root, "log", "-1", "--format=%ct"),
+    }
+    # the SDK's configuration from the Companion's defconfig and the SDK's Kconfig
+    seed = host.python(
+        sdk / "tools" / "kconfig" / "config_seed.py",
+        "--defconfig", src / "defconfig",
+        "--kconfig", src / "Kconfig",
+        "--def-out", gen / "autoconfig.def",
+        "--cmake-out", gen / "autoconfig.cmake",
+        "--header-out", gen / "autoconfig.h",
+        "--make-out", gen / "autoconfig.mk",
+        f"CHIP={BL616_CHIP}",
+        f"BOARD={BL616_SDK_BOARD}",
+    )  # fmt: skip
+    step(seed, root, out / "config.log", env)
+    cmake: list[host.Arg] = [
+        "cmake",
+        "-S",
+        src,
+        "-B",
+        out,
+        "-G",
+        "Ninja",
+        f"-DBUILD_DIR={out.as_posix()}",
+        f"-DSDK_DEMO_PATH={src.as_posix()}",
+        f"-DCROSS_COMPILE={(riscv / 'bin').as_posix()}/{BL616_PREFIX}",
+        f"-DTANG_BOARD={board}",
+        "-DGAME20K=ON",
+        "-DGAME20K_RA=OFF",
+        f"-DGAME20K_VERSION={version}",
+        f"-DGAME20K_GAMES_TABLE:FILEPATH={tables[0].as_posix()}",
+        f"-DGAME20K_MENU_TABLE:FILEPATH={tables[1].as_posix()}",
+    ]
+    step(cmake, root, out / "cmake.log", env)
+    step(["ninja", "-C", out], root, out / "ninja.log", env)
+    # the SDK's post processing of the image for the BL616's boot ROM
+    step(["ninja", "-C", out, "combine"], root, out / "combine.log", env)
+    print(out.as_posix())
+    return out
 
 
 def environment(root: Path, out: Path) -> dict[str, str]:
