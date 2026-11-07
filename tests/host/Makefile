@@ -34,7 +34,7 @@ endif
 # reader for test_text
 INC     := -I$(BUILD)/inc -Istubs -I$(UNITY) -I$(FORK) -I$(FORK)/game20k -I$(FORK)/fatfs/source -I$(FORK)/rp2040 \
            -I$(FORK)/rcheevos/include -I$(FORK)/rcheevos/src -I$(FORK)/u8g2/csrc
-DEFINES := -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\"
+DEFINES := -DGAME20K_RA=1 -DPICO_RP2350=1 -DGAME20K_VERSION=\"host\" -DGAME20K_PLATFORM=\"host\"
 # third-party code (FatFs, Unity) as it is, ours with full warnings and every stand-in declared
 LIB_CFLAGS := $(COMMON) -w $(INC) $(DEFINES)
 OWN_CFLAGS := $(COMMON) -Wall -Wextra -include host_stubs.h $(INC) $(DEFINES)

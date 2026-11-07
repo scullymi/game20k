@@ -5,6 +5,7 @@
 
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from tools.engine import firmware, toolchain
@@ -23,6 +24,20 @@ class PrefixTest(unittest.TestCase):
                 '"-ffile-prefix-map=/r/build/firmware/x=build"',
             ],
         )
+
+
+class SwitchTest(unittest.TestCase):
+    def test_without_ra_has_a_folder_and_an_option_of_its_own(self) -> None:
+        root = Path("/r")
+        self.assertEqual(
+            firmware.out_folder(root, "native", ra=False), root / "build/firmware/pico2-native-no-ra"
+        )
+        tables = (root / "g.c", root / "m.c")
+        with unittest.mock.patch.object(toolchain, "find", return_value=root / "t"):
+            on = firmware.cmake_args(root, root / "o", "native", "1", tables)
+            off = firmware.cmake_args(root, root / "o", "native", "1", tables, ra=False)
+        self.assertIn("-DGAME20K_RA=ON", on)
+        self.assertIn("-DGAME20K_RA=OFF", off)
 
 
 class LibrariesTest(unittest.TestCase):
