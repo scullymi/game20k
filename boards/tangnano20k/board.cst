@@ -62,18 +62,6 @@ IO_PORT "sd_dat[2]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
 IO_LOC "sd_dat[3]" 81;
 IO_PORT "sd_dat[3]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
 
-// FPGA Companion (Pico) on the header, pin assignment as on the M0S Dock per FPGA-Companion SPI.md
-IO_LOC "spi_csn" 56;
-IO_PORT "spi_csn" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
-IO_LOC "spi_sck" 54;
-IO_PORT "spi_sck" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
-IO_LOC "spi_mosi" 41;
-IO_PORT "spi_mosi" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
-IO_LOC "spi_miso" 42;
-IO_PORT "spi_miso" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
-IO_LOC "spi_irqn" 51;
-IO_PORT "spi_irqn" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
-
 // RECONFIG_N, the core switch (game20k_top.sv). Kept as a configuration pin, the logic
 // drives it all the same, the low pulse reloads the FPGA.
 IO_LOC "reconfig_n" 9;

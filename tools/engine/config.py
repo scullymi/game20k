@@ -128,7 +128,10 @@ class Flash:
 
 @dataclass
 class Board:
-    """@brief A board: the FPGA, its pins and the clocks that come in from outside."""
+    """@brief A board: the FPGA, its pins and the clocks that come in from outside.
+
+    pins are the constraint files of the pins, which the build joins in this order. defines are
+    macros the sources see on this board, for ports that only it has."""
 
     folder: Path
     name: str
@@ -136,12 +139,13 @@ class Board:
     family: str
     synth_family: str
     loader: str
-    pins: Path
+    pins: list[Path]
     sspi_as_gpio: bool
     mspi_as_gpio: bool
     block_rams: int
     flash: Flash
     clocks: list[Clock]
+    defines: list[str] = field(default_factory=list)
 
 
 def load_board(path: Path) -> Board:
@@ -157,6 +161,7 @@ def load_board(path: Path) -> Board:
         "sspi_as_gpio",
         "mspi_as_gpio",
         "block_rams",
+        "defines",
     )
     flash = root.table("flash").allow("size", "slot_size")
     board = Board(
@@ -166,13 +171,16 @@ def load_board(path: Path) -> Board:
         family=b.get("family", str),
         synth_family=b.get("synth_family", str),
         loader=b.get("loader", str),
-        pins=path.parent / b.get("pins", str),
+        pins=[path.parent / f for f in b.strings("pins", required=True)],
         sspi_as_gpio=b.get("sspi_as_gpio", bool, False),
         mspi_as_gpio=b.get("mspi_as_gpio", bool, False),
         block_rams=b.get("block_rams", int),
         flash=Flash(flash.get("size", int), flash.get("slot_size", int)),
         clocks=_clocks(root),
+        defines=b.strings("defines"),
     )
+    if not all(d.isidentifier() for d in board.defines):
+        raise b.error("board.defines must be macro names")
     return board
 
 

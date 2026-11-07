@@ -23,12 +23,13 @@ def make_build(root: Path) -> build.Build:
         "fam",
         "gw2a",
         "ld",
-        root / "b.cst",
+        [root / "b.cst"],
         True,
         False,
         46,
         config.Flash(0x800000, 0x100000),
         [config.Clock("sys_clk", 27_000_000, port="sys_clk")],
+        ["BOARD_PORTS"],
     )
     platform = config.Platform(
         root,
@@ -61,6 +62,12 @@ class ClockTest(unittest.TestCase):
                 "create_clock -name clk_core -period 26.936026936026938 [get_nets {clk_core}]",
             ],
         )
+
+
+class SlangArgsTest(unittest.TestCase):
+    def test_board_defines(self) -> None:
+        args = build.slang_args(make_build(Path("/r")), [], Path("/r/prims.v"))
+        self.assertIn(["-D", "BOARD_PORTS"], [args[i : i + 2] for i in range(len(args))])
 
 
 class ShellLineTest(unittest.TestCase):

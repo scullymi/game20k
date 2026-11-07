@@ -226,6 +226,7 @@ def slang_args(b: Build, verilog: list[Path], prims: Path) -> list[str]:
         "SYNTHESIS",
         "-D",
         "YOSYS",
+        *(a for d in b.project.board.defines for a in ("-D", d)),
         *b.core.synth.slang_options,
         *(a for name, value in params.items() for a in ("-G", f"{name}={value}")),
         "-v",
@@ -425,6 +426,9 @@ def clock_lines(b: Build) -> list[str]:
 def place_and_route(b: Build) -> None:
     board, name, out = b.project.board, b.core.name, b.out
     (out / "clocks.sdc").write_text("\n".join(clock_lines(b)) + "\n")
+    # nextpnr takes one constraint file, the board's files go into it one after the other
+    pins = out / "pins.cst"
+    pins.write_text("".join(p.read_text().rstrip("\n") + "\n" for p in board.pins))
     step("nextpnr")
     cmd: list[host.Arg] = [
         b.tools.nextpnr,
@@ -437,7 +441,7 @@ def place_and_route(b: Build) -> None:
         "--vopt",
         f"family={board.family}",
         "--vopt",
-        f"cst={board.pins}",
+        f"cst={pins}",
     ]
     if board.sspi_as_gpio:
         cmd += ["--vopt", "sspi_as_gpio"]
