@@ -223,6 +223,8 @@ def build_bl616(root: Path, board: str, version: str | None = None) -> Path:
         f"-DCROSS_COMPILE={(riscv / 'bin').as_posix()}/{BL616_PREFIX}",
         # the SDK's tools run with the Python of this build
         f"-DPython3_EXECUTABLE={Path(sys.executable).as_posix()}",
+        # no ccache, which the SDK takes when one is on the path: the build would depend on it
+        "-DCCACHE_PROGRAM=OFF",
         f"-DTANG_BOARD={board}",
         *game20k_args(version, tables, ra=False),
     ]
