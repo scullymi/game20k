@@ -491,10 +491,12 @@ class Local:
 
     mode is how the programs of the forks come here, "source" or "prebuilt", empty until it is
     chosen. paths are folders (or for nextpnr the program) that take the place of the fetched
-    ones, relative to the folder of local.toml."""
+    ones, relative to the folder of local.toml. dir is the folder of the fetched and built
+    programs instead of external/tools, e.g. one outside an editor's workspace."""
 
     mode: str = ""
     paths: dict[str, Path] = field(default_factory=dict)
+    dir: Path | None = None
 
 
 def load_local(path: Path, programs: Sequence[str]) -> Local:
@@ -503,9 +505,10 @@ def load_local(path: Path, programs: Sequence[str]) -> Local:
     if not path.exists():
         return Local()
     root = _read(path).allow("tools")
-    t = root.table("tools", required=False).allow("mode", *programs)
+    t = root.table("tools", required=False).allow("mode", "dir", *programs)
     mode = t.get("mode", str, "")
     if mode not in ("", "source", "prebuilt"):
         raise t.error(f'tools.mode is "{mode}", expected "source" or "prebuilt"')
     paths = {k: (path.parent / t.get(k, str)).resolve() for k in programs if k in t.data}
-    return Local(mode, paths)
+    folder = (path.parent / Path(t.get("dir", str)).expanduser()).resolve() if "dir" in t.data else None
+    return Local(mode, paths, folder)

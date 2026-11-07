@@ -62,7 +62,8 @@ def build(root: Path, mode: str | None) -> None:
     if mode != local.mode:
         toolchain.save_mode(local_toml, mode)
     for name, path in made.items():
-        print(f"{name} {toolset.sources[name].commit[:12]}: {path.relative_to(root).as_posix()}")
+        shown = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
+        print(f"{name} {toolset.sources[name].commit[:12]}: {shown}")
 
 
 def source(toolset: config.Toolset, name: str) -> config.Source:
