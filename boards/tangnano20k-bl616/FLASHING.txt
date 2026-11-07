@@ -14,6 +14,12 @@ If it reports an error, run it once more. It must start at 0x000000: given anoth
 address, programmer_cli erases there but writes at 0x000000.
 
 The Companion firmware of the same version goes into the BL616 at 0x40000, behind
-Sipeed's debugger firmware at 0x0, which has to stay: see the README of the release.
+Sipeed's debugger firmware at 0x0, which has to stay. Build and write it from the
+repository at the tag of this release (nano20k for boards before V3923). Unplug the
+board, hold UPDATE while plugging it in, then:
+
+  python3 g20k.py firmware --bl616 nano20k_v3923
+  python3 g20k.py flash --bl616 nano20k_v3923 --port <the board's serial port>
+
 The BL616 starts the Companion only when no computer is on the board's USB port, so
 power the board from a power supply or a powered hub to play.
