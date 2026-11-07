@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 /** @file test_game_switch.c
- *  @brief A game switch within a start (ra_patch_new_game()): what comes back for the game before is not the new game's.
+ *  @brief A game switch within a start (game_new()): what comes back for the game before is not the new game's.
  *
  *  ra_task.c is included, its leaderboard list is static. ra_patch.c, ra_queue.c and
  *  ra_games.c with the generated table are linked as they are, rcheevos' parser too.
@@ -69,6 +69,17 @@ bool ra_state_replace(bool hardcore, const uint32_t *ids, unsigned n) { return f
 void ra_state_save(unsigned id) {}
 void ra_state_load(const char *user, unsigned id) {}
 
+// mbedTLS: the digest of a stream is what the test streams, the first 32 bytes of it
+static unsigned char streamed[32];
+void mbedtls_sha256_init(mbedtls_sha256_context *ctx) {}
+int mbedtls_sha256_starts(mbedtls_sha256_context *ctx, int is224) { memset(streamed, 0, 32); return 0; }
+int mbedtls_sha256_update(mbedtls_sha256_context *ctx, const unsigned char *data, size_t len) {
+  memcpy(streamed, data, len < 32 ? len : 32);
+  return 0;
+}
+int mbedtls_sha256_finish(mbedtls_sha256_context *ctx, unsigned char out[32]) { memcpy(out, streamed, 32); return 0; }
+void mbedtls_sha256_free(mbedtls_sha256_context *ctx) {}
+
 void setUp(void) {}
 void tearDown(void) {}
 
@@ -100,7 +111,7 @@ static bool on_card(unsigned id) {
   return ra_games_path(id, RA_GAMES_SET_FILE, path, sizeof(path)) && host_card_exists(path);
 }
 
-static void switch_to_b(void) { ra_patch_new_game(&b); }
+static void switch_to_b(void) { game_new(&b); }
 
 /* The RA task asked the server for a's set. com_task switches to b while the reply goes to
    the card, and a second reply comes back after the switch: the card file goes to a's
@@ -111,11 +122,11 @@ static void test_stale_set_dropped(void) {
   memset(&rt, 0, sizeof(rt));
   make_idents();
   TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
-  ra_patch_new_game(&a);
-  unsigned gen_a = ra_patch_generation();
+  game_new(&a);
+  unsigned gen_a = game_generation();
   while_tag = switch_to_b;                                 // com_task's turn between parse and write
   TEST_ASSERT_EQUAL_INT(1, ra_patch_from_server(put_set(a.id), gen_a));
-  TEST_ASSERT_NOT_EQUAL(gen_a, ra_patch_generation());     // the switch came
+  TEST_ASSERT_NOT_EQUAL(gen_a, game_generation());     // the switch came
   TEST_ASSERT_TRUE(on_card(a.id));
   TEST_ASSERT_FALSE(on_card(b.id));
   TEST_ASSERT_EQUAL_UINT(0, ra_patch_apply_pending(&rt));   // dropped, nothing activated
@@ -124,7 +135,7 @@ static void test_stale_set_dropped(void) {
   TEST_ASSERT_EQUAL_INT(0, ra_patch_from_server(put_set(a.id), gen_a));   // a reply after the switch
   TEST_ASSERT_FALSE(on_card(b.id));
   TEST_ASSERT_EQUAL_UINT(0, ra_patch_apply_pending(&rt));
-  TEST_ASSERT_EQUAL_INT(1, ra_patch_from_server(put_set(b.id), ra_patch_generation()));
+  TEST_ASSERT_EQUAL_INT(1, ra_patch_from_server(put_set(b.id), game_generation()));
   TEST_ASSERT_TRUE(on_card(b.id));
   TEST_ASSERT_EQUAL_UINT(RA_PATCH_NEW_SET, ra_patch_apply_pending(&rt));
   TEST_ASSERT_EQUAL_UINT(1, activated);
@@ -141,9 +152,9 @@ static void test_lboard_keeps_its_hash(void) {
   account = true;
   user = "alice";
   token = "token";
-  ra_patch_new_game(&a);
+  game_new(&a);
   ra_task_lboard(7, 1234);
-  ra_patch_new_game(&b);
+  game_new(&b);
   lb_take();
   TEST_ASSERT_EQUAL_UINT(1, lb_n);
   TEST_ASSERT_EQUAL_INT(SUBMIT_RETRY, submit_lboard(&lb_ram[0]));
@@ -162,8 +173,8 @@ static void serve_a(void) {
   account = true;
   user = "alice";
   token = "token";
-  ra_patch_new_game(&a);
-  ra_game_now(&game);
+  game_new(&a);
+  game_now(&game);
   playing = session = true;
   lb_n = 0;                                                // nothing left from the test before
   net_sets = 0;
@@ -198,14 +209,14 @@ static void test_set_pending_until_taken(void) {
   memset(&rt, 0, sizeof(rt));
   make_idents();
   TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
-  ra_patch_new_game(&a);
+  game_new(&a);
   TEST_ASSERT_TRUE(ra_patch_set_pending());
   TEST_ASSERT_FALSE(ra_patch_set_again());                 // no set on the card
   TEST_ASSERT_FALSE(ra_patch_set_pending());
-  TEST_ASSERT_EQUAL_INT(1, ra_patch_from_server(put_set(a.id), ra_patch_generation()));
+  TEST_ASSERT_EQUAL_INT(1, ra_patch_from_server(put_set(a.id), game_generation()));
   ra_patch_apply_pending(&rt);                             // now the card has a's set
-  ra_patch_new_game(&b);
-  ra_patch_new_game(&a);
+  game_new(&b);
+  game_new(&a);
   TEST_ASSERT_TRUE(ra_patch_set_pending());
   ra_patch_set_again();                                    // read and handed over, false without a device key
   TEST_ASSERT_TRUE(ra_patch_set_pending());                // not taken yet
@@ -213,7 +224,7 @@ static void test_set_pending_until_taken(void) {
   TEST_ASSERT_FALSE(ra_patch_set_pending());
 }
 
-/* A core switch (ra_patch_new_core()): the old game ends at once, and the first settle on
+/* A core switch (game_new_core()): the old game ends at once, and the first settle on
    the new board makes that board's game the running one. Without the switch a settle with
    no ROM keeps the game. A stream the switch cuts is left to the board, the stand-ins here
    hash no ROM. */
@@ -223,38 +234,253 @@ static void test_new_core_settles_anew(void) {
   TEST_ASSERT_NOT_NULL_MESSAGE(gc, "the table has no two boards");
   const ra_game_t *first_a = ra_games_by_board(ga->board), *first_c = ra_games_by_board(gc->board);
   TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
-  ra_patch_board(ga->board);
-  ra_patch_settle();                                       // the start: the board's game, no ROM
-  unsigned gen = ra_patch_generation();
-  TEST_ASSERT_EQUAL_STRING(first_a->title, ra_game_title());
-  ra_patch_board(gc->board);                               // no switch: the game stays
-  ra_patch_settle();
-  TEST_ASSERT_EQUAL_UINT(gen, ra_patch_generation());
-  TEST_ASSERT_EQUAL_STRING(first_a->title, ra_game_title());
-  ra_patch_board(ga->board);
-  ra_patch_settle();
-  ra_patch_new_core();
-  TEST_ASSERT_EQUAL_UINT(gen + 1, ra_patch_generation());
-  TEST_ASSERT_NULL(ra_game_title());
-  TEST_ASSERT_EQUAL_UINT(0, ra_game_id());
-  ra_patch_board(gc->board);
-  ra_patch_settle();                                       // the new core's first settle
-  TEST_ASSERT_EQUAL_UINT(gen + 2, ra_patch_generation());
-  TEST_ASSERT_EQUAL_STRING(first_c->title, ra_game_title());
+  game_new_core();                                     // the first settle ran, see test_first_settle()
+  game_set_board(ga->board);
+  game_settle();                                       // the board's game, no ROM
+  unsigned gen = game_generation();
+  TEST_ASSERT_EQUAL_STRING(first_a->title, game_title());
+  game_set_board(gc->board);                               // no switch: the game stays
+  game_settle();
+  TEST_ASSERT_EQUAL_UINT(gen, game_generation());
+  TEST_ASSERT_EQUAL_STRING(first_a->title, game_title());
+  game_set_board(ga->board);
+  game_settle();
+  game_new_core();
+  TEST_ASSERT_EQUAL_UINT(gen + 1, game_generation());
+  TEST_ASSERT_NULL(game_title());
+  TEST_ASSERT_EQUAL_UINT(0, game_id());
+  game_set_board(gc->board);
+  game_settle();                                       // the new core's first settle
+  TEST_ASSERT_EQUAL_UINT(gen + 2, game_generation());
+  TEST_ASSERT_EQUAL_STRING(first_c->title, game_title());
   TEST_ASSERT_FALSE(ra_task_hardcore_blocked() & RA_HC_BLOCK_GAME);
   TEST_ASSERT_TRUE(ra_task_hardcore_blocked() & RA_HC_BLOCK_ROM);
-  ra_patch_settle();                                       // only the first one after the switch
-  TEST_ASSERT_EQUAL_UINT(gen + 2, ra_patch_generation());
+  game_settle();                                       // only the first one after the switch
+  TEST_ASSERT_EQUAL_UINT(gen + 2, game_generation());
   TEST_ASSERT_EQUAL_UINT(0, host_sdc_depth());
+}
+
+#define NO_BOARD 200 // a board the table does not have
+
+/* Three games with ROMs of the table: two of one board with ids of their own, one of another. */
+static const ra_game_t *g_one, *g_two, *g_far;
+static void make_games(void) {
+  g_one = g_two = g_far = NULL;
+  for(unsigned i = 0; i < ra_games_rows_n && !g_two; i++) {
+    const ra_game_t *g = &ra_games_rows[i];
+    g_one = g;
+    for(unsigned j = 0; j < ra_games_rows_n && !g_two; j++) {
+      const ra_game_t *h = &ra_games_rows[j];
+      if(h->board == g->board && h->id != g->id && h->rom_n && g->rom_n) g_two = h;
+    }
+  }
+  TEST_ASSERT_NOT_NULL_MESSAGE(g_two, "the table has no board with two games");
+  for(unsigned i = 0; i < ra_games_rows_n && !g_far; i++)
+    if(ra_games_rows[i].board != g_one->board && ra_games_rows[i].rom_n) g_far = &ra_games_rows[i];
+  TEST_ASSERT_NOT_NULL_MESSAGE(g_far, "the table has no second board with a ROM");
+}
+
+/* A whole stream: its digest is sha, the footer names want. True when it counts as damaged. */
+static bool stream(const char *name, const unsigned char *sha, const unsigned char *want) {
+  game_rom_start(name);
+  game_rom_data(sha, 32);
+  return game_rom_end(want);
+}
+
+static bool blocked(unsigned bit) { return (ra_task_hardcore_blocked() & bit) != 0; }
+
+/* g_one runs on its core, as after a core switch with its own ROM. */
+static void run_g_one(void) {
+  make_games();
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  game_new_core();
+  game_set_board(g_one->board);
+  TEST_ASSERT_FALSE(stream("one.rom", g_one->roms[0].sha, g_one->roms[0].sha));
+}
+
+/* The ROM of the game: it is the game, and the ROM and the board let hardcore through. */
+static void test_settle_known_rom(void) {
+  run_g_one();
+  TEST_ASSERT_EQUAL_STRING(g_one->title, game_title());
+  TEST_ASSERT_EQUAL_UINT(g_one->id, game_id());
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_GAME));
+  TEST_ASSERT_TRUE(game_settled());
+}
+
+/* While a ROM streams nothing is known of it: hardcore stays off until the digest is in. */
+static void test_stream_blocks_until_its_end(void) {
+  run_g_one();
+  game_rom_start("one.rom");
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_TRUE(game_rom_pending());
+  game_rom_data(g_one->roms[0].sha, 32);
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_FALSE(game_rom_end(g_one->roms[0].sha));
+  TEST_ASSERT_FALSE(game_rom_pending());
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_ROM));
+}
+
+/* The ROM of another game of this board: that game runs in place, with a new generation. */
+static void test_settle_other_game_of_the_board(void) {
+  run_g_one();
+  unsigned gen = game_generation();
+  TEST_ASSERT_FALSE(stream("two.rom", g_two->roms[0].sha, g_two->roms[0].sha));
+  TEST_ASSERT_EQUAL_UINT(gen + 1, game_generation());
+  TEST_ASSERT_EQUAL_STRING(g_two->title, game_title());
+  TEST_ASSERT_EQUAL_UINT(g_two->id, game_id());
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_GAME));
+}
+
+/* The ROM of a game of another board runs on this core: the game stays, nothing counts in
+   hardcore, and with the game's own ROM back all is as before. */
+static void test_settle_rom_of_another_board(void) {
+  run_g_one();
+  unsigned gen = game_generation();
+  TEST_ASSERT_FALSE(stream("far.rom", g_far->roms[0].sha, g_far->roms[0].sha));
+  TEST_ASSERT_EQUAL_UINT(gen, game_generation());
+  TEST_ASSERT_EQUAL_STRING(g_one->title, game_title());
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+  TEST_ASSERT_FALSE(stream("one.rom", g_one->roms[0].sha, g_one->roms[0].sha));
+  TEST_ASSERT_EQUAL_UINT(gen, game_generation());
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_GAME));
+}
+
+/* A file the table does not know keeps the game and hardcore off. */
+static void test_settle_unknown_file(void) {
+  static const unsigned char unknown[32] = { 0xde, 0xad, 0xbe, 0xef };
+  run_g_one();
+  unsigned gen = game_generation();
+  TEST_ASSERT_FALSE(stream("mine.rom", unknown, unknown));
+  TEST_ASSERT_EQUAL_UINT(gen, game_generation());
+  TEST_ASSERT_EQUAL_STRING(g_one->title, game_title());
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+}
+
+/* A content that is not what its footer names is damaged, whatever its name says: no game
+   comes of it, not even the board's, and hardcore stays off. */
+static void test_settle_damaged_rom(void) {
+  static const unsigned char other[32] = { 1 };
+  run_g_one();
+  TEST_ASSERT_TRUE(stream("one.rom", g_one->roms[0].sha, other));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+  game_new_core();
+  game_set_board(g_one->board);
+  TEST_ASSERT_TRUE(stream("one.rom", g_one->roms[0].sha, other));
+  TEST_ASSERT_NULL(game_title());
+  TEST_ASSERT_EQUAL_UINT(0, game_id());
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+}
+
+/* An ejected ROM: the game stays for the core keeps running it, hardcore goes off. */
+static void test_rom_gone_blocks(void) {
+  run_g_one();
+  game_rom_gone();
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_EQUAL_STRING(g_one->title, game_title());
+}
+
+/* The first settle of the start, once per run of this program, so it comes first: neither the
+   ROM nor the board is known, and both blocks stay. */
+static void test_first_settle(void) {
+  static const unsigned char unknown[32] = { 0xde, 0xad };
+  TEST_ASSERT_NULL_MESSAGE(ra_games_by_board(NO_BOARD), "the table has this board");
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  game_set_board(NO_BOARD);
+  TEST_ASSERT_FALSE(stream("mine.rom", unknown, unknown));
+  TEST_ASSERT_TRUE(game_settled());
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_ROM));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+}
+
+/* Another game in place: its set is not proven yet, whatever the game before had earned. */
+static void test_new_game_needs_its_set(void) {
+  run_g_one();
+  ra_task_hardcore_block(RA_HC_BLOCK_SET, false);
+  TEST_ASSERT_FALSE(stream("two.rom", g_two->roms[0].sha, g_two->roms[0].sha));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_SET));
+}
+
+/* After a core switch the ROM of a game of another board is no game of this core. */
+static void test_new_core_with_a_rom_of_another_board(void) {
+  make_games();
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  game_new_core();
+  game_set_board(g_one->board);
+  TEST_ASSERT_FALSE(stream("far.rom", g_far->roms[0].sha, g_far->roms[0].sha));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+}
+
+/* The set is off while the ROM of another game runs, and a new game starts without that. */
+static void test_foreign_rom(void) {
+  run_g_one();
+  TEST_ASSERT_FALSE(ra_patch_foreign_rom());
+  TEST_ASSERT_FALSE(stream("far.rom", g_far->roms[0].sha, g_far->roms[0].sha));
+  TEST_ASSERT_TRUE(ra_patch_foreign_rom());
+  TEST_ASSERT_FALSE(stream("one.rom", g_one->roms[0].sha, g_one->roms[0].sha));
+  TEST_ASSERT_FALSE(ra_patch_foreign_rom());
+  TEST_ASSERT_FALSE(stream("far.rom", g_far->roms[0].sha, g_far->roms[0].sha));
+  TEST_ASSERT_FALSE(stream("two.rom", g_two->roms[0].sha, g_two->roms[0].sha));
+  TEST_ASSERT_FALSE(ra_patch_foreign_rom());
+}
+
+/* The server's id differs from the table's: hardcore stays off with the game's own ROM too, the
+   next game starts clean. */
+static void test_wrong_table_id(void) {
+  run_g_one();
+  ra_patch_resolved(game_generation(), g_one->id + 1);
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+  TEST_ASSERT_FALSE(stream("one.rom", g_one->roms[0].sha, g_one->roms[0].sha));
+  TEST_ASSERT_TRUE(blocked(RA_HC_BLOCK_GAME));
+  TEST_ASSERT_FALSE(stream("two.rom", g_two->roms[0].sha, g_two->roms[0].sha));
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_GAME));
+  TEST_ASSERT_FALSE(stream("two.rom", g_two->roms[0].sha, g_two->roms[0].sha));
+  TEST_ASSERT_FALSE(blocked(RA_HC_BLOCK_GAME));
+}
+
+/* A fallback identity gets its id from the server, an answer for the game before does nothing,
+   and the id goes with the game. */
+static void test_fallback_identity(void) {
+  static const unsigned char unknown[32] = { 0xca, 0xfe };
+  TEST_ASSERT_TRUE(host_card_new() && ra_patch_init());
+  game_new_core();
+  game_set_board(NO_BOARD);
+  TEST_ASSERT_FALSE(stream("mine.rom", unknown, unknown));
+  unsigned gen = game_generation();
+  TEST_ASSERT_EQUAL_UINT(0, game_id());
+  ra_patch_resolved(gen - 1, 999);
+  TEST_ASSERT_EQUAL_UINT(0, game_id());
+  ra_patch_resolved(gen, 999);
+  TEST_ASSERT_EQUAL_UINT(999, game_id());
+  game_new_core();
+  TEST_ASSERT_EQUAL_UINT(0, game_id());
 }
 
 int main(void) {
   UNITY_BEGIN();
+  RUN_TEST(test_first_settle);
   RUN_TEST(test_stale_set_dropped);
   RUN_TEST(test_lboard_keeps_its_hash);
   RUN_TEST(test_switch_during_lists_ends_round);
   RUN_TEST(test_switch_during_set_ends_round);
   RUN_TEST(test_set_pending_until_taken);
   RUN_TEST(test_new_core_settles_anew);
+  RUN_TEST(test_settle_known_rom);
+  RUN_TEST(test_stream_blocks_until_its_end);
+  RUN_TEST(test_settle_other_game_of_the_board);
+  RUN_TEST(test_settle_rom_of_another_board);
+  RUN_TEST(test_settle_unknown_file);
+  RUN_TEST(test_settle_damaged_rom);
+  RUN_TEST(test_rom_gone_blocks);
+  RUN_TEST(test_new_game_needs_its_set);
+  RUN_TEST(test_new_core_with_a_rom_of_another_board);
+  RUN_TEST(test_foreign_rom);
+  RUN_TEST(test_wrong_table_id);
+  RUN_TEST(test_fallback_identity);
   return UNITY_END();
 }

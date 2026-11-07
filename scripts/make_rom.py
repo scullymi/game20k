@@ -647,7 +647,7 @@ def main(argv):
         print("WARNING: %s" % w, file=sys.stderr)
     print("written: %s (%d bytes%s)" % (out, m["total"],
                                           ", and the footer" if with_footer else ""))
-    # The firmware allows hardcore only for a file it knows (ra_patch.c, ROM digests).
+    # The firmware allows hardcore only for a file it knows (game.c, ROM digests).
     if label:
         print("known ROM file, %s: hardcore possible" % label)
     elif not m["known"]:

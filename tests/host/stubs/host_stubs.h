@@ -4,7 +4,7 @@
  *  @brief Every host stand-in in one header: debugf(), FreeRTOS, lwIP sockets, and what the
  *  tests set and read in them. The stand-ins for the fork's own ra_mac, ra_state
  *  and ra_patch calls keep their real headers, see host_stubs.c. mbedTLS' digest only
- *  as far as ra_patch.c names it.
+ *  as far as game.c names it.
  *
  *  The Makefile passes this file with -include to the fork files, the stand-ins and the tests,
  *  and generates the headers the fork includes by name (FORWARD there), which only include
@@ -73,7 +73,7 @@ BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words
 void vTaskDelete(TaskHandle_t t);
 void vTaskDelay(TickType_t ticks);
 
-/* ---- mbedTLS: the ROM digest of ra_patch.c, no tested path streams a ROM ------------------- */
+/* ---- mbedTLS: the ROM digest of game.c, only test_game_switch streams a ROM ------------------- */
 
 typedef struct { int unused; } mbedtls_sha256_context;
 void mbedtls_sha256_init(mbedtls_sha256_context *ctx);
@@ -108,7 +108,7 @@ extern struct netif *netif_default;          /* NULL: no interface on the host *
 
 unsigned host_sdc_depth(void);                           /**< sdc_lock() held right now, 0 or 1 */
 extern bool host_hardcore;                               /**< what ra_task_hardcore() returns */
-void host_set_game(const char *hash, unsigned id);      /**< what ra_game_hash() and ra_game_id() return, "" and 0 for no game */
+void host_set_game(const char *hash, unsigned id);      /**< what game_hash() and game_id() return, "" and 0 for no game */
 #define HOST_FTP_CTL 7                                   /**< the modelled control connection */
 void host_ftp_script(const char *input);    /**< bytes lwip_recv() hands out, then 0 (closed) */
 const char *host_ftp_transcript(void);      /**< what lwip_send() got since host_ftp_script() */

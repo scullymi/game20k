@@ -86,7 +86,7 @@ TaskHandle_t xTaskCreateStatic(TaskFunction_t fn, const char *name, uint32_t sta
   return NULL;
 }
 // the clock stands still: what a test compares was made in the same tick
-TickType_t xTaskGetTickCount(void) { return 1000; }
+__attribute__((weak)) TickType_t xTaskGetTickCount(void) { return 1000; }
 // task.h: xTaskCreate() may fail for want of memory. Here it always does, so a caller that
 // starts a task takes its error path
 BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words, void *arg,
@@ -95,7 +95,7 @@ BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words
   return pdFAIL;
 }
 void vTaskDelete(TaskHandle_t t) { host_fail("vTaskDelete() is not modelled"); }
-void vTaskDelay(TickType_t ticks) { host_fail("vTaskDelay(): a tested path waits"); }
+__attribute__((weak)) void vTaskDelay(TickType_t ticks) { host_fail("vTaskDelay(): a tested path waits"); }
 
 /* ---- lwIP sockets: the FTP control connection, no data connection ------------------------- */
 
@@ -182,8 +182,8 @@ static const ra_game_t host_table[] = { { "galaga", "Galaga", 12138u, "b8140b5e3
 static char     host_hash[RA_GAMES_HASH_LEN + 1] = "";
 static unsigned host_id;
 void host_set_game(const char *hash, unsigned id) { snprintf(host_hash, sizeof(host_hash), "%s", hash ? hash : ""); host_id = id; }
-__attribute__((weak)) const char *ra_game_hash(void) { return host_hash; }
-__attribute__((weak)) unsigned ra_game_id(void) { return host_id; }
+__attribute__((weak)) const char *game_hash(void) { return host_hash; }
+__attribute__((weak)) unsigned game_id(void) { return host_id; }
 __attribute__((weak)) const ra_game_t *ra_games_by_hash(const char *hex) {
   for(unsigned i = 0; hex && i < sizeof(host_table) / sizeof(host_table[0]); i++)
     if(!strcasecmp(host_table[i].hash, hex)) return &host_table[i];
@@ -191,11 +191,11 @@ __attribute__((weak)) const ra_game_t *ra_games_by_hash(const char *hex) {
 }
 __attribute__((weak)) bool ra_patch_foreign_rom(void) { return false; }
 
-// mbedTLS: ra_patch.c hashes a ROM while it streams, no tested path streams one
-void mbedtls_sha256_init(mbedtls_sha256_context *ctx) { host_fail("mbedtls_sha256_init(): a ROM streams"); }
-int  mbedtls_sha256_starts(mbedtls_sha256_context *ctx, int is224) { host_fail("mbedtls_sha256_starts(): a ROM streams"); return -1; }
-int  mbedtls_sha256_update(mbedtls_sha256_context *ctx, const unsigned char *data, size_t len) { host_fail("mbedtls_sha256_update(): a ROM streams"); return -1; }
-int  mbedtls_sha256_finish(mbedtls_sha256_context *ctx, unsigned char out[32]) { host_fail("mbedtls_sha256_finish(): a ROM streams"); return -1; }
-void mbedtls_sha256_free(mbedtls_sha256_context *ctx) { host_fail("mbedtls_sha256_free(): a ROM streams"); }
+// mbedTLS: ra_patch.c hashes a ROM while it streams, only test_game_switch streams one
+__attribute__((weak)) void mbedtls_sha256_init(mbedtls_sha256_context *ctx) { host_fail("mbedtls_sha256_init(): a ROM streams"); }
+__attribute__((weak)) int  mbedtls_sha256_starts(mbedtls_sha256_context *ctx, int is224) { host_fail("mbedtls_sha256_starts(): a ROM streams"); return -1; }
+__attribute__((weak)) int  mbedtls_sha256_update(mbedtls_sha256_context *ctx, const unsigned char *data, size_t len) { host_fail("mbedtls_sha256_update(): a ROM streams"); return -1; }
+__attribute__((weak)) int  mbedtls_sha256_finish(mbedtls_sha256_context *ctx, unsigned char out[32]) { host_fail("mbedtls_sha256_finish(): a ROM streams"); return -1; }
+__attribute__((weak)) void mbedtls_sha256_free(mbedtls_sha256_context *ctx) { host_fail("mbedtls_sha256_free(): a ROM streams"); }
 // games.c: ftpd.c tells it of a changed ROM file, nothing here lists games
 void games_changed(const char *name) { (void)name; }
