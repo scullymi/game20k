@@ -9,6 +9,7 @@
 #                   shell of Yosys' exec differ
 #   firmware        the release build of g20k.py firmware (--dev) on Linux and Windows, a warning
 #                   in src/game20k stops it, on Linux also the build without RetroAchievements
+#                   and the boards PICO and PICO2 of FPGA Companion without game20k's code
 #   firmware-same   the image and the NOTICE of both are the same bytes
 # The simulations run in sims.yml, only when fpga/ changes.
 # The fork is checked through its gitlink, it has no workflow of its own. No schedule on
@@ -133,6 +134,14 @@ jobs:
         run: |
           ${{ matrix.python }} g20k.py firmware --without-ra
           ! grep -E 'ra_(task|patch|net)\.c\.o' build/firmware/pico2-native-no-ra/fpga_companion.elf.map
+
+      # the fork keeps the boards of FPGA Companion: they build without game20k's code
+      - name: Build (g20k.py firmware --upstream PICO, PICO2)
+        if: runner.os == 'Linux'
+        run: |
+          ${{ matrix.python }} g20k.py firmware --upstream PICO
+          ${{ matrix.python }} g20k.py firmware --upstream PICO2
+          ! grep -E 'src/(game20k|rcheevos)/[^ ]*\.c\.o|/firmware/gen/[^ ]*\.c\.o' build/firmware/upstream-*/fpga_companion.elf.map
 
   firmware-same:
     needs: firmware

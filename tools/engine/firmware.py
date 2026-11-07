@@ -9,9 +9,13 @@ The firmware's version is the version of this repository, the firmware reports i
 RetroAchievements in its User-Agent and shows it under Status, Version.
 
 The result goes to build/firmware/pico2-<usb>/, a build without RetroAchievements (--without-ra)
-to pico2-<usb>-no-ra/. The image for a release is the variant with the
-Pico's own USB port as host, the one tested with RetroAchievements. cyw43-driver in it may be
-used and passed on only with Raspberry Pi devices, its NOTICE says so at the top."""
+to pico2-<usb>-no-ra/. --upstream builds a board of FPGA Companion without game20k's code into
+upstream-<board>/, a check that those boards still build. Such an image belongs to no release, its
+libraries are the toolchain's own.
+
+The image for a release is the variant with the Pico's own USB port as host, the one tested with
+RetroAchievements. cyw43-driver in it may be used and passed on only with Raspberry Pi devices,
+its NOTICE says so at the top."""
 
 from __future__ import annotations
 
@@ -49,6 +53,10 @@ SECRETS = ("SSID", "PASS", "TOKEN")
 
 def out_folder(root: Path, usb: str, ra: bool = True) -> Path:
     return root / "build" / "firmware" / (f"pico2-{usb}" if ra else f"pico2-{usb}-no-ra")
+
+
+def upstream_folder(root: Path, board: str) -> Path:
+    return root / "build" / "firmware" / f"upstream-{board.lower()}"
 
 
 def init_submodules(root: Path) -> None:
@@ -89,11 +97,10 @@ def prefix_flags(root: Path, arm: Path, out: Path) -> str:
     return " ".join(f'"-ffile-prefix-map={p.as_posix()}={to}"' for p, to in pairs)
 
 
-def cmake_args(
-    root: Path, out: Path, usb: str, version: str, tables: tuple[Path, Path], ra: bool = True
-) -> list[host.Arg]:
-    """@brief The first cmake call. The paths go into the cache, so a later run of ninja that
-    configures again finds the same ones."""
+def sdk_args(root: Path, out: Path, board: str) -> list[host.Arg]:
+    """@brief What every cmake call of the fork takes: the board and the programs of tools.toml.
+    The paths go into the cache, so a later run of ninja that configures again finds the same
+    ones."""
     return [
         "cmake",
         "-S",
@@ -103,15 +110,25 @@ def cmake_args(
         "-G",
         "Ninja",
         f"-DCMAKE_USER_MAKE_RULES_OVERRIDE:FILEPATH={RULES.as_posix()}",
-        "-DBOARD=PICO2",
+        f"-DBOARD={board}",
+        f"-DPICO_TINYUSB_PATH:PATH={(root / 'external' / 'tinyusb').as_posix()}",
+        f"-Dpioasm_DIR:PATH={(toolchain.find(root, 'pioasm') / 'pioasm').as_posix()}",
+        f"-Dpicotool_DIR:PATH={(toolchain.find(root, 'picotool') / 'picotool').as_posix()}",
+    ]
+
+
+def cmake_args(
+    root: Path, out: Path, usb: str, version: str, tables: tuple[Path, Path], ra: bool = True
+) -> list[host.Arg]:
+    """@brief The first cmake call of game20k's firmware."""
+    return [
+        *sdk_args(root, out, "PICO2"),
         f"-DNATIVE_USB={'ON' if usb == 'native' else 'OFF'}",
+        "-DGAME20K=ON",
         f"-DGAME20K_RA={'ON' if ra else 'OFF'}",
         f"-DGAME20K_VERSION={version}",
         f"-DGAME20K_GAMES_TABLE:FILEPATH={tables[0].as_posix()}",
         f"-DGAME20K_MENU_TABLE:FILEPATH={tables[1].as_posix()}",
-        f"-DPICO_TINYUSB_PATH:PATH={(root / 'external' / 'tinyusb').as_posix()}",
-        f"-Dpioasm_DIR:PATH={(toolchain.find(root, 'pioasm') / 'pioasm').as_posix()}",
-        f"-Dpicotool_DIR:PATH={(toolchain.find(root, 'picotool') / 'picotool').as_posix()}",
     ]
 
 
@@ -124,6 +141,30 @@ def step(cmd: list[host.Arg], root: Path, log: Path, env: dict[str, str]) -> Non
         for f in (log, errors):
             print("\n".join(f.read_text(encoding="utf-8", errors="replace").splitlines()[-30:]))
         raise
+
+
+def environment(root: Path, out: Path) -> dict[str, str]:
+    """@brief The programs of tools.toml and the variables cmake reads at the first configure of
+    the build folder out."""
+    toolchain.find(root, "cmake")  # both are found through PATH from here on
+    toolchain.find(root, "ninja")
+    arm = toolchain.find(root, "arm")
+    # a toolchain of local.toml belongs to its owner and stays as it is
+    if "arm" in toolchain.load_local(root, config.load_toolset(root / "tools.toml")).paths:
+        print("note: the toolchain of local.toml links its own libraries, the image may differ")
+    else:
+        use_one_library_set(arm, toolchain.find(root, "armlibs"))
+    flags = prefix_flags(root, arm, out)
+    return {
+        "PICO_SDK_PATH": (root / "external" / "pico-sdk").as_posix(),
+        "PICO_TOOLCHAIN_PATH": arm.as_posix(),
+        # the build date the SDK puts into the image is the commit's, the same on every day
+        "SOURCE_DATE_EPOCH": release.git(root, "log", "-1", "--format=%ct"),
+        # read at the first configure and added to the flags of the SDK
+        "CFLAGS": flags,
+        "CXXFLAGS": flags,
+        "ASMFLAGS": flags,
+    }
 
 
 def build(root: Path, usb: str, version: str | None = None, ra: bool = True) -> Path:
@@ -146,26 +187,22 @@ def build(root: Path, usb: str, version: str | None = None, ra: bool = True) -> 
 
     out = out_folder(root, usb, ra)
     out.mkdir(parents=True, exist_ok=True)
-    toolchain.find(root, "cmake")  # both are found through PATH from here on
-    toolchain.find(root, "ninja")
-    arm = toolchain.find(root, "arm")
-    # a toolchain of local.toml belongs to its owner and stays as it is
-    if "arm" in toolchain.load_local(root, config.load_toolset(root / "tools.toml")).paths:
-        print("note: the toolchain of local.toml links its own libraries, the image may differ")
-    else:
-        use_one_library_set(arm, toolchain.find(root, "armlibs"))
-    flags = prefix_flags(root, arm, out)
-    env = {
-        "PICO_SDK_PATH": (root / "external" / "pico-sdk").as_posix(),
-        "PICO_TOOLCHAIN_PATH": arm.as_posix(),
-        # the build date the SDK puts into the image is the commit's, the same on every day
-        "SOURCE_DATE_EPOCH": release.git(root, "log", "-1", "--format=%ct"),
-        # read at the first configure and added to the flags of the SDK
-        "CFLAGS": flags,
-        "CXXFLAGS": flags,
-        "ASMFLAGS": flags,
-    }
+    env = environment(root, out)
     step(cmake_args(root, out, usb, version, tables, ra), root, out / "cmake.log", env)
+    step(["ninja", "-C", out], root, out / "ninja.log", env)
+    print((out / "fpga_companion.uf2").as_posix())
+    return out
+
+
+def build_upstream(root: Path, board: str) -> Path:
+    """@brief Builds the fork for a board of FPGA Companion without GAME20K and returns its
+    folder. Nothing of game20k is in such a build, the files of FPGA Companion take their own
+    settings. The boards are those of src/rp2040/CMakeLists.txt, which stops at any other."""
+    init_submodules(root)
+    out = upstream_folder(root, board)
+    out.mkdir(parents=True, exist_ok=True)
+    env = environment(root, out)
+    step(sdk_args(root, out, board), root, out / "cmake.log", env)
     step(["ninja", "-C", out], root, out / "ninja.log", env)
     print((out / "fpga_companion.uf2").as_posix())
     return out

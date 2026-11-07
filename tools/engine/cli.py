@@ -56,6 +56,11 @@ def main(argv: list[str]) -> int:
         help="USB host: the Pico's own port (OTG adapter) or a USB A socket on GP2/GP3",
     )
     w.add_argument("--without-ra", action="store_true", help="no RetroAchievements, only for a trial build")
+    w.add_argument(
+        "--upstream",
+        metavar="BOARD",
+        help="a board of FPGA Companion's src/rp2040/CMakeLists.txt without game20k's code, e.g. PICO",
+    )
     w.add_argument("--release", action="store_true", help="build from scratch and pack a release")
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
@@ -94,6 +99,12 @@ def main(argv: list[str]) -> int:
         w.error("--dev goes with --release")
     if args.command == "firmware" and args.release and (args.usb != "native" or args.without_ra):
         w.error("a release is the native variant with RetroAchievements")
+    if (
+        args.command == "firmware"
+        and args.upstream
+        and (args.release or args.without_ra or args.usb != "native")
+    ):
+        w.error("--upstream takes no other option")
     try:
         if args.command == "build":
             core_toml = args.core.resolve() / "core.toml"
@@ -103,6 +114,8 @@ def main(argv: list[str]) -> int:
         elif args.command == "firmware":
             if args.release:
                 firmware.make_release(ROOT, args.dev)
+            elif args.upstream:
+                firmware.build_upstream(ROOT, args.upstream)
             else:
                 firmware.build(ROOT, args.usb, ra=not args.without_ra)
         elif args.command == "flash":
