@@ -24,7 +24,11 @@ jobs:
   firmware:
     strategy:
       matrix:
-        target: [pico2w, bl616]
+        include:
+          - target: pico2w
+            tools: arm armlibs pioasm picotool cmake ninja
+          - target: bl616
+            tools: riscv riscvlibs bouffalo_sdk cmake ninja
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -37,16 +41,17 @@ jobs:
 
       # the prebuilt picotool of Linux links the system's libusb
       - name: libusb
+        if: matrix.target == 'pico2w'
         run: sudo apt-get update -q && sudo apt-get install -y -q libusb-1.0-0
 
       - name: Tool archives from the cache
         uses: actions/cache@v6
         with:
           path: external/tools/downloads
-          key: tool-archives-firmware-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
+          key: tool-archives-firmware-${{ matrix.target }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
 
       - name: Archives (g20k.py tools fetch)
-        run: python3 g20k.py tools fetch arm armlibs pioasm picotool riscv riscvlibs bouffalo_sdk cmake ninja
+        run: python3 g20k.py tools fetch ${{ matrix.tools }}
 
       # a tag builds a release, anything else a trial build (--dev: no tag needed)
       - name: Build and pack
