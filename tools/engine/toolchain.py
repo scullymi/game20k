@@ -178,7 +178,7 @@ def fetch(root: Path, names: Sequence[str] = ()) -> None:
     unknown = sorted(set(names) - set(toolset.downloads))
     if unknown:
         raise StepError(
-            f"tools.toml has no program {', '.join(unknown)}, it has {', '.join(programs(toolset))}"
+            f"tools.toml has no program {', '.join(unknown)}. Its programs: {', '.join(programs(toolset))}"
         )
     for d in toolset.downloads.values():
         if names and d.name not in names:
@@ -242,7 +242,7 @@ def find(root: Path, name: str) -> Path:
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
     if name not in programs(toolset):
-        raise StepError(f"tools.toml has no program {name}, it has {', '.join(programs(toolset))}")
+        raise StepError(f"tools.toml has no program {name}. Its programs: {', '.join(programs(toolset))}")
     if name in toolset.downloads:
         want, how = toolset.downloads[name].version, "fetch"
     else:
@@ -299,7 +299,7 @@ def status(root: Path) -> None:
     """@brief Prints each program of tools.toml with the folder it is taken from."""
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
-    print(f"machine {machine()}, forks {local.mode or 'not there yet'}")
+    print(f"machine {machine()}" + (f", forks {local.mode}" if local.mode else ""))
     rows = [(d.name, d.version) for d in toolset.downloads.values()]
     rows += [(s.name, s.commit) for s in toolset.sources.values() if s.name in BUILT]
     # without a suite the forks cannot be checked, the list still shows what is there

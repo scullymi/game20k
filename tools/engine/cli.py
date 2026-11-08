@@ -48,23 +48,23 @@ def fetch_tools(root: Path, names: list[str]) -> None:
     forks, the ones named or else all. The forks come as one archive, so naming one brings all
     three. Without names the forks stay as they are when this machine builds them from their
     sources (tools build-forks) or local.toml gives a path for each."""
-    toolset = config.load_toolset(root / "tools.toml")
-    local = toolchain.load_local(root, toolset)
     downloads = [n for n in names if n not in toolchain.BUILT]
+    forks_named = len(downloads) < len(names)
     if downloads or not names:
         toolchain.fetch(root, downloads)
-    if len(downloads) < len(names):
-        if local.mode == "source":
-            print("forks: the prebuilt ones replace the ones built here")
-        forks.build(root, "prebuilt")
-    elif names:
+    if names and not forks_named:
         return
+    local = toolchain.load_local(root, config.load_toolset(root / "tools.toml"))
+    if forks_named:
+        forks.build(root, "prebuilt")
+        if local.mode == "source":
+            print("forks: the prebuilt ones replaced the ones built here")
     elif all(n in local.paths for n in toolchain.BUILT):
         print("forks: from the paths in local.toml")
     elif local.mode == "source":
         print(
-            "forks: built from their sources here, python3 g20k.py tools build-forks renews them, "
-            "python3 g20k.py tools fetch apicula nextpnr yosys takes the prebuilt ones instead"
+            "forks: built from their sources here. To renew them: python3 g20k.py tools build-forks. "
+            f"To take the prebuilt ones: python3 g20k.py tools fetch {' '.join(toolchain.BUILT)}."
         )
     else:
         forks.build(root, "prebuilt")
@@ -151,8 +151,8 @@ def main(argv: list[str]) -> int:
     tf.add_argument(
         "names",
         nargs="*",
-        help="only these programs of tools.toml, e.g. suite ghdl. apicula, nextpnr or yosys brings "
-        "all three prebuilt forks",
+        help="only these programs of tools.toml, e.g. suite ghdl. Naming one of "
+        f"{', '.join(toolchain.BUILT)} fetches all three prebuilt forks.",
     )
     tsub.add_parser("build-forks", help="build game20k's forks from their sources instead")
     tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for tools.yml")
