@@ -45,19 +45,29 @@ def bl616_board(text: str) -> str:
 
 def fetch_tools(root: Path, names: list[str]) -> None:
     """@brief The programs of tools.toml that come ready-made: the downloads and the prebuilt
-    forks, the ones named or else all. Without names the forks stay as they are when this machine
-    builds them from their sources (tools build-forks)."""
+    forks, the ones named or else all. The forks come as one archive, so naming one brings all
+    three. Without names the forks stay as they are when this machine builds them from their
+    sources (tools build-forks) or local.toml gives a path for each."""
+    toolset = config.load_toolset(root / "tools.toml")
+    local = toolchain.load_local(root, toolset)
     downloads = [n for n in names if n not in toolchain.BUILT]
     if downloads or not names:
         toolchain.fetch(root, downloads)
     if len(downloads) < len(names):
+        if local.mode == "source":
+            print("forks: the prebuilt ones replace the ones built here")
         forks.build(root, "prebuilt")
-    elif not names:
-        toolset = config.load_toolset(root / "tools.toml")
-        if toolchain.load_local(root, toolset).mode == "source":
-            print("forks: built from their sources here, python3 g20k.py tools build-forks renews them")
-        else:
-            forks.build(root, "prebuilt")
+    elif names:
+        return
+    elif all(n in local.paths for n in toolchain.BUILT):
+        print("forks: from the paths in local.toml")
+    elif local.mode == "source":
+        print(
+            "forks: built from their sources here, python3 g20k.py tools build-forks renews them, "
+            "python3 g20k.py tools fetch apicula nextpnr yosys takes the prebuilt ones instead"
+        )
+    else:
+        forks.build(root, "prebuilt")
 
 
 #: --board of build, release and flash
@@ -138,7 +148,12 @@ def main(argv: list[str]) -> int:
     tf = tsub.add_parser(
         "fetch", help="download and check the ready-made programs: the archives and the prebuilt forks"
     )
-    tf.add_argument("names", nargs="*", help="only these programs of tools.toml, e.g. suite ghdl yosys")
+    tf.add_argument(
+        "names",
+        nargs="*",
+        help="only these programs of tools.toml, e.g. suite ghdl. apicula, nextpnr or yosys brings "
+        "all three prebuilt forks",
+    )
     tsub.add_parser("build-forks", help="build game20k's forks from their sources instead")
     tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for tools.yml")
     tk.add_argument("--out", type=Path, required=True, help="folder for the archive")

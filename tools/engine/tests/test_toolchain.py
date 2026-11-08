@@ -193,7 +193,12 @@ class LocateTest(unittest.TestCase):
         self.assertEqual(toolchain.find(self.root, "suite"), toolchain.folder(self.root, "suite", "20261102"))
         with self.assertRaises(StepError) as err:
             toolchain.locate(self.root)
-        self.assertIn("tools build-forks", str(err.exception))
+        self.assertIn("g20k.py tools fetch", str(err.exception))
+        # a machine that builds the forks itself is told to build them
+        write(self.root, "local.toml", '[tools]\nmode = "source"\n')
+        with self.assertRaises(StepError) as err:
+            toolchain.locate(self.root)
+        self.assertIn("g20k.py tools build-forks", str(err.exception))
 
     def test_programs_from_tools_toml(self) -> None:
         toolset = config.load_toolset(self.root / "tools.toml")

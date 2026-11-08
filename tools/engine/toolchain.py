@@ -177,7 +177,9 @@ def fetch(root: Path, names: Sequence[str] = ()) -> None:
     here = machine()
     unknown = sorted(set(names) - set(toolset.downloads))
     if unknown:
-        raise StepError(f"tools.toml has no download {', '.join(unknown)}")
+        raise StepError(
+            f"tools.toml has no program {', '.join(unknown)}, it has {', '.join(programs(toolset))}"
+        )
     for d in toolset.downloads.values():
         if names and d.name not in names:
             continue
@@ -244,7 +246,7 @@ def find(root: Path, name: str) -> Path:
     if name in toolset.downloads:
         want, how = toolset.downloads[name].version, "fetch"
     else:
-        want, how = toolset.sources[name].commit, "fetch (or tools build-forks)"
+        want, how = toolset.sources[name].commit, "build-forks" if local.mode == "source" else "fetch"
     path = local.paths.get(name, folder(root, name, want))
     # nextpnr and yosys may be given as the program itself
     got = marker(path.parent.parent if path.is_file() else path).get("version")
@@ -258,7 +260,7 @@ def find(root: Path, name: str) -> Path:
     elif name in BUILT and marker(path).get("key") != forks_key(toolset):
         raise StepError(
             f"{name} {want[:12]} is built from other sources or by another recipe, "
-            "run python3 g20k.py tools fetch (or tools build-forks)"
+            f"run python3 g20k.py tools {how}"
         )
     archive = toolset.downloads[name].archives.get(machine()) if name in toolset.downloads else None
     if archive and archive.path:
@@ -297,7 +299,7 @@ def status(root: Path) -> None:
     """@brief Prints each program of tools.toml with the folder it is taken from."""
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
-    print(f"machine {machine()}, forks {local.mode or 'not chosen yet'}")
+    print(f"machine {machine()}, forks {local.mode or 'not there yet'}")
     rows = [(d.name, d.version) for d in toolset.downloads.values()]
     rows += [(s.name, s.commit) for s in toolset.sources.values() if s.name in BUILT]
     # without a suite the forks cannot be checked, the list still shows what is there
