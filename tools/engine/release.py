@@ -191,9 +191,11 @@ def release(root: Path, dev: bool, board: Path | None = None) -> Path:
     # how to flash the image on this board, the board's text with the names of this release
     flashing = project.board.folder / "FLASHING.txt"
     (dist / "FLASHING.txt").write_text(
-        flashing.read_text().format(
+        flashing.read_text(encoding="utf-8").format(
             project=project.name, version=version, board=project.board.name, name=name
-        )
+        ),
+        encoding="utf-8",
+        newline="\n",
     )
     pack(root, dist, archive, name)
     return archive

@@ -103,7 +103,9 @@ def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     ini = out / "companion.ini"
     ini.write_text(
         "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
-        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{firmware.BL616_ADDRESSES[board]:x}\n"
+        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{firmware.BL616_ADDRESSES[board]:x}\n",
+        encoding="utf-8",
+        newline="\n",
     )
     return [
         tool,

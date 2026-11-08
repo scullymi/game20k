@@ -429,10 +429,15 @@ def make_release_bl616(root: Path, dev: bool) -> Path:
         # the image alone at its address, as g20k.py flash --bl616 writes it
         (dist / f"flash-{board}.ini").write_text(
             "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
-            f"[FW]\nfiledir = ./{image}\naddress = 0x{address:x}\n"
+            f"[FW]\nfiledir = ./{image}\naddress = 0x{address:x}\n",
+            encoding="utf-8",
+            newline="\n",
         )
+    # the release's text files have the same bytes on every machine, LF on Windows too
     (dist / "FLASHING.txt").write_text(
-        BL616_FLASHING.read_text().format(project=project.name, version=version)
+        BL616_FLASHING.read_text(encoding="utf-8").format(project=project.name, version=version),
+        encoding="utf-8",
+        newline="\n",
     )
     release.pack(root, dist, archive, name)
     return archive
