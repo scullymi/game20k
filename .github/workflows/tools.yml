@@ -49,7 +49,7 @@ jobs:
         include:
           - os: ubuntu-24.04    # linux-x64, fully static
             python: python3
-          - os: macos-14        # darwin-arm64, Boost static, runs on macOS 14 and later
+          - os: macos-15        # darwin-arm64, Boost static, runs on macOS 15 and later
             python: python3
           - os: windows-2025    # windows-x64, Boost and the C++ runtime static
             python: python

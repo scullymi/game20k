@@ -112,6 +112,13 @@ class ToolsetTest(unittest.TestCase):
         with self.assertRaises(config.ConfigError):
             config.load_local(path, ("suite",))
 
+    def test_local_dir_of_the_programs(self) -> None:
+        # relative to local.toml, ~ for the home folder
+        path = write(self.root, "local.toml", '[tools]\ndir = "../outside"\n')
+        self.assertEqual(config.load_local(path, ()).dir, (self.root / "../outside").resolve())
+        write(self.root, "local.toml", '[tools]\ndir = "~/t"\n')
+        self.assertEqual(config.load_local(path, ()).dir, Path.home() / "t")
+
 
 class LocateTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -242,6 +249,18 @@ class UnpackTest(unittest.TestCase):
             t.addfile(info, io.BytesIO(data))
         toolchain.unpack(archive, self.dir / "out")
         self.assertTrue((self.dir / "out/bin/tool").is_file())
+
+    def test_the_resource_forks_of_a_mac_are_left_out(self) -> None:
+        # as Bouffalo's toolchain comes: ._top beside top, ._name beside each file
+        archive = self.dir / "a.tar.xz"
+        with tarfile.open(archive, "w:xz") as t:
+            for name in ("._top", "top/bin/tool", "top/bin/._tool"):
+                info = tarfile.TarInfo(name)
+                info.size = 1
+                t.addfile(info, io.BytesIO(b"x"))
+        toolchain.unpack(archive, self.dir / "out")
+        self.assertTrue((self.dir / "out/bin/tool").is_file())
+        self.assertFalse((self.dir / "out/bin/._tool").exists())
 
     def test_zip_with_several_entries(self) -> None:
         archive = self.dir / "a.zip"
@@ -385,6 +404,35 @@ class ElfTest(unittest.TestCase):
     def test_static_and_dynamic(self) -> None:
         self.assertFalse(forks.elf_interpreter(self.elf([1, 1, 4])))
         self.assertTrue(forks.elf_interpreter(self.elf([6, 3, 1])))
+
+
+class MovedCacheTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def cache(self, made_in: Path) -> Path:
+        """@brief A build folder with a cmake cache made in made_in."""
+        build_dir = self.dir / "build"
+        build_dir.mkdir()
+        (build_dir / "CMakeCache.txt").write_text(f"CMAKE_CACHEFILE_DIR:INTERNAL={made_in.as_posix()}\n")
+        return build_dir
+
+    def test_cache_of_another_folder_goes(self) -> None:
+        build_dir = self.cache(self.dir / "old" / "build")
+        with redirect_stdout(io.StringIO()) as out:
+            forks.drop_moved_cache(build_dir)
+        self.assertFalse(build_dir.exists())
+        self.assertIn("building afresh", out.getvalue())
+
+    def test_own_cache_and_no_cache_stay(self) -> None:
+        build_dir = self.cache(self.dir / "build")
+        forks.drop_moved_cache(build_dir)
+        self.assertTrue((build_dir / "CMakeCache.txt").is_file())
+        forks.drop_moved_cache(self.dir / "none")
 
 
 class FetchTest(unittest.TestCase):

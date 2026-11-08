@@ -128,7 +128,10 @@ class Flash:
 
 @dataclass
 class Board:
-    """@brief A board: the FPGA, its pins and the clocks that come in from outside."""
+    """@brief A board: the FPGA, its pins and the clocks that come in from outside.
+
+    pins are the constraint files of the pins, which the build joins in this order. defines are
+    macros the sources see on this board, for ports that only it has."""
 
     folder: Path
     name: str
@@ -136,12 +139,13 @@ class Board:
     family: str
     synth_family: str
     loader: str
-    pins: Path
+    pins: list[Path]
     sspi_as_gpio: bool
     mspi_as_gpio: bool
     block_rams: int
     flash: Flash
     clocks: list[Clock]
+    defines: list[str] = field(default_factory=list)
 
 
 def load_board(path: Path) -> Board:
@@ -157,6 +161,7 @@ def load_board(path: Path) -> Board:
         "sspi_as_gpio",
         "mspi_as_gpio",
         "block_rams",
+        "defines",
     )
     flash = root.table("flash").allow("size", "slot_size")
     board = Board(
@@ -166,13 +171,16 @@ def load_board(path: Path) -> Board:
         family=b.get("family", str),
         synth_family=b.get("synth_family", str),
         loader=b.get("loader", str),
-        pins=path.parent / b.get("pins", str),
+        pins=[path.parent / f for f in b.strings("pins", required=True)],
         sspi_as_gpio=b.get("sspi_as_gpio", bool, False),
         mspi_as_gpio=b.get("mspi_as_gpio", bool, False),
         block_rams=b.get("block_rams", int),
         flash=Flash(flash.get("size", int), flash.get("slot_size", int)),
         clocks=_clocks(root),
+        defines=b.strings("defines"),
     )
+    if not all(d.isidentifier() for d in board.defines):
+        raise b.error("board.defines must be macro names")
     return board
 
 
@@ -341,12 +349,20 @@ class Project:
     """@brief A project: its board and the cores in the configuration flash, in ring order.
 
     Each core has one slot of the board's slot size. The core switch loads the next core of the
-    ring, the last one switches back to the first."""
+    ring, the last one switches back to the first. other_board is set when the board is not the
+    one project.toml names."""
 
     root: Path
     name: str
     board: Board
     slots: list[Path]
+    other_board: bool = False
+
+    def build_folder(self, core: str) -> Path:
+        """@brief The folder of a core's normal build: build/<core> on the board of project.toml,
+        build/<board folder>/<core> on another one, so that the two never replace each other."""
+        sub = Path(self.board.folder.name, core) if self.other_board else Path(core)
+        return self.root / "build" / sub
 
     def _index(self, core: Path) -> int:
         try:
@@ -363,11 +379,13 @@ class Project:
         return (self._index(core) + 1) % len(self.slots) * self.board.flash.slot_size
 
 
-def load_project(path: Path) -> Project:
-    """@brief Reads a project.toml and the board.toml it names."""
+def load_project(path: Path, board_folder: Path | None = None) -> Project:
+    """@brief Reads a project.toml and the board.toml it names, or that of board_folder instead."""
     root = _read(path).allow("project", "slot")
     p = root.table("project").allow("name", "board")
-    board = load_board(path.parent / p.get("board", str) / "board.toml")
+    own = (path.parent / p.get("board", str)).resolve()
+    board_folder = board_folder.resolve() if board_folder else own
+    board = load_board(board_folder / "board.toml")
     slots = []
     for s in root.tables("slot"):
         s.allow("core")
@@ -378,7 +396,7 @@ def load_project(path: Path) -> Project:
         slots.append(core)
     if len(slots) * board.flash.slot_size > board.flash.size:
         raise root.error(f"{len(slots)} slots do not fit into the flash of {board.name}")
-    return Project(root=path.parent, name=p.get("name", str), board=board, slots=slots)
+    return Project(path.parent, p.get("name", str), board, slots, board_folder != own)
 
 
 @dataclass
@@ -491,10 +509,12 @@ class Local:
 
     mode is how the programs of the forks come here, "source" or "prebuilt", empty until it is
     chosen. paths are folders (or for nextpnr the program) that take the place of the fetched
-    ones, relative to the folder of local.toml."""
+    ones, relative to the folder of local.toml. dir is the folder of the fetched and built
+    programs instead of external/tools, e.g. one outside an editor's workspace."""
 
     mode: str = ""
     paths: dict[str, Path] = field(default_factory=dict)
+    dir: Path | None = None
 
 
 def load_local(path: Path, programs: Sequence[str]) -> Local:
@@ -503,9 +523,10 @@ def load_local(path: Path, programs: Sequence[str]) -> Local:
     if not path.exists():
         return Local()
     root = _read(path).allow("tools")
-    t = root.table("tools", required=False).allow("mode", *programs)
+    t = root.table("tools", required=False).allow("mode", "dir", *programs)
     mode = t.get("mode", str, "")
     if mode not in ("", "source", "prebuilt"):
         raise t.error(f'tools.mode is "{mode}", expected "source" or "prebuilt"')
     paths = {k: (path.parent / t.get(k, str)).resolve() for k in programs if k in t.data}
-    return Local(mode, paths)
+    folder = (path.parent / Path(t.get("dir", str)).expanduser()).resolve() if "dir" in t.data else None
+    return Local(mode, paths, folder)

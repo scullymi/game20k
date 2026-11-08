@@ -51,14 +51,16 @@ def check_clock(root: Path) -> None:
         raise StepError(f"the clock is inside game20k.quiethours ({quiet}), the files would carry this time")
 
 
-def build_all(root: Path, cores: list[Path], logs: Path) -> None:
+def build_all(root: Path, cores: list[Path], logs: Path, board: Path | None = None) -> None:
     """@brief Builds the cores at the same time, each by its own g20k.py, and prints the logs in
-    ring order."""
+    ring order. board is passed on as --board."""
     logs.mkdir(parents=True, exist_ok=True)
 
     def one(core: Path) -> bool:
         with open(logs / f"{core.name}.log", "w", encoding="utf-8") as log:
             cmd = [sys.executable, str(root / "g20k.py"), "build", str(core)]
+            if board is not None:
+                cmd += ["--board", str(board)]
             return subprocess.run(cmd, cwd=root, stdout=log, stderr=subprocess.STDOUT).returncode == 0
 
     # the processors this process may run on, fewer than the machine's in a container or a CI
@@ -129,9 +131,10 @@ def pack(root: Path, dist: Path, archive: Path, name: str) -> None:
     print(f"  {hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.relative_to(root)}")
 
 
-def release(root: Path, dev: bool) -> Path:
-    """@brief Builds and packs a release under dist/ and returns the path of its zip."""
-    project = config.load_project(root / "project.toml")
+def release(root: Path, dev: bool, board: Path | None = None) -> Path:
+    """@brief Builds and packs a release under dist/ and returns the path of its zip. board is a
+    board folder in place of the one project.toml names."""
+    project = config.load_project(root / "project.toml", board)
     if not dev:
         check_tree(root)
     head = git(root, "rev-parse", "HEAD")
@@ -141,10 +144,13 @@ def release(root: Path, dev: bool) -> Path:
     dist, archive = new_dist(root, name)
 
     start = time.time()
-    build_all(root, project.slots, root / "build" / "release-logs")
+    builds = project.build_folder("")
+    build_all(
+        root, project.slots, builds / "release-logs", project.board.folder if project.other_board else None
+    )
     # the bitstreams come from this run, whose builds met every clock frequency and measure
     for core in project.slots:
-        out = root / "build" / core.name
+        out = project.build_folder(core.name)
         for f in (out / f"{core.name}.fs", out / f"{core.name}.bin"):
             if not f.is_file() or f.stat().st_mtime < start:
                 raise StepError(f"{f} is missing or older than this run")
@@ -161,7 +167,7 @@ def release(root: Path, dev: bool) -> Path:
             host.python(
                 root / "scripts" / "bitstream_notice.py",
                 "--build",
-                root / "build",
+                builds,
                 dist / "NOTICE.txt",
                 version,
                 *[c.name for c in project.slots],
@@ -177,7 +183,7 @@ def release(root: Path, dev: bool) -> Path:
     image = bytearray()
     for core in project.slots:
         address = project.address(core)
-        data = (root / "build" / core.name / f"{core.name}.bin").read_bytes()
+        data = (project.build_folder(core.name) / f"{core.name}.bin").read_bytes()
         if len(data) > project.board.flash.slot_size:
             raise StepError(f"{core.name}.bin is larger than its slot")
         image += b"\xff" * (address - len(image)) + data

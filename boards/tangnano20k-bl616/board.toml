@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+# Sipeed Tang Nano 20K with the Companion on its onboard BL616 instead of a Pico on the header.
+# The FPGA, the flash and the clock are those of boards/tangnano20k.
+
+[board]
+name = "Tang Nano 20K with the onboard BL616"
+device = "GW2AR-LV18QN88C8/I7"
+family = "GW2A-18C"
+synth_family = "gw2a"
+loader = "tangnano20k"
+# the platform's pins of the Tang Nano 20K, then those of the BL616
+pins = ["../tangnano20k/board.cst", "companion.cst"]
+# the top passes the BL616's console on to the header, see companion.cst
+defines = ["BL616_CONSOLE"]
+# the 18 Kbit block RAMs of the device
+block_rams = 46
+# the Companion's SPI shares the configuration pins of both SPI ports
+sspi_as_gpio = true
+mspi_as_gpio = true
+
+[flash]
+# 64 Mbit, one core per MB, see project.toml for the order
+size = 0x800000
+slot_size = 0x100000
+
+[[clock]]
+name = "sys_clk"
+port = "sys_clk"
+hz = 27_000_000

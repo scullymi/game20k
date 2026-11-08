@@ -8,7 +8,8 @@ device = "GW2AR-LV18QN88C8/I7"
 family = "GW2A-18C"
 synth_family = "gw2a"
 loader = "tangnano20k"
-pins = "board.cst"
+# the platform's pins, then those of the Companion on the header
+pins = ["board.cst", "companion.cst"]
 # the 18 Kbit block RAMs of the device
 block_rams = 46
 # the Companion's SPI shares the configuration pins of both SPI ports

@@ -5,7 +5,8 @@
 
 tools.toml names every program with its version and, per kind of machine, the archive and its
 SHA-256. fetch downloads the archives into external/tools/downloads/, checks them and unpacks
-each into a folder of its own, external/tools/<name>-<version>-<machine>/. forks.py makes the
+each into a folder of its own, external/tools/<name>-<version>-<machine>/. [tools] dir in
+local.toml puts all of it into another folder. forks.py makes the
 programs of game20k's forks. Each folder gets a marker file with what is in it and where it came
 from, which locate() checks the version against, for the forks also their key (forks_key). A
 path in local.toml takes the place of a folder, its version is then only checked, with a
@@ -57,7 +58,8 @@ def load_local(root: Path, toolset: config.Toolset) -> config.Local:
 
 
 def tools_dir(root: Path) -> Path:
-    return root / "external" / "tools"
+    """@brief Where fetch and build put the programs: external/tools, or dir of local.toml."""
+    return load_local(root, config.load_toolset(root / "tools.toml")).dir or root / "external" / "tools"
 
 
 def folder(root: Path, name: str, version: str) -> Path:
@@ -114,6 +116,13 @@ def download(url: str, dest: Path) -> None:
     part.replace(dest)
 
 
+def apple_double(name: str) -> bool:
+    """@brief A member a Mac adds to an archive, the resource fork ._name or __MACOSX/. Left
+    out, else an archive of one folder looks like one of two entries."""
+    parts = Path(name).parts
+    return bool(parts) and (parts[0] == "__MACOSX" or parts[-1].startswith("._"))
+
+
 def unpack(archive: Path, dest: Path) -> None:
     """@brief Unpacks archive into dest. An archive that holds one folder gives its content."""
     tmp = Path(tempfile.mkdtemp(dir=dest.parent, prefix=".unpack-"))
@@ -122,14 +131,23 @@ def unpack(archive: Path, dest: Path) -> None:
             with zipfile.ZipFile(archive) as z:
                 # zipfile drops the mode bits, a program would not start
                 for info in z.infolist():
+                    if apple_double(info.filename):
+                        continue
                     target = Path(z.extract(info, tmp))
                     mode = info.external_attr >> 16
                     if mode and not info.is_dir():
                         target.chmod(mode & 0o777)
+        elif archive.name.endswith(".7z"):
+            # tarfile cannot read 7-Zip. Only Windows downloads come as .7z, and the tar of
+            # Windows is bsdtar, which reads it
+            host.run(
+                ["tar", "-xf", archive, "--exclude", "._*", "--exclude", "__MACOSX"], cwd=tmp, capture=False
+            )
         else:
             with tarfile.open(archive) as t:
                 # the data filter refuses absolute paths and links that leave the folder
-                t.extractall(tmp, filter="data")
+                members = [m for m in t.getmembers() if not apple_double(m.name)]
+                t.extractall(tmp, members=members, filter="data")
         entries = list(tmp.iterdir())
         top = entries[0] if len(entries) == 1 and entries[0].is_dir() else tmp
         top.rename(dest)
@@ -181,7 +199,7 @@ def fetch(root: Path, names: Sequence[str] = ()) -> None:
         print(f"  from    {archive.url}")
         print(f"  release {d.release}")
         print(f"  sha256  {archive.sha256}")
-        print(f"  in      {dest.relative_to(root).as_posix()}")
+        print(f"  in      {dest.relative_to(root).as_posix() if dest.is_relative_to(root) else dest}")
 
 
 def forks_key(toolset: config.Toolset) -> str:

@@ -9,8 +9,9 @@
 #                   shell of Yosys' exec differ
 #   firmware        the release build of g20k.py firmware (--dev) on Linux and Windows, a warning
 #                   in src/game20k stops it, on Linux also the build without RetroAchievements
-#                   and the boards PICO and PICO2 of FPGA Companion without game20k's code
-#   firmware-same   the image and the NOTICE of both are the same bytes
+#                   and the boards PICO and PICO2 of FPGA Companion without game20k's code,
+#                   and the firmware of the Tang Nano 20K's onboard BL616 for both its boards
+#   firmware-same   the images and the NOTICE of both are the same bytes
 # The simulations run in sims.yml, only when fpga/ changes.
 # The fork is checked through its gitlink, it has no workflow of its own. No schedule on
 # purpose: every run comes from a push.
@@ -114,18 +115,26 @@ jobs:
           key: tool-archives-firmware-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
 
       - name: Archives (g20k.py tools fetch)
-        run: ${{ matrix.python }} g20k.py tools fetch arm armlibs pioasm picotool cmake ninja
+        run: ${{ matrix.python }} g20k.py tools fetch arm armlibs pioasm picotool riscv riscvlibs bouffalo_sdk cmake ninja
 
       - name: Build (g20k.py firmware --release --dev)
         run: ${{ matrix.python }} g20k.py firmware --release --dev
 
-      - name: Keep the image and its NOTICE
+      - name: Build (g20k.py firmware --bl616 nano20k, nano20k_v3923)
+        shell: bash
+        run: |
+          for board in nano20k nano20k_v3923; do
+            ${{ matrix.python }} g20k.py firmware --bl616 $board
+          done
+
+      - name: Keep the images and the NOTICE
         uses: actions/upload-artifact@v7
         with:
           name: firmware-${{ runner.os }}
           path: |
             dist/*/*.uf2
             dist/*/NOTICE.txt
+            build/firmware/bl616-*/build_out/fpga_companion_bl616.bin
           if-no-files-found: error
 
       # the switch stays usable: the build without RetroAchievements, and no part of them in it

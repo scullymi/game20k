@@ -26,3 +26,26 @@
 "SPX9" = 4
 "VCC" = 1
 "rPLL" = 2
+
+[tangnano20k-bl616]
+"$print" = 20
+"$scopeinfo" = 9
+"ALU" = 1176
+"BUFG" = 1
+"CLKDIV" = 1
+"DFF" = 6237
+"DPB" = 21
+"DPX9B" = 8
+"ELVDS_OBUF" = 4
+"GND" = 1
+"IBUF" = 7
+"IOBUF" = 37
+"LUT" = 9070
+"MULT18X18" = 4
+"OBUF" = 43
+"OSER10" = 3
+"RAM16SDP4" = 26
+"SDPX9B" = 1
+"SPX9" = 4
+"VCC" = 1
+"rPLL" = 2

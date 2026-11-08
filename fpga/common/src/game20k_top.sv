@@ -72,12 +72,19 @@ module game20k_top #(
     output logic       sd_clk,
     inout  wire        sd_cmd,
     inout  wire  [3:0] sd_dat,
-    //! FPGA Companion (Pico) on the 40-pin header
+    //! FPGA Companion, the Pico on the 40-pin header or the onboard BL616, see the board's
+    //! companion.cst
     input  wire        spi_csn,
     input  wire        spi_sck,
     input  wire        spi_mosi,
     output logic       spi_miso,
     output logic       spi_irqn,
+`ifdef BL616_CONSOLE
+    //! the onboard BL616's console (its UART TX) passed on to the header, see
+    //! boards/tangnano20k-bl616/companion.cst
+    input  wire        bl616_con,
+    output logic       bl616_con_out,
+`endif
     //! RECONFIG_N (pin 9), high in operation. A low pulse loads the next core, see
     //! "Core switch" below.
     output logic       reconfig_n
@@ -1149,7 +1156,11 @@ module game20k_top #(
     logic [10:0] sd_acc = 0;
     always_ff @(posedge clk_core) sd_acc <= {1'b0, sd_acc[9:0]} + {1'b0, aud_g[15] ? 10'd0 : aud_g[15:6]};
     assign pwm_audio_l = sd_acc[10];
-    
+
+`ifdef BL616_CONSOLE
+    assign bl616_con_out = bl616_con;
+`endif
+
     // ---------------- LEDs (active low) ----------------
     logic [23:0] blink = 0;
     always_ff @(posedge clk_core) blink <= blink + 24'd1;

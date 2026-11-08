@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.engine import config, flash, host, toolchain
+from tools.engine import config, firmware, flash, host, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import BOARD, CORE, PROJECT, write
 from tools.engine.tests.test_toolchain import COMMIT, fake_tools
@@ -72,6 +72,64 @@ class FlashTest(unittest.TestCase):
         image.write_bytes(b"\xff" * (0x200000 + 1))
         with self.assertRaises(StepError):
             flash.command(self.root, image=image)
+
+    def test_core_of_another_board(self) -> None:
+        write(self.root, "boards/c/board.toml", BOARD)
+        board = self.root / "boards" / "c"
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, self.root / "fpga/two", board=board)
+        self.assertIn("g20k.py build fpga/two --board boards/c", str(err.exception))
+        # a board folder outside the project is named as it is
+        outside = Path(self.tmp.name).resolve().parent / f"{self.root.name}-board"
+        write(outside, "board.toml", BOARD)
+        self.addCleanup(shutil.rmtree, outside)
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, self.root / "fpga/two", board=outside)
+        self.assertIn(f"--board {outside.as_posix()}", str(err.exception))
+        # the build of the other board, not that of project.toml's
+        self.built("two")
+        fs = write(self.root, "build/c/two/two.fs", "")
+        self.assertEqual(flash.command(self.root, self.root / "fpga/two", board=board)[-2:], ["--verify", fs])
+
+
+class Bl616Test(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        fake_tools(self.root)
+        text = (self.root / "tools.toml").read_text()
+        machine = toolchain.machine()
+        text += (
+            '\n[download.bouffalo_sdk]\nversion = "abc"\nrelease = "r"\n'
+            f'\n[download.bouffalo_sdk.{machine}]\nurl = "u"\nsha256 = "{"0" * 64}"\n'
+        )
+        write(self.root, "tools.toml", text)
+        made = toolchain.folder(self.root, "bouffalo_sdk", "abc")
+        made.mkdir(parents=True)
+        toolchain.write_marker(made, {"name": "bouffalo_sdk", "version": "abc"})
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_only_the_companion_address(self) -> None:
+        image = write(firmware.bl616_folder(self.root, "nano20k"), "build_out/fpga_companion_bl616.bin", "")
+        cmd = flash.bl616_command(self.root, "nano20k", "COM3")
+        self.assertIn("--port=COM3", cmd)
+        ini = (firmware.bl616_folder(self.root, "nano20k") / "companion.ini").read_text()
+        # one image, at 0x40000: Sipeed's firmware at 0x0 stays
+        self.assertEqual(ini.count("filedir"), 1)
+        self.assertIn(f"filedir = {image.as_posix()}\naddress = 0x40000\n", ini)
+
+    def test_without_build(self) -> None:
+        with self.assertRaises(StepError) as err:
+            flash.bl616_command(self.root, "nano20k", "COM3")
+        self.assertIn("g20k.py firmware --bl616 nano20k", str(err.exception))
+
+    def test_only_the_boards_with_sipeeds_firmware(self) -> None:
+        write(firmware.bl616_folder(self.root, "m0sdock"), "build_out/fpga_companion_bl616.bin", "")
+        with self.assertRaises(StepError) as err:
+            flash.bl616_command(self.root, "m0sdock", "COM3")
+        self.assertIn("0x40000", str(err.exception))
 
 
 if __name__ == "__main__":

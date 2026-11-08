@@ -35,6 +35,18 @@ def board_name(text: str) -> str:
     return text.upper()
 
 
+def bl616_board(text: str) -> str:
+    """@brief A board of --bl616: a name as src/bl616/CMakeLists.txt has it, which also names its
+    build folder."""
+    if not text.replace("_", "").isalnum() or not text.isascii():
+        raise argparse.ArgumentTypeError(f"{text}: expected a board name such as nano20k_v3923")
+    return text.lower()
+
+
+#: --board of build, release and flash
+BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-bl616"
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="g20k.py")
     sub = ap.add_subparsers(dest="command", required=True)
@@ -53,8 +65,10 @@ def main(argv: list[str]) -> int:
     b.add_argument(
         "--update-cells", action="store_true", help="write the netlist's cells as the core's measure"
     )
+    b.add_argument("--board", type=Path, help=BOARD_HELP)
     r = sub.add_parser("release", help="build every core of project.toml and pack a release")
     r.add_argument("--dev", action="store_true", help="trial run: no tag, uncommitted changes allowed")
+    r.add_argument("--board", type=Path, help=BOARD_HELP)
     w = sub.add_parser("firmware", help="build the Pico firmware")
     w.add_argument(
         "--usb",
@@ -69,6 +83,12 @@ def main(argv: list[str]) -> int:
         metavar="BOARD",
         help="a board of FPGA Companion's src/rp2040/CMakeLists.txt without game20k's code, e.g. PICO",
     )
+    w.add_argument(
+        "--bl616",
+        type=bl616_board,
+        metavar="BOARD",
+        help="the onboard BL616 instead of the Pico, BOARD as src/bl616/CMakeLists.txt has it, e.g. nano20k",
+    )
     w.add_argument("--release", action="store_true", help="build from scratch and pack a release")
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
@@ -77,9 +97,17 @@ def main(argv: list[str]) -> int:
         "core", type=Path, nargs="?", help="core folder: its build into the slot of project.toml"
     )
     what.add_argument("--image", type=Path, help="a flash image from 0, as a release packs it")
+    what.add_argument(
+        "--bl616",
+        type=bl616_board,
+        metavar="BOARD",
+        help="the Companion of g20k.py firmware --bl616 BOARD into the onboard BL616, in download mode",
+    )
+    f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(
         "--sram", action="store_true", help="the core into the FPGA's SRAM, gone at the next power cut"
     )
+    f.add_argument("--board", type=Path, help=BOARD_HELP)
     f.add_argument("--dry-run", action="store_true", help="print the command only")
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
     t = sub.add_parser("tools", help="the programs of tools.toml: without a command where they are")
@@ -103,6 +131,10 @@ def main(argv: list[str]) -> int:
     args = ap.parse_args(argv)
     if args.command == "flash" and args.sram and args.image:
         f.error("--sram takes a core, not an image")
+    if args.command == "flash" and bool(args.bl616) != bool(args.port):
+        f.error("--bl616 and --port go together")
+    if args.command == "flash" and args.bl616 and (args.sram or args.board):
+        f.error("--bl616 takes no --sram or --board")
     if args.command == "firmware" and args.dev and not args.release:
         w.error("--dev goes with --release")
     if args.command == "firmware" and args.release and (args.usb != "native" or args.without_ra):
@@ -113,23 +145,33 @@ def main(argv: list[str]) -> int:
         and (args.release or args.without_ra or args.usb != "native")
     ):
         w.error("--upstream takes no other option")
+    if (
+        args.command == "firmware"
+        and args.bl616
+        and (args.release or args.upstream or args.without_ra or args.usb != "native")
+    ):
+        w.error("--bl616 takes no other option")
     try:
         if args.command == "build":
             core_toml = args.core.resolve() / "core.toml"
-            print(build.build(ROOT, core_toml, args.out, dict(args.params), args.update_cells))
+            print(build.build(ROOT, core_toml, args.out, dict(args.params), args.update_cells, args.board))
         elif args.command == "release":
-            release.release(ROOT, args.dev)
+            release.release(ROOT, args.dev, args.board)
         elif args.command == "firmware":
             if args.release:
                 firmware.make_release(ROOT, args.dev)
             elif args.upstream:
                 firmware.build_upstream(ROOT, args.upstream)
+            elif args.bl616:
+                firmware.build_bl616(ROOT, args.bl616)
             else:
                 firmware.build(ROOT, args.usb, ra=not args.without_ra)
+        elif args.command == "flash" and args.bl616:
+            flash.flash_bl616(ROOT, args.bl616, args.port, args.dry_run)
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
-            flash.flash(ROOT, core, args.sram, image, args.dry_run)
+            flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board)
         elif args.command == "tools":
             if args.tools_command == "fetch":
                 toolchain.fetch(ROOT, args.names)
