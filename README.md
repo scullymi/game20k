@@ -46,6 +46,8 @@ You do not need an account to play. Setting one up: [docs/retroachievements.md](
 
 **You need** a Tang Nano 20K, a Raspberry Pi Pico 2 W, a microSD card, a micro USB OTG adapter,
 a USB arcade stick, an HDMI monitor and seven wires, see [docs/hardware.md](docs/hardware.md).
+Without a Pico, the Nano also runs alone or with an M0S Dock, then without RetroAchievements:
+[docs/bl616.md](docs/bl616.md).
 
 1. **Wire the boards** as shown in [docs/wiring.md](docs/wiring.md). The 5 V supply goes to
    pin 40 (VBUS) of the Pico.
@@ -62,13 +64,14 @@ a USB arcade stick, an HDMI monitor and seven wires, see [docs/hardware.md](docs
    ```
    The script only needs Python 3 and checks every chip against MAME before anything goes onto
    the card.
-4. **Flash the Nano.** Download `game20k-<version>-tangnano20k.zip` from the
+4. **Flash the Nano.** Download `game20k-<version>-cores-tangnano20k.zip` from the
    [latest release](https://github.com/scullymi/game20k/releases/latest) and write the image:
    ```sh
-   openFPGALoader -b tangnano20k -f --verify game20k-<version>-tangnano20k.bin
+   openFPGALoader -b tangnano20k -f --verify game20k-<version>-cores-tangnano20k.bin
    ```
 5. **Flash the Pico.** Hold BOOTSEL while plugging it in, then copy
-   `game20k-<version>-pico2w.uf2` from the same release to the drive that appears.
+   `game20k-<version>-firmware-pico2w.uf2` from `game20k-<version>-firmware-pico2w.zip` of the
+   same release to the drive that appears.
 6. **Play.** Insert the card into the Nano and power on. The screen stays dark until LED 5 lights
    up, which means the ROM has loaded. **S2** on the Nano opens the menu.
 
@@ -83,6 +86,7 @@ with the Gowin IDE or with free tools: [docs/BUILD.md](docs/BUILD.md).
 | [Hardware and monitor](docs/hardware.md) | [Wiring](docs/wiring.md) |
 | [Building from source](docs/BUILD.md) | [Known issues and plans](docs/status.md) |
 | [Screenshots and photos](docs/images/README.md) | [Third-party code and credits](THIRD-PARTY.md) |
+| [Without a Pico: the BL616](docs/bl616.md) | |
 
 ## Credits
 
