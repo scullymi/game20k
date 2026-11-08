@@ -23,8 +23,9 @@ address. Unplug the board, hold UPDATE, plug it in, then run in this folder:
 
   BLFlashCommand --interface=uart --chipname=bl616 --baudrate=2000000 --port=<port> --config=flash-nano20k_v3923.ini
 
-The BL616 starts the Companion only when no computer is on the board's USB port, so
-power the board from a power supply or a powered hub to play.
+The BL616 starts the Companion only when no computer is on the board's USB port. To
+play, power the board through a powered USB hub on its USB-C port and plug the stick
+into the hub.
 
 M0S Dock: the image goes to 0x0. Unplug the dock, hold BOOT, plug it in, then:
 

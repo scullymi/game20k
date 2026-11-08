@@ -144,7 +144,7 @@ def main(argv: list[str]) -> int:
     if args.command == "firmware" and args.dev and not args.release:
         w.error("--dev goes with --release")
     if args.command == "firmware" and args.release and (args.usb != "native" or args.without_ra):
-        w.error("a release is the native variant with RetroAchievements")
+        w.error("a release takes no --usb or --without-ra")
     if (
         args.command == "firmware"
         and args.upstream

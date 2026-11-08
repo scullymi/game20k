@@ -99,13 +99,9 @@ def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     except KeyError:
         raise StepError(f"no flash tool of the Bouffalo SDK for {platform.system()}") from None
     tool = toolchain.find(root, "bouffalo_sdk") / "tools" / "bflb_tools" / "bouffalo_flash_cube" / name
-    # the image alone: the SDK's own flash_prog_cfg.ini also writes its boot2 to 0x0
     ini = out / "companion.ini"
     ini.write_text(
-        "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
-        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{firmware.BL616_ADDRESSES[board]:x}\n",
-        encoding="utf-8",
-        newline="\n",
+        firmware.bl616_ini(image.as_posix(), firmware.BL616_ADDRESSES[board]), encoding="utf-8", newline="\n"
     )
     return [
         tool,

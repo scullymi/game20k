@@ -63,6 +63,23 @@ BL616_ADDRESSES = {"nano20k": 0x40000, "nano20k_v3923": 0x40000, "m0sdock": 0x0}
 #: the text of FLASHING.txt in the release of the BL616 firmware
 BL616_FLASHING = Path(__file__).with_name("flashing_bl616.txt")
 
+
+def bl616_ini(image: str, address: int) -> str:
+    """@brief A configuration of Bouffalo's flash tool that writes the image alone at address. The
+    SDK's own flash_prog_cfg.ini also writes its boot2 to 0x0, which a Tang Nano 20K must keep."""
+    return (
+        "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
+        f"[FW]\nfiledir = {image}\naddress = 0x{address:x}\n"
+    )
+
+
+def bl616_libraries(root: Path) -> Path:
+    """@brief The toolchain folder whose libraries the BL616 firmware links: that of
+    [download.riscvlibs], or the toolchain of local.toml with its own."""
+    local = toolchain.load_local(root, config.load_toolset(root / "tools.toml"))
+    return toolchain.find(root, "riscv" if "riscv" in local.paths else "riscvlibs")
+
+
 #: the settings of config.ini that must not end up in an image
 SECRETS = ("SSID", "PASS", "TOKEN")
 
@@ -192,10 +209,11 @@ def build_bl616(root: Path, board: str, version: str | None = None) -> Path:
     toolchain.find(root, "ninja")
     sdk = toolchain.find(root, "bouffalo_sdk")
     riscv = toolchain.find(root, "riscv")
-    if "riscv" in toolchain.load_local(root, config.load_toolset(root / "tools.toml")).paths:
+    libraries = bl616_libraries(root)
+    if libraries == riscv:
         print("note: the toolchain of local.toml links its own libraries, the image may differ")
     else:
-        use_one_library_set(riscv, toolchain.find(root, "riscvlibs"), RISCV_LIBRARIES)
+        use_one_library_set(riscv, libraries, RISCV_LIBRARIES)
     src = root / FORK / "src" / "bl616"
     env = {
         "BL_SDK_BASE": sdk.as_posix(),
@@ -309,17 +327,19 @@ def build_upstream(root: Path, board: str) -> Path:
 
 
 def check_tables(map_text: str) -> None:
-    """@brief The linked tables are the generated ones, not the fork's examples."""
+    """@brief The linked tables are the generated ones, not the fork's examples. The map of the
+    Pico names their objects by path, that of the BL616 as members of the application's library."""
     for table in ("ra_games", "menus"):
-        if f"/build/firmware/gen/{table}_data.c." not in map_text or f"{table}_example.c." in map_text:
+        linked = f"/build/firmware/gen/{table}_data.c." in map_text or f"({table}_data.c.obj)" in map_text
+        if not linked or f"{table}_example.c." in map_text:
             raise StepError(f"the image does not link the generated table {table}_data.c")
 
 
-def check_image(image: bytes, version: str, ini: Path, marker: str | None = None) -> None:
+def check_image(image: bytes, version: str, ini: Path, marker: bytes | None = None) -> None:
     """@brief The image reports its version, has no diagnostic output, and none of the values
-    of the builder's own config.ini ended up in it. marker is the text with the version, by
-    default the User-Agent of RetroAchievements."""
-    if (marker or f"game20k/v{version} ").encode() not in image:
+    of the builder's own config.ini ended up in it. marker holds the version, by default the
+    User-Agent of RetroAchievements."""
+    if (marker or f"game20k/v{version} ".encode()) not in image:
         raise StepError(f"the image does not report version {version}")
     if re.search(rb"(^|\x00)TEST:", image):
         raise StepError("the image prints TEST: lines, it contains a diagnostic build")
@@ -403,19 +423,20 @@ def make_release_bl616(root: Path, dev: bool) -> Path:
 
     dist.mkdir(parents=True)
     sdk = toolchain.find(root, "bouffalo_sdk")
-    # the libraries the image links, see build_bl616
-    local = toolchain.load_local(root, config.load_toolset(root / "tools.toml"))
-    libraries = toolchain.find(root, "riscv" if "riscv" in local.paths else "riscvlibs")
     for board, address in BL616_ADDRESSES.items():
         out = bl616_folder(root, board) / "build_out"
         image = f"{project.name}-{version}-{board}.bin"
+        map_file = out / "fpga_companion_bl616.map"
+        check_tables(map_file.read_text(encoding="utf-8", errors="replace").replace(os.sep, "/"))
+        # the version as a string of its own, without RetroAchievements there is no User-Agent
+        marker = b"\0" + version.encode() + b"\0"
         check_image(
-            (out / "fpga_companion_bl616.bin").read_bytes(), version, root / "sdcard" / "config.ini", version
+            (out / "fpga_companion_bl616.bin").read_bytes(), version, root / "sdcard" / "config.ini", marker
         )
         shutil.copyfile(out / "fpga_companion_bl616.bin", dist / image)
         notice = host.python(
             root / "scripts" / "firmware_notice.py",
-            out / "fpga_companion_bl616.map",
+            map_file,
             dist / f"NOTICE-{board}.txt",
             version,
             "--bl616",
@@ -423,15 +444,12 @@ def make_release_bl616(root: Path, dev: bool) -> Path:
             "--sdk",
             sdk,
             "--toolchain",
-            libraries,
+            bl616_libraries(root),
         )
         host.run(notice, cwd=root, capture=False)
         # the image alone at its address, as g20k.py flash --bl616 writes it
         (dist / f"flash-{board}.ini").write_text(
-            "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
-            f"[FW]\nfiledir = ./{image}\naddress = 0x{address:x}\n",
-            encoding="utf-8",
-            newline="\n",
+            bl616_ini(f"./{image}", address), encoding="utf-8", newline="\n"
         )
     # the release's text files have the same bytes on every machine, LF on Windows too
     (dist / "FLASHING.txt").write_text(
