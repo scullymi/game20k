@@ -135,6 +135,21 @@ class LocateTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_status_names_origin_and_folder(self) -> None:
+        suite = toolchain.folder(self.root, "suite", "20261102")
+        toolchain.write_marker(suite, toolchain.marker(suite) | {"url": "https://x/suite.tgz"})
+        shutil.rmtree(toolchain.folder(self.root, "nextpnr", COMMIT))
+        write(self.root, "local.toml", '[tools]\nghdl = "own-ghdl"\n')
+        out = io.StringIO()
+        with redirect_stdout(out):
+            toolchain.status(self.root)
+        lines = out.getvalue().splitlines()
+        at = lines.index("suite 20261102: ok")
+        self.assertEqual(lines[at + 1], "  from  https://x/suite.tgz")
+        self.assertEqual(lines[lines.index(f"nextpnr {COMMIT[:12]}: missing") + 1], "  from  not there yet")
+        ghdl = next(n for n, line in enumerate(lines) if line.startswith("ghdl "))
+        self.assertEqual(lines[ghdl + 1], "  from  a path in local.toml")
+
     def test_fetched_folders(self) -> None:
         tools = toolchain.locate(self.root)
         self.assertEqual(tools.suite, toolchain.folder(self.root, "suite", "20261102"))
@@ -516,10 +531,6 @@ File Type: EXECUTABLE IMAGE
         self.assertEqual(found, ["VCRUNTIME140.dll", "other.dll"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class OriginTest(unittest.TestCase):
     """@brief Where tools status says a folder came from, by its marker."""
 
@@ -532,3 +543,7 @@ class OriginTest(unittest.TestCase):
         built = toolchain.origin(toolset, {"repo": "https://x/yosys.git", "commit": "1" * 40})
         self.assertEqual(built, "built here from https://x/yosys.git at 111111111111")
         self.assertEqual(toolchain.origin(toolset, {}), "unknown")
+
+
+if __name__ == "__main__":
+    unittest.main()

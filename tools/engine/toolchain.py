@@ -305,7 +305,7 @@ def origin(toolset: config.Toolset, mark: dict[str, str]) -> str:
         urls = [a.url for a in archives if a.sha256 == mark["archive"]]
         return urls[0] if urls else f"an archive of prebuilt forks, sha256 {mark['archive'][:12]}"
     if mark.get("repo"):
-        return f"built here from {mark['repo']} at {mark.get('commit', '')[:12]}"
+        return f"built here from {mark['repo']} at {mark.get('commit', mark.get('version', ''))[:12]}"
     return "unknown"
 
 
@@ -340,7 +340,7 @@ def status(root: Path) -> None:
         elif path.exists():
             source = origin(toolset, mark)
         else:
-            source = "not fetched yet"
+            source = "not there yet"
         shown = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
         print(f"{name} {version[:12]}: {state}")
         print(f"  from  {source}")
