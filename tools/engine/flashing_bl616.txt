@@ -18,8 +18,12 @@ graphical BLFlashCube, both in tools/bflb_tools/bouffalo_flash_cube of the Bouff
 SDK: https://github.com/bouffalolab/bouffalo_sdk
 
 Tang Nano 20K: the image goes to 0x40000, behind Sipeed's debugger firmware at 0x0,
-which has to stay. flash-nano20k_v3923.ini and flash-nano20k.ini write only that
-address. Unplug the board, hold UPDATE, plug it in, then run in this folder:
+which has to stay. Only debugger firmware 2025030317 and later starts an image there.
+Its version is the serial number of the USB debugger the board shows on a computer.
+An older one has to be replaced by Sipeed's FPGA Partner firmware first, see
+https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/bl616/bl616_fpga_partner
+flash-nano20k_v3923.ini and flash-nano20k.ini write only 0x40000. Unplug the board,
+hold UPDATE, plug it in, then run in this folder:
 
   BLFlashCommand --interface=uart --chipname=bl616 --baudrate=2000000 --port=<port> --config=flash-nano20k_v3923.ini
 
