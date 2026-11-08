@@ -2,9 +2,9 @@
 # Copyright (C) 2026 scullymi
 # The programs the build runs, each in one version for every machine. python3 g20k.py tools fetch
 # downloads the archives into external/tools/ and checks each against its SHA-256, the one the
-# release page shows. python3 g20k.py tools build makes the programs of game20k's forks, from their
-# sources (--source) or from the archive of [prebuilt] (--prebuilt). A path in local.toml ([tools])
-# takes the place of a folder here, its version is then checked, not fetched.
+# release page shows, and the programs of game20k's forks from the archive of [prebuilt].
+# python3 g20k.py tools build-forks builds the forks from their sources instead. A path in
+# local.toml ([tools]) takes the place of a folder here, its version is then checked, not fetched.
 
 # YosysHQ's nightly build of Yosys with its slang frontend, openFPGALoader, Verilator and the
 # Python that Apicula runs with (python). On Windows its programs find their DLLs through
@@ -236,7 +236,7 @@ commit = "86935b9cf4fe50f18cc2fb7877a677f89cd3a44d"
 # The programs of the forks above, built from these commits by tools.yml, one archive per machine
 # with a build provenance attestation. After a change of a commit above, of the suite or of
 # tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run
-# to here: the archive carries the key of all three, and tools build --prebuilt stops on another.
+# to here: the archive carries the key of all three, and tools fetch stops on another.
 [prebuilt]
 release = "https://github.com/scullymi/game20k/releases/tag/tools-eed5abf57731"
 

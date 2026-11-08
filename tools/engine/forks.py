@@ -42,7 +42,7 @@ def need(*programs: str) -> None:
     if missing:
         raise StepError(
             f"building the forks needs {', '.join(missing)} (and Boost), see tools.toml, "
-            "or take the prebuilt programs (--prebuilt)"
+            "or fetch the prebuilt ones (python3 g20k.py tools fetch)"
         )
 
 
@@ -61,19 +61,15 @@ def drop_moved_cache(build_dir: Path) -> None:
             return
 
 
-def build(root: Path, mode: str | None) -> None:
-    """@brief Makes the programs of the forks in the mode given or the one chosen before.
-
-    The first build needs the mode, which local.toml then keeps: from the sources, which needs
-    cmake, ninja, a C++ compiler, Boost, Flex and Bison, or prebuilt from game20k's releases."""
+def build(root: Path, mode: str) -> None:
+    """@brief Makes the programs of the forks: from their sources ("source"), which needs cmake,
+    ninja, a C++ compiler, Boost, Flex and Bison, or from game20k's releases ("prebuilt").
+    local.toml keeps the mode, so that tools fetch leaves forks built here as they are."""
     local_toml = root / "local.toml"
     toolset = config.load_toolset(root / "tools.toml")
     local = toolchain.load_local(root, toolset)
-    mode = mode or local.mode
-    if not mode:
-        raise StepError("choose how the forks come here: g20k.py tools build --source or --prebuilt")
     made = unpack_forks(root, toolset) if mode == "prebuilt" else make_forks(root, toolset, static=False)
-    # kept only once it worked, so a failed --prebuilt does not become the default
+    # kept only once it worked, so a failed fetch does not become the default
     if mode != local.mode:
         toolchain.save_mode(local_toml, mode)
     for name, path in made.items():
@@ -295,7 +291,7 @@ def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Path]:
     prebuilt = toolset.prebuilt
     archive = prebuilt.archives.get(here) if prebuilt else None
     if prebuilt is None or archive is None:
-        raise StepError(f"tools.toml has no prebuilt forks for {here}, build them with --source")
+        raise StepError(f"tools.toml has no prebuilt forks for {here}, run python3 g20k.py tools build-forks")
     key = toolchain.forks_key(toolset)
     dests = {name: toolchain.folder(root, name, source(toolset, name).commit) for name in toolchain.BUILT}
     # the folders of this archive, as long as it still carries the key
@@ -313,7 +309,7 @@ def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Path]:
         if any(toolchain.marker(staging / name).get("key") != key for name in toolchain.BUILT):
             raise StepError(
                 f"{archive.url} holds other forks than tools.toml and forks.py make (key {key}), "
-                "renew [prebuilt] with tools.yml or build them with --source"
+                "renew [prebuilt] with tools.yml or run python3 g20k.py tools build-forks"
             )
         for name, dest in dests.items():
             if dest.exists():

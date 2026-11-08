@@ -43,6 +43,23 @@ def bl616_board(text: str) -> str:
     return text.lower()
 
 
+def fetch_tools(root: Path, names: list[str]) -> None:
+    """@brief The programs of tools.toml that come ready-made: the downloads and the prebuilt
+    forks, the ones named or else all. Without names the forks stay as they are when this machine
+    builds them from their sources (tools build-forks)."""
+    downloads = [n for n in names if n not in toolchain.BUILT]
+    if downloads or not names:
+        toolchain.fetch(root, downloads)
+    if len(downloads) < len(names):
+        forks.build(root, "prebuilt")
+    elif not names:
+        toolset = config.load_toolset(root / "tools.toml")
+        if toolchain.load_local(root, toolset).mode == "source":
+            print("forks: built from their sources here, python3 g20k.py tools build-forks renews them")
+        else:
+            forks.build(root, "prebuilt")
+
+
 #: --board of build, release and flash
 BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-singleboard"
 
@@ -118,14 +135,11 @@ def main(argv: list[str]) -> int:
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
     t = sub.add_parser("tools", help="the programs of tools.toml: without a command where they are")
     tsub = t.add_subparsers(dest="tools_command")
-    tf = tsub.add_parser("fetch", help="download and check the programs that come as archives")
-    tf.add_argument("names", nargs="*", help="only these programs of tools.toml, e.g. suite ghdl")
-    tb = tsub.add_parser("build", help="make the programs of game20k's forks")
-    how = tb.add_mutually_exclusive_group()
-    how.add_argument("--source", action="store_const", const="source", dest="mode", help="from their sources")
-    how.add_argument(
-        "--prebuilt", action="store_const", const="prebuilt", dest="mode", help="from the releases"
+    tf = tsub.add_parser(
+        "fetch", help="download and check the ready-made programs: the archives and the prebuilt forks"
     )
+    tf.add_argument("names", nargs="*", help="only these programs of tools.toml, e.g. suite ghdl yosys")
+    tsub.add_parser("build-forks", help="build game20k's forks from their sources instead")
     tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for tools.yml")
     tk.add_argument("--out", type=Path, required=True, help="folder for the archive")
     tp = tsub.add_parser("path", help="print the folder a program of tools.toml is taken from")
@@ -182,9 +196,9 @@ def main(argv: list[str]) -> int:
             flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board)
         elif args.command == "tools":
             if args.tools_command == "fetch":
-                toolchain.fetch(ROOT, args.names)
-            elif args.tools_command == "build":
-                forks.build(ROOT, args.mode)
+                fetch_tools(ROOT, args.names)
+            elif args.tools_command == "build-forks":
+                forks.build(ROOT, "source")
             elif args.tools_command == "pack":
                 forks.pack(ROOT, args.out.resolve())
             elif args.tools_command == "path":

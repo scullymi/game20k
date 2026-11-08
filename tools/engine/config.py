@@ -507,10 +507,11 @@ def _archives(t: _Table, programs: bool = False) -> dict[str, Archive]:
 class Local:
     """@brief This machine's settings from local.toml, which git does not track.
 
-    mode is how the programs of the forks come here, "source" or "prebuilt", empty until it is
-    chosen. paths are folders (or for nextpnr the program) that take the place of the fetched
-    ones, relative to the folder of local.toml. dir is the folder of the fetched and built
-    programs instead of external/tools, e.g. one outside an editor's workspace."""
+    mode is how the programs of the forks came here, "source" (tools build-forks) or "prebuilt"
+    (tools fetch), empty before either ran. paths are folders (or for nextpnr the program) that
+    take the place of the fetched ones, relative to the folder of local.toml. dir is the folder of
+    the fetched and built programs instead of external/tools, e.g. one outside an editor's
+    workspace."""
 
     mode: str = ""
     paths: dict[str, Path] = field(default_factory=dict)

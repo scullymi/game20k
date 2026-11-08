@@ -188,12 +188,12 @@ class LocateTest(unittest.TestCase):
                 self.assertEqual(toolchain.forks_key(toolset) == key, same)
 
     def test_suite_without_the_forks(self) -> None:
-        # tools build needs the suite before nextpnr exists
+        # building the forks needs the suite before nextpnr exists
         (toolchain.folder(self.root, "nextpnr", COMMIT) / toolchain.MARKER).unlink()
         self.assertEqual(toolchain.find(self.root, "suite"), toolchain.folder(self.root, "suite", "20261102"))
         with self.assertRaises(StepError) as err:
             toolchain.locate(self.root)
-        self.assertIn("g20k.py tools build", str(err.exception))
+        self.assertIn("tools build-forks", str(err.exception))
 
     def test_programs_from_tools_toml(self) -> None:
         toolset = config.load_toolset(self.root / "tools.toml")
@@ -202,12 +202,6 @@ class LocateTest(unittest.TestCase):
         with self.assertRaises(StepError) as err:
             toolchain.find(self.root, "eigen")
         self.assertIn("no program eigen", str(err.exception))
-
-    def test_build_needs_a_mode(self) -> None:
-        with self.assertRaises(StepError) as err:
-            forks.build(self.root, None)
-        self.assertIn("--source or --prebuilt", str(err.exception))
-        self.assertFalse((self.root / "local.toml").exists())
 
     def test_local_path_of_other_version_warns(self) -> None:
         own = self.root / "own-suite"
@@ -292,7 +286,7 @@ class UnpackTest(unittest.TestCase):
 
 
 class PrebuiltTest(unittest.TestCase):
-    """@brief tools build --prebuilt on an archive given as a file:// URL, no network."""
+    """@brief The prebuilt forks of tools fetch on an archive given as a file:// URL, no network."""
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -353,7 +347,7 @@ class PrebuiltTest(unittest.TestCase):
         archive.unlink()
         shutil.rmtree(self.root / "external/tools/downloads")
         with redirect_stdout(io.StringIO()):
-            forks.build(self.root, None)
+            forks.build(self.root, "prebuilt")
         self.assertEqual(toolchain.locate(self.root).nextpnr.parent, nextpnr / "bin")
 
     def test_new_suite_needs_a_new_archive(self) -> None:
@@ -377,7 +371,7 @@ class PrebuiltTest(unittest.TestCase):
         self.prebuilt(self.archive(), "plan9-mips")
         with self.assertRaises(StepError) as err:
             forks.build(self.root, "prebuilt")
-        self.assertIn("--source", str(err.exception))
+        self.assertIn("tools build-forks", str(err.exception))
         # a mode that failed is not kept
         self.assertFalse((self.root / "local.toml").exists())
 

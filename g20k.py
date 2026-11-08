@@ -10,7 +10,7 @@
     flash --image <file>                   writes a flash image from 0
     cores                                  prints the core folders in ring order
     sources <core folder> --out <folder>   prints a core's own sources, for a simulation
-    tools [fetch | build --source | build --prebuilt | pack --out <folder> | path <name>]
+    tools [fetch [names] | build-forks | pack --out <folder> | path <name>]
                                            the programs of tools.toml: where, fetch, build"""
 
 import sys

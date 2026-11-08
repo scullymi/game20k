@@ -6,10 +6,10 @@
 tools.toml names every program with its version and, per kind of machine, the archive and its
 SHA-256. fetch downloads the archives into external/tools/downloads/, checks them and unpacks
 each into a folder of its own, external/tools/<name>-<version>-<machine>/. [tools] dir in
-local.toml puts all of it into another folder. forks.py makes the
-programs of game20k's forks. Each folder gets a marker file with what is in it and where it came
-from, which locate() checks the version against, for the forks also their key (forks_key). A
-path in local.toml takes the place of a folder, its version is then only checked, with a
+local.toml puts all of it into another folder. forks.py makes the programs of game20k's forks,
+prebuilt or from their sources. Each folder gets a marker file with what is in it and where it
+came from, which locate() checks the version against, for the forks also their key (forks_key).
+A path in local.toml takes the place of a folder, its version is then only checked, with a
 warning."""
 
 from __future__ import annotations
@@ -226,7 +226,7 @@ def save_mode(local_toml: Path, mode: str) -> None:
         with open(local_toml, "rb") as f:
             data = tomllib.load(f)
     data.setdefault("tools", {})["mode"] = mode
-    text = "# Machine-specific settings, not in git. g20k.py tools build writes it anew.\n"
+    text = "# Machine-specific settings, not in git. g20k.py tools writes it anew.\n"
     for table, values in data.items():
         text += f"[{table}]\n" + "".join(toml_line(k, v) for k, v in values.items())
     local_toml.write_text(text, encoding="utf-8", newline="\n")
@@ -244,7 +244,7 @@ def find(root: Path, name: str) -> Path:
     if name in toolset.downloads:
         want, how = toolset.downloads[name].version, "fetch"
     else:
-        want, how = toolset.sources[name].commit, "build"
+        want, how = toolset.sources[name].commit, "fetch (or tools build-forks)"
     path = local.paths.get(name, folder(root, name, want))
     # nextpnr and yosys may be given as the program itself
     got = marker(path.parent.parent if path.is_file() else path).get("version")
@@ -258,7 +258,7 @@ def find(root: Path, name: str) -> Path:
     elif name in BUILT and marker(path).get("key") != forks_key(toolset):
         raise StepError(
             f"{name} {want[:12]} is built from other sources or by another recipe, "
-            "run python3 g20k.py tools build"
+            "run python3 g20k.py tools fetch (or tools build-forks)"
         )
     archive = toolset.downloads[name].archives.get(machine()) if name in toolset.downloads else None
     if archive and archive.path:
