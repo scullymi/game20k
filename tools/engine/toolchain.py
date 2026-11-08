@@ -295,8 +295,23 @@ def locate(root: Path) -> config.Tools:
     )
 
 
+def origin(toolset: config.Toolset, mark: dict[str, str]) -> str:
+    """@brief Where the folder of a program came from, by its marker: the URL of its download,
+    of the prebuilt forks' archive, or the repository the fork was built from here."""
+    if mark.get("url"):
+        return mark["url"]
+    if mark.get("archive"):
+        archives = toolset.prebuilt.archives.values() if toolset.prebuilt else []
+        urls = [a.url for a in archives if a.sha256 == mark["archive"]]
+        return urls[0] if urls else f"an archive of prebuilt forks, sha256 {mark['archive'][:12]}"
+    if mark.get("repo"):
+        return f"built here from {mark['repo']} at {mark.get('commit', '')[:12]}"
+    return "unknown"
+
+
 def status(root: Path) -> None:
-    """@brief Prints each program of tools.toml with the folder it is taken from."""
+    """@brief Prints each program of tools.toml with its state, where it came from and the folder
+    it is taken from."""
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
     print(f"machine {machine()}" + (f", forks {local.mode}" if local.mode else ""))
@@ -310,21 +325,23 @@ def status(root: Path) -> None:
     for name, version in rows:
         path = local.paths.get(name, folder(root, name, version))
         base = path.parent.parent if path.is_file() else path
-        got = marker(base).get("version")
-        if (
-            got == version
-            and name in BUILT
-            and key
-            and name not in local.paths
-            and marker(base).get("key") != key
-        ):
-            state = "other key"
+        mark = marker(base)
+        got = mark.get("version")
+        if got == version and name in BUILT and key and name not in local.paths and mark.get("key") != key:
+            state = "built from other sources or by another recipe"
         elif got == version:
             state = "ok"
         elif got:
             state = f"has {got[:12]}"
         else:
             state = "unchecked" if path.exists() else "missing"
-        where = "local.toml" if name in local.paths else "made here"
+        if name in local.paths:
+            source = "a path in local.toml"
+        elif path.exists():
+            source = origin(toolset, mark)
+        else:
+            source = "not fetched yet"
         shown = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
-        print(f"  {name:8} {version[:12]:12} {state:10} {where:10} {shown}")
+        print(f"{name} {version[:12]}: {state}")
+        print(f"  from  {source}")
+        print(f"  in    {shown}")

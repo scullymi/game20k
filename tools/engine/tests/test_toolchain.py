@@ -16,6 +16,8 @@ import unittest.mock
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 from tools.engine import config, forks, host, toolchain
 from tools.engine.host import StepError
@@ -516,3 +518,17 @@ File Type: EXECUTABLE IMAGE
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OriginTest(unittest.TestCase):
+    """@brief Where tools status says a folder came from, by its marker."""
+
+    def test_origins(self) -> None:
+        archive = SimpleNamespace(url="https://x/forks.tar.gz", sha256="a" * 64)
+        toolset = cast(config.Toolset, SimpleNamespace(prebuilt=SimpleNamespace(archives={"m": archive})))
+        self.assertEqual(toolchain.origin(toolset, {"url": "https://x/suite.tgz"}), "https://x/suite.tgz")
+        self.assertEqual(toolchain.origin(toolset, {"archive": "a" * 64}), "https://x/forks.tar.gz")
+        self.assertIn("sha256 bbbbbbbbbbbb", toolchain.origin(toolset, {"archive": "b" * 64}))
+        built = toolchain.origin(toolset, {"repo": "https://x/yosys.git", "commit": "1" * 40})
+        self.assertEqual(built, "built here from https://x/yosys.git at 111111111111")
+        self.assertEqual(toolchain.origin(toolset, {}), "unknown")
