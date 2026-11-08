@@ -81,7 +81,7 @@ module game20k_top #(
     output logic       spi_irqn,
 `ifdef BL616_CONSOLE
     //! the onboard BL616's console (its UART TX) passed on to the header, see
-    //! boards/tangnano20k-bl616/companion.cst
+    //! boards/tangnano20k-singleboard/companion.cst
     input  wire        bl616_con,
     output logic       bl616_con_out,
 `endif

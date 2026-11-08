@@ -44,7 +44,7 @@ def bl616_board(text: str) -> str:
 
 
 #: --board of build, release and flash
-BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-bl616"
+BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-singleboard"
 
 
 def main(argv: list[str]) -> int:
