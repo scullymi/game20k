@@ -58,6 +58,7 @@ jobs:
           NOTES="docs/releases/$VERSION.md"
           [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
           ls -l dist
-          [ "$(ls dist/*.zip | wc -l)" -eq 4 ] || { echo "expected two firmware and two cores zips"; exit 1; }
+          zips=(dist/*.zip)
+          [ "${#zips[@]}" -eq 4 ] || { echo "expected two firmware and two cores zips"; exit 1; }
           gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
             --title "game20k $VERSION" --notes-file "$NOTES"
