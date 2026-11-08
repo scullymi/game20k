@@ -7,7 +7,7 @@
 # what the archives are made of: the commits of the forks, the version of the suite and the text
 # of tools/engine/forks.py. Started by hand (Actions tab, "Run workflow", or gh workflow run
 # tools.yml) after one of them changes. The summary of the run gives the [prebuilt] table for
-# tools.toml, which python3 g20k.py tools build --prebuilt then fetches. A release of this key
+# tools.toml, which python3 g20k.py tools fetch then takes. A release of this key
 # that exists already stops the run before the builds: an archive on it does not change once
 # tools.toml names it.
 name: Tools
