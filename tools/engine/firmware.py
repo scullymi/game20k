@@ -56,6 +56,13 @@ RISCV_LIBRARIES = (
 #: CMake's rules for this build
 RULES = Path(__file__).with_name("firmware_rules.cmake")
 
+#: the flash address of the BL616 firmware per board of --bl616: behind Sipeed's firmware on the
+#: Tang Nano 20K, alone on the M0S Dock. The other boards of the Companion are not tested here.
+BL616_ADDRESSES = {"nano20k": 0x40000, "nano20k_v3923": 0x40000, "m0sdock": 0x0}
+
+#: the text of FLASHING.txt in the release of the BL616 firmware
+BL616_FLASHING = Path(__file__).with_name("flashing_bl616.txt")
+
 #: the settings of config.ini that must not end up in an image
 SECRETS = ("SSID", "PASS", "TOKEN")
 
@@ -308,10 +315,11 @@ def check_tables(map_text: str) -> None:
             raise StepError(f"the image does not link the generated table {table}_data.c")
 
 
-def check_image(image: bytes, version: str, ini: Path) -> None:
+def check_image(image: bytes, version: str, ini: Path, marker: str | None = None) -> None:
     """@brief The image reports its version, has no diagnostic output, and none of the values
-    of the builder's own config.ini ended up in it."""
-    if f"game20k/v{version} ".encode() not in image:
+    of the builder's own config.ini ended up in it. marker is the text with the version, by
+    default the User-Agent of RetroAchievements."""
+    if (marker or f"game20k/v{version} ").encode() not in image:
         raise StepError(f"the image does not report version {version}")
     if re.search(rb"(^|\x00)TEST:", image):
         raise StepError("the image prints TEST: lines, it contains a diagnostic build")
@@ -327,18 +335,34 @@ def check_image(image: bytes, version: str, ini: Path) -> None:
             raise StepError(f"the image contains {hits} value(s) from {ini.name}")
 
 
+def check_sources(root: Path, dev: bool) -> None:
+    """@brief A release is built from a clean tree with every submodule at its recorded commit,
+    a trial run (dev) from anything."""
+    if dev:
+        return
+    release.check_tree(root)
+    # a line of git submodule status that starts with one of these is not the recorded commit
+    if any(line[:1] in "-+U" for line in release.git(root, "submodule", "status").splitlines()):
+        raise StepError("a submodule is missing or not at the recorded commit, see git submodule status")
+
+
+def check_unchanged(root: Path, dev: bool, head: str) -> None:
+    """@brief Stops when HEAD or the tree changed during the build: a parallel session may have
+    committed or edited files, and the image would match no commit."""
+    if not dev and (
+        release.git(root, "rev-parse", "HEAD") != head or release.git(root, "status", "--porcelain")
+    ):
+        raise StepError("HEAD or the tree changed during the build, the image matches no commit")
+
+
 def make_release(root: Path, dev: bool) -> Path:
     """@brief Builds the image from scratch and packs it with its NOTICE under dist/. Returns
     the path of the zip. A build from scratch, because ninja rebuilds only what changed and a
     release must not carry the objects of a diagnostic build."""
-    if not dev:
-        release.check_tree(root)
-        # a line of git submodule status that starts with one of these is not the recorded commit
-        if any(line[:1] in "-+U" for line in release.git(root, "submodule", "status").splitlines()):
-            raise StepError("a submodule is missing or not at the recorded commit, see git submodule status")
+    check_sources(root, dev)
     project = config.load_project(root / "project.toml")
     version = release.tree_version(root)
-    name = f"{project.name}-{version}-pico2w"
+    name = f"{project.name}-{version}-firmware-pico2w"
     dist, archive = release.new_dist(root, name)
 
     head = release.git(root, "rev-parse", "HEAD")
@@ -346,11 +370,7 @@ def make_release(root: Path, dev: bool) -> Path:
     if out.exists():
         shutil.rmtree(out)
     build(root, "native", version)
-    # a parallel session may have committed or edited files during the build
-    if not dev and (
-        release.git(root, "rev-parse", "HEAD") != head or release.git(root, "status", "--porcelain")
-    ):
-        raise StepError("HEAD or the tree changed during the build, the image matches no commit")
+    check_unchanged(root, dev, head)
     map_file = out / "fpga_companion.elf.map"
     check_tables(map_file.read_text(encoding="utf-8", errors="replace").replace(os.sep, "/"))
     check_image((out / "fpga_companion.bin").read_bytes(), version, root / "sdcard" / "config.ini")
@@ -359,5 +379,60 @@ def make_release(root: Path, dev: bool) -> Path:
     shutil.copyfile(out / "fpga_companion.uf2", dist / f"{name}.uf2")
     notice = host.python(root / "scripts" / "firmware_notice.py", map_file, dist / "NOTICE.txt", version)
     host.run(notice, cwd=root, capture=False)
+    release.pack(root, dist, archive, name)
+    return archive
+
+
+def make_release_bl616(root: Path, dev: bool) -> Path:
+    """@brief Builds the BL616 firmware of every board of BL616_ADDRESSES from scratch and packs
+    the images under dist/, each with its NOTICE and a configuration of Bouffalo's flash tool that
+    writes only its address. Returns the path of the zip."""
+    check_sources(root, dev)
+    project = config.load_project(root / "project.toml")
+    version = release.tree_version(root)
+    name = f"{project.name}-{version}-firmware-bl616"
+    dist, archive = release.new_dist(root, name)
+
+    head = release.git(root, "rev-parse", "HEAD")
+    for board in BL616_ADDRESSES:
+        out = bl616_folder(root, board)
+        if out.exists():
+            shutil.rmtree(out)
+        build_bl616(root, board, version)
+    check_unchanged(root, dev, head)
+
+    dist.mkdir(parents=True)
+    sdk = toolchain.find(root, "bouffalo_sdk")
+    # the libraries the image links, see build_bl616
+    local = toolchain.load_local(root, config.load_toolset(root / "tools.toml"))
+    libraries = toolchain.find(root, "riscv" if "riscv" in local.paths else "riscvlibs")
+    for board, address in BL616_ADDRESSES.items():
+        out = bl616_folder(root, board) / "build_out"
+        image = f"{project.name}-{version}-{board}.bin"
+        check_image(
+            (out / "fpga_companion_bl616.bin").read_bytes(), version, root / "sdcard" / "config.ini", version
+        )
+        shutil.copyfile(out / "fpga_companion_bl616.bin", dist / image)
+        notice = host.python(
+            root / "scripts" / "firmware_notice.py",
+            out / "fpga_companion_bl616.map",
+            dist / f"NOTICE-{board}.txt",
+            version,
+            "--bl616",
+            board,
+            "--sdk",
+            sdk,
+            "--toolchain",
+            libraries,
+        )
+        host.run(notice, cwd=root, capture=False)
+        # the image alone at its address, as g20k.py flash --bl616 writes it
+        (dist / f"flash-{board}.ini").write_text(
+            "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
+            f"[FW]\nfiledir = ./{image}\naddress = 0x{address:x}\n"
+        )
+    (dist / "FLASHING.txt").write_text(
+        BL616_FLASHING.read_text().format(project=project.name, version=version)
+    )
     release.pack(root, dist, archive, name)
     return archive

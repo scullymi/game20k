@@ -1,0 +1,34 @@
+Flashing the {project} {version} firmware onto a BL616
+
+Pick the image for your board. Each comes with its NOTICE and a configuration for
+Bouffalo's flash tool:
+
+  {project}-{version}-nano20k_v3923.bin  Tang Nano 20K of board revision 3923, alone
+  {project}-{version}-nano20k.bin        Tang Nano 20K of board revision 3921, alone
+  {project}-{version}-m0sdock.bin        Sipeed M0S Dock on the header of a Tang Nano 20K
+
+The two revisions wire the Nano's BL616 differently, so the wrong image does not
+work. The cores of the same version go onto the Nano's FPGA:
+{project}-{version}-cores-tangnano20k-singleboard.zip for the Nano alone,
+{project}-{version}-cores-tangnano20k.zip for the M0S Dock.
+
+The flash tool is BLFlashCommand (BLFlashCommand-macos, -ubuntu or .exe), or the
+graphical BLFlashCube, both in tools/bflb_tools/bouffalo_flash_cube of the Bouffalo
+SDK: https://github.com/bouffalolab/bouffalo_sdk
+
+Tang Nano 20K: the image goes to 0x40000, behind Sipeed's debugger firmware at 0x0,
+which has to stay. flash-nano20k_v3923.ini and flash-nano20k.ini write only that
+address. Unplug the board, hold UPDATE, plug it in, then run in this folder:
+
+  BLFlashCommand --interface=uart --chipname=bl616 --baudrate=2000000 --port=<port> --config=flash-nano20k_v3923.ini
+
+The BL616 starts the Companion only when no computer is on the board's USB port, so
+power the board from a power supply or a powered hub to play.
+
+M0S Dock: the image goes to 0x0. Unplug the dock, hold BOOT, plug it in, then:
+
+  BLFlashCommand --interface=uart --chipname=bl616 --baudrate=2000000 --port=<port> --config=flash-m0sdock.ini
+
+The port is e.g. /dev/ttyACM0 on Linux, /dev/cu.usbmodem1101 on macOS or COM3 on
+Windows. More in docs/bl616.md of the repository:
+https://github.com/scullymi/game20k/blob/v{version}/docs/bl616.md

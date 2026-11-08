@@ -26,11 +26,6 @@ from pathlib import Path
 from tools.engine import config, firmware, host, toolchain
 from tools.engine.host import StepError
 
-#: the flash address of the Companion per board of g20k.py firmware --bl616: behind Sipeed's
-#: firmware on the Tang Nano 20K, alone on the M0S Dock. The other boards of the Companion are
-#: not tested here.
-BL616_ADDRESSES = {"nano20k": 0x40000, "nano20k_v3923": 0x40000, "m0sdock": 0x0}
-
 #: Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
     "Darwin": "BLFlashCommand-macos",
@@ -89,9 +84,10 @@ def flash(
 
 def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     """@brief The flash tool's call that writes the Companion of board, built by g20k.py firmware
-    --bl616, to its address in BL616_ADDRESSES. Its configuration file goes next to the image."""
-    if board not in BL616_ADDRESSES:
-        raise StepError(f"--bl616 {board}: flashing is known only for {', '.join(BL616_ADDRESSES)}")
+    --bl616, to its address in firmware.BL616_ADDRESSES. Its configuration file goes next to the
+    image."""
+    if board not in firmware.BL616_ADDRESSES:
+        raise StepError(f"--bl616 {board}: flashing is known only for {', '.join(firmware.BL616_ADDRESSES)}")
     out = firmware.bl616_folder(root, board)
     image = out / "build_out" / "fpga_companion_bl616.bin"
     if not image.is_file():
@@ -107,7 +103,7 @@ def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     ini = out / "companion.ini"
     ini.write_text(
         "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
-        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{BL616_ADDRESSES[board]:x}\n"
+        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{firmware.BL616_ADDRESSES[board]:x}\n"
     )
     return [
         tool,

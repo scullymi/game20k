@@ -139,7 +139,7 @@ def release(root: Path, dev: bool, board: Path | None = None) -> Path:
         check_tree(root)
     head = git(root, "rev-parse", "HEAD")
     version = tree_version(root)
-    name = f"{project.name}-{version}-{project.board.folder.name}"
+    name = f"{project.name}-{version}-cores-{project.board.folder.name}"
 
     dist, archive = new_dist(root, name)
 
