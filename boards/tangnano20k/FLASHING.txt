@@ -12,5 +12,7 @@ Gowin's programmer_cli works too, given the full path of the file:
 If it reports an error, run it once more. It must start at 0x000000: given another
 address, programmer_cli erases there but writes at 0x000000.
 
-Power the board off and on afterwards. The firmware of the same version goes onto the
-Pico 2 W, the ROM files onto the SD card, see the README of the release.
+Power the board off and on afterwards. These cores talk to a Companion on the header.
+The firmware of the same version goes onto it: {project}-{version}-firmware-pico2w.zip
+for a Pico 2 W, the m0sdock image of {project}-{version}-firmware-bl616.zip for an M0S
+Dock. The ROM files go onto the SD card, see https://github.com/scullymi/game20k.

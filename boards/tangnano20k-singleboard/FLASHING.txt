@@ -1,8 +1,9 @@
-Flashing {project} {version} onto the Tang Nano 20K with the onboard BL616
+Flashing {project} {version} onto the Tang Nano 20K alone
 
-{name}.bin holds every game's core at its place in the board's flash. The cores
-talk to the Companion on the board's own BL616, not to a Pico on the header. Write
-the image with openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):
+{name}.bin holds every game's core at its place in the board's flash. These cores
+talk to the Companion on the board's own BL616, not to a Pico or an M0S Dock on the
+header. Write the image with openFPGALoader (brew install openfpgaloader, apt install
+openfpgaloader):
 
   openFPGALoader -b tangnano20k -f --verify {name}.bin
 
@@ -13,13 +14,12 @@ Gowin's programmer_cli works too, given the full path of the file:
 If it reports an error, run it once more. It must start at 0x000000: given another
 address, programmer_cli erases there but writes at 0x000000.
 
-The Companion firmware of the same version goes into the BL616 at 0x40000, behind
-Sipeed's debugger firmware at 0x0, which has to stay. Build and write it from the
-repository at the tag of this release (nano20k for boards before V3923). Unplug the
-board, hold UPDATE while plugging it in, then:
-
-  python3 g20k.py firmware --bl616 nano20k_v3923
-  python3 g20k.py flash --bl616 nano20k_v3923 --port <the board's serial port>
-
-The BL616 starts the Companion only when no computer is on the board's USB port, so
-power the board from a power supply or a powered hub to play.
+The BL616 needs the firmware of the same version from
+{project}-{version}-firmware-bl616.zip. Take the image of your board's revision,
+which is printed on the underside of the Nano:
+{project}-{version}-nano20k_v3923.bin for revision 3923,
+{project}-{version}-nano20k.bin for revision 3921. The other one does not work.
+It needs Sipeed's debugger firmware 2025030317 or later on the BL616.
+FLASHING.txt in that zip says how to write it and how to check that, more in
+docs/bl616.md of the repository:
+https://github.com/scullymi/game20k/blob/v{version}/docs/bl616.md
