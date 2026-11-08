@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# Builds the firmware image for the Pico 2 W with its NOTICE, through
-# g20k.py firmware --release, on a clean Linux machine from the sources in this repository.
+# Builds the firmware of the Pico 2 W and that of the BL616 (Tang Nano 20K alone, M0S Dock), each
+# with its NOTICE, through g20k.py firmware --release pico2w|bl616, on a clean Linux machine from
+# the sources in this repository.
 #
-# Called by release.yml on a pushed tag v<version>: the release build, its zip kept as an artifact
-# of the run for the draft release, plus a build provenance attestation.
-# By hand (Actions tab, "Run workflow", or gh workflow run pico2w-firmware.yml): a trial build of
-# the chosen branch, the zip kept as an artifact of the run, no release.
-name: Pico 2 W firmware
+# Called by release.yml on a pushed tag v<version>: the release builds, their zips kept as
+# artifacts of the run for the draft release, plus a build provenance attestation.
+# By hand (Actions tab, "Run workflow", or gh workflow run firmware.yml): trial builds of the
+# chosen branch, the zips kept as artifacts of the run, no release.
+name: Firmware
 
 on:
   workflow_call:
@@ -21,6 +22,9 @@ permissions:
 
 jobs:
   firmware:
+    strategy:
+      matrix:
+        target: [pico2w, bl616]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -42,19 +46,19 @@ jobs:
           key: tool-archives-firmware-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
 
       - name: Archives (g20k.py tools fetch)
-        run: python3 g20k.py tools fetch arm armlibs pioasm picotool cmake ninja
+        run: python3 g20k.py tools fetch arm armlibs pioasm picotool riscv riscvlibs bouffalo_sdk cmake ninja
 
       # a tag builds a release, anything else a trial build (--dev: no tag needed)
       - name: Build and pack
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            python3 g20k.py firmware --release
+            python3 g20k.py firmware --release ${{ matrix.target }}
           else
-            python3 g20k.py firmware --release --dev
+            python3 g20k.py firmware --release ${{ matrix.target }} --dev
           fi
 
       # the zip as it is, not zipped again: the artifact takes its name,
-      # game20k-<version>-pico2w.zip
+      # game20k-<version>-firmware-<target>.zip
       - name: Keep the zip of this run
         uses: actions/upload-artifact@v7
         with:
@@ -69,3 +73,4 @@ jobs:
           subject-path: |
             dist/*.zip
             dist/*/*.uf2
+            dist/*/*.bin

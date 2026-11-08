@@ -10,8 +10,8 @@
 #   firmware        the release build of g20k.py firmware (--dev) on Linux and Windows, a warning
 #                   in src/game20k stops it, on Linux also the build without RetroAchievements
 #                   and the boards PICO and PICO2 of FPGA Companion without game20k's code,
-#                   and the firmware of the Tang Nano 20K's onboard BL616 for both its boards
-#   firmware-same   the images and the NOTICE of both are the same bytes
+#                   and the BL616 release (--dev) for the Tang Nano 20K alone and the M0S Dock
+#   firmware-same   the files of both releases are the same bytes on Linux and Windows
 # The simulations run in sims.yml, only when fpga/ changes.
 # The fork is checked through its gitlink, it has no workflow of its own. No schedule on
 # purpose: every run comes from a push.
@@ -120,21 +120,14 @@ jobs:
       - name: Build (g20k.py firmware --release --dev)
         run: ${{ matrix.python }} g20k.py firmware --release --dev
 
-      - name: Build (g20k.py firmware --bl616 nano20k, nano20k_v3923)
-        shell: bash
-        run: |
-          for board in nano20k nano20k_v3923; do
-            ${{ matrix.python }} g20k.py firmware --bl616 $board
-          done
+      - name: Build (g20k.py firmware --release bl616 --dev)
+        run: ${{ matrix.python }} g20k.py firmware --release bl616 --dev
 
-      - name: Keep the images and the NOTICE
+      - name: Keep the files of both releases
         uses: actions/upload-artifact@v7
         with:
           name: firmware-${{ runner.os }}
-          path: |
-            dist/*/*.uf2
-            dist/*/NOTICE.txt
-            build/firmware/bl616-*/build_out/fpga_companion_bl616.bin
+          path: dist/*/*
           if-no-files-found: error
 
       # the switch stays usable: the build without RetroAchievements, and no part of them in it

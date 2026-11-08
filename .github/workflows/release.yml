@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
 #
-# On a pushed tag v<version>: builds the Pico 2 W firmware (pico2w-firmware.yml) and the
-# bitstreams (bitstreams.yml) from the tag, each with a build provenance attestation, then creates
+# On a pushed tag v<version>: builds the firmware of the Pico 2 W and the BL616 (firmware.yml) and
+# the cores of both boards (bitstreams.yml) from the tag, each with a build provenance attestation, then creates
 # one draft release with both zips and the text from docs/releases/<version>.md. The draft is
 # published by hand on the release page.
 name: Release
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   firmware:
-    uses: ./.github/workflows/pico2w-firmware.yml
+    uses: ./.github/workflows/firmware.yml
     permissions:
       contents: read
       id-token: write      # sign the provenance attestation
@@ -58,6 +58,6 @@ jobs:
           NOTES="docs/releases/$VERSION.md"
           [ -f "$NOTES" ] || { echo "$NOTES is missing, the release text comes from there"; exit 1; }
           ls -l dist
-          [ "$(ls dist/*.zip | wc -l)" -eq 2 ] || { echo "expected the firmware and the bitstreams zip"; exit 1; }
+          [ "$(ls dist/*.zip | wc -l)" -eq 4 ] || { echo "expected two firmware and two cores zips"; exit 1; }
           gh release create "$GITHUB_REF_NAME" dist/*.zip --draft --verify-tag \
             --title "game20k $VERSION" --notes-file "$NOTES"
