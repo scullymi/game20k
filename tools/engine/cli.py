@@ -44,7 +44,7 @@ def bl616_board(text: str) -> str:
 
 
 #: --board of build, release and flash
-BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-bl616"
+BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-singleboard"
 
 
 def main(argv: list[str]) -> int:
@@ -89,7 +89,13 @@ def main(argv: list[str]) -> int:
         metavar="BOARD",
         help="the onboard BL616 instead of the Pico, BOARD as src/bl616/CMakeLists.txt has it, e.g. nano20k",
     )
-    w.add_argument("--release", action="store_true", help="build from scratch and pack a release")
+    w.add_argument(
+        "--release",
+        nargs="?",
+        const="pico2w",
+        choices=("pico2w", "bl616"),
+        help="build from scratch and pack a release: the Pico 2 W's (default) or the BL616's for every board",
+    )
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
     what = f.add_mutually_exclusive_group(required=True)
@@ -101,7 +107,7 @@ def main(argv: list[str]) -> int:
         "--bl616",
         type=bl616_board,
         metavar="BOARD",
-        help="the Companion of g20k.py firmware --bl616 BOARD into the onboard BL616, in download mode",
+        help="the Companion of g20k.py firmware --bl616 BOARD into the BL616, in download mode",
     )
     f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(
@@ -138,7 +144,7 @@ def main(argv: list[str]) -> int:
     if args.command == "firmware" and args.dev and not args.release:
         w.error("--dev goes with --release")
     if args.command == "firmware" and args.release and (args.usb != "native" or args.without_ra):
-        w.error("a release is the native variant with RetroAchievements")
+        w.error("a release takes no --usb or --without-ra")
     if (
         args.command == "firmware"
         and args.upstream
@@ -158,7 +164,9 @@ def main(argv: list[str]) -> int:
         elif args.command == "release":
             release.release(ROOT, args.dev, args.board)
         elif args.command == "firmware":
-            if args.release:
+            if args.release == "bl616":
+                firmware.make_release_bl616(ROOT, args.dev)
+            elif args.release:
                 firmware.make_release(ROOT, args.dev)
             elif args.upstream:
                 firmware.build_upstream(ROOT, args.upstream)

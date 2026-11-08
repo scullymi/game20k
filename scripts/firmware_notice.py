@@ -4,6 +4,7 @@
 """Writes the NOTICE file that accompanies a firmware image.
 
 Usage: scripts/firmware_notice.py <fpga_companion.elf.map> <output file> <version>
+       scripts/firmware_notice.py <map> <output file> <version> --bl616 BOARD --sdk DIR --toolchain DIR
 
 The linker map says which object files ended up in the image. Every one of them has to belong
 to a component below, each component names the licence texts it needs. An object file that no
@@ -13,8 +14,16 @@ without its notice. Components that the build did not link stay out of the NOTIC
 Besides the licence texts, the NOTICE lists the copyright lines from the headers of the linked
 source files, because the BSD-style licences ask for "the above copyright notice", and the
 upstream licence files name only one of the holders.
+
+The BL616 firmware is linked with link-time optimization, which merges the code of many object
+files, so there the NOTICE follows the linker's input instead: every archive member and object
+file the linker took in. An archive member of the build is traced to its source file through the
+object file in the build folder, the Bouffalo SDK and the toolchain come as folders of their own
+(--sdk, --toolchain). Many files of the SDK carry their own license in their header: a component
+marked "headers" adds each distinct license header of its linked files.
 """
 
+import argparse
 import os
 import re
 import subprocess
@@ -26,6 +35,9 @@ EXT = os.path.join(ROOT, "external")
 COMPANION = os.path.join(EXT, "FPGA-Companion")
 SDK = os.path.join(EXT, "pico-sdk")
 NEWLIB_VERSION = "4.4.0"  # the version of docs/licenses/newlib-<version>-COPYING.NEWLIB
+# the folders of the Bouffalo SDK and of the RISC-V toolchain, set by --sdk and --toolchain
+BFLB = None
+RISCV = None
 
 # Each component: the name in the NOTICE, its place there ("order") and a short licence label
 # for the contents, where its source lives (repository, and the submodule checkout whose commit
@@ -41,7 +53,7 @@ COMPONENTS = [
         "short": "Zlib",
         "url": "https://github.com/madler/zlib/tree/develop/contrib/puff",
         "checkout": None,
-        "match": r"/external/FPGA-Companion/src/puff\.c\.o$",
+        "match": r"/external/FPGA-Companion/src/puff\.c(\.o)?$",
         "licence": "zlib-style licence of Mark Adler",
         "texts": [("header", "external/FPGA-Companion/src/puff.h")],
     },
@@ -61,7 +73,7 @@ COMPONENTS = [
         "short": "Zlib",
         "url": "https://github.com/RetroAchievements/rcheevos",
         "checkout": "external/FPGA-Companion/src/rcheevos",
-        "match": r"/external/FPGA-Companion/src/rcheevos/src/util/md5\.c\.o$",
+        "match": r"/external/FPGA-Companion/src/rcheevos/src/util/md5\.c(\.o)?$",
         "licence": "zlib-style licence of Aladdin Enterprises",
         "texts": [("header", "external/FPGA-Companion/src/rcheevos/src/util/md5.c")],
     },
@@ -106,16 +118,14 @@ COMPONENTS = [
         # source folder (bluetooth.c, mcu_hw.c, freertos_callbacks.c), and the tables that
         # g20k.py firmware generates for it under build/firmware/gen
         "match": r"/external/FPGA-Companion/src/|^CMakeFiles/fpga_companion\.dir/[^/]+\.o$"
-                 r"|/build/firmware/gen/[^/]+\.c\.o$",
+                 r"|/build/firmware/gen/[^/]+\.c(\.o)?$",
         "licence": "Apache-2.0",
         "texts": ["external/FPGA-Companion/LICENSE"],
-        "note": "Written by Till Harbaum, Stefan Voss and further contributors, the "
-                "RetroAchievements client, the game switch, the menus of the cores (src/game20k) and "
+        "note": "Written by Till Harbaum, Stefan Voss and further contributors, {client}"
+                "the game switch, the menus of the cores (src/game20k) and "
                 "the tables of the games and the menus, generated from the ROM manifests and menu sources of "
                 "game20k, Copyright (C) 2026 scullymi. "
-                "{bluetooth}"
-                "The image also holds the root certificate GTS Root R4 of Google Trust Services "
-                "as data (https://pki.goog/repository/).",
+                "{bluetooth}{certificate}",
     },
     {
         "name": "FreeRTOS kernel, port for the RP2350",
@@ -237,13 +247,125 @@ COMPONENTS = [
         "note": "The image contains memory allocation, string, conversion and time functions "
                 "of newlib %s." % NEWLIB_VERSION,
     },
+    # The Bouffalo SDK of the BL616 firmware: "sdk:<path in the SDK>" for a source file,
+    # "sdk:<archive>(<member>)" for a member of a library that comes built with the SDK
+    {
+        "name": "wpa_supplicant, in the Wi-Fi stack of the Bouffalo SDK",
+        "order": 24,
+        "short": "BSD-3-Clause",
+        "url": "https://w1.fi/wpa_supplicant/",
+        "sdk": True,
+        "match": r"^sdk:components/wireless/wifi6/wpa_supplicant/",
+        "licence": "BSD-3-Clause",
+        "texts": ["sdk:components/wireless/wifi6/wpa_supplicant/COPYING"],
+    },
+    {
+        "name": "Mbed TLS, in the Bouffalo SDK",
+        "order": 23,
+        "short": "Apache-2.0",
+        "url": "https://github.com/Mbed-TLS/mbedtls",
+        "sdk": True,
+        "match": r"^sdk:components/crypto/mbedtls/",
+        "licence": "Apache-2.0 OR GPL-2.0-or-later, used here under Apache-2.0",
+        "texts": ["sdk:components/crypto/mbedtls/mbedtls_v3/LICENSE"],
+        "headers": True,
+    },
+    {
+        "name": "lwIP, in the Bouffalo SDK",
+        "order": 22,
+        "short": "BSD-3-Clause",
+        "url": "https://savannah.nongnu.org/projects/lwip/",
+        "sdk": True,
+        "match": r"^sdk:components/net/lwip/",
+        "licence": "BSD-3-Clause",
+        "texts": ["sdk:components/net/lwip/lwip/COPYING"],
+    },
+    {
+        "name": "FreeRTOS kernel, in the Bouffalo SDK",
+        "order": 21,
+        "short": "MIT",
+        "url": "https://github.com/FreeRTOS/FreeRTOS-Kernel",
+        "sdk": True,
+        "match": r"^sdk:components/os/freertos/",
+        "licence": "MIT",
+        "texts": [("header", "sdk:components/os/freertos/tasks.c")],
+    },
+    {
+        "name": "CherryUSB, in the Bouffalo SDK",
+        "order": 25,
+        "short": "Apache-2.0",
+        "url": "https://github.com/cherry-embedded/CherryUSB",
+        "sdk": True,
+        "match": r"^sdk:components/usb/cherryusb/",
+        "licence": "Apache-2.0, the text is in the section of the Bouffalo SDK",
+        "texts": [],
+    },
+    {
+        "name": "FatFs, in the Bouffalo SDK",
+        "order": 26,
+        "short": "FatFs license",
+        "url": "http://elm-chan.org/fsw/ff/",
+        "sdk": True,
+        "match": r"^sdk:components/fs/fatfs/",
+        "licence": "FatFs license (BSD-style, one clause), the port files under the SDK's licenses",
+        "texts": [],
+        "headers": True,
+    },
+    {
+        "name": "TLSF memory allocator by Matthew Conte, in the Bouffalo SDK",
+        "order": 27,
+        "short": "BSD-3-Clause",
+        "url": "https://github.com/mattconte/tlsf",
+        "sdk": True,
+        "match": r"^sdk:components/mm/tlsf/tlsf\.c$",
+        "licence": "BSD-3-Clause",
+        "texts": [("header", "sdk:components/mm/tlsf/tlsf.h")],
+    },
+    {
+        "name": "T-Head CSI DSP library, in the Bouffalo SDK (built, no source)",
+        "order": 28,
+        "short": "Apache-2.0",
+        "url": "https://github.com/scullymi/bouffalo_sdk (drivers/lhal/include/arch/risc-v/t-head/csi_dsp)",
+        "sdk": True,
+        "match": r"^sdk:drivers/lhal/include/arch/risc-v/t-head/csi_dsp/",
+        "licence": "Apache-2.0, the text is in the section of the Bouffalo SDK",
+        "texts": [],
+        "note": "Copyright (C) 2016-2020 T-head Limited, as its headers in the SDK say.",
+    },
+    {
+        "name": "Bouffalo SDK",
+        "order": 20,
+        "short": "Apache-2.0, files with their own license notices below",
+        "url": "https://github.com/scullymi/bouffalo_sdk (branch game20k), fork of "
+               "https://github.com/bouffalolab/bouffalo_sdk",
+        "sdk": True,
+        "match": r"^sdk:",
+        "licence": "Apache-2.0 (the SDK's LICENSE), unless a file's header names another license",
+        "texts": ["sdk:LICENSE"],
+        "headers": True,
+        "note": "The Wi-Fi and radio libraries (libmacsw, libfhost, libbl616_phyrf, libpka) come "
+                "built with the SDK, without source, under the SDK's license. The image links "
+                "them because the Companion's configuration of the SDK enables Wi-Fi.",
+    },
+    {
+        "name": "picolibc, the C library of the RISC-V toolchain",
+        "order": 30,
+        "short": "BSD and similar licenses",
+        "url": "https://github.com/picolibc/picolibc",
+        "toolchain": True,
+        "match": r"/riscv64-unknown-elf/lib/[^(]*/lib(c|m)\.a\(",
+        "licence": "several free licenses, one per source file, collected in COPYING.picolibc",
+        "texts": ["toolchain:share/licenses/picolibc/COPYING.picolibc"],
+        "note": "COPYING.picolibc also lists a build script and test files under the GPL, "
+                "none of them is part of the library.",
+    },
     {
         "name": "GCC runtime (libgcc and the crt files)",
-        "order": 19,
+        "order": 31,
         "short": "GPL-3.0 with GCC Runtime Library Exception",
         "url": "https://gcc.gnu.org/",
         "checkout": None,
-        "match": r"/lib/gcc/arm-none-eabi/[^/]+/.*(libgcc\.a\(|/crt\w*\.o$)",
+        "match": r"/lib/gcc/(arm-none-eabi|riscv64-unknown-elf)/[^/]+/.*(libgcc\.a\(|/crt\w*\.o$)",
         "licence": "GPL-3.0 with the GCC Runtime Library Exception",
         "texts": [],
         "note": "The exception places no conditions on the firmware, which is the result of an "
@@ -267,8 +389,28 @@ def die(msg):
     sys.exit(1)
 
 
+def resolve(rel):
+    """A path of COMPONENTS: in the repository, "sdk:" in the Bouffalo SDK, "toolchain:" in the
+    RISC-V toolchain."""
+    for prefix, base in (("sdk:", BFLB), ("toolchain:", RISCV)):
+        if rel.startswith(prefix):
+            if base is None:
+                die("%s needs %s" % (rel, "--sdk" if prefix == "sdk:" else "--toolchain"))
+            return os.path.join(base, rel[len(prefix):])
+    return os.path.join(ROOT, rel)
+
+
+def shown(rel):
+    """How a path of COMPONENTS is named in the NOTICE."""
+    if rel.startswith("sdk:"):
+        return "the Bouffalo SDK's " + rel[4:]
+    if rel.startswith("toolchain:"):
+        return "the toolchain's " + rel[10:]
+    return rel.split("/", 1)[1] if rel.startswith("external/") else rel
+
+
 def read(rel):
-    path = os.path.join(ROOT, rel)
+    path = resolve(rel)
     if not os.path.isfile(path):
         die("licence text missing: %s (submodules initialised?)" % rel)
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -278,11 +420,67 @@ def read(rel):
 def header_comment(rel):
     """The first comment block of a source file, without the comment markers."""
     text = read(rel)
-    m = re.match(r"\s*/\*(.*?)\*/", text, re.DOTALL)
+    # the first C comment, after an include guard (TLSF), its lines may start with "**" or "/"
+    m = re.match(r"\s*(?:#[^\n]*\n\s*)*/\*(.*?)\*/", text, re.DOTALL)
     if not m:
         die("no licence comment at the top of %s" % rel)
-    lines = [re.sub(r"^\s?\*? ?", "", l) for l in m.group(1).splitlines()]
+    lines = [re.sub(r"^\s?[*/]{0,2} ?", "", l) for l in m.group(1).splitlines()]
     return "\n".join(lines).strip("\n") + "\n"
+
+
+# the words of a license text in a file's header
+LICENSE_TEXT = re.compile(r"Redistribution and use|Permission is hereby granted|Permission to use, copy|"
+                          r"Licensed under the Apache License|SPDX-License-Identifier")
+
+
+def leading_comments(text):
+    """The comments at the top of a source file, before its first line of code: /* */ blocks and
+    runs of // lines, each without its comment markers. Preprocessor lines in between (an include
+    guard) are passed over."""
+    comments, pos = [], 0
+    while True:
+        m = re.compile(r"\s*(/\*.*?\*/|(?://[^\n]*\n\s*)+|#[^\n]*\n)", re.DOTALL).match(text, pos)
+        if not m:
+            return comments
+        block = m.group(1)
+        if block.startswith("/*"):
+            lines = block[2:-2].splitlines()
+        elif block.startswith("//"):
+            lines = [l.strip()[2:] for l in block.strip().splitlines()]
+        else:
+            lines = None
+        if lines is not None:
+            comments.append([re.sub(r"^\s?[*/]{0,2} ?", "", l).rstrip() for l in lines])
+        pos = m.end()
+
+
+# the words of a license's text, not of an SPDX line, which names a license whose text is elsewhere
+LICENSE_WORDS = re.compile(r"Redistribution and use|Permission is hereby granted|Permission to use, copy|"
+                           r"Licensed under the Apache License")
+
+
+def license_headers(sources):
+    """The distinct license comments at the top of the given source files, each with the files
+    that carry it: a file's own name, date and copyright lines do not make it another one. A file
+    whose first lines hold the words of a license that no top comment carries stops the script."""
+    found = {}
+    for src in sorted(sources):
+        try:
+            with open(src, encoding="utf-8", errors="replace") as f:
+                text = f.read(20000)
+        except OSError:
+            continue
+        lines = next((c for c in leading_comments(text) if LICENSE_WORDS.search("\n".join(c))), None)
+        if lines is None:
+            if LICENSE_WORDS.search("\n".join(text.splitlines()[:80])):
+                die("%s holds a license text outside its top comments, add it by hand" % src)
+            continue
+        # compared from the license text on, a file's description above it does not count
+        first = next(i for i, l in enumerate(lines) if LICENSE_TEXT.search(l) or COPYRIGHT_LINE.search(l))
+        key = "\n".join(l for l in lines[first:] if l.strip() and not COPYRIGHT_LINE.search(l)
+                        and not re.search(r"@(file|date|version|brief|author)|\.[ch]\b|^[-=*]+$", l))
+        found.setdefault(key, (lines, []))[1].append(src)
+    return [(("\n".join(lines)).strip("\n"), files) for lines, files in found.values()]
 
 
 def linked_objects(map_path):
@@ -307,6 +505,11 @@ def linked_objects(map_path):
 
 def source_of(obj):
     """The source file an object came from, where it can be found, else None."""
+    # the keys of bl616_inputs(): a source in the SDK, or a source file itself
+    if obj.startswith("sdk:") and "(" not in obj:
+        return os.path.join(BFLB, obj[4:])
+    if re.search(r"\.(c|cpp|S)$", obj) and os.path.isfile(obj):
+        return obj
     m = re.match(r"(?:.*/)?libu8g2\.a\((.+)\.o\)$", obj)
     if m:
         return os.path.join(COMPANION, "src", "u8g2", "csrc", m.group(1))
@@ -322,6 +525,78 @@ def source_of(obj):
         if os.path.isfile(c):
             return os.path.normpath(c)
     return None
+
+
+def bl616_inputs(map_path):
+    """Every archive member and object file the linker took in, as keys for COMPONENTS: a member
+    of an archive of the build becomes its source file (in the SDK "sdk:<path>"), a member of an
+    archive of the SDK "sdk:<archive>(<member>)", one of the toolchain keeps the map's path."""
+    with open(map_path, encoding="utf-8", errors="replace") as f:
+        text = f.read().replace("\\", "/")
+    end = text.find("Discarded input sections")
+    if end < 0:
+        die("%s has no list of archive members" % map_path)
+    build = os.path.dirname(os.path.dirname(os.path.abspath(map_path)))
+    sdk = os.path.realpath(BFLB).replace("\\", "/") + "/"
+
+    def in_sdk(path):
+        """A path as a key: "sdk:<path in the SDK>", or the path itself. Windows may spell the
+        drive in another case, so the comparison ignores it there."""
+        path = os.path.realpath(path).replace("\\", "/")
+        if os.path.normcase(path).startswith(os.path.normcase(sdk)):
+            return "sdk:" + path[len(sdk):]
+        return path
+    # the object files of the build by the folder of their library and their name
+    objects = {}
+    for top, _, files in os.walk(build):
+        lib = next((d[:-4] for d in reversed(top.replace("\\", "/").split("/")) if d.endswith(".dir")), None)
+        for name in files:
+            if lib and name.endswith(".obj"):
+                objects.setdefault((lib, name), []).append(os.path.join(top, name))
+    keys = set()
+
+    def source_key(obj):
+        rel = os.path.relpath(obj, build).replace("\\", "/")
+        m = re.match(r"(?:build_out/(.+?)/)?CMakeFiles/[^/]+\.dir/(.+)\.obj$", rel)
+        if not m:
+            die("object file outside a CMake target folder: %s" % rel)
+        base, rest = m.groups()
+        if base is not None:  # a library of the SDK, its folder mirrors the SDK's
+            if not os.path.isfile(os.path.join(BFLB, base, rest)):
+                die("no source in the SDK for the linked file %s" % rel)
+            return "sdk:%s/%s" % (base, rest)
+        # the application: the source's absolute path, a drive as C_ on Windows, or a file of
+        # the Companion's src/bl616 that CMake names relative to it
+        for c in (re.sub(r"^([A-Za-z])_/", r"\1:/", rest), "/" + rest, os.path.join(COMPANION, "src", "bl616", rest)):
+            if os.path.isfile(c):
+                return in_sdk(c)
+        die("no source found for the linked file %s" % rel)
+
+    for archive, member in re.findall(r"^(\S+\.a)\(([^)]+)\)", text[:end], re.M):
+        if archive.startswith("build_out/lib/"):
+            lib = os.path.basename(archive)[:-2]
+            found = objects.get((lib, member)) or objects.get((lib[3:], member))
+            if not found:
+                die("no object file in the build for %s(%s)" % (archive, member))
+            keys.update(source_key(o) for o in found)
+        else:
+            key = in_sdk(archive)
+            keys.add((key if key.startswith("sdk:") else archive) + "(%s)" % member)
+    for obj in re.findall(r"^LOAD (\S+\.obj)$", text, re.M):
+        keys.add(source_key(os.path.join(build, obj)))
+    if not keys:
+        die("no linked object files found in %s" % map_path)
+    return keys
+
+
+def tool_version(folder):
+    """The version in the marker of a tool folder of g20k.py, else None."""
+    try:
+        with open(os.path.join(folder, ".g20k-tool.toml"), encoding="utf-8") as f:
+            m = re.search(r'^version = "([^"]+)"', f.read(), re.M)
+        return m.group(1) if m else None
+    except OSError:
+        return None
 
 
 def copyright_lines(sources):
@@ -375,10 +650,23 @@ def newlib_version_of(objs):
 
 
 def main():
-    if len(sys.argv) != 4:
-        die("usage: firmware_notice.py <fpga_companion.elf.map> <output file> <version>")
-    map_path, out_path, version = sys.argv[1:]
-    objs = linked_objects(map_path)
+    global BFLB, RISCV
+    ap = argparse.ArgumentParser(prog="firmware_notice.py")
+    ap.add_argument("map")
+    ap.add_argument("out")
+    ap.add_argument("version")
+    ap.add_argument("--bl616", metavar="BOARD", help="the BL616 firmware of this board")
+    ap.add_argument("--sdk", help="the Bouffalo SDK the BL616 firmware was built with")
+    ap.add_argument("--toolchain", help="the RISC-V toolchain whose libraries it links")
+    args = ap.parse_args()
+    if args.bl616 and not (args.sdk and args.toolchain):
+        die("--bl616 needs --sdk and --toolchain")
+    map_path, out_path, version = args.map, args.out, args.version
+    if args.bl616:
+        BFLB, RISCV = args.sdk, args.toolchain
+        objs = bl616_inputs(map_path)
+    else:
+        objs = linked_objects(map_path)
     # an object without its source would lose its copyright lines without a word
     lost = sorted(o for o in objs if o.startswith("CMakeFiles/") and not source_of(o))
     if lost:
@@ -398,6 +686,23 @@ def main():
         die("no component claims these linked files, add them to COMPONENTS:\n  "
             + "\n  ".join(unclaimed))
 
+    # The catch-all of the Bouffalo SDK takes every file of it without an entry of its own. A file
+    # under the GPL must not go through it: one would change what the image may be given under
+    if args.bl616:
+        gpl = []
+        for obj in objs:
+            src = source_of(obj)
+            try:
+                with open(src, encoding="utf-8", errors="replace") as f:
+                    head = f.read(6000)
+            except (OSError, TypeError):
+                continue
+            if re.search(r"GNU (Lesser |Library )?General Public|SPDX-License-Identifier:[^\n]*GPL", head) \
+                    and not re.search(r"SPDX-License-Identifier:\s*Apache-2\.0 OR GPL", head):
+                gpl.append(obj)
+        if gpl:
+            die("these linked files name the GPL, check them:\n  " + "\n  ".join(sorted(gpl)))
+
     # the bundled newlib text must be the one of the toolchain in use
     if any(claimed[i] for i, c in enumerate(COMPONENTS) if c["name"].startswith("newlib")):
         tc = newlib_version_of(objs)
@@ -409,7 +714,11 @@ def main():
                      key=lambda i: COMPONENTS[i]["order"])
     rule = "=" * 78
     out = []
-    title = "game20k firmware %s for the Raspberry Pi Pico 2 W" % version
+    if args.bl616:
+        board = {"m0sdock": "the Sipeed M0S Dock"}.get(args.bl616, "the Tang Nano 20K's onboard BL616")
+        title = "game20k firmware %s for %s" % (version, board)
+    else:
+        title = "game20k firmware %s for the Raspberry Pi Pico 2 W" % version
     out += [title, "=" * len(title), ""]
     # BTstack is in the image only in a build with Bluetooth, the Pico 2 W build of game20k has
     # none: the header and the Companion's note name it only when the map has it
@@ -420,20 +729,48 @@ def main():
             comp["note"] = comp["note"].replace("{bluetooth}",
                 "src/rp2040/bluetooth.c is based on BTstack's examples spp_streamer_client.c and "
                 "hid_host_demo.c, see BTstack below. " if btstack else "")
-    out += [
-        "This file accompanies the firmware image game20k-%s-pico2w.uf2. The image is" % version,
-        "FPGA-Companion from https://github.com/scullymi/FPGA-Companion (branch game20k), built by",
-        "https://github.com/scullymi/game20k at version %s. It contains the software listed" % version,
-        "below, each part under its own licence. The source of every part is available from the",
-        "repository named with it, at the commit given.",
-        "",
-        "USE ONLY ON A RASPBERRY PI PICO 2 W. %s licensed for use and" % rp_parts,
-        "redistribution only together with Raspberry Pi semiconductor devices and products, see",
-        "their sections." if btstack else "its section.",
-        "",
-        "Contents",
-        "",
-    ]
+            # the BL616 firmware has no RetroAchievements and no TLS client of its own
+            comp["note"] = comp["note"].replace("{client}", "" if args.bl616 else "the RetroAchievements client, ")
+            if args.bl616:
+                comp["name"] = "FPGA-Companion, game20k's fork"
+            comp["note"] = comp["note"].replace("{certificate}", "" if args.bl616 else
+                "The image also holds the root certificate GTS Root R4 of Google Trust Services "
+                "as data (https://pki.goog/repository/).")
+    if args.bl616:
+        image = "game20k-%s-%s.bin" % (version, args.bl616)
+        for para in (
+            "This file accompanies the firmware image %s. The image is FPGA-Companion from "
+            "https://github.com/scullymi/FPGA-Companion (branch game20k), built with the Bouffalo "
+            "SDK by https://github.com/scullymi/game20k at version %s, without "
+            "RetroAchievements. It contains the software listed below, each part under its own "
+            "license. The source of every part is available from the repository named with it, "
+            "at the commit given, except for the libraries the Bouffalo SDK carries built." % (image, version),
+            "The image is linked with link-time optimization. The lists below name every file the "
+            "linker took in, some of them may contribute no code to the image.",
+        ):
+            out += [textwrap.fill(para, 78, break_long_words=False, break_on_hyphens=False), ""]
+        out += [
+            "Contents",
+            "",
+        ]
+    else:
+        intro = (
+            "This file accompanies the firmware image game20k-%s-firmware-pico2w.uf2. The image is "
+            "FPGA-Companion from https://github.com/scullymi/FPGA-Companion (branch game20k), built by "
+            "https://github.com/scullymi/game20k at version %s. It contains the software listed "
+            "below, each part under its own license. The source of every part is available from the "
+            "repository named with it, at the commit given." % (version, version)
+        )
+        out += [
+            textwrap.fill(intro, 78, break_long_words=False, break_on_hyphens=False),
+            "",
+            "USE ONLY ON A RASPBERRY PI PICO 2 W. %s licensed for use and" % rp_parts,
+            "redistribution only together with Raspberry Pi semiconductor devices and products, see",
+            "their sections." if btstack else "its section.",
+            "",
+            "Contents",
+            "",
+        ]
     for n, i in enumerate(present, 1):
         out.append("%3d. %s" % (n, COMPONENTS[i]["name"]))
         out.append("     " + COMPONENTS[i]["short"])
@@ -443,12 +780,16 @@ def main():
         comp = COMPONENTS[i]
         out += [rule, "%d. %s" % (n, comp["name"]), rule, ""]
         out.append(field("Source:  ", comp["url"]))
-        commit = git_commit(comp["checkout"])
+        commit = git_commit(comp.get("checkout"))
+        if comp.get("sdk"):
+            commit = tool_version(BFLB)
         if commit:
             out.append(field("Commit:  ", commit))
+        if comp.get("toolchain") and tool_version(RISCV):
+            out.append(field("Version: ", "Bouffalo Lab's GCC %s" % tool_version(RISCV)))
         out.append(field("Licence: ", comp["licence"]))
         k = len(claimed[i])
-        out.append("Linked:  %d object file%s" % (k, "" if k == 1 else "s"))
+        out.append("%s  %d object file%s" % ("Input: " if args.bl616 else "Linked:", k, "" if k == 1 else "s"))
         if comp.get("note"):
             out += ["", textwrap.fill(comp["note"], 78, break_long_words=False, break_on_hyphens=False)]
         sources = [s for s in (source_of(o) for o in claimed[i]) if s]
@@ -458,12 +799,18 @@ def main():
             out += ["  " + l for l in lines]
         for t in comp["texts"]:
             if isinstance(t, tuple):
-                out += ["", "Licence notice from %s:" % t[1].split("/", 1)[1], ""]
+                name = shown(t[1]) if t[1].startswith(("sdk:", "toolchain:")) else t[1].split("/", 1)[1]
+                out += ["", "Licence notice from %s:" % name, ""]
                 out.append(header_comment(t[1]).rstrip("\n"))
             else:
-                shown = t.split("/", 1)[1] if t.startswith("external/") else t
-                out += ["", "Text of %s:" % shown, ""]
+                out += ["", "Text of %s:" % shown(t), ""]
                 out.append(read(t).rstrip("\n"))
+        if comp.get("headers"):
+            for text, files in license_headers(sources):
+                rels = sorted(os.path.relpath(f, BFLB).replace("\\", "/") if BFLB else f for f in files)
+                where = rels[0] if len(rels) == 1 else "%s and %d more file%s" % (
+                    rels[0], len(rels) - 1, "" if len(rels) == 2 else "s")
+                out += ["", "License notice in the header of %s:" % where, "", text]
         out.append("")
 
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:

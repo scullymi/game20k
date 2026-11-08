@@ -75,18 +75,18 @@ game20k needs a **Raspberry Pi Pico 2 W**. The firmware needs the RP2350's 520 k
 Pico W and other RP2040 boards are out, and it needs WiFi for RetroAchievements, so the Pico 2
 without W is out too.
 
-**Other Companion boards.** An M0S Dock wired to the same FPGA pins as the Pico (see
-[SPI.md](https://github.com/MiSTle-Dev/FPGA-Companion/blob/main/SPI.md)) can run the upstream
-FPGA-Companion firmware instead. Each core carries a smaller menu of its own for that firmware.
-You get the game with controller, DIP switches, settings and ROM loading, but no
-RetroAchievements and no game switch. The upstream firmware lists every `.rom` file on the card
-and checks none of them, so pick the game's own file. The Nano's onboard BL616 talks to the FPGA
-on other pins and does not work with our cores.
+**Other Companion boards.** game20k's firmware also runs on a BL616: an M0S Dock wired to the
+same FPGA pins as the Pico, or the Nano's own BL616 with the cores of
+`tangnano20k-singleboard`, then without RetroAchievements, see [bl616.md](bl616.md).
+The upstream FPGA-Companion firmware runs too: each core carries a smaller menu of its own for
+it, with controller, DIP switches, settings and ROM loading, but no RetroAchievements and no game
+switch. It lists every `.rom` file on the card and checks none of them, so pick the game's own
+file.
 
 **Two ways to connect the stick.** The recommended way is the Pico's own micro USB port with an
-OTG adapter (`scripts/build_companion.sh pico2 native`). It uses the chip's USB controller and
+OTG adapter (`g20k.py firmware --usb native`, the release build). It uses the chip's USB controller and
 is not affected by erratum E9. The alternative is a soldered USB A socket on GP2/GP3
-(`scripts/build_companion.sh pico2 pio`), which needs the pull-downs from the next section. With
+(`g20k.py firmware --usb pio`), which needs the pull-downs from the next section. With
 the native port, unplug the stick to flash over USB.
 
 ## RP2350 stepping and erratum E9

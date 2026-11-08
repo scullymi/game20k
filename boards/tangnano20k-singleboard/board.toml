@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 scullymi
-# Sipeed Tang Nano 20K with the Companion on its onboard BL616 instead of a Pico on the header.
+# Sipeed Tang Nano 20K as a single board: the Companion runs on its onboard BL616, no Pico or M0S
+# Dock on the header.
 # The FPGA, the flash and the clock are those of boards/tangnano20k.
 
 [board]
-name = "Tang Nano 20K with the onboard BL616"
+name = "Tang Nano 20K, single-board with the onboard BL616"
 device = "GW2AR-LV18QN88C8/I7"
 family = "GW2A-18C"
 synth_family = "gw2a"

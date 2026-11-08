@@ -3,7 +3,8 @@
 #
 # Builds the bitstreams of every core with the free toolchain and packs the flash image with its
 # NOTICE, through python3 g20k.py release, on a clean Linux machine from the sources in this
-# repository. The programs of the forks come from the archive of [prebuilt] in tools.toml.
+# repository. One job per board: the Nano with a Pico 2 W or an M0S Dock on its header, and the
+# Nano alone with the Companion on its own BL616. The programs of the forks come from the archive of [prebuilt] in tools.toml.
 #
 # On a push that changes the FPGA sources or the build: a trial build, the zip kept as an
 # artifact of the run. Called by release.yml on a pushed tag v<version>: the release build, its
@@ -35,8 +36,15 @@ permissions:
 
 jobs:
   bitstreams:
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [tangnano20k, tangnano20k-singleboard]
     runs-on: ubuntu-24.04
     timeout-minutes: 150
+    env:
+      # the board of project.toml builds into build/<core>, another into build/<board>/<core>
+      BUILDS: ${{ matrix.board == 'tangnano20k' && 'build' || format('build/{0}', matrix.board) }}
     steps:
       # full history and tags for git describe, which names the version
       - uses: actions/checkout@v7
@@ -70,9 +78,9 @@ jobs:
       - name: Build and pack
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
-            python3 g20k.py release
+            python3 g20k.py release --board boards/${{ matrix.board }}
           else
-            python3 g20k.py release --dev
+            python3 g20k.py release --board boards/${{ matrix.board }} --dev
           fi
 
       # per core the SHA-256 of its .bin and its clocks, also after a failed build, to compare
@@ -81,12 +89,12 @@ jobs:
         if: always()
         run: |
           {
-            echo '## Bitstreams and clocks'
+            echo "## Bitstreams and clocks, ${{ matrix.board }}"
             echo '```'
             for c in $(python3 g20k.py cores); do
               n=$(basename "$c")
-              sha256sum "build/$n/$n.bin" 2>/dev/null || echo "no $n.bin"
-              cat "build/$n/fmax.txt" 2>/dev/null || true
+              sha256sum "$BUILDS/$n/$n.bin" 2>/dev/null || echo "no $n.bin"
+              cat "$BUILDS/$n/fmax.txt" 2>/dev/null || true
             done
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
@@ -96,20 +104,20 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: oss-build-${{ github.run_id }}
+          name: oss-build-${{ github.run_id }}-${{ matrix.board }}
           path: |
-            build/release-logs/*.log
-            build/*/*.log
-            build/*/*.fs
-            build/*/*.bin
-            build/*/report.json
-            build/*/fmax.txt
-            build/*/stat.json
-            build/*/tools.txt
+            ${{ env.BUILDS }}/release-logs/*.log
+            ${{ env.BUILDS }}/*/*.log
+            ${{ env.BUILDS }}/*/*.fs
+            ${{ env.BUILDS }}/*/*.bin
+            ${{ env.BUILDS }}/*/report.json
+            ${{ env.BUILDS }}/*/fmax.txt
+            ${{ env.BUILDS }}/*/stat.json
+            ${{ env.BUILDS }}/*/tools.txt
           if-no-files-found: warn
 
       # the zip as it is, not zipped again: the artifact takes its name,
-      # game20k-<version>-tangnano20k.zip
+      # game20k-<version>-cores-<board>.zip
       - name: Keep the zip of this run
         uses: actions/upload-artifact@v7
         with:

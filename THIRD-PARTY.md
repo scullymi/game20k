@@ -99,13 +99,14 @@ of them is in this repository.
 - **Achievement conditions.** They belong to RetroAchievements. The firmware fetches each set at
   run time and keeps it only on the user's card. Nothing of it is in the repository.
 
-## Firmware image
+## Firmware images
 
-Each release carries `game20k-<version>-pico2w.uf2` for the Raspberry Pi Pico 2 W with its
-`NOTICE.txt`. `scripts/firmware_notice.py` writes the NOTICE from the linker map: every object
-file in the image has to belong to a listed component, and the NOTICE carries each component's
-licence text, the copyright lines of the linked source files and the commit the image was built
-from. A linked file that no component claims stops the release.
+Each release carries `game20k-<version>-firmware-pico2w.zip` with the image for the Raspberry Pi
+Pico 2 W and `game20k-<version>-firmware-bl616.zip` with the images for a BL616 (the Tang Nano
+20K's own and the M0S Dock), each with its NOTICE. `scripts/firmware_notice.py` writes the NOTICE
+from the linker map: every object file in the image has to belong to a listed component, and the
+NOTICE carries each component's license text, the copyright lines of the linked source files and
+the commit the image was built from. A linked file that no component claims stops the release.
 
 Two components restrict where the image may be used. cyw43-driver, with the firmware of the
 radio chip, is licensed under `LICENSE.RP` for use and redistribution only together with
@@ -118,17 +119,23 @@ The Arm GNU Toolchain does not ship the licence text of its C library, newlib.
 `docs/licenses/newlib-4.4.0-COPYING.NEWLIB` carries it, taken from the newlib 4.4.0 release, and
 the release script checks that the toolchain in use links that version.
 
+The BL616 image is linked with link-time optimization, so its NOTICE lists every file the linker
+took in. Many files of the Bouffalo SDK carry their own license in their header, the NOTICE adds
+each distinct one. The SDK also carries Wi-Fi and radio libraries without source under its
+Apache-2.0 license, which the image links because the Companion enables Wi-Fi in the SDK. A
+linked file that names the GPL stops the release. The C library is picolibc, whose license texts
+come with the RISC-V toolchain.
+
 ## Bitstreams
 
-Each release carries `game20k-<version>-tangnano20k.zip` with one flash image that holds every
-core, `FLASHING.txt` with the command to write it, and `NOTICE.txt`.
-`scripts/make_bitstream_release.sh` builds them from the tagged sources with Gowin EDA Education
-on a local machine, since GitHub Actions has no Gowin tools. `scripts/bitstream_notice.py`
-writes the NOTICE from the file lists of the synthesis: every source file of each bitstream has
-to belong to a listed component, and a file that none claims stops the release. The NOTICE
-names the commit and the SHA-256 of each core. Rebuilding the same sources with the same Gowin
-version gave identical files on the build machine, also from a fresh clone at another path.
-Builds on other machines have not been compared yet.
+Each release carries `game20k-<version>-cores-tangnano20k.zip` for a Companion on the header and
+`game20k-<version>-cores-tangnano20k-singleboard.zip` for the Nano alone, each with one flash
+image that holds every core, `FLASHING.txt` with the command to write it, and `NOTICE.txt`.
+GitHub Actions builds them from the tagged sources with the free toolchain (`g20k.py release`).
+`scripts/bitstream_notice.py` writes the NOTICE from the file lists of the synthesis: every
+source file of each bitstream has to belong to a listed component, and a file that none claims
+stops the release. The NOTICE names the commit and the SHA-256 of each core. The same sources
+give the same files on Linux, macOS and Windows.
 
 - **No ROM image, with one exception.** The cores load their game's ROMs from the SD card at run
   time, PROMs and the programs of the Namco MCUs included. The exception is Pac-Man's sound timing PROM 3M in MikeJ's core, see

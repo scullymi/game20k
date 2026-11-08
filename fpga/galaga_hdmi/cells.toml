@@ -29,7 +29,7 @@
 "VCC" = 1
 "rPLL" = 2
 
-[tangnano20k-bl616]
+[tangnano20k-singleboard]
 "$print" = 20
 "$scopeinfo" = 50
 "ALU" = 1171

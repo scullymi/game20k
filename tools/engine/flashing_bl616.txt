@@ -1,0 +1,40 @@
+Flashing the {project} {version} firmware onto a BL616
+
+Pick the image for your board. Each comes with its NOTICE and a configuration for
+Bouffalo's flash tool:
+
+  {project}-{version}-nano20k_v3923.bin  Tang Nano 20K of board revision 3923, alone
+  {project}-{version}-nano20k.bin        Tang Nano 20K of board revision 3921, alone
+  {project}-{version}-m0sdock.bin        Sipeed M0S Dock on the header of a Tang Nano 20K
+
+The revision is printed on the underside of the Nano. The two revisions wire its
+BL616 differently, so the wrong image does not work. The cores of the same version
+go onto the Nano's FPGA:
+{project}-{version}-cores-tangnano20k-singleboard.zip for the Nano alone,
+{project}-{version}-cores-tangnano20k.zip for the M0S Dock.
+
+The flash tool is BLFlashCommand (BLFlashCommand-macos, -ubuntu or .exe), or the
+graphical BLFlashCube, both in tools/bflb_tools/bouffalo_flash_cube of the Bouffalo
+SDK: https://github.com/bouffalolab/bouffalo_sdk
+
+Tang Nano 20K: the image goes to 0x40000, behind Sipeed's debugger firmware at 0x0,
+which has to stay. Only debugger firmware 2025030317 and later starts an image there.
+Its version is the serial number of the USB debugger the board shows on a computer.
+An older one has to be replaced by Sipeed's FPGA Partner firmware first, see
+https://github.com/MiSTle-Dev/FPGA-Companion/tree/main/src/bl616/bl616_fpga_partner
+flash-nano20k_v3923.ini and flash-nano20k.ini write only 0x40000. Unplug the board,
+hold UPDATE, plug it in, then run in this folder:
+
+  BLFlashCommand --interface=uart --chipname=bl616 --baudrate=2000000 --port=<port> --config=flash-nano20k_v3923.ini
+
+The BL616 starts the Companion only when no computer is on the board's USB port. To
+play, power the board through a powered USB hub on its USB-C port and plug the stick
+into the hub.
+
+M0S Dock: the image goes to 0x0. Unplug the dock, hold BOOT, plug it in, then:
+
+  BLFlashCommand --interface=uart --chipname=bl616 --baudrate=2000000 --port=<port> --config=flash-m0sdock.ini
+
+The port is e.g. /dev/ttyACM0 on Linux, /dev/cu.usbmodem1101 on macOS or COM3 on
+Windows. More in docs/bl616.md of the repository:
+https://github.com/scullymi/game20k/blob/v{version}/docs/bl616.md

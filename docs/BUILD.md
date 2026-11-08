@@ -101,7 +101,7 @@ toolchain as the release does. `DEV=1` runs it without a tag, for a trial. The i
 starts at address 0, so `programmer_cli` can write it as well as openFPGALoader:
 
 ```sh
-programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/game20k-<version>-tangnano20k.bin" --spiaddr 0x000000
+programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/game20k-<version>-cores-tangnano20k.bin" --spiaddr 0x000000
 ```
 
 If it reports an error, run it once more. Do not give `programmer_cli` any other address: it
@@ -140,8 +140,8 @@ basic menu without DIP switches and a message to update both, and hardcore stays
 its own, the fork has no menu of a game20k core and shows the basic menu for each.
 
 **Releases.** GitHub Actions builds the release firmware and the bitstreams from the sources at
-the tag, and `gh attestation verify game20k-<version>-pico2w.zip -R scullymi/game20k` (or
-`-tangnano20k.zip`) confirms that a downloaded zip comes from that build.
+the tag, and `gh attestation verify game20k-<version>-firmware-pico2w.zip -R scullymi/game20k`
+(or another zip of the release) confirms that a downloaded zip comes from that build.
 
 ## Debugging the Pico
 

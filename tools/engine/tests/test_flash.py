@@ -125,11 +125,18 @@ class Bl616Test(unittest.TestCase):
             flash.bl616_command(self.root, "nano20k", "COM3")
         self.assertIn("g20k.py firmware --bl616 nano20k", str(err.exception))
 
-    def test_only_the_boards_with_sipeeds_firmware(self) -> None:
-        write(firmware.bl616_folder(self.root, "m0sdock"), "build_out/fpga_companion_bl616.bin", "")
+    def test_the_m0s_dock_from_zero(self) -> None:
+        image = write(firmware.bl616_folder(self.root, "m0sdock"), "build_out/fpga_companion_bl616.bin", "")
+        flash.bl616_command(self.root, "m0sdock", "COM3")
+        ini = (firmware.bl616_folder(self.root, "m0sdock") / "companion.ini").read_text()
+        self.assertEqual(ini.count("filedir"), 1)
+        self.assertIn(f"filedir = {image.as_posix()}\naddress = 0x0\n", ini)
+
+    def test_only_known_boards(self) -> None:
+        write(firmware.bl616_folder(self.root, "console60k"), "build_out/fpga_companion_bl616.bin", "")
         with self.assertRaises(StepError) as err:
-            flash.bl616_command(self.root, "m0sdock", "COM3")
-        self.assertIn("0x40000", str(err.exception))
+            flash.bl616_command(self.root, "console60k", "COM3")
+        self.assertIn("m0sdock", str(err.exception))
 
 
 if __name__ == "__main__":
