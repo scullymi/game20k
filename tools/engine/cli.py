@@ -101,7 +101,7 @@ def main(argv: list[str]) -> int:
         "--bl616",
         type=bl616_board,
         metavar="BOARD",
-        help="the Companion of g20k.py firmware --bl616 BOARD into the onboard BL616, in download mode",
+        help="the Companion of g20k.py firmware --bl616 BOARD into the BL616, in download mode",
     )
     f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(

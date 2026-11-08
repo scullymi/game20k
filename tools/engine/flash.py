@@ -2,7 +2,7 @@
 # Copyright (C) 2026 scullymi
 """@file
 @brief Loads bitstreams into the board with the suite's openFPGALoader, and the Companion into
-the onboard BL616 with Bouffalo's flash tool.
+a BL616 with Bouffalo's flash tool.
 
 Three ways: a core into the FPGA's SRAM (gone at the next power cut, the FPGA then boots the
 core at slot 0), a core into the configuration flash at the address of its slot (the other
@@ -14,7 +14,9 @@ reads the menu from the FPGA only at power-up.
 
 The BL616 of the Tang Nano 20K boots Sipeed's encrypted debugger firmware at 0x0. Without a
 computer on its USB port it starts a second image at 0x40000, the Companion. Only that address is
-written, an image at 0x0 would leave the board in the boot ROM's download mode."""
+written, an image at 0x0 would leave the board in the boot ROM's download mode. The M0S Dock has
+nothing else on its BL616, its boot ROM starts the Companion at 0x0, as with the fork's
+src/bl616/flash_m0sdock_cfg.ini."""
 
 from __future__ import annotations
 
@@ -24,12 +26,10 @@ from pathlib import Path
 from tools.engine import config, firmware, host, toolchain
 from tools.engine.host import StepError
 
-#: the BL616's flash address of the Companion, behind Sipeed's firmware
-BL616_ADDRESS = 0x40000
-
-#: the boards of g20k.py firmware --bl616 whose BL616 starts an image at BL616_ADDRESS, the Tang
-#: Nano 20K with Sipeed's firmware at 0x0. The other boards of the Companion need a whole image.
-BL616_BOARDS = ("nano20k", "nano20k_v3923")
+#: the flash address of the Companion per board of g20k.py firmware --bl616: behind Sipeed's
+#: firmware on the Tang Nano 20K, alone on the M0S Dock. The other boards of the Companion are
+#: not tested here.
+BL616_ADDRESSES = {"nano20k": 0x40000, "nano20k_v3923": 0x40000, "m0sdock": 0x0}
 
 #: Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
@@ -89,9 +89,9 @@ def flash(
 
 def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     """@brief The flash tool's call that writes the Companion of board, built by g20k.py firmware
-    --bl616, to BL616_ADDRESS. Its configuration file goes next to the image."""
-    if board not in BL616_BOARDS:
-        raise StepError(f"--bl616 {board}: only {' and '.join(BL616_BOARDS)} start the Companion at 0x40000")
+    --bl616, to its address in BL616_ADDRESSES. Its configuration file goes next to the image."""
+    if board not in BL616_ADDRESSES:
+        raise StepError(f"--bl616 {board}: flashing is known only for {', '.join(BL616_ADDRESSES)}")
     out = firmware.bl616_folder(root, board)
     image = out / "build_out" / "fpga_companion_bl616.bin"
     if not image.is_file():
@@ -107,7 +107,7 @@ def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     ini = out / "companion.ini"
     ini.write_text(
         "[cfg]\nerase = 1\nskip_mode = 0x0, 0x0\nboot2_isp_mode = 0\n\n"
-        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{BL616_ADDRESS:x}\n"
+        f"[FW]\nfiledir = {image.as_posix()}\naddress = 0x{BL616_ADDRESSES[board]:x}\n"
     )
     return [
         tool,
@@ -122,9 +122,9 @@ def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
 def flash_bl616(root: Path, board: str, port: str, dry_run: bool) -> None:
     """@brief Runs the call of bl616_command(), or only prints it with dry_run.
 
-    The BL616 has to be in its download mode: unplug the board, hold UPDATE, plug it in. The
-    tool reads back the SHA-256 of what it wrote. It leaves its loader running, so a second call
-    needs the board plugged in with UPDATE again."""
+    The BL616 has to be in its download mode: unplug the board, hold UPDATE (Tang Nano 20K) or
+    BOOT (M0S Dock), plug it in. The tool reads back the SHA-256 of what it wrote. It leaves its
+    loader running, so a second call needs the download mode again."""
     cmd = bl616_command(root, board, port)
     print(" ".join(str(a) for a in cmd), flush=True)
     if dry_run:
