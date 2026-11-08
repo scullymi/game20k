@@ -15,12 +15,12 @@ Besides the licence texts, the NOTICE lists the copyright lines from the headers
 source files, because the BSD-style licences ask for "the above copyright notice", and the
 upstream licence files name only one of the holders.
 
-The BL616 firmware is linked with link-time optimisation, which merges the code of many object
+The BL616 firmware is linked with link-time optimization, which merges the code of many object
 files, so there the NOTICE follows the linker's input instead: every archive member and object
 file the linker took in. An archive member of the build is traced to its source file through the
 object file in the build folder, the Bouffalo SDK and the toolchain come as folders of their own
-(--sdk, --toolchain). Many files of the SDK carry their own licence in their header: a component
-marked "headers" adds each distinct licence header of its linked files.
+(--sdk, --toolchain). Many files of the SDK carry their own license in their header: a component
+marked "headers" adds each distinct license header of its linked files.
 """
 
 import argparse
@@ -303,11 +303,11 @@ COMPONENTS = [
     {
         "name": "FatFs, in the Bouffalo SDK",
         "order": 26,
-        "short": "FatFs licence",
+        "short": "FatFs license",
         "url": "http://elm-chan.org/fsw/ff/",
         "sdk": True,
         "match": r"^sdk:components/fs/fatfs/",
-        "licence": "FatFs licence (BSD-style, one clause), the port files under the SDK's licences",
+        "licence": "FatFs license (BSD-style, one clause), the port files under the SDK's licenses",
         "texts": [],
         "headers": True,
     },
@@ -335,26 +335,26 @@ COMPONENTS = [
     {
         "name": "Bouffalo SDK",
         "order": 20,
-        "short": "Apache-2.0, files with their own licence notices below",
+        "short": "Apache-2.0, files with their own license notices below",
         "url": "https://github.com/scullymi/bouffalo_sdk (branch game20k), fork of "
                "https://github.com/bouffalolab/bouffalo_sdk",
         "sdk": True,
         "match": r"^sdk:",
-        "licence": "Apache-2.0 (the SDK's LICENSE), unless a file's header names another licence",
+        "licence": "Apache-2.0 (the SDK's LICENSE), unless a file's header names another license",
         "texts": ["sdk:LICENSE"],
         "headers": True,
         "note": "The Wi-Fi and radio libraries (libmacsw, libfhost, libbl616_phyrf, libpka) come "
-                "built with the SDK, without source, under the SDK's licence. The image links "
+                "built with the SDK, without source, under the SDK's license. The image links "
                 "them because the Companion's configuration of the SDK enables Wi-Fi.",
     },
     {
         "name": "picolibc, the C library of the RISC-V toolchain",
         "order": 30,
-        "short": "BSD and similar licences",
+        "short": "BSD and similar licenses",
         "url": "https://github.com/picolibc/picolibc",
         "toolchain": True,
         "match": r"/riscv64-unknown-elf/lib/[^(]*/lib(c|m)\.a\(",
-        "licence": "several free licences, one per source file, collected in COPYING.picolibc",
+        "licence": "several free licenses, one per source file, collected in COPYING.picolibc",
         "texts": ["toolchain:share/licenses/picolibc/COPYING.picolibc"],
         "note": "COPYING.picolibc also lists a build script and test files under the GPL, "
                 "none of them is part of the library.",
@@ -428,14 +428,41 @@ def header_comment(rel):
     return "\n".join(lines).strip("\n") + "\n"
 
 
-# the words of a licence text in a file's header
-LICENCE_TEXT = re.compile(r"Redistribution and use|Permission is hereby granted|Permission to use, copy|"
+# the words of a license text in a file's header
+LICENSE_TEXT = re.compile(r"Redistribution and use|Permission is hereby granted|Permission to use, copy|"
                           r"Licensed under the Apache License|SPDX-License-Identifier")
 
 
-def licence_headers(sources):
-    """The distinct licence comments at the top of the given source files, each with the files
-    that carry it: a file's own name, date and copyright lines do not make it another one."""
+def leading_comments(text):
+    """The comments at the top of a source file, before its first line of code: /* */ blocks and
+    runs of // lines, each without its comment markers. Preprocessor lines in between (an include
+    guard) are passed over."""
+    comments, pos = [], 0
+    while True:
+        m = re.compile(r"\s*(/\*.*?\*/|(?://[^\n]*\n\s*)+|#[^\n]*\n)", re.DOTALL).match(text, pos)
+        if not m:
+            return comments
+        block = m.group(1)
+        if block.startswith("/*"):
+            lines = block[2:-2].splitlines()
+        elif block.startswith("//"):
+            lines = [l.strip()[2:] for l in block.strip().splitlines()]
+        else:
+            lines = None
+        if lines is not None:
+            comments.append([re.sub(r"^\s?[*/]{0,2} ?", "", l).rstrip() for l in lines])
+        pos = m.end()
+
+
+# the words of a license's text, not of an SPDX line, which names a license whose text is elsewhere
+LICENSE_WORDS = re.compile(r"Redistribution and use|Permission is hereby granted|Permission to use, copy|"
+                           r"Licensed under the Apache License")
+
+
+def license_headers(sources):
+    """The distinct license comments at the top of the given source files, each with the files
+    that carry it: a file's own name, date and copyright lines do not make it another one. A file
+    whose first lines hold the words of a license that no top comment carries stops the script."""
     found = {}
     for src in sorted(sources):
         try:
@@ -443,15 +470,13 @@ def licence_headers(sources):
                 text = f.read(20000)
         except OSError:
             continue
-        m = re.match(r"\s*(/\*.*?\*/)", text, re.DOTALL)
-        if not m or not LICENCE_TEXT.search(m.group(1)):
+        lines = next((c for c in leading_comments(text) if LICENSE_WORDS.search("\n".join(c))), None)
+        if lines is None:
+            if LICENSE_WORDS.search("\n".join(text.splitlines()[:80])):
+                die("%s holds a license text outside its top comments, add it by hand" % src)
             continue
-        lines = [re.sub(r"^\s?[*/]{0,2} ?", "", l).rstrip() for l in m.group(1)[2:-2].splitlines()]
-        # an SPDX line alone names the licence, its text is elsewhere in the NOTICE
-        if not re.search(LICENCE_TEXT.pattern.replace("|SPDX-License-Identifier", ""), m.group(1)):
-            continue
-        # compared from the licence text on, a file's description above it does not count
-        first = next(i for i, l in enumerate(lines) if LICENCE_TEXT.search(l) or COPYRIGHT_LINE.search(l))
+        # compared from the license text on, a file's description above it does not count
+        first = next(i for i, l in enumerate(lines) if LICENSE_TEXT.search(l) or COPYRIGHT_LINE.search(l))
         key = "\n".join(l for l in lines[first:] if l.strip() and not COPYRIGHT_LINE.search(l)
                         and not re.search(r"@(file|date|version|brief|author)|\.[ch]\b|^[-=*]+$", l))
         found.setdefault(key, (lines, []))[1].append(src)
@@ -537,6 +562,8 @@ def bl616_inputs(map_path):
             die("object file outside a CMake target folder: %s" % rel)
         base, rest = m.groups()
         if base is not None:  # a library of the SDK, its folder mirrors the SDK's
+            if not os.path.isfile(os.path.join(BFLB, base, rest)):
+                die("no source in the SDK for the linked file %s" % rel)
             return "sdk:%s/%s" % (base, rest)
         # the application: the source's absolute path, a drive as C_ on Windows, or a file of
         # the Companion's src/bl616 that CMake names relative to it
@@ -716,9 +743,9 @@ def main():
             "https://github.com/scullymi/FPGA-Companion (branch game20k), built with the Bouffalo "
             "SDK by https://github.com/scullymi/game20k at version %s, without "
             "RetroAchievements. It contains the software listed below, each part under its own "
-            "licence. The source of every part is available from the repository named with it, "
+            "license. The source of every part is available from the repository named with it, "
             "at the commit given, except for the libraries the Bouffalo SDK carries built." % (image, version),
-            "The image is linked with link-time optimisation. The lists below name every file the "
+            "The image is linked with link-time optimization. The lists below name every file the "
             "linker took in, some of them may contribute no code to the image.",
         ):
             out += [textwrap.fill(para, 78, break_long_words=False, break_on_hyphens=False), ""]
@@ -727,12 +754,15 @@ def main():
             "",
         ]
     else:
+        intro = (
+            "This file accompanies the firmware image game20k-%s-firmware-pico2w.uf2. The image is "
+            "FPGA-Companion from https://github.com/scullymi/FPGA-Companion (branch game20k), built by "
+            "https://github.com/scullymi/game20k at version %s. It contains the software listed "
+            "below, each part under its own license. The source of every part is available from the "
+            "repository named with it, at the commit given." % (version, version)
+        )
         out += [
-            "This file accompanies the firmware image game20k-%s-pico2w.uf2. The image is" % version,
-            "FPGA-Companion from https://github.com/scullymi/FPGA-Companion (branch game20k), built by",
-            "https://github.com/scullymi/game20k at version %s. It contains the software listed" % version,
-            "below, each part under its own licence. The source of every part is available from the",
-            "repository named with it, at the commit given.",
+            textwrap.fill(intro, 78, break_long_words=False, break_on_hyphens=False),
             "",
             "USE ONLY ON A RASPBERRY PI PICO 2 W. %s licensed for use and" % rp_parts,
             "redistribution only together with Raspberry Pi semiconductor devices and products, see",
@@ -776,11 +806,11 @@ def main():
                 out += ["", "Text of %s:" % shown(t), ""]
                 out.append(read(t).rstrip("\n"))
         if comp.get("headers"):
-            for text, files in licence_headers(sources):
+            for text, files in license_headers(sources):
                 rels = sorted(os.path.relpath(f, BFLB).replace("\\", "/") if BFLB else f for f in files)
                 where = rels[0] if len(rels) == 1 else "%s and %d more file%s" % (
                     rels[0], len(rels) - 1, "" if len(rels) == 2 else "s")
-                out += ["", "Licence notice in the header of %s:" % where, "", text]
+                out += ["", "License notice in the header of %s:" % where, "", text]
         out.append("")
 
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
