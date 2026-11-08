@@ -7,8 +7,9 @@ Bouffalo's flash tool:
   {project}-{version}-nano20k.bin        Tang Nano 20K of board revision 3921, alone
   {project}-{version}-m0sdock.bin        Sipeed M0S Dock on the header of a Tang Nano 20K
 
-The two revisions wire the Nano's BL616 differently, so the wrong image does not
-work. The cores of the same version go onto the Nano's FPGA:
+The revision is printed on the underside of the Nano. The two revisions wire its
+BL616 differently, so the wrong image does not work. The cores of the same version
+go onto the Nano's FPGA:
 {project}-{version}-cores-tangnano20k-singleboard.zip for the Nano alone,
 {project}-{version}-cores-tangnano20k.zip for the M0S Dock.
 
