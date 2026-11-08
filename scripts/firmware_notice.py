@@ -512,7 +512,15 @@ def bl616_inputs(map_path):
     if end < 0:
         die("%s has no list of archive members" % map_path)
     build = os.path.dirname(os.path.dirname(os.path.abspath(map_path)))
-    sdk = os.path.realpath(BFLB) + "/"
+    sdk = os.path.realpath(BFLB).replace("\\", "/") + "/"
+
+    def in_sdk(path):
+        """A path as a key: "sdk:<path in the SDK>", or the path itself. Windows may spell the
+        drive in another case, so the comparison ignores it there."""
+        path = os.path.realpath(path).replace("\\", "/")
+        if os.path.normcase(path).startswith(os.path.normcase(sdk)):
+            return "sdk:" + path[len(sdk):]
+        return path
     # the object files of the build by the folder of their library and their name
     objects = {}
     for top, _, files in os.walk(build):
@@ -534,8 +542,7 @@ def bl616_inputs(map_path):
         # the Companion's src/bl616 that CMake names relative to it
         for c in (re.sub(r"^([A-Za-z])_/", r"\1:/", rest), "/" + rest, os.path.join(COMPANION, "src", "bl616", rest)):
             if os.path.isfile(c):
-                path = os.path.realpath(c).replace("\\", "/")
-                return "sdk:" + path[len(sdk):] if path.startswith(sdk) else path
+                return in_sdk(c)
         die("no source found for the linked file %s" % rel)
 
     for archive, member in re.findall(r"^(\S+\.a)\(([^)]+)\)", text[:end], re.M):
@@ -546,8 +553,8 @@ def bl616_inputs(map_path):
                 die("no object file in the build for %s(%s)" % (archive, member))
             keys.update(source_key(o) for o in found)
         else:
-            path = os.path.realpath(archive).replace("\\", "/")
-            keys.add(("sdk:" + path[len(sdk):] if path.startswith(sdk) else archive) + "(%s)" % member)
+            key = in_sdk(archive)
+            keys.add((key if key.startswith("sdk:") else archive) + "(%s)" % member)
     for obj in re.findall(r"^LOAD (\S+\.obj)$", text, re.M):
         keys.add(source_key(os.path.join(build, obj)))
     if not keys:
