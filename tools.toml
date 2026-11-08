@@ -238,16 +238,16 @@ commit = "86935b9cf4fe50f18cc2fb7877a677f89cd3a44d"
 # tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run
 # to here: the archive carries the key of all three, and tools fetch stops on another.
 [prebuilt]
-release = "https://github.com/scullymi/game20k/releases/tag/tools-eed5abf57731"
+release = "https://github.com/scullymi/game20k/releases/tag/tools-bfb46a5532f9"
 
 [prebuilt.darwin-arm64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-eed5abf57731/game20k-forks-eed5abf57731-darwin-arm64.tar.gz"
-sha256 = "5fc0112d91df8c0f16070c2a7690c54866f1a4a0fefd773d29fa1fc04f2fe09e"
+url = "https://github.com/scullymi/game20k/releases/download/tools-bfb46a5532f9/game20k-forks-bfb46a5532f9-darwin-arm64.tar.gz"
+sha256 = "a1aa56b40d73197e6fc2ab16a6734d403c9d258ca986200131c77bd03cfe840e"
 
 [prebuilt.linux-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-eed5abf57731/game20k-forks-eed5abf57731-linux-x64.tar.gz"
-sha256 = "bac71230379113289d2c90d17730a11192750a141b3ee8b50745818098ccfad8"
+url = "https://github.com/scullymi/game20k/releases/download/tools-bfb46a5532f9/game20k-forks-bfb46a5532f9-linux-x64.tar.gz"
+sha256 = "ed6969d2919ef03eff35a45e8bfe277b566c8625d8ea4ffcac914b209d097c2b"
 
 [prebuilt.windows-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-eed5abf57731/game20k-forks-eed5abf57731-windows-x64.tar.gz"
-sha256 = "cfd4c74ba06c71887dc9f074c9593b33017621a47c4f3cff8502ab7edbd4d5f0"
+url = "https://github.com/scullymi/game20k/releases/download/tools-bfb46a5532f9/game20k-forks-bfb46a5532f9-windows-x64.tar.gz"
+sha256 = "053ae3e28ba5a70c806106e0fe65e48de0363a559ef77683a849832b7487c3c0"
