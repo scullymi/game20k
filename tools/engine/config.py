@@ -350,13 +350,14 @@ class Project:
 
     Each core has one slot of the board's slot size. The core switch loads the next core of the
     ring, the last one switches back to the first. other_board is set when the board is not the
-    one project.toml names."""
+    one project.toml names. releases is the GitHub repository of its releases."""
 
     root: Path
     name: str
     board: Board
     slots: list[Path]
     other_board: bool = False
+    releases: str = ""
 
     def build_folder(self, core: str) -> Path:
         """@brief The folder of a core's normal build: build/<core> on the board of project.toml,
@@ -382,7 +383,7 @@ class Project:
 def load_project(path: Path, board_folder: Path | None = None) -> Project:
     """@brief Reads a project.toml and the board.toml it names, or that of board_folder instead."""
     root = _read(path).allow("project", "slot")
-    p = root.table("project").allow("name", "board")
+    p = root.table("project").allow("name", "board", "releases")
     own = (path.parent / p.get("board", str)).resolve()
     board_folder = board_folder.resolve() if board_folder else own
     board = load_board(board_folder / "board.toml")
@@ -396,7 +397,9 @@ def load_project(path: Path, board_folder: Path | None = None) -> Project:
         slots.append(core)
     if len(slots) * board.flash.slot_size > board.flash.size:
         raise root.error(f"{len(slots)} slots do not fit into the flash of {board.name}")
-    return Project(path.parent, p.get("name", str), board, slots, board_folder != own)
+    return Project(
+        path.parent, p.get("name", str), board, slots, board_folder != own, p.get("releases", str, "")
+    )
 
 
 @dataclass

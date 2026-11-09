@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, firmware, flash, forks, release, sdcard, toolchain
+from tools.engine import config, firmware, flash, forks, published, release, sdcard, toolchain
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
@@ -124,8 +124,15 @@ def main(argv: list[str]) -> int:
         help="build from scratch and pack a release: the Pico 2 W's (default) or the BL616's for every board",
     )
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
+    w.add_argument(
+        "--download",
+        nargs="?",
+        const="latest",
+        metavar="VERSION",
+        help="fetch the Pico 2 W's firmware of a published release (default: the latest), no build",
+    )
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
-    what = f.add_mutually_exclusive_group(required=True)
+    what = f.add_mutually_exclusive_group()
     what.add_argument(
         "core", type=Path, nargs="?", help="core folder: its build into the slot of project.toml"
     )
@@ -135,6 +142,13 @@ def main(argv: list[str]) -> int:
         type=bl616_board,
         metavar="BOARD",
         help="the Companion of g20k.py firmware --bl616 BOARD into the BL616, in download mode",
+    )
+    f.add_argument(
+        "--download",
+        nargs="?",
+        const="latest",
+        metavar="VERSION",
+        help="the flash image (with --bl616 its image) of a published release, default: the latest",
     )
     f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(
@@ -173,6 +187,16 @@ def main(argv: list[str]) -> int:
     s.add_argument("--out", type=Path, required=True, help="folder for the generated sources (in gen/)")
     s.add_argument("--include", action="store_true", help="print the include folders instead")
     args = ap.parse_args(argv)
+    if args.command == "flash" and not (args.core or args.image or args.bl616 or args.download):
+        f.error("give a core, --image, --download or --bl616")
+    if args.command == "flash" and args.download and (args.core or args.image or args.sram):
+        f.error("--download takes no core, --image or --sram")
+    if (
+        args.command == "firmware"
+        and args.download
+        and (args.release or args.upstream or args.bl616 or args.without_ra or args.usb != "native")
+    ):
+        w.error("--download takes no other option")
     if args.command == "flash" and args.sram and args.image:
         f.error("--sram takes a core, not an image")
     if args.command == "flash" and bool(args.bl616) != bool(args.port):
@@ -202,7 +226,9 @@ def main(argv: list[str]) -> int:
         elif args.command == "release":
             release.release(ROOT, args.dev, args.board)
         elif args.command == "firmware":
-            if args.release == "bl616":
+            if args.download:
+                published.show_pico_steps(published.pico_firmware(ROOT, args.download))
+            elif args.release == "bl616":
                 firmware.make_release_bl616(ROOT, args.dev)
             elif args.release:
                 firmware.make_release(ROOT, args.dev)
@@ -213,10 +239,13 @@ def main(argv: list[str]) -> int:
             else:
                 firmware.build(ROOT, args.usb, ra=not args.without_ra)
         elif args.command == "flash" and args.bl616:
-            flash.flash_bl616(ROOT, args.bl616, args.port, args.dry_run)
+            bl616_image = published.bl616_firmware(ROOT, args.download, args.bl616) if args.download else None
+            flash.flash_bl616(ROOT, args.bl616, args.port, args.dry_run, bl616_image)
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
+            if args.download:
+                image = published.cores_image(ROOT, args.download, args.board)
             flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board)
         elif args.command == "tools":
             if args.tools_command == "fetch":

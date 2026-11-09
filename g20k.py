@@ -8,6 +8,8 @@
     release [--dev]                        builds every core and packs a release under dist/
     flash <core folder> [--sram]           loads a core's build into its slot or into SRAM
     flash --image <file>                   writes a flash image from 0
+    flash --download [version]             writes the flash image of a published release
+    firmware --download [version]          fetches the Pico 2 W's firmware of a published release
     cores                                  prints the core folders in ring order
     sdcard [card]                          makes the ROM files and settings, copies them to the card
     sources <core folder> --out <folder>   prints a core's own sources, for a simulation

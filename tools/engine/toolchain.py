@@ -160,9 +160,9 @@ def unpack(archive: Path, dest: Path) -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def fetched(root: Path, archive: config.Archive, what: str) -> Path:
+def fetched(root: Path, archive: config.Archive, what: str, source: str = "tools.toml") -> Path:
     """@brief The archive in external/tools/downloads/, downloaded when it is not there or
-    differs, checked against its SHA-256."""
+    differs, checked against its SHA-256, which source names."""
     downloads = tools_dir(root) / "downloads"
     downloads.mkdir(parents=True, exist_ok=True)
     file = downloads / archive.url.rsplit("/", 1)[1]
@@ -171,7 +171,7 @@ def fetched(root: Path, archive: config.Archive, what: str) -> Path:
         download(archive.url, file)
     got = sha256(file)
     if got != archive.sha256:
-        raise StepError(f"{file}: SHA-256 {got}, tools.toml expects {archive.sha256}")
+        raise StepError(f"{file}: SHA-256 {got}, {source} expects {archive.sha256}")
     return file
 
 
