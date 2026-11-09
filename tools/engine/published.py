@@ -10,6 +10,7 @@ release with their SHA-256 (digest), which every download is checked against. A 
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -20,15 +21,19 @@ from tools.engine.host import StepError
 
 def repository(project: config.Project) -> str:
     """@brief owner/name of the repository [project] releases names, e.g. scullymi/game20k."""
-    prefix = "https://github.com/"
-    if not project.releases.startswith(prefix) or project.releases.rstrip("/").count("/") != 4:
-        raise StepError(f"project.toml: releases is {project.releases!r}, expected {prefix}<owner>/<name>")
-    return project.releases.rstrip("/").removeprefix(prefix)
+    m = re.fullmatch(r"https://github\.com/([\w-]+)/([\w.-]+?)/?", project.releases)
+    if not m or m[2].endswith(".git"):
+        raise StepError(
+            f"project.toml: releases is {project.releases!r}, expected https://github.com/<owner>/<name>"
+        )
+    return f"{m[1]}/{m[2]}"
 
 
 def release(root: Path, project: config.Project, version: str) -> dict[str, Any]:
     """@brief What GitHub's API says about the release of version (with or without the v of its
     tag), or about the latest one for "latest"."""
+    if version != "latest" and not re.fullmatch(r"v?\d+(\.\d+)*", version):
+        raise StepError(f"--download takes a version such as 0.9.2, or none for the latest, not {version!r}")
     which = "latest" if version == "latest" else f"tags/v{version.removeprefix('v')}"
     url = f"https://api.github.com/repos/{repository(project)}/releases/{which}"
     cmd: list[host.Arg] = ["curl", "--fail", "--location", "--silent", "--show-error"]

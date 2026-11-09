@@ -26,7 +26,14 @@ class RepositoryTest(unittest.TestCase):
         self.assertEqual(published.repository(self.project("https://github.com/o/n/")), "o/n")
 
     def test_others_stop(self) -> None:
-        for url in ("", "https://gitlab.com/o/n", "https://github.com/o", "https://github.com/o/n/x"):
+        for url in (
+            "",
+            "https://gitlab.com/o/n",
+            "https://github.com/o",
+            "https://github.com/o/n/x",
+            "https://github.com//n",
+            "https://github.com/o/n.git",
+        ):
             with self.subTest(url=url), self.assertRaises(StepError):
                 published.repository(self.project(url))
 
@@ -70,6 +77,14 @@ class FetchTest(unittest.TestCase):
             ):
                 self.assertEqual(published.release(self.root, project, version), {"tag_name": "v1"})
             self.assertEqual(run.call_args.args[0][-1], f"https://api.github.com/repos/o/n/releases/{which}")
+
+    def test_version_that_is_none(self) -> None:
+        # flash --download fpga/x: argparse takes the core folder as the version
+        project = config.load_project(self.root / "project.toml")
+        with mock.patch.object(host, "run") as run, self.assertRaises(StepError) as err:
+            published.release(self.root, project, "fpga/galaga_hdmi")
+        run.assert_not_called()
+        self.assertIn("version such as 0.9.2", str(err.exception))
 
     def test_cores_image_is_fetched_checked_and_kept(self) -> None:
         info = self.info()
