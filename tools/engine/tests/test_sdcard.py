@@ -116,6 +116,15 @@ class CardTest(unittest.TestCase):
             ["README.md", "config.ini", "galaga.ini", "galaga.rom", "pacman.ini", "puckman.rom"],
         )
 
+    def test_macos_attribute_files_go(self) -> None:
+        # what macOS writes beside a copied file on FAT, here made by hand
+        (self.root / "roms" / "galaga.zip").write_bytes(b"")
+        (self.card / "._config.ini").write_bytes(b"")
+        (self.card / "._galaga.rom").write_bytes(b"")
+        with mock.patch("sys.platform", "darwin"):
+            self.make(self.card)
+        self.assertEqual([p.name for p in self.card.iterdir() if p.name.startswith("._")], [])
+
     def test_settings_named_like_the_file_win(self) -> None:
         for name in ("pacman", "puckman"):
             (self.root / "roms" / f"{name}.zip").write_bytes(b"")

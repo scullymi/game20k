@@ -243,6 +243,15 @@ def prepare(root: Path) -> Card:
     return card
 
 
+def put(source: Path, dest: Path) -> None:
+    """@brief Copies a file onto the card. On FAT, macOS keeps the extended attributes of a file
+    in ._<name> beside it, and it gives every file a program writes one (com.apple.provenance).
+    The device needs none of them, so that file goes."""
+    shutil.copyfile(source, dest)
+    if sys.platform == "darwin":
+        dest.with_name(f"._{dest.name}").unlink(missing_ok=True)
+
+
 def copy(root: Path, card: Card, target: Path) -> None:
     """@brief Copies the files of sdcard/ onto the card. Settings files the card holds already
     stay, they carry what the device saved."""
@@ -253,13 +262,13 @@ def copy(root: Path, card: Card, target: Path) -> None:
     if card.missing:
         raise StepError(f"not copied, missing: {' '.join(card.missing)}")
     for name in ("config.ini", "README.md", *(f"{s}.rom" for s in card.sets)):
-        shutil.copyfile(sd / name, target / name)
+        put(sd / name, target / name)
         report(name, "copied")
     for name in card.inis:
         if (target / name).is_file():
             report(name, "present on the card, stays: it holds your saved settings")
         else:
-            shutil.copyfile(sd / name, target / name)
+            put(sd / name, target / name)
             report(name, "copied (starter file)")
     if (target / "config.xml").is_file():
         print()
