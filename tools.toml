@@ -172,6 +172,7 @@ sha256 = "163e1b5fd66b8ab27c44a4c5104e0243fc06ea46e2ce0e6614f42d6f144a1afa"
 url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/picotool-2.2.0-a4-x64-win.zip"
 sha256 = "42cd263ed17dd3987d0830fa239424b3958ec0407afd6985bfbf83a5fc5a55f2"
 
+# cmake and ninja build the firmware and, with tools build-forks, the forks
 [download.cmake]
 version = "4.4.5"
 release = "https://github.com/Kitware/CMake/releases/tag/v4.4.5"
