@@ -1,240 +1,170 @@
 # Building game20k from source
 
-The [README](../README.md) explains how to play using the release files. This page covers
-building the bitstreams and the firmware yourself, and debugging.
+Everything goes through one script, `g20k.py`, with free tools on macOS (Apple silicon), Linux
+(x86_64) and Windows (x64). It needs Python 3.11.4 or newer and git, and downloads everything
+else itself. On Windows, type `py g20k.py` instead of `python3 g20k.py`. Each command lists its
+options with `--help`.
 
-## Tools
+## 1. Sources and tools
 
-| Tool | Version | Note |
+```sh
+git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/scullymi/game20k.git && cd game20k
+python3 g20k.py tools fetch
+python3 g20k.py tools
+```
+
+The clone takes the current state of the repository and its submodules under `external/`,
+without history (`git fetch --unshallow` brings it back). Without history, a build after the
+last release tag names its version by the commit alone.
+
+`tools fetch` downloads every program the build needs into `external/tools/`, several GB in
+all, and checks each download against its SHA-256 in [tools.toml](../tools.toml).
+`tools` then lists each program with its version, where it came from and its folder:
+
+| Name | Program | Needed for |
 |---|---|---|
-| Gowin EDA **Education** | 1.9.11.03 | free download, **no licence file needed**. Not needed with the [free toolchain](OPEN-TOOLCHAIN.md) |
-| openFPGALoader | | to flash every core except Galaga: `brew install openfpgaloader` or `apt install openfpgaloader` |
-| Arm GNU Toolchain | 14.2 | |
-| git, curl, CMake, make, Python 3, gzip, unzip, a C compiler | | |
+| `suite` | YosysHQ's oss-cad-suite: Yosys with its slang frontend, openFPGALoader | cores, flashing them |
+| `ghdl` | GHDL, the VHDL frontend | cores |
+| `yosys`, `nextpnr`, `apicula` | game20k's forks, built by GitHub Actions, see [OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md) | cores |
+| `arm`, `armlibs` | Arm GNU Toolchain and its C libraries | Pico firmware |
+| `pioasm`, `picotool` | the host tools of the Pico SDK | Pico firmware |
+| `riscv`, `riscvlibs` | Bouffalo's RISC-V toolchain and its C libraries | BL616 firmware |
+| `bouffalo_sdk` | Bouffalo SDK with its flash tool | BL616 firmware |
+| `cmake`, `ninja` | CMake and Ninja | firmware, building the forks yourself |
 
-The scripts look for Gowin and the Arm toolchain in the usual places on macOS and Linux. If
-yours are elsewhere, point the scripts to them:
+The SD card is prepared as in the [README](../README.md#quick-start).
 
-```sh
-export GOWIN_IDE=/opt/gowin/IDE          # the folder that contains bin/gw_sh
-export PICO_TOOLCHAIN_PATH=/opt/arm-gnu-toolchain-14.2
-```
+### Only some tools
 
-On Windows, `py g20k.py` builds the bitstreams natively with the free toolchain.
-
-## 1. Sources
-
-```sh
-git clone --recursive https://github.com/scullymi/game20k.git && cd game20k
-```
-
-All the HDL is in this repository. The firmware comes as git submodules under `external/`: our
-forks of [FPGA-Companion](https://github.com/scullymi/FPGA-Companion) and
-[TinyUSB](https://github.com/scullymi/tinyusb) (both on the branch `game20k`) and the Pico SDK
-2.2.0. If you cloned without `--recursive`, the build script fetches them itself.
-
-Third-party HDL keeps its original headers. Each of its folders (`rtl_dar/`, `rtl_pacman/`,
-`rtl_T80/`, `misc/`, `hdmi/`, and under `fpga/vendor/` the copies of jotego's repositories that
-several cores share) has a README or LICENSE that names the upstream commit and our changes. [THIRD-PARTY.md](../THIRD-PARTY.md) lists who wrote what and under which licence.
-
-## 2. ROMs and the SD card
-
-Copy your own MAME sets into `roms/`, see [roms/README.md](../roms/README.md) for which ones. Then:
+With names from the table, `tools fetch` fetches only those programs, for example everything
+for the cores:
 
 ```sh
-scripts/make_sdcard.sh                        # builds and checks, lists anything missing
-scripts/make_sdcard.sh /Volumes/YOUR_CARD     # also copies everything to the card
+python3 g20k.py tools fetch suite ghdl yosys nextpnr apicula
 ```
 
-The script builds a ROM file for every game whose set is in `roms/` and checks the size and
-SHA-1 of every chip against MAME. If a set fails the check, it names the chip and copies nothing
-to the card. The device silently rejects a ROM file of the wrong size, which is why the check
-happens here.
-For WiFi and RetroAchievements, fill in `sdcard/config.ini` first, see
-[retroachievements.md](retroachievements.md#account).
+The three forks come as one archive, so naming one of them fetches all three.
 
-## 3. FPGA: build and flash
+### Building the forks yourself
 
-Build each core:
+Instead of the prebuilt forks, `tools build-forks` builds them on this machine. It needs the
+suite, CMake and Ninja from `tools fetch` first:
 
 ```sh
-scripts/build_fpga.sh galaga_hdmi
-scripts/build_fpga.sh pacman_hdmi
-scripts/build_fpga.sh g1942_hdmi
+python3 g20k.py tools build-forks
+python3 g20k.py tools
 ```
 
-The cores also build without the Gowin IDE, with free tools: see
-[OPEN-TOOLCHAIN.md](OPEN-TOOLCHAIN.md). The release bitstreams come from the free build.
+The build fetches the sources at the commits in `tools.toml` into `external/tools/src/`: Yosys,
+nextpnr and Apicula from game20k's forks, and Eigen, a header library that nextpnr's placer
+needs. Eigen is only needed for this build, so the table above does not list it. Each step
+names its log file there and says how long it took. git, a C++ compiler, Boost, Flex and Bison
+have to be on the path. On Windows, run it in a Visual Studio developer shell, with Boost from
+vcpkg and `CMAKE_PREFIX_PATH` set to its `installed\x64-windows-static`, as
+`.github/workflows/tools.yml` does:
 
-Each build ends with a short report on utilisation and timing, and fails if a clock misses its
-target. The menus are not in the bitstream but in the firmware (section 4). The core only
-carries an interface tag (`scripts/make_menu.py`), a checksum over the ids and values of its
-menu and the labels of its own part, and the firmware takes its menu for the core only when
-the tags agree. A change to a core's `menu_core.xml` therefore needs a new build of that core
-and of the firmware, a change to `fpga/common/menu/base.xml` that only touches labels or
-comments needs the firmware alone.
-
-Write the cores into the board's flash, then power the board off and on:
-
-```sh
-scripts/flash_fpga.sh galaga_hdmi flash
-scripts/flash_fpga.sh pacman_hdmi flash
-scripts/flash_fpga.sh g1942_hdmi flash
+```powershell
+vcpkg install --triplet x64-windows-static boost-program-options "boost-iostreams[core]" boost-thread boost-filesystem
+$env:CMAKE_PREFIX_PATH = "$env:VCPKG_ROOT\installed\x64-windows-static"
 ```
 
-Each core has its own address in the flash, listed in
-[fpga/common/slots.txt](../fpga/common/slots.txt). At power-on, the FPGA loads the core at
-address 0, which is Galaga. The script writes Galaga with Gowin's `programmer_cli` and the other
-cores with openFPGALoader, because `programmer_cli` can only write to address 0. Set
-`FLASHER=openfpgaloader` to use openFPGALoader for both. Without `flash`, the script loads the
-core into the FPGA's SRAM only, which is handy for a quick test and gone at power-off.
+`tools` then shows the forks as "built here from" their repository and commit. A later
+`tools fetch` leaves them as they are, and `tools fetch apicula nextpnr yosys` goes back to the
+prebuilt ones. [local.toml](#localtoml) keeps the choice.
 
-**Only some of the cores.** To flash fewer cores, leave only those in `slots.txt`, build them
-and the firmware again, and flash them at their new addresses. Otherwise the Games page still
-lists the games of a missing core: the FPGA skips the empty place in the flash, which takes a
-few seconds, the Companion goes once round the ring and back to the core the game was picked
-in, and the picture shows "SYS: CORE NOT IN FLASH".
+### local.toml
 
-`scripts/make_bitstream_release.sh` builds all cores from a release tag and packs them as the
-single flash image that the release ships, with the Gowin IDE, or with `OSS=1` with the free
-toolchain as the release does. `DEV=1` runs it without a tag, for a trial. The image
-starts at address 0, so `programmer_cli` can write it as well as openFPGALoader:
+`local.toml` next to `g20k.py` holds the settings of this machine. git does not track it. All
+settings go in its `[tools]` table:
 
-```sh
-programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/game20k-<version>-cores-tangnano20k.bin" --spiaddr 0x000000
+```toml
+[tools]
+dir = "../game20k-tools"
+mode = "source"
+nextpnr = "../nextpnr/build/nextpnr-himbaechel"
 ```
 
-If it reports an error, run it once more. Do not give `programmer_cli` any other address: it
-erases the flash there but writes at address 0.
-
-## 4. Firmware: build and flash
-
-Build the firmware for the Pico 2 W:
-
-```sh
-scripts/build_companion.sh            # stick on the Pico's own USB port (the default)
-scripts/build_companion.sh pico2 pio  # stick on a soldered USB A socket at GP2/GP3
-```
-
-The result is `fpga_companion.uf2` in `external/FPGA-Companion/src/rp2040/build_pico2_native/`
-(or `build_pico2_pio/`). To flash it, hold BOOTSEL while plugging in the Pico and copy the file
-to the drive that appears. With a debug probe, OpenOCD flashes without BOOTSEL, see
-[wiring.md](wiring.md#flashing-through-the-probe).
-
-**Changing the firmware.** `external/FPGA-Companion` is a git submodule, and the script builds
-whatever is checked out there. Commit your changes in that repository first, then run
-`git add external/FPGA-Companion` and commit here too, so that this repository records which
-firmware commit it uses.
-
-**The game table.** The games the firmware knows, with their RetroAchievements id, board, ROM
-files and the DIP switches their set expects, come from the ROM manifests:
-`scripts/build_companion.sh` generates the table into `build/firmware/gen/` and passes it to
-the firmware build, so a new set needs no change in the fork. Built on its own, the fork takes
-an empty example table and knows no game.
-
-**The menus.** The OSD menu of every core in `fpga/common/slots.txt` comes from
-`fpga/common/menu/base.xml` and the core's `menu_core.xml`: the same script writes them with
-their interface tags into `build/firmware/gen/`, and the build stops when a core of the ring has
-no menu part. Firmware and cores of different releases do not match: the firmware then shows a
-basic menu without DIP switches and a message to update both, and hardcore stays off. Built on
-its own, the fork has no menu of a game20k core and shows the basic menu for each.
-
-**Releases.** GitHub Actions builds the release firmware and the bitstreams from the sources at
-the tag, and `gh attestation verify game20k-<version>-firmware-pico2w.zip -R scullymi/game20k`
-(or another zip of the release) confirms that a downloaded zip comes from that build.
-
-## Debugging the Pico
-
-The firmware logs everything it does on **UART0, GP0 (TX), 921600 baud**. A USB serial adapter
-on GP0 and GND is enough. The Raspberry Pi Debug Probe has one built in, so with the probe you
-need no extra adapter. [wiring.md](wiring.md#reading-the-serial-output) covers the wiring, the
-probe and logging with timestamps.
-
-## Debugging the Nano
-
-The Tang Nano has six LEDs, numbered **1 to 6** as printed on the board. In normal operation:
-
-| LED | Lit when |
+| Setting | Meaning |
 |---|---|
-| 1 | blinks once a second, faster while the ROM loads |
-| 2 | the Pico has sent at least one packet |
-| 3 | a direction or button is held |
-| 4 | the core has produced at least one vsync |
-| 5 | the ROM is fully loaded |
-| 6 | the HDMI PLL is locked |
+| `dir` | where the tools go instead of `external/tools/`, for example so that an editor does not index them. Set it before the first `tools fetch`. |
+| `mode` | where the forks came from: `prebuilt` (`tools fetch`) or `source` (`tools build-forks`). Both commands write it, so it does not need to be set by hand. |
+| a name from the table above | a folder that replaces the fetched one, or for `nextpnr`, `yosys` and `ninja` also the program itself. The build warns when its version is unknown or differs from `tools.toml`. |
 
-If LED 6 is off, the PLL is not running and there is no picture at all. If LED 6 is on but LED 5
-is off, the ROM did not arrive and the core stays in reset. If LED 5 is on but LED 4 is off, the
-core runs but produces no video. If LED 2 is off, the Pico is not talking to the Nano.
+Paths are relative to the folder that holds `local.toml`. When `mode` changes, the commands
+write the file anew, which drops its comments.
 
-## Diagnostic builds
+## 2. Cores
 
-Environment variables switch `build.tcl` to a test picture instead of the game. The LEDs then
-mean something else, see the source.
+```sh
+python3 g20k.py build fpga/pang_hdmi                # into build/pang_hdmi/
+python3 g20k.py flash fpga/pang_hdmi --sram         # into the FPGA only, gone at power-off
+python3 g20k.py flash fpga/pang_hdmi                # into its slot in the flash
+python3 g20k.py release --dev                       # every core as one flash image under dist/
+python3 g20k.py flash --image dist/<name>/<name>.bin
+```
 
-| Variable | Shows |
-|---|---|
-| `ROMVIEW=1` | the loaded ROM data |
-| `SDRAMTEST=2\|3` | the SDRAM phase measurement |
-| `FBTEST=1`, `FBSHOW=1`, `FBROT=1` | the frame buffer's write path, read path and rotation |
-| `RAMDIAG=1` | the RAM mirror, the rcheevos state and the queues |
-| `NOTESTBAR=1` | the game without the input test bar, which saves one block RAM |
+[project.toml](../project.toml) lists the cores in the order of their slots in the flash. The
+FPGA loads the first one at power-on. To flash fewer cores, remove the others there and build
+everything again, firmware included. After writing the flash, power the board off and on. A
+build stops when a clock misses its frequency or the cells differ from the core's `cells.toml`
+(`--update-cells` after a wanted change). Without `--dev`, `release` only builds a clean tree on
+a release tag.
 
-Example: `RAMDIAG=1 scripts/build_fpga.sh galaga_hdmi`
+## 3. Firmware
 
-## Tests and dependencies
+```sh
+python3 g20k.py firmware              # stick on the Pico's own USB port
+python3 g20k.py firmware --usb pio    # stick on a USB A socket at GP2/GP3
+```
 
-The host tests of the firmware: [tests/README.md](../tests/README.md).
-Keeping submodules and the HDL copied into `fpga/` up to date: [dependencies.md](dependencies.md).
+The command prints the path of `fpga_companion.uf2`. Copy it to the Pico in BOOTSEL mode, or
+flash it with a debug probe, see [wiring.md](wiring.md#flashing-through-the-probe). For the
+BL616 see [bl616.md](bl616.md#from-source).
+
+The firmware is built from the fork in `external/FPGA-Companion`, as checked out. Commit changes
+there first, then `git add external/FPGA-Companion` here. The game table and the menus come
+from this repository: the ROM manifests and each core's `menu_core.xml` with
+`fpga/common/menu/base.xml`. A change to a `menu_core.xml` needs a new build of the core and
+the firmware, a change to labels in `base.xml` only the firmware. When the menus of firmware
+and core do not match, the firmware shows a basic menu without DIP switches, and hardcore stays
+off.
+
+`firmware --release` (or `--release bl616`) packs a release under `dist/`. The release files
+come from GitHub Actions, and `gh attestation verify <zip> -R scullymi/game20k` confirms that a
+zip was built there.
+
+## Debugging
+
+The firmware logs on **GP0 (TX) at 921600 baud**, see
+[wiring.md](wiring.md#reading-the-serial-output). The Nano's LEDs in normal operation:
+
+| LED | Lit when | Off means |
+|---|---|---|
+| 1 | blinks once a second, faster while the ROM loads | |
+| 2 | the Companion has sent a packet | no connection to the Companion |
+| 3 | a direction or button is held | |
+| 4 | the core has produced a vsync | the core runs but makes no picture |
+| 5 | the ROM is loaded | the ROM did not arrive, the core stays in reset |
+| 6 | the HDMI PLL is locked | no picture at all |
+
+`-G` builds a diagnostic picture instead of the game, into a folder of its own, for example
+`python3 g20k.py build fpga/galaga_hdmi -G RAMDIAG=1`. The parameters are those of
+`fpga/common/src/game20k_top.sv`, where the LEDs' meaning in these builds is described too.
+
+Host tests of the firmware: [tests/README.md](../tests/README.md). Updating dependencies:
+[dependencies.md](dependencies.md). Licenses: [THIRD-PARTY.md](../THIRD-PARTY.md).
 
 ## Repository layout
 
 ```
-fpga/common/        the platform shared by all games: top level, HDMI, scaler, SDRAM frame
-                    buffer, SPI to the Pico, RAM mirror, pins and clocks, the menu template
-fpga/galaga_hdmi/   Galaga: Dar's core, its wrapper, the menu and the ROM manifest
-fpga/pacman_hdmi/   Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, Pac-Man Plus and Ponpoko:
-                    MikeJ's core, its wrapper, the menu, the ROM manifests and testbenches
-                    for nvc
-fpga/g1942_hdmi/    1942, Vulgus and Higemaru: jotego's core and sound chips, its wrapper, the
-                    menu, the ROM manifests and a simulation with Verilator
-fpga/g1943_hdmi/    1943: the same for jotego's jt1943, plus the prefetch of scroll and map
-                    words from the SDRAM
-fpga/timepilot_hdmi/ Time Pilot: Ace's core, its wrapper, the menu and the ROM manifest
-fpga/gng_hdmi/      Ghosts'n Goblins: jotego's jtgng, its wrapper, the menu, the ROM manifest
-                    and a simulation with Verilator
-fpga/digdug_hdmi/   Dig Dug: MiSTer-X's core on one clock, its wrapper, the menu, the ROM
-                    manifest and a simulation with Verilator
-fpga/pang_hdmi/     Pang and Super Pang: jotego's jtpang, its wrapper, the menu, the ROM
-                    manifests and a simulation with Verilator
-external/           the submodules FPGA-Companion, pico-sdk and tinyusb
-roms/               your ROM zips, not under version control
-sdcard/             what goes on the SD card, including the template for config.ini
-scripts/            building, flashing, ROMs and the SD card, releases
-docs/               hardware, wiring, this page, and licence texts the firmware NOTICE needs
+g20k.py, tools/     the build
+project.toml        the cores in the flash and the board
+tools.toml          the programs of the build
+boards/             pins, flash layout and FLASHING.txt of each board
+fpga/common/        the platform: top level, HDMI, scaler, SDRAM, SPI, RAM mirror, menu
+fpga/<core>/        one core each, with its menu, ROM manifests and simulation
+external/           the firmware's submodules
+scripts/            ROM files, checks, NOTICE files
+roms/, sdcard/      your ROMs, the files for the SD card
+tests/, docs/       host tests, documentation
 ```
-
-## Licences of the files
-
-Each of our own source files carries `SPDX-License-Identifier: GPL-3.0-only` and the copyright
-notice at the top. Two files mix our changes with code by others and carry our copyright for
-those changes, but no SPDX tag: `sd_rw.v` (GPL-3.0, WangXuan95's SD card reader, via Nanomig)
-and `mcu/sector_dpram.v` (output of the Gowin IP generator, via MiSTeryNano, with Gowin's
-header). The wiring drawing `docs/wiring_pico.svg` is a Fritzing export and, like the Fritzing
-breadboard graphics in it, CC BY-SA 3.0.
-
-Not ours, and kept with their original headers: the HDMI files (MIT OR Apache-2.0, see
-`src/hdmi/LICENSE`), `sdram_fb.v` (GPL-3.0, derived from NESTang, with both copyright notices),
-the T80 cores (BSD-style), MikeJ's Pac-Man core (BSD-style), Dar's Galaga core, jotego's 1942,
-1943, Ghosts'n Goblins and Pang cores, JTFRAME, JT12, JT49, JTOPL, JT6295 and JTEEPROM files
-(GPL-3.0-or-later), Greg Miller's 6809 core (BSD), Ace's Time Pilot core and Guy Hutchison's
-TV80 (MIT), MiSTer-X's Dig Dug core (GPL-3.0), WangXuan95's SD card reader (GPL-3.0) and Till Harbaum's MiSTeryNano and Nanomig files (GPL-3.0-or-later, which
-also applies to our changes in them).
-
-The files we add to the Companion (`src/ra_*.c/.h`, `ra_ca.h`, `game20k_mbedtls_config.h`) are
-Apache-2.0, like the rest of the Companion. [THIRD-PARTY.md](../THIRD-PARTY.md) explains what
-all this means, the terms under which the bitstreams are published, and what the NOTICE files
-of the firmware image and the bitstreams cover.
-
-If one of our own files contains no code by others, we can make it available under a different
-licence on request. Please ask in an issue.
