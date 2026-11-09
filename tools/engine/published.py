@@ -108,6 +108,11 @@ def show_pico_steps(uf2: Path) -> None:
     boot mode, which needs no program and no driver on any system."""
     print(f"The Pico's firmware: {uf2}")
     print("To put it onto the Pico 2 W:")
-    print("  1. Unplug the Pico. Hold its BOOTSEL button and plug it in, then let go.")
-    print("  2. A drive named RP2350 appears.")
+    print("  1. Unplug the stick from the Pico and the 5 V line from the Nano, otherwise two 5 V")
+    print("     supplies are tied together.")
+    print("  2. Hold the Pico's BOOTSEL button, connect it to the computer over USB, then let go.")
+    print("     A drive named RP2350 appears.")
     print("  3. Copy the file above onto it. The Pico restarts with the new firmware by itself.")
+    print("     On macOS the copy ends with an error about extended attributes, that is normal:")
+    print("     the drive disappears as soon as the file is complete.")
+    print("  4. Unplug the USB cable, plug the 5 V line and the stick back in.")
