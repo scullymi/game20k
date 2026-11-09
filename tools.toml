@@ -2,9 +2,9 @@
 # Copyright (C) 2026 scullymi
 # The programs the build runs, each in one version for every machine. python3 g20k.py tools fetch
 # downloads the archives into external/tools/ and checks each against its SHA-256, the one the
-# release page shows. python3 g20k.py tools build makes the programs of game20k's forks, from their
-# sources (--source) or from the archive of [prebuilt] (--prebuilt). A path in local.toml ([tools])
-# takes the place of a folder here, its version is then checked, not fetched.
+# release page shows, and the programs of game20k's forks from the archive of [prebuilt].
+# python3 g20k.py tools build-forks builds the forks from their sources instead. A path in
+# local.toml ([tools]) takes the place of a folder here, its version is then checked, not fetched.
 
 # YosysHQ's nightly build of Yosys with its slang frontend, openFPGALoader, Verilator and the
 # Python that Apicula runs with (python). On Windows its programs find their DLLs through
@@ -172,6 +172,7 @@ sha256 = "163e1b5fd66b8ab27c44a4c5104e0243fc06ea46e2ce0e6614f42d6f144a1afa"
 url = "https://github.com/raspberrypi/pico-sdk-tools/releases/download/v2.2.0-4/picotool-2.2.0-a4-x64-win.zip"
 sha256 = "42cd263ed17dd3987d0830fa239424b3958ec0407afd6985bfbf83a5fc5a55f2"
 
+# cmake and ninja build the firmware and, with tools build-forks, the forks
 [download.cmake]
 version = "4.4.5"
 release = "https://github.com/Kitware/CMake/releases/tag/v4.4.5"
@@ -236,18 +237,18 @@ commit = "86935b9cf4fe50f18cc2fb7877a677f89cd3a44d"
 # The programs of the forks above, built from these commits by tools.yml, one archive per machine
 # with a build provenance attestation. After a change of a commit above, of the suite or of
 # tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run
-# to here: the archive carries the key of all three, and tools build --prebuilt stops on another.
+# to here: the archive carries the key of all three, and tools fetch stops on another.
 [prebuilt]
-release = "https://github.com/scullymi/game20k/releases/tag/tools-eed5abf57731"
+release = "https://github.com/scullymi/game20k/releases/tag/tools-0ccad378bb56"
 
 [prebuilt.darwin-arm64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-eed5abf57731/game20k-forks-eed5abf57731-darwin-arm64.tar.gz"
-sha256 = "5fc0112d91df8c0f16070c2a7690c54866f1a4a0fefd773d29fa1fc04f2fe09e"
+url = "https://github.com/scullymi/game20k/releases/download/tools-0ccad378bb56/game20k-forks-0ccad378bb56-darwin-arm64.tar.gz"
+sha256 = "a678d70eb93c7c214c8956d1c22c73d129c7f080e0b2cbcc7a4a5554c5d78491"
 
 [prebuilt.linux-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-eed5abf57731/game20k-forks-eed5abf57731-linux-x64.tar.gz"
-sha256 = "bac71230379113289d2c90d17730a11192750a141b3ee8b50745818098ccfad8"
+url = "https://github.com/scullymi/game20k/releases/download/tools-0ccad378bb56/game20k-forks-0ccad378bb56-linux-x64.tar.gz"
+sha256 = "c3cbc07140535a22e0c525580740eb3e31706286f5384c29876c01e304b59e96"
 
 [prebuilt.windows-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-eed5abf57731/game20k-forks-eed5abf57731-windows-x64.tar.gz"
-sha256 = "cfd4c74ba06c71887dc9f074c9593b33017621a47c4f3cff8502ab7edbd4d5f0"
+url = "https://github.com/scullymi/game20k/releases/download/tools-0ccad378bb56/game20k-forks-0ccad378bb56-windows-x64.tar.gz"
+sha256 = "0990c636f73b6d6396f142e90673bf8c68b6a93a404434668fb4f0b1cc09951a"

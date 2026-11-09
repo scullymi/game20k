@@ -9,7 +9,7 @@ make -C tests/host SAN=0                  # without sanitizers, V=1 prints every
 HOST_LOG=1 make -C tests/host             # with the firmware's debugf() lines
 ```
 
-Unity is the submodule `external/unity`, tag v2.7.0 (commit `b6763fbd`), MIT licence, used by the tests only.
+Unity is the submodule `external/unity`, tag v2.7.0 (commit `b6763fbd`), MIT license, used by the tests only.
 
 ## What the tests cover
 

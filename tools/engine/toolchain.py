@@ -6,10 +6,10 @@
 tools.toml names every program with its version and, per kind of machine, the archive and its
 SHA-256. fetch downloads the archives into external/tools/downloads/, checks them and unpacks
 each into a folder of its own, external/tools/<name>-<version>-<machine>/. [tools] dir in
-local.toml puts all of it into another folder. forks.py makes the
-programs of game20k's forks. Each folder gets a marker file with what is in it and where it came
-from, which locate() checks the version against, for the forks also their key (forks_key). A
-path in local.toml takes the place of a folder, its version is then only checked, with a
+local.toml puts all of it into another folder. forks.py makes the programs of game20k's forks,
+prebuilt or from their sources. Each folder gets a marker file with what is in it and where it
+came from, which locate() checks the version against, for the forks also their key (forks_key).
+A path in local.toml takes the place of a folder, its version is then only checked, with a
 warning."""
 
 from __future__ import annotations
@@ -24,19 +24,19 @@ import tarfile
 import tempfile
 import tomllib
 import zipfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from tools.engine import config, host
 from tools.engine.host import StepError
 
-#: the file in every tool folder that says what it holds
+## the file in every tool folder that says what it holds
 MARKER = ".g20k-tool.toml"
 
-#: the programs forks.py builds from the sources of tools.toml
+## the programs forks.py builds from the sources of tools.toml
 BUILT = ("apicula", "nextpnr", "yosys")
 
-#: how the forks are built, packed and unpacked, part of their key
+## how the forks are built, packed and unpacked, part of their key
 RECIPE = Path(__file__).with_name("forks.py")
 
 
@@ -55,6 +55,11 @@ def programs(toolset: config.Toolset) -> tuple[str, ...]:
 
 def load_local(root: Path, toolset: config.Toolset) -> config.Local:
     return config.load_local(root / "local.toml", programs(toolset))
+
+
+def shown(root: Path, path: Path) -> str:
+    """@brief A path below the project as a relative one, else as it is."""
+    return path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
 
 
 def tools_dir(root: Path) -> Path:
@@ -155,9 +160,9 @@ def unpack(archive: Path, dest: Path) -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def fetched(root: Path, archive: config.Archive, what: str) -> Path:
+def fetched(root: Path, archive: config.Archive, what: str, source: str = "tools.toml") -> Path:
     """@brief The archive in external/tools/downloads/, downloaded when it is not there or
-    differs, checked against its SHA-256."""
+    differs, checked against its SHA-256, which source names."""
     downloads = tools_dir(root) / "downloads"
     downloads.mkdir(parents=True, exist_ok=True)
     file = downloads / archive.url.rsplit("/", 1)[1]
@@ -166,7 +171,7 @@ def fetched(root: Path, archive: config.Archive, what: str) -> Path:
         download(archive.url, file)
     got = sha256(file)
     if got != archive.sha256:
-        raise StepError(f"{file}: SHA-256 {got}, tools.toml expects {archive.sha256}")
+        raise StepError(f"{file}: SHA-256 {got}, {source} expects {archive.sha256}")
     return file
 
 
@@ -177,7 +182,9 @@ def fetch(root: Path, names: Sequence[str] = ()) -> None:
     here = machine()
     unknown = sorted(set(names) - set(toolset.downloads))
     if unknown:
-        raise StepError(f"tools.toml has no download {', '.join(unknown)}")
+        raise StepError(
+            f"tools.toml has no program {', '.join(unknown)}. Its programs: {', '.join(programs(toolset))}"
+        )
     for d in toolset.downloads.values():
         if names and d.name not in names:
             continue
@@ -199,7 +206,7 @@ def fetch(root: Path, names: Sequence[str] = ()) -> None:
         print(f"  from    {archive.url}")
         print(f"  release {d.release}")
         print(f"  sha256  {archive.sha256}")
-        print(f"  in      {dest.relative_to(root).as_posix() if dest.is_relative_to(root) else dest}")
+        print(f"  in      {shown(root, dest)}")
 
 
 def forks_key(toolset: config.Toolset) -> str:
@@ -226,7 +233,7 @@ def save_mode(local_toml: Path, mode: str) -> None:
         with open(local_toml, "rb") as f:
             data = tomllib.load(f)
     data.setdefault("tools", {})["mode"] = mode
-    text = "# Machine-specific settings, not in git. g20k.py tools build writes it anew.\n"
+    text = "# Machine-specific settings, not in git. g20k.py tools writes it anew.\n"
     for table, values in data.items():
         text += f"[{table}]\n" + "".join(toml_line(k, v) for k, v in values.items())
     local_toml.write_text(text, encoding="utf-8", newline="\n")
@@ -240,11 +247,11 @@ def find(root: Path, name: str) -> Path:
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
     if name not in programs(toolset):
-        raise StepError(f"tools.toml has no program {name}, it has {', '.join(programs(toolset))}")
+        raise StepError(f"tools.toml has no program {name}. Its programs: {', '.join(programs(toolset))}")
     if name in toolset.downloads:
         want, how = toolset.downloads[name].version, "fetch"
     else:
-        want, how = toolset.sources[name].commit, "build"
+        want, how = toolset.sources[name].commit, "build-forks" if local.mode == "source" else "fetch"
     path = local.paths.get(name, folder(root, name, want))
     # nextpnr and yosys may be given as the program itself
     got = marker(path.parent.parent if path.is_file() else path).get("version")
@@ -258,7 +265,7 @@ def find(root: Path, name: str) -> Path:
     elif name in BUILT and marker(path).get("key") != forks_key(toolset):
         raise StepError(
             f"{name} {want[:12]} is built from other sources or by another recipe, "
-            "run python3 g20k.py tools build"
+            f"run python3 g20k.py tools {how}"
         )
     archive = toolset.downloads[name].archives.get(machine()) if name in toolset.downloads else None
     if archive and archive.path:
@@ -293,11 +300,47 @@ def locate(root: Path) -> config.Tools:
     )
 
 
+def origin(toolset: config.Toolset, mark: dict[str, str]) -> str:
+    """@brief Where the folder of a program came from, by its marker: the URL of its download,
+    of the prebuilt forks' archive, or the repository the fork was built from here."""
+    if mark.get("url"):
+        return mark["url"]
+    if mark.get("archive"):
+        archives = toolset.prebuilt.archives.values() if toolset.prebuilt else []
+        urls = [a.url for a in archives if a.sha256 == mark["archive"]]
+        return urls[0] if urls else f"an archive of prebuilt forks, sha256 {mark['archive'][:12]}"
+    if mark.get("repo"):
+        return f"built here from {mark['repo']} at {mark.get('commit', mark.get('version', ''))[:12]}"
+    return "unknown"
+
+
+def report_forks(root: Path, toolset: config.Toolset, made: Mapping[str, tuple[Path, str]]) -> None:
+    """@brief Prints each fork as tools fetch prints a download: its state, where it came from,
+    its commit, for nextpnr also the Eigen it was built with, and its folder. Here, not in
+    forks.py, so that its text is not part of the forks' key."""
+    for name, (path, state) in made.items():
+        mark = marker(path)
+        print(f"{name} {mark.get('commit', '')[:12]} ({machine()}): {state}")
+        if "archive" in mark:
+            print(f"  from    {origin(toolset, mark)}")
+            if toolset.prebuilt:
+                print(f"  release {toolset.prebuilt.release}")
+            print(f"  sha256  {mark['archive']}")
+        else:
+            print(f"  from    {mark.get('repo', 'unknown')}")
+        print(f"  commit  {mark.get('commit', 'unknown')}")
+        if name == "nextpnr" and "eigen" in mark:
+            eigen = toolset.sources.get("eigen")
+            print(f"  eigen   {mark['eigen']}" + (f" from {eigen.repo}" if eigen else ""))
+        print(f"  in      {shown(root, path)}")
+
+
 def status(root: Path) -> None:
-    """@brief Prints each program of tools.toml with the folder it is taken from."""
+    """@brief Prints each program of tools.toml with its state, where it came from and the folder
+    it is taken from."""
     toolset = config.load_toolset(root / "tools.toml")
     local = load_local(root, toolset)
-    print(f"machine {machine()}, forks {local.mode or 'not chosen yet'}")
+    print(f"machine {machine()}" + (f", forks {local.mode}" if local.mode else ""))
     rows = [(d.name, d.version) for d in toolset.downloads.values()]
     rows += [(s.name, s.commit) for s in toolset.sources.values() if s.name in BUILT]
     # without a suite the forks cannot be checked, the list still shows what is there
@@ -308,21 +351,22 @@ def status(root: Path) -> None:
     for name, version in rows:
         path = local.paths.get(name, folder(root, name, version))
         base = path.parent.parent if path.is_file() else path
-        got = marker(base).get("version")
-        if (
-            got == version
-            and name in BUILT
-            and key
-            and name not in local.paths
-            and marker(base).get("key") != key
-        ):
-            state = "other key"
+        mark = marker(base)
+        got = mark.get("version")
+        if got == version and name in BUILT and key and name not in local.paths and mark.get("key") != key:
+            state = "built from other sources or by another recipe"
         elif got == version:
             state = "ok"
         elif got:
             state = f"has {got[:12]}"
         else:
             state = "unchecked" if path.exists() else "missing"
-        where = "local.toml" if name in local.paths else "made here"
-        shown = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
-        print(f"  {name:8} {version[:12]:12} {state:10} {where:10} {shown}")
+        if name in local.paths:
+            source = "a path in local.toml"
+        elif path.exists():
+            source = origin(toolset, mark)
+        else:
+            source = "not there yet"
+        print(f"{name} {version[:12]}: {state}")
+        print(f"  from  {source}")
+        print(f"  in    {shown(root, path)}")

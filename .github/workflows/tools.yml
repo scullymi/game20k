@@ -7,7 +7,7 @@
 # what the archives are made of: the commits of the forks, the version of the suite and the text
 # of tools/engine/forks.py. Started by hand (Actions tab, "Run workflow", or gh workflow run
 # tools.yml) after one of them changes. The summary of the run gives the [prebuilt] table for
-# tools.toml, which python3 g20k.py tools build --prebuilt then fetches. A release of this key
+# tools.toml, which python3 g20k.py tools fetch then takes. A release of this key
 # that exists already stops the run before the builds: an archive on it does not change once
 # tools.toml names it.
 name: Tools
@@ -64,13 +64,14 @@ jobs:
         with:
           persist-credentials: false
 
-      # what building nextpnr needs, Boost with its static libraries and those of the
-      # compression libraries static Boost iostreams names, and Flex and Bison for Yosys
+      # what building nextpnr needs besides cmake and ninja of tools.toml, Boost with its static
+      # libraries and those of the compression libraries static Boost iostreams names, and Flex
+      # and Bison for Yosys
       - name: Build dependencies (apt)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build flex bison libboost-program-options-dev \
+          sudo apt-get install -y flex bison libboost-program-options-dev \
             libboost-iostreams-dev libboost-thread-dev libboost-filesystem-dev \
             libbz2-dev liblzma-dev zlib1g-dev libzstd-dev
 
@@ -78,10 +79,10 @@ jobs:
       - name: Build dependencies (Homebrew)
         if: runner.os == 'macOS'
         run: |
-          brew install cmake ninja boost flex bison
+          brew install boost flex bison
           echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
 
-      # MSVC's environment (cl, cmake, ninja, dumpbin) for the steps after this one, and Boost
+      # MSVC's environment (cl, dumpbin) for the steps after this one, and Boost
       # built static by vcpkg, which cmake finds through CMAKE_PREFIX_PATH: vcpkg's toolchain
       # file takes its triplet only from the cmake command line. nextpnr calls none of the
       # compression libraries of Boost iostreams. Flex and Bison for Yosys as its own CI gets them
@@ -98,9 +99,9 @@ jobs:
           vcpkg install --triplet x64-windows-static boost-program-options "boost-iostreams[core]" boost-thread boost-filesystem
           "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static" >> $env:GITHUB_ENV
 
-      # the suite's Python makes nextpnr's chip database
+      # the suite's Python makes nextpnr's chip database, cmake and ninja build the forks
       - name: Archives (g20k.py tools fetch)
-        run: ${{ matrix.python }} g20k.py tools fetch suite ghdl
+        run: ${{ matrix.python }} g20k.py tools fetch suite ghdl cmake ninja
 
       - name: Forks (g20k.py tools pack)
         run: ${{ matrix.python }} g20k.py tools pack --out dist

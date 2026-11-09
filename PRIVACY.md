@@ -1,7 +1,9 @@
 # Privacy policy
 
-This policy covers game20k: the firmware for the Raspberry Pi Pico 2 W, the Galaga core for the
-Tang Nano 20K, and this repository.
+This policy covers game20k: the firmware for the Raspberry Pi Pico 2 W and the BL616, the cores
+for the Tang Nano 20K, and this repository. The BL616 firmware has no RetroAchievements client.
+With Wi-Fi settings it joins the network, asks a time server and runs FTP and telnet as the Pico
+does.
 
 ## In short
 
@@ -16,12 +18,12 @@ Tang Nano 20K, and this repository.
 
 game20k is maintained by scullymi. For questions about this policy, open an issue at
 https://github.com/scullymi/game20k/issues. Issues are public and show your GitHub account.
-Never post your token, password or WiFi key there, and check a debug log for secrets before you
+Never post your token, password or Wi-Fi key there, and check a debug log for secrets before you
 paste it.
 
 ## What the device sends, and to whom
 
-Without WiFi settings in `config.ini` the device has no network and contacts no server.
+Without Wi-Fi settings in `config.ini` the device has no network and contacts no server.
 Bluetooth is off in this firmware, the Pico is not visible to devices nearby.
 
 ### To RetroAchievements
@@ -31,7 +33,7 @@ connects to retroachievements.org over HTTPS, checks the server's certificate an
 
 | When | What |
 |---|---|
-| At start, until the server answers | The game's hash, made from the ROM set name "galaga". No account data. |
+| At start, until the server answers | The game's hash, made from the name of its ROM set, for example "galaga". No account data. |
 | Once per power-on, after the start check | Requests to log in, start the session and load the achievement set and the list of your unlocks, with game ID and hash, hardcore or softcore, and the rcheevos version |
 | Every two minutes while the game runs, including attract mode | The rich presence text, a short description of what happens in the game, with game ID, hash and mode |
 | For each unlock | Achievement ID, mode, game hash, how many seconds ago it happened if known, and a checksum. The list of your unlocks is then loaded again. |
@@ -56,7 +58,7 @@ request holds no personal data, but the server sees your IP address.
 ### To your own network
 
 Your router gives the device its address over DHCP and sees the device's hardware address and,
-on WiFi, the name "PicoW". With an account, the device looks up "retroachievements.org" with the
+on Wi-Fi, the name "PicoW". With an account, the device looks up "retroachievements.org" with the
 name server your router names. It looks up no other name and contacts no servers other than the
 ones named in this policy. On your network it answers ping, FTP and telnet. "Local risks" covers
 the last two.
@@ -67,8 +69,8 @@ The files on the SD card are plain text.
 
 | Where | Contents | Kept until |
 |---|---|---|
-| `config.ini` | WiFi name and key, RetroAchievements account name and token, network, time and menu settings | you delete it |
-| `galaga.ini` | Menu settings, including hardcore or softcore | you delete it |
+| `config.ini` | Wi-Fi name and key, RetroAchievements account name and token, network, time and menu settings | you delete it |
+| `galaga.ini` and the other `.ini` files of the cores | Menu settings, including hardcore or softcore | you delete it |
 | `ra_pending.txt` | Unlocks waiting for the server: achievement ID, time, account name, mode, the game's hash, and a tag made with the device key. Sent lines stay, marked with `#`. | the device deletes it once all are sent or set aside |
 | `ra_parked.txt` | Unlocks that will not be sent, in the same format, for example those of another account | you delete it |
 | `ra/<id>/unlocked.txt` | Your account name, the game ID and your account's achievements per mode, one folder per game, named by the game's ID on RetroAchievements (Galaga: `ra/12138/`) | you delete it. The device rewrites it when the server's lists change. |
@@ -77,14 +79,13 @@ The files on the SD card are plain text.
 | Memory | Up to four hardcore leaderboard results and up to eight unlocks the card could not take | the server or the card has them, or power-off |
 
 The debug log is not stored. It goes to the Pico's serial port and to telnet port 23. It shows
-your account name, the WiFi name, network and time settings, your game progress, and the
-connected USB devices. The token and the WiFi key appear only as
-their length, with one exception under "Local risks".
+your account name, the Wi-Fi name, network and time settings, your game progress, and the
+connected USB devices. The token and the Wi-Fi key appear only as their length, with one
+exception under "Local risks".
 
-To remove your data from the SD card, delete `config.ini`, `galaga.ini`, all `ra_*` files and
-the folder `ra`.
-Deleted files can be recovered until they are overwritten, so wipe the card before you give it
-away. To make the token on it useless, use "Sign Out of All Emulators" in your RetroAchievements
+To remove your data from the SD card, delete `config.ini`, the `.ini` files of the cores, all
+`ra_*` files and the folder `ra`. Deleted files can be recovered until they are overwritten, so
+wipe the card before you give it away. To make the token on it useless, use "Sign Out of All Emulators" in your RetroAchievements
 settings. A firmware update keeps the device key and the pairings. Erasing the Pico's flash
 removes them, and the firmware with them.
 
@@ -118,7 +119,7 @@ and they cannot be switched off.
 
 - **FTP without a password.** The FTP server on port 21 accepts any login and does not encrypt.
   Anyone on your network can read and change the files on the SD card, including `config.ini`
-  with your WiFi key and token. While hardcore is active, `config.ini`, the `ra_*` files and
+  with your Wi-Fi key and token. While hardcore is active, `config.ini`, the `ra_*` files and
   the folder `ra` cannot be changed over FTP, but they can still be read.
 - **Telnet without a password.** Anyone on your network can connect to port 23 and read the
   debug log from then on.

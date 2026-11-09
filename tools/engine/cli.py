@@ -9,11 +9,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, firmware, flash, forks, release, toolchain
+from tools.engine import config, firmware, flash, forks, published, release, sdcard, toolchain
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
-#: the project's root folder, the one that holds project.toml
+## the project's root folder, the one that holds project.toml
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -43,7 +43,34 @@ def bl616_board(text: str) -> str:
     return text.lower()
 
 
-#: --board of build, release and flash
+def fetch_tools(root: Path, names: list[str]) -> None:
+    """@brief The programs of tools.toml that come ready-made: the downloads and the prebuilt
+    forks, the ones named or else all. The forks come as one archive, so naming one brings all
+    three. Without names the forks stay as they are when this machine builds them from their
+    sources (tools build-forks) or local.toml gives a path for each."""
+    downloads = [n for n in names if n not in toolchain.BUILT]
+    forks_named = len(downloads) < len(names)
+    if downloads or not names:
+        toolchain.fetch(root, downloads)
+    if names and not forks_named:
+        return
+    local = toolchain.load_local(root, config.load_toolset(root / "tools.toml"))
+    if forks_named:
+        forks.build(root, "prebuilt")
+        if local.mode == "source":
+            print("forks: the prebuilt ones replaced the ones built here")
+    elif all(n in local.paths for n in toolchain.BUILT):
+        print("forks: from the paths in local.toml")
+    elif local.mode == "source":
+        print(
+            "forks: built from their sources here. To renew them: python3 g20k.py tools build-forks. "
+            f"To take the prebuilt ones: python3 g20k.py tools fetch {' '.join(toolchain.BUILT)}."
+        )
+    else:
+        forks.build(root, "prebuilt")
+
+
+## --board of build, release and flash
 BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-singleboard"
 
 
@@ -97,8 +124,15 @@ def main(argv: list[str]) -> int:
         help="build from scratch and pack a release: the Pico 2 W's (default) or the BL616's for every board",
     )
     w.add_argument("--dev", action="store_true", help="with --release: no tag, uncommitted changes allowed")
+    w.add_argument(
+        "--download",
+        nargs="?",
+        const="latest",
+        metavar="VERSION",
+        help="fetch the Pico 2 W's firmware of a published release (default: the latest), no build",
+    )
     f = sub.add_parser("flash", help="load a core or a flash image into the board")
-    what = f.add_mutually_exclusive_group(required=True)
+    what = f.add_mutually_exclusive_group()
     what.add_argument(
         "core", type=Path, nargs="?", help="core folder: its build into the slot of project.toml"
     )
@@ -109,6 +143,13 @@ def main(argv: list[str]) -> int:
         metavar="BOARD",
         help="the Companion of g20k.py firmware --bl616 BOARD into the BL616, in download mode",
     )
+    f.add_argument(
+        "--download",
+        nargs="?",
+        const="latest",
+        metavar="VERSION",
+        help="the flash image (with --bl616 its image) of a published release, default: the latest",
+    )
     f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(
         "--sram", action="store_true", help="the core into the FPGA's SRAM, gone at the next power cut"
@@ -116,16 +157,27 @@ def main(argv: list[str]) -> int:
     f.add_argument("--board", type=Path, help=BOARD_HELP)
     f.add_argument("--dry-run", action="store_true", help="print the command only")
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
+    d = sub.add_parser(
+        "sdcard", help="make the ROM files and settings for the SD card in sdcard/ and copy them"
+    )
+    d.add_argument(
+        "target",
+        type=Path,
+        nargs="?",
+        help="the card, e.g. /Volumes/GAMES or E:\\, without it only sdcard/ is made",
+    )
     t = sub.add_parser("tools", help="the programs of tools.toml: without a command where they are")
     tsub = t.add_subparsers(dest="tools_command")
-    tf = tsub.add_parser("fetch", help="download and check the programs that come as archives")
-    tf.add_argument("names", nargs="*", help="only these programs of tools.toml, e.g. suite ghdl")
-    tb = tsub.add_parser("build", help="make the programs of game20k's forks")
-    how = tb.add_mutually_exclusive_group()
-    how.add_argument("--source", action="store_const", const="source", dest="mode", help="from their sources")
-    how.add_argument(
-        "--prebuilt", action="store_const", const="prebuilt", dest="mode", help="from the releases"
+    tf = tsub.add_parser(
+        "fetch", help="download and check the ready-made programs: the archives and the prebuilt forks"
     )
+    tf.add_argument(
+        "names",
+        nargs="*",
+        help="only these programs of tools.toml, e.g. suite ghdl. Naming one of "
+        f"{', '.join(toolchain.BUILT)} fetches all three prebuilt forks.",
+    )
+    tsub.add_parser("build-forks", help="build game20k's forks from their sources instead")
     tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for tools.yml")
     tk.add_argument("--out", type=Path, required=True, help="folder for the archive")
     tp = tsub.add_parser("path", help="print the folder a program of tools.toml is taken from")
@@ -135,6 +187,16 @@ def main(argv: list[str]) -> int:
     s.add_argument("--out", type=Path, required=True, help="folder for the generated sources (in gen/)")
     s.add_argument("--include", action="store_true", help="print the include folders instead")
     args = ap.parse_args(argv)
+    if args.command == "flash" and not (args.core or args.image or args.bl616 or args.download):
+        f.error("give a core, --image, --download or --bl616")
+    if args.command == "flash" and args.download and (args.core or args.image or args.sram):
+        f.error("--download takes no core, --image or --sram")
+    if (
+        args.command == "firmware"
+        and args.download
+        and (args.release or args.upstream or args.bl616 or args.without_ra or args.usb != "native")
+    ):
+        w.error("--download takes no other option")
     if args.command == "flash" and args.sram and args.image:
         f.error("--sram takes a core, not an image")
     if args.command == "flash" and bool(args.bl616) != bool(args.port):
@@ -164,7 +226,9 @@ def main(argv: list[str]) -> int:
         elif args.command == "release":
             release.release(ROOT, args.dev, args.board)
         elif args.command == "firmware":
-            if args.release == "bl616":
+            if args.download:
+                published.show_pico_steps(published.pico_firmware(ROOT, args.download))
+            elif args.release == "bl616":
                 firmware.make_release_bl616(ROOT, args.dev)
             elif args.release:
                 firmware.make_release(ROOT, args.dev)
@@ -175,16 +239,19 @@ def main(argv: list[str]) -> int:
             else:
                 firmware.build(ROOT, args.usb, ra=not args.without_ra)
         elif args.command == "flash" and args.bl616:
-            flash.flash_bl616(ROOT, args.bl616, args.port, args.dry_run)
+            bl616_image = published.bl616_firmware(ROOT, args.download, args.bl616) if args.download else None
+            flash.flash_bl616(ROOT, args.bl616, args.port, args.dry_run, bl616_image)
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
+            if args.download:
+                image = published.cores_image(ROOT, args.download, args.board)
             flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board)
         elif args.command == "tools":
             if args.tools_command == "fetch":
-                toolchain.fetch(ROOT, args.names)
-            elif args.tools_command == "build":
-                forks.build(ROOT, args.mode)
+                fetch_tools(ROOT, args.names)
+            elif args.tools_command == "build-forks":
+                forks.build(ROOT, "source")
             elif args.tools_command == "pack":
                 forks.pack(ROOT, args.out.resolve())
             elif args.tools_command == "path":
@@ -195,6 +262,8 @@ def main(argv: list[str]) -> int:
             files, include = build.sources(ROOT, args.core.resolve() / "core.toml", args.out)
             for p in include if args.include else files:
                 print(p.as_posix())
+        elif args.command == "sdcard":
+            sdcard.make(ROOT, args.target.resolve() if args.target else None)
         elif args.command == "cores":
             for core in config.load_project(ROOT / "project.toml").slots:
                 print(core.relative_to(ROOT).as_posix())

@@ -3,7 +3,7 @@
 # game20k: arcade games with RetroAchievements, on real hardware
 
 [![Release](https://img.shields.io/github/v/release/scullymi/game20k)](https://github.com/scullymi/game20k/releases/latest)
-[![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 [![FPGA: Tang Nano 20K](https://img.shields.io/badge/FPGA-Tang%20Nano%2020K-orange)](docs/hardware.md)
 [![MCU: Pico 2 W](https://img.shields.io/badge/MCU-Pico%202%20W-c51a4a)](docs/hardware.md)
 [![RetroAchievements](https://img.shields.io/badge/RetroAchievements-supported-1f6feb)](docs/retroachievements.md)
@@ -51,32 +51,37 @@ Without a Pico, the Nano also runs alone or with an M0S Dock, then without Retro
 
 1. **Wire the boards** as shown in [docs/wiring.md](docs/wiring.md). The 5 V supply goes to
    pin 40 (VBUS) of the Pico.
-2. **Get the repository** with the scripts for the SD card:
+2. **Get the repository and the flash tool.** You need git and Python 3.11.4 or newer. On
+   Windows, type `py g20k.py` instead of `python3 g20k.py`.
    ```sh
-   git clone https://github.com/scullymi/game20k.git && cd game20k
+   git clone --depth 1 https://github.com/scullymi/game20k.git && cd game20k
+   python3 g20k.py tools fetch suite
    ```
 3. **Prepare the SD card.** Copy your own MAME sets into `roms/`,
-   [roms/README.md](roms/README.md) lists the files each game needs. For WiFi and
-   RetroAchievements, fill in `sdcard/config.ini` first, see
-   [docs/retroachievements.md](docs/retroachievements.md#account). Then run:
+   [roms/README.md](roms/README.md) lists the files each game needs. Then run, with the path of
+   your card (on Windows, for example, `E:\`):
    ```sh
-   scripts/make_sdcard.sh /Volumes/YOUR_CARD
+   python3 g20k.py sdcard /Volumes/YOUR_CARD
    ```
-   The script only needs Python 3 and checks every chip against MAME before anything goes onto
-   the card.
-4. **Flash the Nano.** Download `game20k-<version>-cores-tangnano20k.zip` from the
-   [latest release](https://github.com/scullymi/game20k/releases/latest) and write the image:
+   It checks every chip against MAME before anything goes onto the card. The first run also
+   creates `sdcard/config.ini`, without Wi-Fi and RetroAchievements. To use them, fill in that
+   file, see [docs/retroachievements.md](docs/retroachievements.md#account), and run the same
+   command again, which copies it onto the card.
+4. **Flash the Nano.** Connect it by USB, then:
    ```sh
-   openFPGALoader -b tangnano20k -f --verify game20k-<version>-cores-tangnano20k.bin
+   python3 g20k.py flash --download
    ```
-5. **Flash the Pico.** Hold BOOTSEL while plugging it in, then copy
-   `game20k-<version>-firmware-pico2w.uf2` from `game20k-<version>-firmware-pico2w.zip` of the
-   same release to the drive that appears.
+   This downloads the flash image of the latest release, checks it and writes it.
+5. **Flash the Pico.**
+   ```sh
+   python3 g20k.py firmware --download
+   ```
+   This downloads the firmware of the same release and shows how to copy it onto the Pico, as in
+   [docs/wiring.md](docs/wiring.md#firmware-onto-the-pico).
 6. **Play.** Insert the card into the Nano and power on. The screen stays dark until LED 5 lights
    up, which means the ROM has loaded. **S2** on the Nano opens the menu.
 
-The firmware and the image must come from the same release. Building everything yourself,
-with the Gowin IDE or with free tools: [docs/BUILD.md](docs/BUILD.md).
+Building everything yourself, with free tools: [docs/BUILD.md](docs/BUILD.md).
 
 ## More
 
@@ -94,17 +99,16 @@ game20k builds on the cores and code of Dar, MikeJ, Rodimus Prime, Jose Tejada G
 Ace, MiSTer-X, Daniel Wallner, Guy Hutchison, Greg Miller, Till Harbaum, Sameer Puri,
 nand2mario, WangXuan95 and RetroAchievements, and on odelot's
 [RetroAchievements fork of the MiSTer main program](https://github.com/odelot/Main_MiSTer), which
-showed the way on an FPGA. Who wrote what, with links and licences:
+showed the way on an FPGA. Who wrote what, with links and licenses:
 [THIRD-PARTY.md](THIRD-PARTY.md).
 
-## Licence, privacy and contact
+## License, privacy and contact
 
 **GPL-3.0-only** ([LICENSE](LICENSE)), Copyright (C) 2026 scullymi. Third-party parts keep their
-own licences, see [THIRD-PARTY.md](THIRD-PARTY.md) and, for individual files,
-[docs/BUILD.md](docs/BUILD.md#licences-of-the-files).
+own licenses, see [THIRD-PARTY.md](THIRD-PARTY.md).
 
 game20k runs no servers and collects no data. With a RetroAchievements account, the device talks
 to retroachievements.org. [PRIVACY.md](PRIVACY.md) lists what it sends and stores, as well as
 the local risks of FTP and telnet.
 
-Questions, bugs, build reports and licence requests: please open an issue in this repository.
+Questions, bugs, build reports and license requests: please open an issue in this repository.

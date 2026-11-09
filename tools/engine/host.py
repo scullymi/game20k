@@ -14,7 +14,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-#: suffix of executables on this machine
+## suffix of executables on this machine
 EXE = ".exe" if os.name == "nt" else ""
 
 Arg = str | Path

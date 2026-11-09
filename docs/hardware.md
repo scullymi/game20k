@@ -1,22 +1,31 @@
-# Hardware: which boards, and why
+# Hardware
 
-game20k uses two boards: an FPGA board that runs the arcade core, and a microcontroller board
-for the USB stick, the menu and RetroAchievements. The wiring is in [wiring.md](wiring.md).
+The arcade cores run on a Sipeed Tang Nano 20K. A second chip, the Companion, handles the USB
+stick, the SD card and the menu. The best Companion is a Raspberry Pi Pico 2 W, the only one
+with RetroAchievements.
 
-## Parts
+## Setups
+
+| Setup | RetroAchievements | Besides the Nano | How to set it up |
+|---|---|---|---|
+| **Nano and Raspberry Pi Pico 2 W** (recommended) | yes | Pico 2 W, micro USB OTG adapter, seven wires | [wiring.md](wiring.md) |
+| Nano alone, the Companion on its onboard BL616 | no | a powered USB hub | [bl616.md](bl616.md) |
+| Nano and Sipeed M0S Dock | no | M0S Dock, wires | [bl616.md](bl616.md) |
+
+Every setup also needs a microSD card (FAT32), a USB arcade stick (HID, tested with a Mayflash
+F500 Elite), and an HDMI cable and monitor (see [Monitor](#monitor)). The menu, the game switch
+and the stick work the same in all three. Sound comes over HDMI. An RC low-pass and a small
+amplifier on pin 77 add a speaker, see [Analog sound](#analog-sound-optional).
+
+## Parts for the Pico 2 W
 
 | Part | | Note |
 |---|---|---|
-| Sipeed Tang Nano 20K | required | |
 | Raspberry Pi Pico 2 W, stepping A3 or A4 | required | see [the stepping section](#rp2350-stepping-and-erratum-e9) |
 | Micro USB to USB A OTG adapter | required | the stick plugs into it |
-| microSD card | required | FAT32 |
-| USB arcade stick (HID) | required | tested with a Mayflash F500 Elite |
 | Perfboard, pin headers, sockets, wire | required | seven connections |
-| HDMI cable, monitor that accepts 1280x720 at 61.03 Hz, 59.64 Hz and 57.44 Hz | required | |
 | Raspberry Pi Debug Probe | recommended | flashing without BOOTSEL, and the serial log, in one device |
 | 2 resistors, 15 kOhm (A3/A4) or 4.7 kOhm (A2) | only with a separate USB A socket | pull-downs on D+ and D- |
-| RC low-pass and a small amplifier | optional | analogue sound from pin 77, see below |
 
 ## The FPGA board
 
@@ -38,17 +47,21 @@ almost all 46 blocks.
 | Tang Primer 20K | 46 blocks | same FPGA in a different package, portable with some work |
 | Tang Primer 25K, Console 60K/138K | 56 blocks and more | different FPGA family, needs a full port |
 
-**Board-specific parts** of the design, for anyone porting it: the pins (`fpga/common/board.cst`),
-the clocks (`board.sdc`), the PLLs (`pll_hdmi.v`, `pll_sdram.v`), the HDMI serializer (Gowin's
-`OSER10` and `ELVDS_OBUF`) and the SDRAM controller (`sdram_fb.v`).
+**Board-specific parts** of the design, for anyone porting it: the board folder
+`boards/tangnano20k/` (pins, clock, flash layout), the PLLs (`fpga/common/src/pll_hdmi.v`,
+`pll_sdram.v`), the HDMI serializer (Gowin's `OSER10` and `ELVDS_OBUF`) and the SDRAM controller
+(`sdram_fb.v`).
 
-**Monitor.** The HDMI output is not standard 720p60. It shows 1280x720 at 61.03 Hz (Galaga,
+### Monitor
+
+The HDMI output is not standard 720p60. It shows 1280x720 at 61.03 Hz (Galaga,
 Pac-Man, Dig Dug, Time Pilot), 59.64 Hz (1942, 1943, Ghosts'n Goblins) or 57.44 Hz (Pang), each
-locked to the frame of its core, while the AVI infoframe
-announces CEA mode 4. Every display tried so far accepts it, but one that insists
-on exact CEA timing may stay black.
+locked to the frame of its core, while the AVI infoframe announces CEA mode 4. Every display
+tried so far accepts it, but one that insists on exact CEA timing may stay black.
 
 ### Shared pins
+
+With a Companion on the header:
 
 | Pin | Onboard use per Sipeed | In game20k |
 |---|---|---|
@@ -65,29 +78,42 @@ use as well, and that convention puts them on the amplifier's pins. Sound comes 
 > cause unexpected output behavior including a large DC output voltage". Without a speaker this
 > does no harm, with one it can.
 
-## The Companion board
+With the Companion on the onboard BL616, the SPI uses the FPGA pins that the board wires to the
+BL616 (86, 13, 76, 75 and 69), and pin 51 carries the BL616's console.
 
-The FPGA has no USB host of its own. A microcontroller on the headers acts as SPI master and runs
+## The Companion
+
+The FPGA chip itself has no USB host. The Companion acts as SPI master and runs game20k's fork of
 the [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) firmware by Till Harbaum: USB
-input, SD card access and the menu, plus the RetroAchievements client in our fork.
+input, SD card access and the menu, and on the Pico 2 W the RetroAchievements client.
 
-game20k needs a **Raspberry Pi Pico 2 W**. The firmware needs the RP2350's 520 kB of RAM, so the
-Pico W and other RP2040 boards are out, and it needs WiFi for RetroAchievements, so the Pico 2
-without W is out too.
+### Raspberry Pi Pico 2 W
 
-**Other Companion boards.** game20k's firmware also runs on a BL616: an M0S Dock wired to the
-same FPGA pins as the Pico, or the Nano's own BL616 with the cores of
-`tangnano20k-singleboard`, then without RetroAchievements, see [bl616.md](bl616.md).
+RetroAchievements need the RP2350's 520 kB of RAM, so the Pico W and other RP2040 boards are out,
+and Wi-Fi, so the Pico 2 without W is out too.
+
+The stick plugs into the Pico's own micro USB port through an OTG adapter, as the release
+firmware expects, or into a soldered USB A socket on GP2/GP3, see [wiring.md](wiring.md). The
+stepping section below only concerns that socket.
+
+**A carrier board instead of hand wiring.** The
+[MiSTeryShield20k RPiPico](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico)
+connects the Pico to the same GPIOs as our wiring, with the firmware built by
+`python3 g20k.py firmware --usb pio`. It was designed for the Pico W, and with a Pico 2 W fitted
+it has not been tested yet. Its USB A sockets run over PIO USB, so check them for the pull-downs
+of the next section.
+
+### BL616
+
+The Nano's own BL616 and the M0S Dock run the same firmware without RetroAchievements, see
+[bl616.md](bl616.md).
+
+### Upstream firmware
+
 The upstream FPGA-Companion firmware runs too: each core carries a smaller menu of its own for
 it, with controller, DIP switches, settings and ROM loading, but no RetroAchievements and no game
 switch. It lists every `.rom` file on the card and checks none of them, so pick the game's own
 file.
-
-**Two ways to connect the stick.** The recommended way is the Pico's own micro USB port with an
-OTG adapter (`g20k.py firmware --usb native`, the release build). It uses the chip's USB controller and
-is not affected by erratum E9. The alternative is a soldered USB A socket on GP2/GP3
-(`g20k.py firmware --usb pio`), which needs the pull-downs from the next section. With
-the native port, unplug the stick to flash over USB.
 
 ## RP2350 stepping and erratum E9
 
@@ -113,19 +139,7 @@ and never detects a device. The dedicated USB pads of the native port are not af
 to GND and one from D- to GND, right at the socket: 4.7 kOhm on A2 (the erratum allows up to
 8.2 kOhm), 15 kOhm on A3 and A4, as the USB specification asks for anyway.
 
-## Recommendation
-
-1. **Tang Nano 20K plus Pico 2 W, stepping A3 or A4.** All scripts, HDL sources and constraints
-   are written for this combination.
-2. **Tang Nano 20K plus
-   [MiSTeryShield20k RPiPico](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico)**,
-   if you would rather not solder the SPI wiring by hand. It connects the Pico to the same GPIOs
-   as our wiring, so the build would be `scripts/build_companion.sh pico2 pio`. The board was
-   designed for the Pico W, so you would fit a Pico 2 W instead, and that combination has not
-   been tested yet. Its four USB-A sockets run over PIO USB, so with an RP2350 A2, check that
-   the board has the pull-downs described above.
-
-## Analogue sound (optional)
+## Analog sound (optional)
 
 Sound comes over HDMI. Pin 77 also carries a **1-bit sigma-delta stream at 18.5625 MHz, LVCMOS
 3.3 V**, which needs a low-pass filter and an amplifier. An I2S amplifier module would be
@@ -149,7 +163,14 @@ module's coupling capacitors as a short thump, as on the original board.
 
 ## Sources
 
-Sipeed's pin diagram and schematics of the Tang Nano 20K, the Gowin GW2AR datasheet, the RP2350
-datasheet with erratum E9, Raspberry Pi's announcement of the A4 stepping (29 July 2025), the
-FPGA-Companion documentation, the constraint files of NESTang and MiSTeryNano, and the
-measurements of this project.
+- [Tang Nano 20K](https://wiki.sipeed.com/hardware/en/tang/tang-nano-20k/nano-20k.html): Sipeed's
+  wiki with the pin diagram and the schematics
+- [GW2AR series datasheet](https://www.gowinsemi.com/en/document/main/database/1846/), Gowin DS226
+- [RP2350 datasheet](https://datasheets.raspberrypi.com/rp2350/rp2350-datasheet.pdf) with erratum E9
+- [RP2350 A4](https://www.raspberrypi.com/news/rp2350-a4/), Raspberry Pi's announcement of the A4
+  stepping (29 July 2025)
+- [MAX98357A datasheet](https://www.analog.com/media/en/technical-documentation/data-sheets/MAX98357A-MAX98357B.pdf)
+- [FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion), and the constraint files of
+  [NESTang](https://github.com/nand2mario/nestang) and
+  [MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano)
+- the measurements of this project

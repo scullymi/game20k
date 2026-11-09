@@ -30,16 +30,18 @@ YOSYS_ENV = {"YOSYS_MAX_THREADS": "1"}
 
 @dataclass
 class Build:
-    """@brief Everything one build of a core needs to know."""
+    """@brief Everything one build of a core needs to know.
+
+    - found_tools: the programs, None until the first use of tools: sources() needs none of them
+    - params: parameters of the top for a diagnostic build, e.g. {"RAMDIAG": 1}
+    """
 
     root: Path
     project: config.Project
     platform: config.Platform
     core: config.Core
-    #: the programs, None until the first use of tools: sources() needs none of them
     found_tools: config.Tools | None
     out: Path
-    #: parameters of the top for a diagnostic build, e.g. {"RAMDIAG": 1}
     params: dict[str, int] = field(default_factory=dict)
 
     @property
@@ -481,8 +483,8 @@ def print_clocks(b: Build) -> None:
     print(table.read_text(), end="", flush=True)
 
 
-#: Apicula's three warnings that the suite's Python lacks numpy, msgspec and fastcrc: the suite
-#: installs it pure Python on purpose. Any other warning still shows.
+## Apicula's three warnings that the suite's Python lacks numpy, msgspec and fastcrc: the suite
+# installs it pure Python on purpose. Any other warning still shows.
 APICULA_QUIET = [
     "-W",
     "ignore:Numpy is not available:UserWarning",

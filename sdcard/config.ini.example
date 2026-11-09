@@ -2,17 +2,17 @@
 ; config.ini  --  settings of the FPGA Companion
 ; Belongs in the ROOT DIRECTORY of the SD card, as /config.ini
 ;
-; scripts/make_sdcard.sh creates sdcard/config.ini from this
+; python3 g20k.py sdcard creates sdcard/config.ini from this
 ; template on its first run. Fill in your values there by
-; hand, then run the script once more.
+; hand, then run it once more.
 ;
 ; LINE LENGTH: the firmware reads with a 128-byte buffer
-; (inifile.c, f_gets). A line may have at most 126 characters.
+; (inifile.c, f_gets). A line may have at most 126 bytes.
 ; A longer line is dropped. Only when a ; sits within the
-; first 126 characters does the part before it count. The
+; first 127 bytes does the part before it count. The
 ; machine shows nothing. Its debug log prints the start of
 ; the line in plain text.
-; scripts/make_sdcard.sh checks this beforehand.
+; python3 g20k.py sdcard checks this beforehand.
 ;
 ; Everything after a semicolon is a comment.
 ; ------------------------------------------------------------

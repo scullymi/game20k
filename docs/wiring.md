@@ -49,7 +49,7 @@ USB plug to USB A socket).
 - No soldering beyond the SPI connection.
 - Uses the USB controller in the chip, not the PIO implementation, and is not affected by
   erratum RP2350-E9 (see [hardware.md](hardware.md)).
-- Firmware: `scripts/build_companion.sh pico2 native`.
+- Firmware: `python3 g20k.py firmware`.
 - To reflash the Pico over USB, unplug the stick. The port is then needed for the computer.
   Also unplug the 5 V line from the Nano, otherwise two 5 V supplies are tied together.
 
@@ -66,29 +66,22 @@ USB A socket, with no adapter.
 | GND | GND | 38 or 23 |
 
 On a USB A socket the contacts are, in order, 5 V, D-, D+, GND. GP2 and GP3 are fixed. The
-firmware expects D+ on the lower pin number. Firmware: `scripts/build_companion.sh pico2 pio`.
+firmware expects D+ on the lower pin number. Firmware: `python3 g20k.py firmware --usb pio`.
 
 **Pull-down resistors are mandatory:** one from D+ to GND and one from D- to GND, directly at
 the socket. Without them the port works unreliably or not at all.
 
 | Chip | Value | Reason |
 |---|---|---|
-| RP2350 stepping A2 | 4.7 kOhm | erratum E9, see below. 3.3 to 8.2 kOhm is acceptable |
+| RP2350 stepping A2 | 4.7 kOhm | erratum E9, 3.3 to 8.2 kOhm is acceptable |
 | RP2350 A3/A4 | 15 kOhm | value from the USB specification |
 
-A USB host needs about 15 kOhm to ground on both data lines to detect a device. The native USB
-port has these resistors in hardware. Ordinary pins have none. The PIO library relies on the
-chip's internal pull-downs, which are 36 to 113 kOhm and far outside the specification.
-
-On the RP2350 stepping A2, erratum E9 adds to this: a pin configured as input with its input
-buffer enabled leaks up to 120 uA and sticks at about 2.2 V. The PIO USB library runs the data
-lines in exactly that configuration. The host then sees a permanently invalid state and detects
-neither plugging nor unplugging. With 4.7 kOhm the stick works on the socket: 120 uA through
-4.7 kOhm is 0.56 V, below the low threshold of 0.8 V, and a device pulling up with 1.5 kOhm
-reaches 2.50 V, above the high threshold of 2.0 V. With an A2 stepping the stick on variant B
-is still often not detected at power-on and has to be replugged. Variant A does not have this
-problem. A socket already soldered for variant B can stay while the native firmware runs, since
-that firmware does not touch GP2 and GP3.
+A USB host needs about 15 kOhm to ground on both data lines to detect a device. The native port
+has them, ordinary pins do not, and the chip's internal pull-downs are far too weak. On stepping
+A2, erratum E9 makes it worse, see [hardware.md](hardware.md#rp2350-stepping-and-erratum-e9).
+Even with the resistors, an A2 often misses the stick at power-on until it is replugged.
+Variant A does not have this problem. A socket already soldered for variant B can stay while
+the native firmware runs, since it does not touch GP2 and GP3.
 
 Recommended for signal quality: 22 Ohm in series at each of GP2 and GP3, D+ and D- twisted,
 total length under 10 cm with a ground wire run alongside, 10 uF and 100 nF between VBUS and
@@ -146,14 +139,13 @@ result is `debugprobe_on_pico2.uf2`.
 
 ### Flashing through the probe
 
-OpenOCD must know `target/rp2350.cfg`, which means a current development build. Either
-`brew install --HEAD open-ocd`, or the VS Code extension "Raspberry Pi Pico", which bundles
-OpenOCD, the Arm toolchain and GDB and installs the toolchain under `~/.pico-sdk/toolchain/`,
-where `scripts/env_pico.sh` looks for it. Then, without BOOTSEL and without replugging:
+OpenOCD must know `target/rp2350.cfg`, which release 0.12.0 predates. A current development
+build has it (`brew install --HEAD open-ocd`), and so does the OpenOCD of the VS Code extension
+"Raspberry Pi Pico". Then, without BOOTSEL and without replugging:
 
 ```sh
 openocd -f interface/cmsis-dap.cfg -c "adapter speed 5000" -f target/rp2350.cfg \
-        -c "program external/FPGA-Companion/src/rp2040/build_pico2_native/fpga_companion.elf verify reset; shutdown"
+        -c "program build/firmware/pico2-native/fpga_companion.elf verify reset; shutdown"
 ```
 
 If OpenOCD reports `unable to find a matching CMSIS-DAP device` after `could not read product
@@ -177,7 +169,7 @@ tio -b 921600 -t --timestamp-format 24hour-start \
 
 `<id>` is the number `ls /dev/cu.usbmodem*` shows for the probe.
 
-`24hour-start` counts from the start of the capture, `--log-strip` removes the ANSI colour codes
+`24hour-start` counts from the start of the capture, `--log-strip` removes the ANSI color codes
 around `ini_debugf` lines, and `tio` reconnects by itself when the device disappears briefly on
 a cold start. Quit with Ctrl-T Q.
 
@@ -190,20 +182,13 @@ and not on the Pico. The Companion reads every sector through the FPGA, where th
 runs. There is nothing to wire, but two header pins are taken by the card: pin 85 (left) is
 SD-DAT1, pin 80 (right) is SD-DAT2.
 
-What goes on the card: [sdcard/README.md](../sdcard/README.md). `scripts/make_sdcard.sh`
+What goes on the card: [sdcard/README.md](../sdcard/README.md). `python3 g20k.py sdcard`
 prepares the card and copies that file onto it.
 
 ## Bitstream into the FPGA
 
-`scripts/flash_fpga.sh <project> [flash]` uses Gowin's `programmer_cli`, which comes with the
-IDE. Without `flash` the bitstream goes to SRAM and is gone after power off. With `flash` it
-goes to the SPI flash, and the board boots from it at the next power-up.
-
-openFPGALoader works as well: `FLASHER=openfpgaloader scripts/flash_fpga.sh <project> [flash]`.
-It comes with `brew install openfpgaloader` on macOS and `apt install openfpgaloader` on Debian
-and Ubuntu. There is no winget package for Windows, so Windows uses Gowin's programmer.
-
-After loading a bitstream, **restart the Pico**: tap its reset button or briefly pull its 5 V
+How to load a core is described in [BUILD.md](BUILD.md#2-cores). Afterwards, **restart the
+Pico**: tap its reset button or briefly pull its 5 V
 line. Leave the Nano powered, or a bitstream that was only loaded into SRAM is lost.
 
 ## Firmware onto the Pico
@@ -217,8 +202,8 @@ the drive disappears as soon as the file is complete, and a vanished drive means
 
 ## First start check
 
-1. Does the LED on the Pico blink? On the Pico W and Pico 2 W it is driven through the WiFi
-   chip, so a firmware built without WiFi does not blink it.
+1. Does the LED on the Pico blink? On the Pico W and Pico 2 W it is driven through the Wi-Fi
+   chip, so a firmware built without Wi-Fi does not blink it.
 2. Does button S2 on the Nano open the menu? Then the SPI connection works.
 3. Does the stick move something? **Do not test this in the open menu.** While the menu is
    visible, the Pico uses the stick for navigation and does not pass it to the FPGA. Test in
@@ -226,7 +211,7 @@ the drive disappears as soon as the file is complete, and a vanished drive means
 4. The Nano's LEDs: LED 2 stays on once a packet from the Pico has arrived. LED 3 is on while a
    direction or button is held.
 5. The input test (menu `Controller`, `Input test: On`) shows a bar at the top of the picture with
-   the raw data from the Pico, labelled, and next to it the game signals derived from them.
+   the raw data from the Pico, labeled, and next to it the game signals derived from them.
 
 If something hangs: power everything off for ten seconds. A pin latched by E9 is a hardware
 state and survives every reset.

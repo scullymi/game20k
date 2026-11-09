@@ -9,6 +9,8 @@
 [project]
 name = "game20k"
 board = "boards/tangnano20k"
+# the repository whose releases g20k.py flash --download and firmware --download fetch
+releases = "https://github.com/scullymi/game20k"
 
 [[slot]]
 core = "fpga/galaga_hdmi"

@@ -25,7 +25,7 @@ Usage:
 The manifest (fpga/<core>/<set>.manifest) names every chip, its size and its SHA-1 as MAME
 lists it, the order in the file and the finished size, plus the board id and the RAM mirror
 size the core announces to the firmware. The format is described in the head of
-fpga/galaga_hdmi/galaga.manifest. Normally scripts/make_sdcard.sh calls this script.
+fpga/galaga_hdmi/galaga.manifest. Normally python3 g20k.py sdcard calls this script.
 
 The file ends with a footer of FOOTER_SIZE bytes that names the game, so the firmware can
 list the games on the card from one sector per file (its Games page). The firmware sends only

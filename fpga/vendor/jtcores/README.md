@@ -70,9 +70,9 @@ Every change is marked `game20k` in the text.
   register mask make no stack access, SWI goes to the stack without a spare cycle, and SWI3 keeps
   its interrupt type, where a missing `else` turned it into SWI.
 - **`cores/1942/hdl/jt1942_obj.v`:** `wire LHBL_eff` moved above its first use. Upstream uses
-  the net before declaring it, Gowin warns with EX3638, and `scripts/fpga_report.sh` fails a
-  build on that warning because it usually means a second, undriven net. Here both are one bit
-  wide and the same net, so nothing changes in the logic, but the check stays strict.
+  the net before declaring it, which Gowin's tools warn about (EX3638) because it usually means
+  a second, undriven net. Here both are one bit wide and the same net, so nothing changes in
+  the logic.
 - **`cores/1942/hdl/jt1942_main.v`, `jt1942_sound.v`, `jt1942_game.v`:** taps for the RAM
   mirror of RetroAchievements (`fpga/g1942_hdmi/src/g1942_mirror.sv`). jt1942_main brings out
   the write strobe of its main RAM, jt1942_sound the write strobe, address and data of its sound

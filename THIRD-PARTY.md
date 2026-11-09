@@ -1,6 +1,6 @@
 # Third-party code
 
-This file lists what in this project is not ours, under which licence it comes, and what is
+This file lists what in this project is not ours, under which license it comes, and what is
 pulled in as a git submodule instead of being kept in the repository. The published repository
 starts from a fresh initial commit, so its history carries nothing from before publication.
 
@@ -13,33 +13,32 @@ Two components require the whole to be GPL-3.0, independently of each other:
 2. `sd_rw.v` and `sdcmd_ctrl.v` in `fpga/common/src/misc/`, taken from Nanomig and built into
    the bitstream, come from
    [WangXuan95/FPGA-SDcard-Reader](https://github.com/WangXuan95/FPGA-SDcard-Reader), which is
-   GPL-3.0. Nanomig ships them without the licence text, but under GPL-3.0 section 10 every
-   recipient is licensed by the original licensor, so WangXuan95's licence applies.
+   GPL-3.0. Nanomig ships them without the license text, but under GPL-3.0 section 10 every
+   recipient is licensed by the original licensor, so WangXuan95's license applies.
 
 Neither grants "or later", hence GPL-3.0-only. Our own source files carry
 `SPDX-License-Identifier: GPL-3.0-only` and `Copyright (C) 2026 scullymi`. Where one of them
-contains no code by others, it can be made available under another licence on request, file by
+contains no code by others, it can be made available under another license on request, file by
 file. Our changes to Till Harbaum's files in `misc/` are GPL-3.0-or-later, like his files, which
-carry that SPDX tag. The files we add to the FPGA-Companion fork (`src/game20k/` and
-`src/rp2040/game20k_mbedtls_config.h`) are Apache-2.0, like the Companion, so they can go
-upstream.
+carry that SPDX tag. The files we add to the FPGA-Companion fork (`src/game20k/`) are
+Apache-2.0, like the Companion, so they can go upstream.
 
 ## In the repository
 
 Third-party HDL is kept as copies with the original headers. The README in each folder, or the
 LICENSE in `hdmi/`, names the upstream commit and lists our changes. This repository grants no
-licence on behalf of these authors. Where they granted none, none exists, and anyone using the
+license on behalf of these authors. Where they granted none, none exists, and anyone using the
 files is bound by the authors' terms, as with every other port of these cores.
 
-| Component | Files | Author | Licence |
+| Component | Files | Author | License |
 |---|---|---|---|
-| [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga), `rtl_dar/` at `e06ba91` | [`fpga/galaga_hdmi/src/rtl_dar/`](fpga/galaga_hdmi/src/rtl_dar/README.md) | Dar (darfpga@aol.fr) | none granted. `galaga.vhd` and `mb88.vhd` say "Educational use only, do not redistribute synthetized file with roms, do not redistribute roms whatever the form". The other files carry no licence text |
+| [DECAfpga/Arcade_Galaga](https://github.com/DECAfpga/Arcade_Galaga), `rtl_dar/` at `e06ba91` | [`fpga/galaga_hdmi/src/rtl_dar/`](fpga/galaga_hdmi/src/rtl_dar/README.md) | Dar (darfpga@aol.fr) | none granted. `galaga.vhd` and `mb88.vhd` say "Educational use only, do not redistribute synthetized file with roms, do not redistribute roms whatever the form". The other files carry no license text |
 | same repository, `rtl_T80/` | [`fpga/galaga_hdmi/src/rtl_T80/`](fpga/galaga_hdmi/src/rtl_T80/README.md) (Z80 core) | Daniel Wallner | BSD-like with three conditions, in every header. Redistribution in synthesized form must reproduce the notice in the accompanying documentation |
-| [MiSTer-devel/Arcade-Pacman_MiSTer](https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer), `rtl/` at `6b5ccb0` | [`fpga/pacman_hdmi/src/rtl_pacman/`](fpga/pacman_hdmi/src/rtl_pacman/README.md) | MikeJ (the descrambler by d18c7db, `pacman_vram_addr.vhd` with CarlW), later changes by Alexey Melnikov and Alan Steremberg, the Jr. Pac-Man support by Rodimus Prime | BSD-like with three conditions, as for the T80. The Jr. Pac-Man additions carry no copyright line of their own. The upstream repository has no licence file at its root. Our own files in the folder (`g20k_dpram.vhd`, `pacman_mirror.vhd`, `sn76489_top.vhd`, `ym2149.vhd`) are GPL-3.0-only |
+| [MiSTer-devel/Arcade-Pacman_MiSTer](https://github.com/MiSTer-devel/Arcade-Pacman_MiSTer), `rtl/` at `6b5ccb0` | [`fpga/pacman_hdmi/src/rtl_pacman/`](fpga/pacman_hdmi/src/rtl_pacman/README.md) | MikeJ (the descrambler by d18c7db, `pacman_vram_addr.vhd` with CarlW), later changes by Alexey Melnikov and Alan Steremberg, the Jr. Pac-Man support by Rodimus Prime | BSD-like with three conditions, as for the T80. The Jr. Pac-Man additions carry no copyright line of their own. The upstream repository has no license file at its root. Our own files in the folder (`g20k_dpram.vhd`, `pacman_mirror.vhd`, `sn76489_top.vhd`, `ym2149.vhd`) are GPL-3.0-only |
 | same repository at `648172d`, `rtl/cpu/` | [`fpga/pacman_hdmi/src/rtl_T80/`](fpga/pacman_hdmi/src/rtl_T80/README.md) (Z80 core, Ver 300, with MikeJ's `T80sed`) | Daniel Wallner, MikeJ | BSD-like with three conditions, as above |
 | [jotego/jtcores](https://github.com/jotego/jtcores) at `548b87b` | [`fpga/vendor/jtcores/`](fpga/vendor/jtcores/README.md) (the games 1942, 1943, Ghosts'n Goblins and Pang and the parts of JTFRAME they use) | Jose Tejada Gomez (jotego) | GPL-3.0-or-later, in every header. The two port lists in `modules/jtframe/hdl/inc` have none upstream |
 | same repository, `modules/jtframe/hdl/cpu/t80/` | same folder (Z80 core, Ver 350) | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-like with three conditions, as above |
-| same repository, `modules/jtframe/hdl/cpu/mc6809i.v`, jotego's changed copy of [cavnex/mc6809](https://github.com/cavnex/mc6809) | same folder (6809 core) | Greg Miller, changes by Jose Tejada Gomez | BSD-like with three conditions. The file carries only the copyright line. The author's `LICENSE.md` (cavnex/mc6809 at `17e94a6`, copied as `mc6809i_LICENSE.md`) offers a standard BSD licence and a binary-only variant, the copy here is under the standard one |
+| same repository, `modules/jtframe/hdl/cpu/mc6809i.v`, jotego's changed copy of [cavnex/mc6809](https://github.com/cavnex/mc6809) | same folder (6809 core) | Greg Miller, changes by Jose Tejada Gomez | BSD-like with three conditions. The file carries only the copyright line. The author's `LICENSE.md` (cavnex/mc6809 at `17e94a6`, copied as `mc6809i_LICENSE.md`) offers a standard BSD license and a binary-only variant, the copy here is under the standard one |
 | [jotego/jt12](https://github.com/jotego/jt12) at `efa4068` | [`fpga/vendor/jt12/`](fpga/vendor/jt12/README.md) (YM2203) | Jose Tejada Gomez | GPL-3.0-or-later, in every header |
 | [jotego/jt49](https://github.com/jotego/jt49) at `6f1247f` | [`fpga/vendor/jt49/`](fpga/vendor/jt49/README.md) (AY-3-8910, also the SSG of the YM2203) | Jose Tejada Gomez | GPL-3.0-or-later, in every header |
 | [jotego/jtopl](https://github.com/jotego/jtopl) at `7ac0c81` | [`fpga/vendor/jtopl/`](fpga/vendor/jtopl/README.md) (YM2413) | Jose Tejada Gomez | GPL-3.0-or-later, in every header |
@@ -47,27 +46,27 @@ files is bound by the authors' terms, as with every other port of these cores.
 | [jotego/jteeprom](https://github.com/jotego/jteeprom) at `9c68ce8` | [`fpga/vendor/jteeprom/`](fpga/vendor/jteeprom/README.md) (93C46 EEPROM) | Jose Tejada Gomez | GPL-3.0-or-later, in every header |
 | [MiSTer-devel/Arcade-DigDug_MiSTer](https://github.com/MiSTer-devel/Arcade-DigDug_MiSTer), `rtl/` at `3022bcc` | [`fpga/digdug_hdmi/src/rtl_digdug/`](fpga/digdug_hdmi/src/rtl_digdug/README.md) | MiSTer-X | GPL-3.0 by the repository's `LICENSE`, copied into the folder, which says neither "only" nor "or later". The files carry only MiSTer-X's copyright line, `cpucore.v` no header at all |
 | same repository, `rtl/cpu/` | same folder, `cpu/` (TV80, a Z80 core) | Guy Hutchison | MIT, in every header. The headers say TV80 is based on Daniel Wallner's VHDL T80 |
-| [MiSTer-devel/Arcade-TimePilot_MiSTer](https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer), `rtl/` at `5a148e2` | [`fpga/timepilot_hdmi/src/rtl_timepilot/`](fpga/timepilot_hdmi/src/rtl_timepilot/README.md) | Ace, some files with Artemio Urbina, RTLEngineering or ElectronAsh, the ROM loader by Kitrinx | MIT, in every header. The upstream repository has no licence file. `jtframe_frac_cen.v` and `ram_rom/spram.vhd` carry no header, the first is an earlier version of a JTFRAME module that jtcores carries under GPL-3.0-or-later. `ram_rom/dpram_dc.vhd` and `sound/tp_lpf_sel.sv` are ours, GPL-3.0-only |
+| [MiSTer-devel/Arcade-TimePilot_MiSTer](https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer), `rtl/` at `5a148e2` | [`fpga/timepilot_hdmi/src/rtl_timepilot/`](fpga/timepilot_hdmi/src/rtl_timepilot/README.md) | Ace, some files with Artemio Urbina, RTLEngineering or ElectronAsh, the ROM loader by Kitrinx | MIT, in every header. The upstream repository has no license file. `jtframe_frac_cen.v` and `ram_rom/spram.vhd` carry no header, the first is an earlier version of a JTFRAME module that jtcores carries under GPL-3.0-or-later. `ram_rom/dpram_dc.vhd` and `sound/tp_lpf_sel.sv` are ours, GPL-3.0-only |
 | same repository, `rtl/cpu/T80/` | same folder, `cpu/T80/` (Z80 core, Ver 350) | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-like with three conditions, as above |
 | same repository, `rtl/sound/jt49/` | same folder, `sound/jt49/` (AY-3-8910) | Jose Tejada Gomez, the volume scale changed by Ace according to the upstream README | GPL-3.0-or-later, in every header |
-| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/common/src/misc/`](fpga/common/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, `sysctrl.v` | Till Harbaum | GPL-3.0-or-later. Upstream the files carry no licence header, our copies carry the SPDX tag |
+| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/common/src/misc/`](fpga/common/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, `sysctrl.v` | Till Harbaum | GPL-3.0-or-later. Upstream the files carry no license header, our copies carry the SPDX tag |
 | [MiSTle-Dev/Nanomig](https://github.com/MiSTle-Dev/Nanomig), `src/misc/` at `d913239`, which contains [MiSTle-Dev/NanoMig#168](https://github.com/MiSTle-Dev/NanoMig/pull/168) | same folder: `sd_card.v`, `sd_rw.v`, `sdcmd_ctrl.v` | Till Harbaum, the last two by WangXuan95, changes in the first two by Manger74 and by us, in the last two by m1nl | `sd_card.v` GPL-3.0-or-later, `sd_rw.v` and `sdcmd_ctrl.v` GPL-3.0 by origin |
-| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/tang/nano20k/gowin_dpb/` at `c8e4601` | `fpga/common/src/mcu/sector_dpram.v` | output of the Gowin IP generator, an instance of the DPB primitive | no licence text, Gowin's copyright header ("All rights reserved"). Gowin's licence agreement lets users keep and use the output of its tools |
+| [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/tang/nano20k/gowin_dpb/` at `c8e4601` | `fpga/common/src/mcu/sector_dpram.v` | output of the Gowin IP generator, an instance of the DPB primitive | no license text, Gowin's copyright header ("All rights reserved"). Gowin's license agreement lets users keep and use the output of its tools |
 | [hdl-util/hdmi](https://github.com/hdl-util/hdmi) at `08936f6` | `fpga/common/src/hdmi/*.sv` | Sameer Puri | MIT OR Apache-2.0, used here under MIT. The notice is in [`src/hdmi/LICENSE`](fpga/common/src/hdmi/LICENSE), since the files themselves carry only the author's name. `serializer.sv` is NESTang's version |
 | [NESTang](https://github.com/nand2mario/nestang), `src/sdram_nes.v` at `1c00dc5` | `fpga/common/src/sdram_fb.v` | nand2mario | GPL-3.0. Our file is a derivative and carries both copyright notices |
-| [Fritzing](https://fritzing.org) part graphics | [`docs/wiring_pico.svg`](docs/wiring_pico.svg), the breadboard export of the wiring sketch | Fritzing (the two breadboards). The Pico 2 W is Raspberry Pi's Pico W part by Alasdair Allan and Jack Wills, released with the design files "for any purpose, with or without fee", adapted for the Pico 2 W by vanepp on the Fritzing forum in February 2025 without a licence statement. The Tang Nano 20K part and the wires are ours | Fritzing's graphics are CC BY-SA 3.0 Unported, and its `LICENSE.txt` asks that diagrams made with them credit Fritzing and carry the same licence, so the drawing is CC BY-SA 3.0 |
+| [Fritzing](https://fritzing.org) part graphics | [`docs/wiring_pico.svg`](docs/wiring_pico.svg), the breadboard export of the wiring sketch | Fritzing (the two breadboards). The Pico 2 W is Raspberry Pi's Pico W part by Alasdair Allan and Jack Wills, released with the design files "for any purpose, with or without fee", adapted for the Pico 2 W by vanepp on the Fritzing forum in February 2025 without a license statement. The Tang Nano 20K part and the wires are ours | Fritzing's graphics are CC BY-SA 3.0 Unported, and its `LICENSE.txt` asks that diagrams made with them credit Fritzing and carry the same license, so the drawing is CC BY-SA 3.0 |
 
 ## Submodules
 
 Not in the repository. All of them are git submodules, pinned by commit, and whoever builds
 obtains them under their authors' terms. `git submodule status --recursive` lists the commits.
 
-| Component | Where | Author | Licence | Our changes |
+| Component | Where | Author | License | Our changes |
 |---|---|---|---|---|
 | [scullymi/FPGA-Companion](https://github.com/scullymi/FPGA-Companion), fork of [MiSTle-Dev/FPGA-Companion](https://github.com/MiSTle-Dev/FPGA-Companion) | `external/FPGA-Companion`, branch `game20k` | Till Harbaum | Apache-2.0, no NOTICE file | the RetroAchievements client and the RAM mirror |
 | [Pico SDK](https://github.com/raspberrypi/pico-sdk) | `external/pico-sdk`, release 2.2.0 | Raspberry Pi | BSD-3-Clause | none |
-| [scullymi/tinyusb](https://github.com/scullymi/tinyusb), fork of [hathach/tinyusb](https://github.com/hathach/tinyusb) | `external/tinyusb`, branch `game20k` | Ha Thach | MIT | one fix in `hid_host.c` that the Companion needs (TinyUSB issue 3307), and Pico-PIO-USB as a submodule |
-| [Pico-PIO-USB](https://github.com/sekigon-gonnoc/Pico-PIO-USB) | submodule of the TinyUSB fork | sekigon-gonnoc | MIT | none |
+| [TinyUSB](https://github.com/hathach/tinyusb) | `external/tinyusb` | Ha Thach | MIT | none |
+| [Pico-PIO-USB](https://github.com/sekigon-gonnoc/Pico-PIO-USB) | `external/Pico-PIO-USB`, release 0.7.3 | sekigon-gonnoc | MIT | none |
 | [Unity](https://github.com/ThrowTheSwitch/Unity) | `external/unity`, tag v2.7.0 | Mike Karlesky, Mark VanderVoord, Greg Williams | MIT | none. Only the host tests in `tests/host` use it, it is not part of any release |
 
 ## Firmware dependencies
@@ -75,7 +74,7 @@ obtains them under their authors' terms. `git submodule status --recursive` list
 Pulled in through the Pico SDK or the Companion fork, as submodules or as vendored sources. None
 of them is in this repository.
 
-| Component | Licence | Note |
+| Component | License | Note |
 |---|---|---|
 | [rcheevos](https://github.com/RetroAchievements/rcheevos) | MIT | used unchanged |
 | tusb_xinput | MIT | XInput controllers |
@@ -86,7 +85,7 @@ of them is in this repository.
 | FatFs | BSD-like | vendored in the fork |
 | puff | Zlib | vendored in the fork, Mark Adler's inflate routine |
 | printf of the Pico SDK | MIT | `pico_printf`, by Marco Paland |
-| newlib | several free licences | C library of the Arm GNU Toolchain, text in `docs/licenses/` |
+| newlib | several free licenses | C library of the Arm GNU Toolchain, text in `docs/licenses/` |
 | cyw43-driver | non-commercial, `LICENSE.RP` permits use and redistribution only together with Raspberry Pi silicon | covered, as the image only runs on the Pico 2 W |
 | BTstack | non-commercial, `pico_btstack/LICENSE.RP` grants Pico W purchasers use and distribution with Pico W products | not in the game20k image, which has Bluetooth turned off |
 
@@ -115,7 +114,7 @@ or Pico 2 W for use with those boards and products built on them. The image is p
 part of this project, which is built on the Pico 2 W, and only for it. The NOTICE says so at the
 top.
 
-The Arm GNU Toolchain does not ship the licence text of its C library, newlib.
+The Arm GNU Toolchain does not ship the license text of its C library, newlib.
 `docs/licenses/newlib-4.4.0-COPYING.NEWLIB` carries it, taken from the newlib 4.4.0 release, and
 the release script checks that the toolchain in use links that version.
 
@@ -146,19 +145,17 @@ give the same files on Linux, macOS and Windows.
   any form.
 - **An open point with Galaga.** Its bitstream combines GPL-3.0 code by nand2mario
   (`sdram_fb.v`) and WangXuan95 (`sd_rw.v`, `sdcmd_ctrl.v`) with Dar's code, which grants no
-  licence and asks for educational use only. Dar's permission covers his side of the bitstream,
-  but his files remain without an open licence, while GPL-3.0 requires the whole to be under its
+  license and asks for educational use only. Dar's permission covers his side of the bitstream,
+  but his files remain without an open license, while GPL-3.0 requires the whole to be under its
   terms and allows no further restrictions. MiSTer and MiST combine Dar's core only with GPL
   code of their own projects. The source repository is in the same position. The Pac-Man core
   itself (MikeJ, T80) is BSD-style, so the question does not arise there.
 - **An open point with Time Pilot.** Two of its files, `jtframe_frac_cen.v` and
-  `ram_rom/spram.vhd`, carry no licence statement, and the upstream repository has no licence
+  `ram_rom/spram.vhd`, carry no license statement, and the upstream repository has no license
   file. The NOTICE lists them as such.
-- **Gowin EDA Education** may only be used for education, research and other non-commercial
-  purposes (release note RN100 in the installation). The bitstreams are built for this
-  non-commercial project and published free of charge. This describes how they were made and
-  adds no condition to the GPL-3.0. The design uses device primitives only, no Gowin IP core.
-  `sector_dpram.v` and the rPLL instance in `pll_sdram.v` are output of the Gowin IP generator.
+- **Gowin's IP generator.** The design uses device primitives only, no Gowin IP core.
+  `sector_dpram.v` and the rPLL instance in `pll_sdram.v` are output of the Gowin IP generator,
+  see the table above.
 
 ## Notes
 

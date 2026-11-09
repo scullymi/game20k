@@ -37,18 +37,17 @@ On the Nano, **S1** resets the game and **S2** opens and closes the menu.
 
 Default stick layout:
 
-| | Galaga, Pac-Man, Dig Dug | 1942, Vulgus, Higemaru | 1943 | Ghosts'n Goblins | Time Pilot, Pang |
-|---|---|---|---|---|---|
-| Fire (Dig Dug: pump, Ponpoko: jump) | any button | 1 | 1 | 1 | 1 |
-| Loop (1942), bomb (Vulgus) | | 2 | | | |
-| Bomb | | | 2 | | |
-| Jump | | | | 2 | |
-| Coin | 9 | 9 | 9 | 9 | 9 |
-| Start player 1 | 10 | 10 | 10 | 10 | 10 |
-| Start player 2 | off | off | off | off | off |
-| Volume | menu, Settings | menu, Settings | menu, Settings | menu, Settings | menu, Settings |
+| | Galaga, Pac-Man, Dig Dug | All other games |
+|---|---|---|
+| Fire (Dig Dug: pump, Ponpoko: jump) | any button | 1 |
+| Loop / Bomb / Jump | | 2 |
+| Coin | 9 | 9 |
+| Start player 1 | 10 | 10 |
+| Start player 2 | off | off |
 
-The button numbers come from the **input test**, a bar at the top of the picture with a labelled
+The volume is set in the menu under `Settings`.
+
+The button numbers come from the **input test**, a bar at the top of the picture with a labeled
 box for every button and direction that lights up while you press it. Switch it on in the menu
 under `Controller`, `Input test: On`. Everything can be changed under `Controller` and kept with
 `Save settings` under `Settings`. Otherwise the changes last until power-off. For 1942, `Sound`
@@ -81,11 +80,11 @@ To change the game, open `Games`, the first entry of the menu. It lists every ga
 by title. Choosing a game on the running core, such as Puck Man while Pac-Man is running,
 starts that game in place with its own achievements. Choosing a game on another core, such as
 Galaga while Pac-Man is running, loads that core first: the menu tells you, and the game starts
-a few seconds later. WiFi and the RetroAchievements login stay connected throughout. `ROM set`
+a few seconds later. Wi-Fi and the RetroAchievements login stay connected throughout. `ROM set`
 under `Settings` still picks a file by name. The choice lasts until power-off. `Save settings`
 makes the running game the one that starts at power-on, otherwise Galaga starts.
 
-Only files that `scripts/make_sdcard.sh` built appear on the list. Each carries a footer with
+Only files that `python3 g20k.py sdcard` built appear on the list. Each carries a footer with
 the game's name and a checksum, which the Pico checks while it loads the game. A file built by
 an older release shows `Old ROM file`, so rebuild the card. A file whose content no longer
 matches its checksum shows `ROM file damaged` and does not start, so copy it to the card again.

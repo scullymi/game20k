@@ -26,7 +26,7 @@ from pathlib import Path
 from tools.engine import config, firmware, host, toolchain
 from tools.engine.host import StepError
 
-#: Bouffalo's flash tool in the SDK, one program per system
+## Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
     "Darwin": "BLFlashCommand-macos",
     "Linux": "BLFlashCommand-ubuntu",
@@ -82,14 +82,15 @@ def flash(
         host.run(cmd, cwd=root, capture=False)
 
 
-def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
+def bl616_command(root: Path, board: str, port: str, image: Path | None = None) -> list[host.Arg]:
     """@brief The flash tool's call that writes the Companion of board, built by g20k.py firmware
-    --bl616, to its address in firmware.BL616_ADDRESSES. Its configuration file goes next to the
-    image."""
+    --bl616 or the image given, e.g. one of a release, to its address in
+    firmware.BL616_ADDRESSES. Its configuration file goes into the build folder of board."""
     if board not in firmware.BL616_ADDRESSES:
         raise StepError(f"--bl616 {board}: flashing is known only for {', '.join(firmware.BL616_ADDRESSES)}")
     out = firmware.bl616_folder(root, board)
-    image = out / "build_out" / "fpga_companion_bl616.bin"
+    out.mkdir(parents=True, exist_ok=True)
+    image = image or out / "build_out" / "fpga_companion_bl616.bin"
     if not image.is_file():
         raise StepError(
             f"{image.relative_to(root)} is missing, build it first: g20k.py firmware --bl616 {board}"
@@ -113,13 +114,13 @@ def bl616_command(root: Path, board: str, port: str) -> list[host.Arg]:
     ]
 
 
-def flash_bl616(root: Path, board: str, port: str, dry_run: bool) -> None:
+def flash_bl616(root: Path, board: str, port: str, dry_run: bool, image: Path | None = None) -> None:
     """@brief Runs the call of bl616_command(), or only prints it with dry_run.
 
     The BL616 has to be in its download mode: unplug the board, hold UPDATE (Tang Nano 20K) or
     BOOT (M0S Dock), plug it in. The tool reads back the SHA-256 of what it wrote. It leaves its
     loader running, so a second call needs the download mode again."""
-    cmd = bl616_command(root, board, port)
+    cmd = bl616_command(root, board, port, image)
     print(" ".join(str(a) for a in cmd), flush=True)
     if dry_run:
         return

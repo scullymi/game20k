@@ -16,6 +16,8 @@ import unittest.mock
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 from tools.engine import config, forks, host, toolchain
 from tools.engine.host import StepError
@@ -133,6 +135,21 @@ class LocateTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_status_names_origin_and_folder(self) -> None:
+        suite = toolchain.folder(self.root, "suite", "20261102")
+        toolchain.write_marker(suite, toolchain.marker(suite) | {"url": "https://x/suite.tgz"})
+        shutil.rmtree(toolchain.folder(self.root, "nextpnr", COMMIT))
+        write(self.root, "local.toml", '[tools]\nghdl = "own-ghdl"\n')
+        out = io.StringIO()
+        with redirect_stdout(out):
+            toolchain.status(self.root)
+        lines = out.getvalue().splitlines()
+        at = lines.index("suite 20261102: ok")
+        self.assertEqual(lines[at + 1], "  from  https://x/suite.tgz")
+        self.assertEqual(lines[lines.index(f"nextpnr {COMMIT[:12]}: missing") + 1], "  from  not there yet")
+        ghdl = next(n for n, line in enumerate(lines) if line.startswith("ghdl "))
+        self.assertEqual(lines[ghdl + 1], "  from  a path in local.toml")
+
     def test_fetched_folders(self) -> None:
         tools = toolchain.locate(self.root)
         self.assertEqual(tools.suite, toolchain.folder(self.root, "suite", "20261102"))
@@ -188,12 +205,17 @@ class LocateTest(unittest.TestCase):
                 self.assertEqual(toolchain.forks_key(toolset) == key, same)
 
     def test_suite_without_the_forks(self) -> None:
-        # tools build needs the suite before nextpnr exists
+        # building the forks needs the suite before nextpnr exists
         (toolchain.folder(self.root, "nextpnr", COMMIT) / toolchain.MARKER).unlink()
         self.assertEqual(toolchain.find(self.root, "suite"), toolchain.folder(self.root, "suite", "20261102"))
         with self.assertRaises(StepError) as err:
             toolchain.locate(self.root)
-        self.assertIn("g20k.py tools build", str(err.exception))
+        self.assertIn("g20k.py tools fetch", str(err.exception))
+        # a machine that builds the forks itself is told to build them
+        write(self.root, "local.toml", '[tools]\nmode = "source"\n')
+        with self.assertRaises(StepError) as err:
+            toolchain.locate(self.root)
+        self.assertIn("g20k.py tools build-forks", str(err.exception))
 
     def test_programs_from_tools_toml(self) -> None:
         toolset = config.load_toolset(self.root / "tools.toml")
@@ -202,12 +224,6 @@ class LocateTest(unittest.TestCase):
         with self.assertRaises(StepError) as err:
             toolchain.find(self.root, "eigen")
         self.assertIn("no program eigen", str(err.exception))
-
-    def test_build_needs_a_mode(self) -> None:
-        with self.assertRaises(StepError) as err:
-            forks.build(self.root, None)
-        self.assertIn("--source or --prebuilt", str(err.exception))
-        self.assertFalse((self.root / "local.toml").exists())
 
     def test_local_path_of_other_version_warns(self) -> None:
         own = self.root / "own-suite"
@@ -292,7 +308,7 @@ class UnpackTest(unittest.TestCase):
 
 
 class PrebuiltTest(unittest.TestCase):
-    """@brief tools build --prebuilt on an archive given as a file:// URL, no network."""
+    """@brief The prebuilt forks of tools fetch on an archive given as a file:// URL, no network."""
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -343,18 +359,28 @@ class PrebuiltTest(unittest.TestCase):
     def test_unpacks_checks_and_keeps(self) -> None:
         archive = self.archive()
         self.prebuilt(archive)
-        with redirect_stdout(io.StringIO()):
+        with redirect_stdout(io.StringIO()) as out:
             forks.build(self.root, "prebuilt")
         nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
         self.assertTrue((nextpnr / "bin/tool").is_file())
         self.assertEqual(toolchain.marker(nextpnr)["archive"], toolchain.sha256(archive))
+        self.assertEqual(toolchain.marker(nextpnr)["url"], archive.as_uri())
         self.assertEqual(config.load_local(self.root / "local.toml", ("suite",)).mode, "prebuilt")
+        self.assertIn(f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): fetched and checked", out.getvalue())
+        self.assertIn(f"  from    {archive.as_uri()}", out.getvalue())
         # a second build takes the folders as they are, without the archive
         archive.unlink()
         shutil.rmtree(self.root / "external/tools/downloads")
-        with redirect_stdout(io.StringIO()):
-            forks.build(self.root, None)
+        with redirect_stdout(io.StringIO()) as out:
+            forks.build(self.root, "prebuilt")
         self.assertEqual(toolchain.locate(self.root).nextpnr.parent, nextpnr / "bin")
+        self.assertIn(f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): is there", out.getvalue())
+
+    def test_unknown_mode_stops(self) -> None:
+        with self.assertRaises(StepError) as err:
+            forks.build(self.root, "sources")
+        self.assertIn("source or prebuilt", str(err.exception))
+        self.assertFalse((self.root / "local.toml").exists())
 
     def test_new_suite_needs_a_new_archive(self) -> None:
         self.prebuilt(self.archive())
@@ -377,9 +403,95 @@ class PrebuiltTest(unittest.TestCase):
         self.prebuilt(self.archive(), "plan9-mips")
         with self.assertRaises(StepError) as err:
             forks.build(self.root, "prebuilt")
-        self.assertIn("--source", str(err.exception))
+        self.assertIn("tools build-forks", str(err.exception))
         # a mode that failed is not kept
         self.assertFalse((self.root / "local.toml").exists())
+
+
+class BuildStepsTest(unittest.TestCase):
+    """@brief What building the forks prints and checks, without building them."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        fake_tools(self.root)
+        (self.root / "external/tools/src").mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_took(self) -> None:
+        self.assertEqual(forks.took(12.4), "12 s")
+        self.assertEqual(forks.took(252), "4 min 12 s")
+
+    def test_step_says_what_and_how_long(self) -> None:
+        log = self.root / "external/tools/src/x.log"
+        with redirect_stdout(io.StringIO()) as out:
+            forks.step(self.root, "doing x", [sys.executable, "-c", "print('hi')"], log)
+        self.assertEqual(log.read_text().strip(), "hi")
+        self.assertIn("  doing x, log external/tools/src/x.log", out.getvalue())
+        self.assertRegex(out.getvalue(), r"\n    done in \d+ s\n")
+
+    def test_failed_step_names_its_log(self) -> None:
+        log = self.root / "external/tools/src/x.log"
+        with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
+            forks.step(self.root, "doing x", [sys.executable, "-c", "raise SystemExit(3)"], log)
+        self.assertIn("exit code 3", str(err.exception))
+        self.assertIn(str(log), str(err.exception))
+
+    def test_cmake_and_ninja_come_from_tools_toml(self) -> None:
+        with self.assertRaises(StepError) as err:
+            forks.build_tools(self.root)
+        self.assertIn("no program cmake", str(err.exception))
+        # with both in tools.toml, cmake is told the ninja of tools.toml
+        text = (self.root / "tools.toml").read_text()
+        for name in ("cmake", "ninja"):
+            text += f'[download.{name}]\nversion = "1"\nrelease = "https://example.org/{name}"\n'
+            text += f'[download.{name}.{toolchain.machine()}]\nurl = "https://example.org/{name}.zip"\n'
+            text += f'sha256 = "{SHA}"\npath = ["."]\n'
+            folder = toolchain.folder(self.root, name, "1")
+            folder.mkdir(parents=True)
+            toolchain.write_marker(folder, {"name": name, "version": "1"})
+        write(self.root, "tools.toml", text)
+        ninja = toolchain.folder(self.root, "ninja", "1") / ("ninja" + host.EXE)
+        with unittest.mock.patch.dict(os.environ, {"PATH": os.environ.get("PATH", "")}):
+            self.assertEqual(
+                forks.build_tools(self.root), f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja.as_posix()}"
+            )
+            front = os.environ["PATH"].split(os.pathsep)[:2]
+            self.assertEqual(
+                set(front), {str(toolchain.folder(self.root, n, "1")) for n in ("cmake", "ninja")}
+            )
+        # local.toml may name the ninja program itself
+        program = self.root / "bin" / "ninja"
+        program.parent.mkdir()
+        program.write_text("")
+        write(self.root, "local.toml", f'[tools]\nninja = "{program.as_posix()}"\n')
+        with (
+            unittest.mock.patch.dict(os.environ, {"PATH": os.environ.get("PATH", "")}),
+            redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(
+                forks.build_tools(self.root), f"-DCMAKE_MAKE_PROGRAM:FILEPATH={program.as_posix()}"
+            )
+
+    def test_report_of_a_fork_built_here(self) -> None:
+        toolset = config.load_toolset(self.root / "tools.toml")
+        nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
+        values = {"name": "nextpnr", "version": COMMIT, "repo": "https://example.org/nextpnr.git"}
+        toolchain.write_marker(nextpnr, values | {"commit": COMMIT, "eigen": "2" * 40})
+        with redirect_stdout(io.StringIO()) as out:
+            toolchain.report_forks(self.root, toolset, {"nextpnr": forks.Made(nextpnr, "built here")})
+        self.assertEqual(
+            out.getvalue().splitlines(),
+            [
+                f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): built here",
+                "  from    https://example.org/nextpnr.git",
+                f"  commit  {COMMIT}",
+                f"  eigen   {'2' * 40} from https://example.org/eigen.git",
+                f"  in      external/tools/nextpnr-{COMMIT[:12]}-{toolchain.machine()}",
+            ],
+        )
 
 
 class ElfTest(unittest.TestCase):
@@ -513,6 +625,20 @@ File Type: EXECUTABLE IMAGE
             ):
                 found = forks.foreign_libraries(Path(tmp) / "yosys-abc.exe")
         self.assertEqual(found, ["VCRUNTIME140.dll", "other.dll"])
+
+
+class OriginTest(unittest.TestCase):
+    """@brief Where tools status says a folder came from, by its marker."""
+
+    def test_origins(self) -> None:
+        archive = SimpleNamespace(url="https://x/forks.tar.gz", sha256="a" * 64)
+        toolset = cast(config.Toolset, SimpleNamespace(prebuilt=SimpleNamespace(archives={"m": archive})))
+        self.assertEqual(toolchain.origin(toolset, {"url": "https://x/suite.tgz"}), "https://x/suite.tgz")
+        self.assertEqual(toolchain.origin(toolset, {"archive": "a" * 64}), "https://x/forks.tar.gz")
+        self.assertIn("sha256 bbbbbbbbbbbb", toolchain.origin(toolset, {"archive": "b" * 64}))
+        built = toolchain.origin(toolset, {"repo": "https://x/yosys.git", "commit": "1" * 40})
+        self.assertEqual(built, "built here from https://x/yosys.git at 111111111111")
+        self.assertEqual(toolchain.origin(toolset, {}), "unknown")
 
 
 if __name__ == "__main__":

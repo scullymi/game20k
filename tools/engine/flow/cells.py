@@ -18,9 +18,9 @@ from pathlib import Path
 
 from tools.engine.host import StepError
 
-#: how far the sums of GROUPS may move, as a share of the measure
+## how far the sums of GROUPS may move, as a share of the measure
 TOLERANCE = 0.05
-#: cell types that are compared as one sum, by the pattern of their names
+## cell types that are compared as one sum, by the pattern of their names
 GROUPS = {"LUT": r"LUT\d+", "DFF": r"DFF\w*", "ALU": r"ALU"}
 
 HEAD = """\
