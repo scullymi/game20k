@@ -1,7 +1,13 @@
 Flashing {project} {version} onto the Tang Nano 20K
 
-{name}.bin holds every game's core at its place in the board's flash. Write it
-with openFPGALoader (brew install openfpgaloader, apt install openfpgaloader):
+{name}.bin holds every game's core at its place in the board's flash. With the
+repository (https://github.com/scullymi/game20k), one command downloads, checks
+and writes it, see its README:
+
+  python3 g20k.py flash --download {version}
+
+By hand, write it with openFPGALoader (brew install openfpgaloader, apt install
+openfpgaloader):
 
   openFPGALoader -b tangnano20k -f --verify {name}.bin
 

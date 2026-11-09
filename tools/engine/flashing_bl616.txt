@@ -13,7 +13,12 @@ go onto the Nano's FPGA:
 {project}-{version}-cores-tangnano20k-singleboard.zip for the Nano alone,
 {project}-{version}-cores-tangnano20k.zip for the M0S Dock.
 
-The flash tool is BLFlashCommand (BLFlashCommand-macos, -ubuntu or .exe), or the
+With the repository (https://github.com/scullymi/game20k), g20k.py downloads,
+checks and writes the image of your board, in the download mode described below:
+
+  python3 g20k.py flash --bl616 nano20k_v3923 --port <port> --download {version}
+
+By hand, the flash tool is BLFlashCommand (BLFlashCommand-macos, -ubuntu or .exe), or the
 graphical BLFlashCube, both in tools/bflb_tools/bouffalo_flash_cube of the Bouffalo
 SDK: https://github.com/bouffalolab/bouffalo_sdk
 

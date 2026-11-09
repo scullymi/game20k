@@ -2,7 +2,12 @@ Flashing {project} {version} onto the Tang Nano 20K alone
 
 {name}.bin holds every game's core at its place in the board's flash. These cores
 talk to the Companion on the board's own BL616, not to a Pico or an M0S Dock on the
-header. Write the image with openFPGALoader (brew install openfpgaloader, apt install
+header. With the repository (https://github.com/scullymi/game20k), one command
+downloads, checks and writes it, see docs/bl616.md there:
+
+  python3 g20k.py flash --download {version} --board boards/tangnano20k-singleboard
+
+By hand, write it with openFPGALoader (brew install openfpgaloader, apt install
 openfpgaloader):
 
   openFPGALoader -b tangnano20k -f --verify {name}.bin
