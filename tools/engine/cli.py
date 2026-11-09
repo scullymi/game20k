@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, firmware, flash, forks, release, toolchain
+from tools.engine import config, firmware, flash, forks, release, sdcard, toolchain
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
@@ -143,6 +143,15 @@ def main(argv: list[str]) -> int:
     f.add_argument("--board", type=Path, help=BOARD_HELP)
     f.add_argument("--dry-run", action="store_true", help="print the command only")
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
+    d = sub.add_parser(
+        "sdcard", help="make the ROM files and settings for the SD card in sdcard/ and copy them"
+    )
+    d.add_argument(
+        "target",
+        type=Path,
+        nargs="?",
+        help="the card, e.g. /Volumes/GAMES or E:\\, without it only sdcard/ is made",
+    )
     t = sub.add_parser("tools", help="the programs of tools.toml: without a command where they are")
     tsub = t.add_subparsers(dest="tools_command")
     tf = tsub.add_parser(
@@ -224,6 +233,8 @@ def main(argv: list[str]) -> int:
             files, include = build.sources(ROOT, args.core.resolve() / "core.toml", args.out)
             for p in include if args.include else files:
                 print(p.as_posix())
+        elif args.command == "sdcard":
+            sdcard.make(ROOT, args.target.resolve() if args.target else None)
         elif args.command == "cores":
             for core in config.load_project(ROOT / "project.toml").slots:
                 print(core.relative_to(ROOT).as_posix())
