@@ -24,7 +24,7 @@ cp sdcard/config.ini.example sdcard/config.ini && chmod 600 sdcard/config.ini
 ```
 
 `sdcard/config.ini` is the only place for credentials. It is the same file that goes onto the SD
-card and that the device reads, and `.gitignore` keeps it out of the repository. Enter your WiFi
+card and that the device reads, and `.gitignore` keeps it out of the repository. Enter your Wi-Fi
 details under `[WIFI]`. Under `[RA]`, enter your account name and your connect token, and remove
 the `;` in front of those two lines.
 
@@ -41,7 +41,7 @@ RetroAchievements rejects requests with curl's default User-Agent. The web API k
 account settings is something different and does not work here. A regular account with a
 confirmed email address is all you need.
 
-> The token and the WiFi key are stored on the card in plain text, and anyone on your network can
+> The token and the Wi-Fi key are stored on the card in plain text, and anyone on your network can
 > read them over FTP. Read [PRIVACY.md](../PRIVACY.md#local-risks) before lending the cabinet to
 > someone.
 

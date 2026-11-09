@@ -27,11 +27,11 @@ approach before you put work into it.
 
 - ROM data of any kind, including files or tables generated from ROMs.
 - RetroAchievements achievement sets or their conditions. They belong to RetroAchievements.
-- Credentials: WiFi passwords, RetroAchievements tokens, your `config.ini`.
+- Credentials: Wi-Fi passwords, RetroAchievements tokens, your `config.ini`.
 
-## Licence
+## License
 
-By contributing, you agree that your contribution is licensed under the licence of the files
+By contributing, you agree that your contribution is licensed under the license of the files
 you change: GPL-3.0-only in this repository, Apache-2.0 for the files we add to the
 FPGA-Companion fork. See [THIRD-PARTY.md](THIRD-PARTY.md) for third-party code.
 

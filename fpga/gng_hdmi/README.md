@@ -1,6 +1,6 @@
 # Ghosts'n Goblins
 
-jotego's jtgng on the game20k platform: `scripts/build_fpga.sh gng_hdmi`, simulation in
+jotego's jtgng on the game20k platform: `python3 g20k.py build fpga/gng_hdmi`, simulation in
 [`sim/`](sim/run_sim.sh). Landscape only: the core raster stands upright (`screen upright` in
 the manifest) and goes through the scaler as it is, with the menu and the RetroAchievements
 banner upright as well.
