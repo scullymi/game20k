@@ -120,9 +120,10 @@ def manifests(root: Path) -> list[Path]:
 def build_rom(root: Path, manifest: Path, out: Path) -> tuple[bool, list[str]]:
     """@brief Builds one ROM file with make_rom.py, which exits non-zero for a missing or wrong
     set, a normal outcome here. Gives whether it worked and what it printed, both streams in
-    one, as their order belongs together."""
+    one, as their order belongs together: unbuffered (-u), or the warnings on stderr would come
+    first."""
     run = subprocess.run(
-        [sys.executable, root / "scripts" / "make_rom.py", manifest, out],
+        [sys.executable, "-u", root / "scripts" / "make_rom.py", manifest, out],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -247,7 +248,11 @@ def put(source: Path, dest: Path) -> None:
     """@brief Copies a file onto the card. On FAT, macOS keeps the extended attributes of a file
     in ._<name> beside it, and it gives every file a program writes one (com.apple.provenance).
     The device needs none of them, so that file goes."""
-    shutil.copyfile(source, dest)
+    try:
+        shutil.copyfile(source, dest)
+    except OSError as e:
+        # a full or write-protected card, or one pulled during the copy
+        raise StepError(f"{dest}: {e.strerror or e}, the card is incomplete") from None
     if sys.platform == "darwin":
         dest.with_name(f"._{dest.name}").unlink(missing_ok=True)
 
@@ -259,6 +264,8 @@ def copy(root: Path, card: Card, target: Path) -> None:
     print(f"== Card: {target} ==")
     if not target.is_dir():
         raise StepError(f"not a folder: {target}")
+    if target.resolve() == sd.resolve():
+        raise StepError("the target is sdcard/ itself, give the card's folder")
     if card.missing:
         raise StepError(f"not copied, missing: {' '.join(card.missing)}")
     for name in ("config.ini", "README.md", *(f"{s}.rom" for s in card.sets)):

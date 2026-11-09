@@ -125,6 +125,17 @@ class CardTest(unittest.TestCase):
             self.make(self.card)
         self.assertEqual([p.name for p in self.card.iterdir() if p.name.startswith("._")], [])
 
+    def test_copy_errors_stop_with_a_message(self) -> None:
+        (self.root / "roms" / "galaga.zip").write_bytes(b"")
+        with self.assertRaises(StepError) as err:
+            self.make(self.root / "sdcard")
+        self.assertIn("sdcard/ itself", str(err.exception))
+        # a card that takes no files
+        with mock.patch("shutil.copyfile", side_effect=PermissionError(13, "Permission denied")):
+            with self.assertRaises(StepError) as err:
+                self.make(self.card)
+        self.assertIn("Permission denied, the card is incomplete", str(err.exception))
+
     def test_settings_named_like_the_file_win(self) -> None:
         for name in ("pacman", "puckman"):
             (self.root / "roms" / f"{name}.zip").write_bytes(b"")
