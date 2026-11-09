@@ -518,6 +518,10 @@ class Local:
     dir: Path | None = None
 
 
+#: how the programs of the forks come here: built from their sources or prebuilt
+MODES = ("source", "prebuilt")
+
+
 def load_local(path: Path, programs: Sequence[str]) -> Local:
     """@brief Reads local.toml, an empty Local when there is none. programs are the names a
     path may be given for."""
@@ -526,7 +530,7 @@ def load_local(path: Path, programs: Sequence[str]) -> Local:
     root = _read(path).allow("tools")
     t = root.table("tools", required=False).allow("mode", "dir", *programs)
     mode = t.get("mode", str, "")
-    if mode not in ("", "source", "prebuilt"):
+    if mode not in ("", *MODES):
         raise t.error(f'tools.mode is "{mode}", expected "source" or "prebuilt"')
     paths = {k: (path.parent / t.get(k, str)).resolve() for k in programs if k in t.data}
     folder = (path.parent / Path(t.get("dir", str)).expanduser()).resolve() if "dir" in t.data else None

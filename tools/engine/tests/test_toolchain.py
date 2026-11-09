@@ -359,18 +359,28 @@ class PrebuiltTest(unittest.TestCase):
     def test_unpacks_checks_and_keeps(self) -> None:
         archive = self.archive()
         self.prebuilt(archive)
-        with redirect_stdout(io.StringIO()):
+        with redirect_stdout(io.StringIO()) as out:
             forks.build(self.root, "prebuilt")
         nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
         self.assertTrue((nextpnr / "bin/tool").is_file())
         self.assertEqual(toolchain.marker(nextpnr)["archive"], toolchain.sha256(archive))
+        self.assertEqual(toolchain.marker(nextpnr)["url"], archive.as_uri())
         self.assertEqual(config.load_local(self.root / "local.toml", ("suite",)).mode, "prebuilt")
+        self.assertIn(f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): fetched and checked", out.getvalue())
+        self.assertIn(f"  from    {archive.as_uri()}", out.getvalue())
         # a second build takes the folders as they are, without the archive
         archive.unlink()
         shutil.rmtree(self.root / "external/tools/downloads")
-        with redirect_stdout(io.StringIO()):
+        with redirect_stdout(io.StringIO()) as out:
             forks.build(self.root, "prebuilt")
         self.assertEqual(toolchain.locate(self.root).nextpnr.parent, nextpnr / "bin")
+        self.assertIn(f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): is there", out.getvalue())
+
+    def test_unknown_mode_stops(self) -> None:
+        with self.assertRaises(StepError) as err:
+            forks.build(self.root, "sources")
+        self.assertIn("source or prebuilt", str(err.exception))
+        self.assertFalse((self.root / "local.toml").exists())
 
     def test_new_suite_needs_a_new_archive(self) -> None:
         self.prebuilt(self.archive())
@@ -396,6 +406,92 @@ class PrebuiltTest(unittest.TestCase):
         self.assertIn("tools build-forks", str(err.exception))
         # a mode that failed is not kept
         self.assertFalse((self.root / "local.toml").exists())
+
+
+class BuildStepsTest(unittest.TestCase):
+    """@brief What building the forks prints and checks, without building them."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        fake_tools(self.root)
+        (self.root / "external/tools/src").mkdir(parents=True)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_took(self) -> None:
+        self.assertEqual(forks.took(12.4), "12 s")
+        self.assertEqual(forks.took(252), "4 min 12 s")
+
+    def test_step_says_what_and_how_long(self) -> None:
+        log = self.root / "external/tools/src/x.log"
+        with redirect_stdout(io.StringIO()) as out:
+            forks.step(self.root, "doing x", [sys.executable, "-c", "print('hi')"], log)
+        self.assertEqual(log.read_text().strip(), "hi")
+        self.assertIn("  doing x, log external/tools/src/x.log", out.getvalue())
+        self.assertRegex(out.getvalue(), r"\n    done in \d+ s\n")
+
+    def test_failed_step_names_its_log(self) -> None:
+        log = self.root / "external/tools/src/x.log"
+        with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
+            forks.step(self.root, "doing x", [sys.executable, "-c", "raise SystemExit(3)"], log)
+        self.assertIn("exit code 3", str(err.exception))
+        self.assertIn(str(log), str(err.exception))
+
+    def test_cmake_and_ninja_come_from_tools_toml(self) -> None:
+        with self.assertRaises(StepError) as err:
+            forks.build_tools(self.root)
+        self.assertIn("no program cmake", str(err.exception))
+        # with both in tools.toml, cmake is told the ninja of tools.toml
+        text = (self.root / "tools.toml").read_text()
+        for name in ("cmake", "ninja"):
+            text += f'[download.{name}]\nversion = "1"\nrelease = "https://example.org/{name}"\n'
+            text += f'[download.{name}.{toolchain.machine()}]\nurl = "https://example.org/{name}.zip"\n'
+            text += f'sha256 = "{SHA}"\npath = ["."]\n'
+            folder = toolchain.folder(self.root, name, "1")
+            folder.mkdir(parents=True)
+            toolchain.write_marker(folder, {"name": name, "version": "1"})
+        write(self.root, "tools.toml", text)
+        ninja = toolchain.folder(self.root, "ninja", "1") / ("ninja" + host.EXE)
+        with unittest.mock.patch.dict(os.environ, {"PATH": os.environ.get("PATH", "")}):
+            self.assertEqual(
+                forks.build_tools(self.root), f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja.as_posix()}"
+            )
+            front = os.environ["PATH"].split(os.pathsep)[:2]
+            self.assertEqual(
+                set(front), {str(toolchain.folder(self.root, n, "1")) for n in ("cmake", "ninja")}
+            )
+        # local.toml may name the ninja program itself
+        program = self.root / "bin" / "ninja"
+        program.parent.mkdir()
+        program.write_text("")
+        write(self.root, "local.toml", f'[tools]\nninja = "{program.as_posix()}"\n')
+        with (
+            unittest.mock.patch.dict(os.environ, {"PATH": os.environ.get("PATH", "")}),
+            redirect_stderr(io.StringIO()),
+        ):
+            self.assertEqual(
+                forks.build_tools(self.root), f"-DCMAKE_MAKE_PROGRAM:FILEPATH={program.as_posix()}"
+            )
+
+    def test_report_of_a_fork_built_here(self) -> None:
+        toolset = config.load_toolset(self.root / "tools.toml")
+        nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
+        values = {"name": "nextpnr", "version": COMMIT, "repo": "https://example.org/nextpnr.git"}
+        toolchain.write_marker(nextpnr, values | {"commit": COMMIT, "eigen": "2" * 40})
+        with redirect_stdout(io.StringIO()) as out:
+            toolchain.report_forks(self.root, toolset, {"nextpnr": forks.Made(nextpnr, "built here")})
+        self.assertEqual(
+            out.getvalue().splitlines(),
+            [
+                f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): built here",
+                "  from    https://example.org/nextpnr.git",
+                f"  commit  {COMMIT}",
+                f"  eigen   {'2' * 40} from https://example.org/eigen.git",
+                f"  in      external/tools/nextpnr-{COMMIT[:12]}-{toolchain.machine()}",
+            ],
+        )
 
 
 class ElfTest(unittest.TestCase):

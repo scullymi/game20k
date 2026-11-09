@@ -24,7 +24,7 @@ import tarfile
 import tempfile
 import tomllib
 import zipfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from tools.engine import config, host
@@ -55,6 +55,11 @@ def programs(toolset: config.Toolset) -> tuple[str, ...]:
 
 def load_local(root: Path, toolset: config.Toolset) -> config.Local:
     return config.load_local(root / "local.toml", programs(toolset))
+
+
+def shown(root: Path, path: Path) -> str:
+    """@brief A path below the project as a relative one, else as it is."""
+    return path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
 
 
 def tools_dir(root: Path) -> Path:
@@ -201,7 +206,7 @@ def fetch(root: Path, names: Sequence[str] = ()) -> None:
         print(f"  from    {archive.url}")
         print(f"  release {d.release}")
         print(f"  sha256  {archive.sha256}")
-        print(f"  in      {dest.relative_to(root).as_posix() if dest.is_relative_to(root) else dest}")
+        print(f"  in      {shown(root, dest)}")
 
 
 def forks_key(toolset: config.Toolset) -> str:
@@ -309,6 +314,27 @@ def origin(toolset: config.Toolset, mark: dict[str, str]) -> str:
     return "unknown"
 
 
+def report_forks(root: Path, toolset: config.Toolset, made: Mapping[str, tuple[Path, str]]) -> None:
+    """@brief Prints each fork as tools fetch prints a download: its state, where it came from,
+    its commit, for nextpnr also the Eigen it was built with, and its folder. Here, not in
+    forks.py, so that its text is not part of the forks' key."""
+    for name, (path, state) in made.items():
+        mark = marker(path)
+        print(f"{name} {mark.get('commit', '')[:12]} ({machine()}): {state}")
+        if "archive" in mark:
+            print(f"  from    {origin(toolset, mark)}")
+            if toolset.prebuilt:
+                print(f"  release {toolset.prebuilt.release}")
+            print(f"  sha256  {mark['archive']}")
+        else:
+            print(f"  from    {mark.get('repo', 'unknown')}")
+        print(f"  commit  {mark.get('commit', 'unknown')}")
+        if name == "nextpnr" and "eigen" in mark:
+            eigen = toolset.sources.get("eigen")
+            print(f"  eigen   {mark['eigen']}" + (f" from {eigen.repo}" if eigen else ""))
+        print(f"  in      {shown(root, path)}")
+
+
 def status(root: Path) -> None:
     """@brief Prints each program of tools.toml with its state, where it came from and the folder
     it is taken from."""
@@ -341,7 +367,6 @@ def status(root: Path) -> None:
             source = origin(toolset, mark)
         else:
             source = "not there yet"
-        shown = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
         print(f"{name} {version[:12]}: {state}")
         print(f"  from  {source}")
-        print(f"  in    {shown}")
+        print(f"  in    {shown(root, path)}")

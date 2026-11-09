@@ -15,7 +15,9 @@ import shutil
 import struct
 import sys
 import tarfile
+import time
 from pathlib import Path
+from typing import NamedTuple
 
 from tools.engine import config, host, toolchain
 from tools.engine.host import StepError
@@ -24,7 +26,39 @@ from tools.engine.host import StepError
 YOSYS_SUBMODULES = ("abc", "libs/boost_regex", "libs/cxxopts", "libs/fmt", "libs/symfpu", "libs/tomlplusplus")
 
 
-def checkout(repo: str, commit: str, dest: Path) -> None:
+class Made(NamedTuple):
+    """@brief A fork as build, make_forks and unpack_forks leave it.
+
+    - path: its folder
+    - state: what happened to it, "built here", "fetched and checked" or "is there"
+    """
+
+    path: Path
+    state: str
+
+
+def took(seconds: float) -> str:
+    """@brief A duration as 4 min 12 s, below a minute as 12 s."""
+    minutes, rest = divmod(round(seconds), 60)
+    return f"{minutes} min {rest} s" if minutes else f"{rest} s"
+
+
+def step(
+    root: Path, what: str, cmd: list[host.Arg], log: Path | None = None, env: dict[str, str] | None = None
+) -> None:
+    """@brief One step of building a fork: says what it does and where its output goes, runs it
+    in the folder of the sources and says how long it took. A failed step names its log, which
+    holds what the program printed, its error messages are in the terminal."""
+    print(f"  {what}" + (f", log {toolchain.shown(root, log)}" if log else ""), flush=True)
+    start = time.monotonic()
+    try:
+        host.run(cmd, cwd=toolchain.tools_dir(root) / "src", stdout=log, env=env)
+    except StepError as e:
+        raise StepError(f"{e}, see the messages above and {log}" if log else str(e)) from None
+    print(f"    done in {took(time.monotonic() - start)}", flush=True)
+
+
+def checkout(root: Path, repo: str, commit: str, dest: Path) -> None:
     """@brief A checkout of commit at dest, fetched alone: an empty repository, not a clone,
     which would fetch the whole history first."""
     if not (dest / ".git").is_dir():
@@ -32,18 +66,34 @@ def checkout(repo: str, commit: str, dest: Path) -> None:
         host.run(["git", "-C", dest, "init", "-q"], cwd=dest.parent)
         host.run(["git", "-C", dest, "remote", "add", "origin", repo], cwd=dest.parent)
     host.run(["git", "-C", dest, "remote", "set-url", "origin", repo], cwd=dest.parent)
-    host.run(["git", "-C", dest, "fetch", "-q", "--depth", "1", "origin", commit], cwd=dest.parent)
+    step(
+        root,
+        f"fetching {commit[:12]} from {repo}",
+        ["git", "-C", dest, "fetch", "-q", "--depth", "1", "origin", commit],
+    )
     host.run(["git", "-C", dest, "checkout", "-q", "--detach", commit], cwd=dest.parent)
 
 
-def need(*programs: str) -> None:
-    """@brief Stops when a program the build of the forks needs is not on the path."""
-    missing = [p for p in programs if shutil.which(p) is None]
-    if missing:
+def need_git() -> None:
+    """@brief Stops when git is not on the path."""
+    if shutil.which("git") is None:
         raise StepError(
-            f"building the forks needs {', '.join(missing)} (and Boost), see tools.toml, "
-            "or fetch the prebuilt ones (python3 g20k.py tools fetch)"
+            "building the forks needs git, a C++ compiler, Boost, Flex and Bison. "
+            "Or fetch the prebuilt ones: python3 g20k.py tools fetch"
         )
+
+
+def build_tools(root: Path) -> str:
+    """@brief Puts cmake and ninja of tools.toml to the front of PATH, so every machine builds
+    with the same ones, and gives the cmake option that names this ninja: a cache from an earlier
+    build keeps the ninja it found, also one from elsewhere."""
+    need_git()
+    toolchain.find(root, "cmake")
+    ninja = toolchain.find(root, "ninja")
+    # local.toml may name the program itself
+    if not ninja.is_file():
+        ninja /= "ninja" + host.EXE
+    return f"-DCMAKE_MAKE_PROGRAM:FILEPATH={ninja.as_posix()}"
 
 
 def drop_moved_cache(build_dir: Path) -> None:
@@ -62,9 +112,12 @@ def drop_moved_cache(build_dir: Path) -> None:
 
 
 def build(root: Path, mode: str) -> None:
-    """@brief Makes the programs of the forks: from their sources ("source"), which needs cmake,
-    ninja, a C++ compiler, Boost, Flex and Bison, or from game20k's releases ("prebuilt").
-    local.toml keeps the mode, so that tools fetch leaves forks built here as they are."""
+    """@brief Makes the programs of the forks: from their sources ("source"), which needs git, a
+    C++ compiler, Boost, Flex and Bison besides cmake and ninja of tools.toml, or from game20k's
+    releases ("prebuilt"). local.toml keeps the mode, so that tools fetch leaves forks built here
+    as they are."""
+    if mode not in config.MODES:
+        raise StepError(f"the forks come {' or '.join(config.MODES)}, not {mode}")
     local_toml = root / "local.toml"
     toolset = config.load_toolset(root / "tools.toml")
     local = toolchain.load_local(root, toolset)
@@ -72,9 +125,7 @@ def build(root: Path, mode: str) -> None:
     # kept only once it worked, so a failed fetch does not become the default
     if mode != local.mode:
         toolchain.save_mode(local_toml, mode)
-    for name, path in made.items():
-        shown = path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path)
-        print(f"{name} {toolset.sources[name].commit[:12]}: {shown}")
+    toolchain.report_forks(root, toolset, made)
 
 
 def source(toolset: config.Toolset, name: str) -> config.Source:
@@ -84,15 +135,17 @@ def source(toolset: config.Toolset, name: str) -> config.Source:
     return toolset.sources[name]
 
 
-def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, Path]:
+def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, Made]:
     """@brief Builds Apicula, nextpnr and Yosys from the commits of tools.toml, where a folder
-    does not carry their key already, and gives their folders by name. static links Boost into
-    nextpnr (on Linux everything), so the programs run on a machine without them, as pack needs."""
+    does not carry their key already, and gives their folders by name with what happened to
+    them. static links Boost into nextpnr (on Linux everything), so the programs run on a
+    machine without them, as pack needs."""
     key = toolchain.forks_key(toolset)
     suite = toolchain.find(root, "suite")
     python = toolchain.suite_python(root)
     src = toolchain.tools_dir(root) / "src"
     src.mkdir(parents=True, exist_ok=True)
+    states = dict.fromkeys(toolchain.BUILT, "is there")
 
     # Apicula: the fork, with the chip databases of the suite's Apicula for the devices the fork
     # carries none of
@@ -100,9 +153,9 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
     apicula = toolchain.folder(root, "apicula", a.commit)
     # a folder from an archive is made again, so the mode chosen is the one that is used
     if toolchain.marker(apicula).get("key") != key or "archive" in toolchain.marker(apicula):
-        need("git")
+        need_git()
         print(f"== apicula {a.commit[:12]}", flush=True)
-        checkout(a.repo, a.commit, src / "apicula")
+        checkout(root, a.repo, a.commit, src / "apicula")
         if apicula.exists():
             shutil.rmtree(apicula)
         shutil.copytree(src / "apicula", apicula, ignore=shutil.ignore_patterns(".git"))
@@ -111,30 +164,40 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
                 shutil.copy2(db, apicula / "apycula" / db.name)
         values = {"name": "apicula", "version": a.commit, "repo": a.repo, "commit": a.commit}
         toolchain.write_marker(apicula, values | {"key": key})
+        states["apicula"] = "built here"
 
     n, e = source(toolset, "nextpnr"), source(toolset, "eigen")
     nextpnr = toolchain.folder(root, "nextpnr", n.commit)
     m = toolchain.marker(nextpnr)
     if m.get("key") != key or "archive" in m or (static and m.get("static") != "yes"):
-        need("git", "cmake", "ninja")
+        make_program = build_tools(root)
         print(f"== eigen {e.commit[:12]}", flush=True)
-        checkout(e.repo, e.commit, src / "eigen")
+        checkout(root, e.repo, e.commit, src / "eigen")
         # only the headers and Eigen3Config.cmake, which nextpnr's find_package reads
         eigen = src / "eigen-install"
         drop_moved_cache(src / "eigen-build")
-        host.run(
+        step(
+            root, "configuring with cmake",
             [
-                "cmake", "-S", src / "eigen", "-B", src / "eigen-build", "-G", "Ninja", "-Wno-dev",
-                f"-DCMAKE_INSTALL_PREFIX={eigen}", "-DBUILD_TESTING=OFF", "-DEIGEN_BUILD_TESTING=OFF",
-                "-DEIGEN_BUILD_DOC=OFF", "-DEIGEN_BUILD_BLAS=OFF", "-DEIGEN_BUILD_LAPACK=OFF",
+                "cmake", "-S", src / "eigen", "-B", src / "eigen-build", "-G", "Ninja", make_program,
+                "-Wno-author", f"-DCMAKE_INSTALL_PREFIX={eigen}", "-DBUILD_TESTING=OFF",
+                "-DEIGEN_BUILD_TESTING=OFF", "-DEIGEN_BUILD_DOC=OFF", "-DEIGEN_BUILD_BLAS=OFF",
+                "-DEIGEN_BUILD_LAPACK=OFF",
             ],
-            cwd=src, stdout=src / "eigen-cmake.log",
+            src / "eigen-cmake.log",
         )  # fmt: skip
-        host.run(["cmake", "--install", src / "eigen-build"], cwd=src, stdout=src / "eigen-install.log")
+        step(
+            root,
+            "installing the headers",
+            ["cmake", "--install", src / "eigen-build"],
+            src / "eigen-install.log",
+        )
         print(f"== nextpnr {n.commit[:12]}", flush=True)
-        checkout(n.repo, n.commit, src / "nextpnr")
-        host.run(
-            ["git", "-C", src / "nextpnr", "submodule", "update", "-q", "--init", "--depth", "1"], cwd=src
+        checkout(root, n.repo, n.commit, src / "nextpnr")
+        step(
+            root,
+            "fetching its submodules",
+            ["git", "-C", src / "nextpnr", "submodule", "update", "-q", "--init", "--depth", "1"],
         )
         # a folder of its own per kind of linking, so the cmake caches of both do not mix
         build_dir = src / "nextpnr" / ("build-static" if static else "build")
@@ -158,23 +221,31 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
             linking = [f"-DSTATIC_BUILD={'ON' if static else 'OFF'}"]
         if nextpnr.exists():
             shutil.rmtree(nextpnr)
-        host.run(
+        step(
+            root, "configuring with cmake",
             [
-                "cmake", "-S", src / "nextpnr", "-B", build_dir, "-G", "Ninja", "-Wno-dev",
+                "cmake", "-S", src / "nextpnr", "-B", build_dir, "-G", "Ninja", make_program, "-Wno-author",
                 "-DARCH=himbaechel", "-DHIMBAECHEL_UARCH=gowin", "-DHIMBAECHEL_GOWIN_DEVICES=GW2A-18C",
                 "-DCMAKE_BUILD_TYPE=Release", "-DBUILD_PYTHON=OFF", "-DBUILD_GUI=OFF",
                 f"-DPython3_EXECUTABLE={python}", f"-DEigen3_DIR={eigen / 'share' / 'eigen3' / 'cmake'}",
                 f"-DCMAKE_INSTALL_PREFIX={nextpnr}", *linking,
                 *([f"-DCMAKE_EXE_LINKER_FLAGS={link}"] if link else []),
             ],
-            cwd=src, env=env, stdout=src / "nextpnr-cmake.log",
+            src / "nextpnr-cmake.log", env,
         )  # fmt: skip
-        host.run(["ninja", "-C", build_dir], cwd=src, env=env, stdout=src / "nextpnr-build.log")
-        host.run(["cmake", "--install", build_dir], cwd=src, stdout=src / "nextpnr-install.log")
+        step(
+            root,
+            "building with ninja, the longest step",
+            ["ninja", "-C", build_dir],
+            src / "nextpnr-build.log",
+            env,
+        )
+        step(root, "installing", ["cmake", "--install", build_dir], src / "nextpnr-install.log")
         values = {"name": "nextpnr", "version": n.commit, "repo": n.repo, "commit": n.commit}
         # the commits of every source, to read off which Eigen a nextpnr has, the key is what is checked
         values |= {s.name: s.commit for s in toolset.sources.values()}
         toolchain.write_marker(nextpnr, values | {"key": key, "static": "yes" if static else "no"})
+        states["nextpnr"] = "built here"
 
     # Yosys: the fork runs the synthesis only, the suite's Yosys with its slang plugin reads the
     # sources. Slang, Tcl, readline, zlib and libffi stay out, the synthesis calls none of them
@@ -182,11 +253,11 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
     yosys = toolchain.folder(root, "yosys", y.commit)
     m = toolchain.marker(yosys)
     if m.get("key") != key or "archive" in m or (static and m.get("static") != "yes"):
-        need("git", "cmake", "ninja")
+        make_program = build_tools(root)
         print(f"== yosys {y.commit[:12]}", flush=True)
-        checkout(y.repo, y.commit, src / "yosys")
+        checkout(root, y.repo, y.commit, src / "yosys")
         submodules = ["submodule", "update", "-q", "--init", "--depth", "1", *YOSYS_SUBMODULES]
-        host.run(["git", "-C", src / "yosys", *submodules], cwd=src)
+        step(root, "fetching its submodules", ["git", "-C", src / "yosys", *submodules])
         # a folder of its own per kind of linking, so the cmake caches of both do not mix
         build_dir = src / "yosys" / ("build-static" if static else "build")
         drop_moved_cache(build_dir)
@@ -197,22 +268,25 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, P
             linking = ["-DCMAKE_EXE_LINKER_FLAGS=-static"]
         if yosys.exists():
             shutil.rmtree(yosys)
-        host.run(
+        step(
+            root, "configuring with cmake",
             [
-                "cmake", "-S", src / "yosys", "-B", build_dir, "-G", "Ninja", "-Wno-dev",
+                "cmake", "-S", src / "yosys", "-B", build_dir, "-G", "Ninja", make_program, "-Wno-author",
                 "-DCMAKE_BUILD_TYPE=Release", f"-DCMAKE_INSTALL_PREFIX={yosys}", "-DBUILD_SHARED_LIBS=OFF",
                 "-DYOSYS_USE_BUNDLED_LIBS=ON",
                 f"-DPython3_EXECUTABLE={python}", "-DYOSYS_ENABLE_UNIT_TESTS=OFF", "-DYOSYS_WITHOUT_SLANG=ON",
                 "-DYOSYS_WITHOUT_TCL=ON", "-DYOSYS_WITHOUT_READLINE=ON", "-DYOSYS_WITHOUT_EDITLINE=ON",
                 "-DYOSYS_WITHOUT_ZLIB=ON", "-DYOSYS_WITHOUT_LIBFFI=ON", *linking,
             ],
-            cwd=src, stdout=src / "yosys-cmake.log",
+            src / "yosys-cmake.log",
         )  # fmt: skip
-        host.run(["ninja", "-C", build_dir], cwd=src, stdout=src / "yosys-build.log")
-        host.run(["cmake", "--install", build_dir], cwd=src, stdout=src / "yosys-install.log")
+        step(root, "building with ninja", ["ninja", "-C", build_dir], src / "yosys-build.log")
+        step(root, "installing", ["cmake", "--install", build_dir], src / "yosys-install.log")
         values = {"name": "yosys", "version": y.commit, "repo": y.repo, "commit": y.commit}
         toolchain.write_marker(yosys, values | {"key": key, "static": "yes" if static else "no"})
-    return {"apicula": apicula, "nextpnr": nextpnr, "yosys": yosys}
+        states["yosys"] = "built here"
+    paths = {"apicula": apicula, "nextpnr": nextpnr, "yosys": yosys}
+    return {name: Made(path, states[name]) for name, path in paths.items()}
 
 
 def pack(root: Path, out: Path) -> Path:
@@ -220,7 +294,7 @@ def pack(root: Path, out: Path) -> Path:
     this kind of machine, game20k-forks-<key>-<machine>.tar.gz, then prints what tools.toml
     takes for it."""
     toolset = config.load_toolset(root / "tools.toml")
-    made = make_forks(root, toolset, static=True)
+    made = {name: m.path for name, m in make_forks(root, toolset, static=True).items()}
     programs = [made["nextpnr"] / "bin" / ("nextpnr-himbaechel" + host.EXE)]
     programs += [made["yosys"] / "bin" / (name + host.EXE) for name in ("yosys", "yosys-abc")]
     for program in programs:
@@ -242,7 +316,7 @@ def pack(root: Path, out: Path) -> Path:
     with tarfile.open(archive, "w:gz") as t:
         for name, path in made.items():
             t.add(path, arcname=name, filter=clean)
-    print(f"{archive.relative_to(root).as_posix() if archive.is_relative_to(root) else archive}")
+    print(toolchain.shown(root, archive))
     print(f"[prebuilt.{toolchain.machine()}]")
     print(f'sha256 = "{toolchain.sha256(archive)}"')
     return archive
@@ -284,9 +358,10 @@ def elf_interpreter(program: Path) -> bool:
     return any(struct.unpack_from("<I", table, i * phentsize)[0] == 3 for i in range(phnum))
 
 
-def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Path]:
+def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Made]:
     """@brief The forks from the archive of [prebuilt] for this machine, which must carry the key
-    of tools.toml and this file, and their folders by name."""
+    of tools.toml and this file, and their folders by name with what happened to them. Their
+    markers keep the archive's URL and SHA-256."""
     here = toolchain.machine()
     prebuilt = toolset.prebuilt
     archive = prebuilt.archives.get(here) if prebuilt else None
@@ -299,7 +374,7 @@ def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Path]:
         toolchain.marker(d).get("archive") == archive.sha256 and toolchain.marker(d).get("key") == key
         for d in dests.values()
     ):
-        return dests
+        return {name: Made(d, "is there") for name, d in dests.items()}
     file = toolchain.fetched(root, archive, "prebuilt forks")
     staging = toolchain.tools_dir(root) / f".forks-{archive.sha256[:12]}"
     shutil.rmtree(staging, ignore_errors=True)
@@ -314,14 +389,9 @@ def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Path]:
         for name, dest in dests.items():
             if dest.exists():
                 shutil.rmtree(dest)
-            toolchain.write_marker(
-                staging / name, toolchain.marker(staging / name) | {"archive": archive.sha256}
-            )
+            got = {"archive": archive.sha256, "url": archive.url}
+            toolchain.write_marker(staging / name, toolchain.marker(staging / name) | got)
             (staging / name).rename(dest)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-    print(f"prebuilt forks ({here}): fetched and checked")
-    print(f"  from    {archive.url}")
-    print(f"  release {prebuilt.release}")
-    print(f"  sha256  {archive.sha256}")
-    return dests
+    return {name: Made(d, "fetched and checked") for name, d in dests.items()}
