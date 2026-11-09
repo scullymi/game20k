@@ -26,7 +26,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: name, checkout path, upstream repository, our fork on GitHub or None, remark
+## name, checkout path, upstream repository, our fork on GitHub or None, remark
 DEPS = [
     ('pico-sdk', 'external/pico-sdk', 'raspberrypi/pico-sdk', None,
      'brings lwIP, mbedTLS, BTstack, cyw43'),
@@ -40,13 +40,13 @@ DEPS = [
      'changes the User-Agent sent to RetroAchievements'),
     ('Unity', 'external/unity', 'ThrowTheSwitch/Unity', None, 'tests only'),
 ]
-#: HDL copied into fpga/: name, upstream repository, commit the copy is taken from, newest
-#: upstream commit already looked at, local folder, the same folder upstream, files in the local
-#: folder that come from elsewhere, further upstream paths. Every file under the local folder
-#: except README.md and LICENSE is watched. A local file instead of a folder stands for the one
-#: upstream file it is derived from. After looking at a reported change, set the fourth
-#: field to the newest upstream commit of the report. Taking everything over moves the third,
-#: a single change taken over is named in the folder's README.
+## HDL copied into fpga/: name, upstream repository, commit the copy is taken from, newest
+# upstream commit already looked at, local folder, the same folder upstream, files in the local
+# folder that come from elsewhere, further upstream paths. Every file under the local folder
+# except README.md and LICENSE is watched. A local file instead of a folder stands for the one
+# upstream file it is derived from. After looking at a reported change, set the fourth
+# field to the newest upstream commit of the report. Taking everything over moves the third,
+# a single change taken over is named in the folder's README.
 VENDORED = [
     ('Galaga', 'DECAfpga/Arcade_Galaga', 'e06ba91', 'e06ba91',
      'fpga/galaga_hdmi/src/rtl_dar', 'rtl_dar', (), ()),

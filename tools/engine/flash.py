@@ -26,7 +26,7 @@ from pathlib import Path
 from tools.engine import config, firmware, host, toolchain
 from tools.engine.host import StepError
 
-#: Bouffalo's flash tool in the SDK, one program per system
+## Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
     "Darwin": "BLFlashCommand-macos",
     "Linux": "BLFlashCommand-ubuntu",

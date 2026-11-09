@@ -30,10 +30,10 @@ from pathlib import Path
 from tools.engine import config, host, release, toolchain
 from tools.engine.host import StepError
 
-#: the checkout of the fork
+## the checkout of the fork
 FORK = Path("external") / "FPGA-Companion"
 
-#: a file of each submodule the build needs, missing after a clone without --recursive
+## a file of each submodule the build needs, missing after a clone without --recursive
 SUBMODULE_FILES = (
     FORK / "src" / "rp2040" / "CMakeLists.txt",
     Path("external") / "pico-sdk" / "pico_sdk_init.cmake",
@@ -41,26 +41,26 @@ SUBMODULE_FILES = (
     Path("external") / "Pico-PIO-USB" / "src" / "pio_usb.c",
 )
 
-#: the folders of the libraries the Pico 2 W links, in a toolchain
+## the folders of the libraries the Pico 2 W links, in a toolchain
 LIBRARIES = (
     Path("arm-none-eabi") / "lib" / "thumb" / "v8-m.main+fp" / "softfp",
     Path("lib") / "gcc" / "arm-none-eabi" / "14.2.1" / "thumb" / "v8-m.main+fp" / "softfp",
 )
 
-#: the folders of the libraries the BL616 links, in a toolchain
+## the folders of the libraries the BL616 links, in a toolchain
 RISCV_LIBRARIES = (
     Path("riscv64-unknown-elf") / "lib" / "rv32imafc_zicsr_zifencei" / "ilp32f",
     Path("lib") / "gcc" / "riscv64-unknown-elf" / "14.3.0" / "rv32imafc_zicsr_zifencei" / "ilp32f",
 )
 
-#: CMake's rules for this build
+## CMake's rules for this build
 RULES = Path(__file__).with_name("firmware_rules.cmake")
 
-#: the flash address of the BL616 firmware per board of --bl616: behind Sipeed's firmware on the
-#: Tang Nano 20K, alone on the M0S Dock. The other boards of the Companion are not tested here.
+## the flash address of the BL616 firmware per board of --bl616: behind Sipeed's firmware on the
+# Tang Nano 20K, alone on the M0S Dock. The other boards of the Companion are not tested here.
 BL616_ADDRESSES = {"nano20k": 0x40000, "nano20k_v3923": 0x40000, "m0sdock": 0x0}
 
-#: the text of FLASHING.txt in the release of the BL616 firmware
+## the text of FLASHING.txt in the release of the BL616 firmware
 BL616_FLASHING = Path(__file__).with_name("flashing_bl616.txt")
 
 
@@ -80,11 +80,11 @@ def bl616_libraries(root: Path) -> Path:
     return toolchain.find(root, "riscv" if "riscv" in local.paths else "riscvlibs")
 
 
-#: the settings of config.ini that must not end up in an image
+## the settings of config.ini that must not end up in an image
 SECRETS = ("SSID", "PASS", "TOKEN")
 
-#: the BL616 build: the chip and the board of the Bouffalo SDK, which the Companion's own
-#: Makefile names, and the toolchain's prefix
+## the BL616 build: the chip and the board of the Bouffalo SDK, which the Companion's own
+# Makefile names, and the toolchain's prefix
 BL616_CHIP = "bl616"
 BL616_SDK_BOARD = "bl616dk"
 BL616_PREFIX = "riscv64-unknown-elf-"

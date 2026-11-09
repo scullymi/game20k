@@ -22,7 +22,7 @@ from typing import NamedTuple
 from tools.engine import config, host, toolchain
 from tools.engine.host import StepError
 
-#: the submodules of Yosys that its build needs, without slang, whose frontend the fork leaves out
+## the submodules of Yosys that its build needs, without slang, whose frontend the fork leaves out
 YOSYS_SUBMODULES = ("abc", "libs/boost_regex", "libs/cxxopts", "libs/fmt", "libs/symfpu", "libs/tomlplusplus")
 
 

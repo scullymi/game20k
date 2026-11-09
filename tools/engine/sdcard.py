@@ -25,11 +25,11 @@ from pathlib import Path
 
 from tools.engine.host import StepError
 
-#: the longest line of config.ini the firmware reads whole: f_gets into a buffer of 128 bytes
-#: (inifile.c), less the line end and the terminating zero
+## the longest line of config.ini the firmware reads whole: f_gets into a buffer of 128 bytes
+# (inifile.c), less the line end and the terminating zero
 LINE_LIMIT = 126
 
-#: the credentials in config.ini by section and key
+## the credentials in config.ini by section and key
 CREDENTIALS = {"WiFi": (("WIFI", "SSID"), ("WIFI", "PASS")), "RA": (("RA", "USER"), ("RA", "TOKEN"))}
 
 

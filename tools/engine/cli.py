@@ -13,7 +13,7 @@ from tools.engine import config, firmware, flash, forks, published, release, sdc
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
-#: the project's root folder, the one that holds project.toml
+## the project's root folder, the one that holds project.toml
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -70,7 +70,7 @@ def fetch_tools(root: Path, names: list[str]) -> None:
         forks.build(root, "prebuilt")
 
 
-#: --board of build, release and flash
+## --board of build, release and flash
 BOARD_HELP = "a board folder in place of the one project.toml names, e.g. boards/tangnano20k-singleboard"
 
 

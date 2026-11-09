@@ -30,13 +30,13 @@ from pathlib import Path
 from tools.engine import config, host
 from tools.engine.host import StepError
 
-#: the file in every tool folder that says what it holds
+## the file in every tool folder that says what it holds
 MARKER = ".g20k-tool.toml"
 
-#: the programs forks.py builds from the sources of tools.toml
+## the programs forks.py builds from the sources of tools.toml
 BUILT = ("apicula", "nextpnr", "yosys")
 
-#: how the forks are built, packed and unpacked, part of their key
+## how the forks are built, packed and unpacked, part of their key
 RECIPE = Path(__file__).with_name("forks.py")
 
 

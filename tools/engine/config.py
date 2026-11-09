@@ -521,7 +521,7 @@ class Local:
     dir: Path | None = None
 
 
-#: how the programs of the forks come here: built from their sources or prebuilt
+## how the programs of the forks come here: built from their sources or prebuilt
 MODES = ("source", "prebuilt")
 
 
