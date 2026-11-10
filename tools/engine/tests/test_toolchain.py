@@ -16,8 +16,6 @@ import unittest.mock
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from types import SimpleNamespace
-from typing import cast
 
 from tools.engine import config, forks, host, toolchain
 from tools.engine.host import StepError
@@ -308,7 +306,8 @@ class UnpackTest(unittest.TestCase):
 
 
 class PrebuiltTest(unittest.TestCase):
-    """@brief The prebuilt forks of tools fetch on an archive given as a file:// URL, no network."""
+    """@brief The prebuilt forks of tools fetch from releases in a folder given as a file://
+    URL, no network."""
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -316,49 +315,54 @@ class PrebuiltTest(unittest.TestCase):
         fake_tools(self.root)
         for name in toolchain.BUILT:
             shutil.rmtree(toolchain.folder(self.root, name, COMMIT))
+        self.served = self.root / "served"
+        text = (self.root / "tools.toml").read_text()
+        write(self.root, "tools.toml", text + f'[prebuilt]\nrepository = "{self.served.as_uri()}"\n')
+        self.key = toolchain.forks_key(config.load_toolset(self.root / "tools.toml"))
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def archive(self, key: str | None = None) -> Path:
-        """@brief An archive as pack makes it, its forks of the key given, else of tools.toml."""
-        key = key or toolchain.forks_key(config.load_toolset(self.root / "tools.toml"))
-        archive = self.root / "forks.tar.gz"
+    def publish(self, inside: str | None = None, machine: str = toolchain.machine()) -> Path:
+        """@brief Publishes an archive as the CI does, named with the key of tools.toml, its
+        forks of the key inside, by default the same, and its SHA-256 beside it."""
+        prebuilt = config.Prebuilt(self.served.as_uri())
+        archive = self.root / prebuilt.url(self.key, machine).removeprefix(self.root.as_uri() + "/")
+        archive.parent.mkdir(parents=True, exist_ok=True)
         made = self.root / "made"
         for name in toolchain.BUILT:
             (made / name / "bin").mkdir(parents=True)
             (made / name / "bin" / "tool").write_text("x")
-            values = {"name": name, "version": COMMIT, "commit": COMMIT, "key": key}
+            values = {"name": name, "version": COMMIT, "commit": COMMIT, "key": inside or self.key}
             toolchain.write_marker(made / name, values)
         with tarfile.open(archive, "w:gz") as t:
             for name in toolchain.BUILT:
                 t.add(made / name, arcname=name)
         shutil.rmtree(made)
+        archive.with_name(archive.name + ".sha256").write_text(
+            f"{toolchain.sha256(archive)}  {archive.name}\n"
+        )
         return archive
 
-    def prebuilt(self, archive: Path, machine: str = toolchain.machine()) -> None:
-        sha = toolchain.sha256(archive)
-        text = (self.root / "tools.toml").read_text()
-        text += f'[prebuilt]\nrelease = "https://example.org/forks"\n[prebuilt.{machine}]\n'
-        write(self.root, "tools.toml", text + f'url = "{archive.as_uri()}"\nsha256 = "{sha}"\n')
-
     def test_reads_prebuilt(self) -> None:
-        self.prebuilt(self.archive())
-        prebuilt = config.load_toolset(self.root / "tools.toml").prebuilt
-        assert prebuilt is not None
-        self.assertEqual(prebuilt.release, "https://example.org/forks")
-        self.assertIn(toolchain.machine(), prebuilt.archives)
+        prebuilt = config.Prebuilt("https://github.com/o/tools")
+        self.assertEqual(prebuilt.release("abc"), "https://github.com/o/tools/releases/tag/forks-abc")
+        self.assertEqual(
+            prebuilt.url("abc", "linux-x64"),
+            "https://github.com/o/tools/releases/download/forks-abc/game20k-forks-abc-linux-x64.tar.gz",
+        )
+        loaded = config.load_toolset(self.root / "tools.toml").prebuilt
+        assert loaded is not None
+        self.assertEqual(loaded.repository, self.served.as_uri())
 
-    def test_prebuilt_has_no_programs_of_its_own(self) -> None:
-        self.prebuilt(self.archive())
-        write(self.root, "tools.toml", (self.root / "tools.toml").read_text() + 'path = ["bin"]\n')
+    def test_prebuilt_takes_only_the_repository(self) -> None:
+        write(self.root, "tools.toml", (self.root / "tools.toml").read_text() + 'release = "x"\n')
         with self.assertRaises(config.ConfigError) as err:
             config.load_toolset(self.root / "tools.toml")
-        self.assertIn("path", str(err.exception))
+        self.assertIn("release", str(err.exception))
 
     def test_unpacks_checks_and_keeps(self) -> None:
-        archive = self.archive()
-        self.prebuilt(archive)
+        archive = self.publish()
         with redirect_stdout(io.StringIO()) as out:
             forks.build(self.root, "prebuilt")
         nextpnr = toolchain.folder(self.root, "nextpnr", COMMIT)
@@ -368,8 +372,9 @@ class PrebuiltTest(unittest.TestCase):
         self.assertEqual(config.load_local(self.root / "local.toml", ("suite",)).mode, "prebuilt")
         self.assertIn(f"nextpnr {COMMIT[:12]} ({toolchain.machine()}): fetched and checked", out.getvalue())
         self.assertIn(f"  from    {archive.as_uri()}", out.getvalue())
+        self.assertIn(f"  release {self.served.as_uri()}/releases/tag/forks-{self.key}", out.getvalue())
         # a second build takes the folders as they are, without the archive
-        archive.unlink()
+        shutil.rmtree(self.served)
         shutil.rmtree(self.root / "external/tools/downloads")
         with redirect_stdout(io.StringIO()) as out:
             forks.build(self.root, "prebuilt")
@@ -382,28 +387,53 @@ class PrebuiltTest(unittest.TestCase):
         self.assertIn("source or prebuilt", str(err.exception))
         self.assertFalse((self.root / "local.toml").exists())
 
-    def test_new_suite_needs_a_new_archive(self) -> None:
-        self.prebuilt(self.archive())
+    def test_new_key_has_no_archive_yet(self) -> None:
+        self.publish()
         with redirect_stdout(io.StringIO()):
             forks.build(self.root, "prebuilt")
-        # the suite moves on, [prebuilt] does not: the folders of the old archive must not stay
+        # the suite moves on: the folders of the old key must not stay, the new one has no release
         renew(self.root, "download.suite", "20261102", "20261201")
+        key = toolchain.forks_key(config.load_toolset(self.root / "tools.toml"))
         with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
             forks.build(self.root, "prebuilt")
-        self.assertIn("other forks", str(err.exception))
+        self.assertIn(f"prebuilt forks of key {key}", str(err.exception))
+        self.assertIn("tools build-forks", str(err.exception))
 
     def test_archive_of_another_key_stops(self) -> None:
-        self.prebuilt(self.archive("2" * 12))
+        self.publish(inside="2" * 12)
         with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
             forks.build(self.root, "prebuilt")
-        self.assertIn("other forks", str(err.exception))
+        self.assertIn("forks of another key", str(err.exception))
         self.assertFalse(toolchain.folder(self.root, "nextpnr", COMMIT).exists())
 
-    def test_no_archive_for_this_machine(self) -> None:
-        self.prebuilt(self.archive(), "plan9-mips")
-        with self.assertRaises(StepError) as err:
+    def test_wrong_sha256_stops(self) -> None:
+        archive = self.publish()
+        archive.with_name(archive.name + ".sha256").write_text("0" * 64 + "\n")
+        with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
             forks.build(self.root, "prebuilt")
-        self.assertIn("tools build-forks", str(err.exception))
+        self.assertIn(".sha256 expects " + "0" * 64, str(err.exception))
+
+    def test_pack_writes_the_sha256_beside_the_archive(self) -> None:
+        made = {}
+        for name in toolchain.BUILT:
+            folder = self.root / "made" / name
+            (folder / "bin").mkdir(parents=True)
+            made[name] = forks.Made(folder, "built here")
+        with (
+            unittest.mock.patch.object(forks, "make_forks", return_value=made),
+            unittest.mock.patch.object(forks, "foreign_libraries", return_value=[]),
+            redirect_stdout(io.StringIO()),
+        ):
+            archive = forks.pack(self.root, self.root / "dist")
+        self.assertEqual(archive.name, config.Prebuilt.archive(self.key, toolchain.machine()))
+        sums = archive.with_name(archive.name + ".sha256").read_text()
+        self.assertEqual(sums, f"{toolchain.sha256(archive)}  {archive.name}\n")
+
+    def test_no_archive_for_this_machine(self) -> None:
+        self.publish(machine="plan9-mips")
+        with redirect_stdout(io.StringIO()), self.assertRaises(StepError) as err:
+            forks.build(self.root, "prebuilt")
+        self.assertIn("no SHA-256 of the prebuilt forks", str(err.exception))
         # a mode that failed is not kept
         self.assertFalse((self.root / "local.toml").exists())
 
@@ -631,14 +661,12 @@ class OriginTest(unittest.TestCase):
     """@brief Where tools status says a folder came from, by its marker."""
 
     def test_origins(self) -> None:
-        archive = SimpleNamespace(url="https://x/forks.tar.gz", sha256="a" * 64)
-        toolset = cast(config.Toolset, SimpleNamespace(prebuilt=SimpleNamespace(archives={"m": archive})))
-        self.assertEqual(toolchain.origin(toolset, {"url": "https://x/suite.tgz"}), "https://x/suite.tgz")
-        self.assertEqual(toolchain.origin(toolset, {"archive": "a" * 64}), "https://x/forks.tar.gz")
-        self.assertIn("sha256 bbbbbbbbbbbb", toolchain.origin(toolset, {"archive": "b" * 64}))
-        built = toolchain.origin(toolset, {"repo": "https://x/yosys.git", "commit": "1" * 40})
+        self.assertEqual(toolchain.origin({"url": "https://x/suite.tgz"}), "https://x/suite.tgz")
+        # a marker of the prebuilt forks from before their URL was kept
+        self.assertIn("sha256 bbbbbbbbbbbb", toolchain.origin({"archive": "b" * 64}))
+        built = toolchain.origin({"repo": "https://x/yosys.git", "commit": "1" * 40})
         self.assertEqual(built, "built here from https://x/yosys.git at 111111111111")
-        self.assertEqual(toolchain.origin(toolset, {}), "unknown")
+        self.assertEqual(toolchain.origin({}), "unknown")
 
 
 if __name__ == "__main__":

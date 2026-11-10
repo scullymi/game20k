@@ -76,7 +76,7 @@ def build_all(root: Path, cores: list[Path], logs: Path, board: Path | None = No
             raise StepError(f"the build of {core.name} failed, its log is above")
 
 
-## git describe on the tags that name a version, v<version>, not the tools-<key> of tools.yml
+## git describe on the tags that name a version, v<version>, no other tag
 DESCRIBE = ("describe", "--tags", "--match", "v[0-9]*")
 
 

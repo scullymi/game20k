@@ -13,7 +13,7 @@
     cores                                  prints the core folders in ring order
     sdcard [card]                          makes the ROM files and settings, copies them to the card
     sources <core folder> --out <folder>   prints a core's own sources, for a simulation
-    tools [fetch [names] | build-forks | pack --out <folder> | path <name>]
+    tools [fetch [names] | build-forks | key | pack --out <folder> | path <name>]
                                            the programs of tools.toml: where, fetch, build"""
 
 import sys

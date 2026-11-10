@@ -178,7 +178,8 @@ def main(argv: list[str]) -> int:
         f"{', '.join(toolchain.BUILT)} fetches all three prebuilt forks.",
     )
     tsub.add_parser("build-forks", help="build game20k's forks from their sources instead")
-    tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for tools.yml")
+    tsub.add_parser("key", help="print the key of the forks, which names their prebuilt archive")
+    tk = tsub.add_parser("pack", help="build the forks with static linking into one archive, for the CI")
     tk.add_argument("--out", type=Path, required=True, help="folder for the archive")
     tp = tsub.add_parser("path", help="print the folder a program of tools.toml is taken from")
     tp.add_argument("name", help="a program of tools.toml, e.g. suite")
@@ -250,6 +251,8 @@ def main(argv: list[str]) -> int:
         elif args.command == "tools":
             if args.tools_command == "fetch":
                 fetch_tools(ROOT, args.names)
+            elif args.tools_command == "key":
+                print(toolchain.forks_key(config.load_toolset(ROOT / "tools.toml")))
             elif args.tools_command == "build-forks":
                 forks.build(ROOT, "source")
             elif args.tools_command == "pack":
