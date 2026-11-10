@@ -3,10 +3,14 @@
 """@file
 @brief Tests for the openFPGALoader calls of g20k.py flash."""
 
+import io
 import shutil
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 from tools.engine import config, firmware, flash, host, toolchain
 from tools.engine.host import StepError
@@ -90,6 +94,22 @@ class FlashTest(unittest.TestCase):
         self.built("two")
         fs = write(self.root, "build/c/two/two.fs", "")
         self.assertEqual(flash.command(self.root, self.root / "fpga/two", board=board)[-2:], ["--verify", fs])
+
+    def test_failure_names_the_driver_on_windows(self) -> None:
+        self.built("one")
+        failed = mock.patch(
+            "tools.engine.host.run", side_effect=StepError("openFPGALoader failed with exit code 1")
+        )
+        for name, hint in (("nt", True), ("posix", False)):
+            with (
+                failed,
+                mock.patch.object(flash, "os", SimpleNamespace(name=name)),
+                redirect_stdout(io.StringIO()),
+            ):
+                with self.assertRaises(StepError) as err:
+                    flash.flash(self.root, self.root / "fpga/one", True, None, False)
+            self.assertIn("exit code 1", str(err.exception))
+            self.assertEqual("WinUSB" in str(err.exception), hint, name)
 
 
 class Bl616Test(unittest.TestCase):

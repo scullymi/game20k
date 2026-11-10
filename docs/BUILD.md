@@ -104,6 +104,9 @@ python3 g20k.py release --dev                       # every core as one flash im
 python3 g20k.py flash --image dist/<name>/<name>.bin
 ```
 
+On Windows, `flash` needs the WinUSB driver on the Nano once, see
+[windows-usb.md](windows-usb.md).
+
 [project.toml](../project.toml) lists the cores in the order of their slots in the flash. The
 FPGA loads the first one at power-on. To flash fewer cores, remove the others there and build
 everything again, firmware included. After writing the flash, power the board off and on. A

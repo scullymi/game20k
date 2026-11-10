@@ -11,11 +11,14 @@ WinUSB driver instead. [Zadig](https://zadig.akeo.ie) installs it, once per comp
 4. The current driver on the left is **FTDIBUS**. Choose **WinUSB** as the target on the right
    and click **Replace Driver**.
 
-Interface 1 keeps FTDI's driver and stays a serial port (COM). Afterwards the board shows up:
+Interface 1 keeps FTDI's driver and stays a serial port (COM). Afterwards g20k.py can write the
+board:
 
-```sh
+```bat
 py g20k.py flash --download
 ```
 
-To undo it, open the Device Manager, uninstall **USB Debugger** together with its driver, and
-plug the Nano in again.
+Gowin's Programmer and `programmer_cli` use FTDI's driver on interface 0. To use them again,
+switch back: in the Device Manager, under **Universal Serial Bus devices**, uninstall
+**USB Debugger** (interface 0, now on WinUSB) together with its driver, then plug the Nano in
+again.
