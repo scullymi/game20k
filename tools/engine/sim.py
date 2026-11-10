@@ -470,12 +470,12 @@ def work_folder(root: Path, s: Sim, variant: str, rom_set: str) -> Path:
 
 def run(root: Path, s: Sim, variant: str = "", rom_set: str = "", defines: Sequence[str] = ()) -> None:
     """@brief Runs one simulation, raises StepError when it fails."""
-    if os.name == "nt":
-        raise StepError("the simulations run on Linux and macOS")
     if variant and variant not in s.variants:
         raise StepError(f"{s.name} has the variants {', '.join(s.variants) or 'none'}, not {variant}")
     if rom_set and rom_set not in s.sets:
         raise StepError(f"{s.name} has the sets {', '.join(s.sets) or 'none'}, not {rom_set}")
+    if os.name == "nt":
+        raise StepError("the simulations run on Linux and macOS")
     variant = variant or next(iter(s.variants), "")
     rom_set = rom_set or next(iter(s.sets), "")
     work = work_folder(root, s, variant, rom_set)
