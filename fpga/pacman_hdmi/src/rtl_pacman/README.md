@@ -98,7 +98,8 @@ done
 
 ## Simulation
 
-`fpga/pacman_hdmi/sim/run_sim.sh` runs two testbenches with nvc (VHDL-2008):
+`python3 g20k.py sim mirror` runs three testbenches with nvc (VHDL-2008), described in
+[`sim/sim.toml`](../../sim/sim.toml):
 
 - `tb_mirror_unit.vhd`: the mirror alone, with a model of the core's writes and of the platform.
 - `tb_pacman.vhd`: the core with the mirror, a Z80 test program loaded through the download
@@ -106,5 +107,4 @@ done
   checks the window length, every delivered byte against the monitor and against a literal
   table of FBNeo offsets, the oracle log entry by entry, the catch-up in both orders, a header
   probe, a skipped harvest, the picture phase against the scaler, and a reset during a harvest.
-
-The work library goes to the temporary folder, never into this tree.
+- `tb_framego.vhd`: where the core's mirror tap lies, in both layouts.

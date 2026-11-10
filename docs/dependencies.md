@@ -17,7 +17,7 @@ After such a mail:
 One update at a time:
 
 1. A short branch, for example `deps/pico-sdk-2.3.1`. For a fork, merge its upstream into branch `game20k`, never rebase.
-2. Move the submodule, build the firmware, then `make -C tests/host`, `sh scripts/checks.sh --staged` and `python3 scripts/check_contracts.py`.
+2. Move the submodule, build the firmware, then `python3 g20k.py test`, `python3 g20k.py check --staged` and `python3 scripts/check_contracts.py`.
 3. On the board: start, device key present, ROM known, login and session, achievement list, FTP write protection in hardcore, reset with S1.
 4. Merge into `main`. A release with only dependency updates and fixes raises the patch version (0.1.2, 0.1.3), new features raise the minor version.
 

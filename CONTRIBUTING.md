@@ -15,7 +15,7 @@ approach before you put work into it.
 
 - Build and test as described in [docs/BUILD.md](docs/BUILD.md), and test on the device if your
   change affects it.
-- Run `scripts/checks.sh --staged` before you commit. It runs the host tests and checks for
+- Run `python3 g20k.py check --staged` before you commit. It runs the host tests and checks for
   files that must never be committed.
 - Keep a pull request to one topic, with a short commit message in English.
 - Code, comments and documentation are in English. Comments describe the code as it is, not its
