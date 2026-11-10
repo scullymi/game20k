@@ -71,7 +71,8 @@ Without a Pico, the Nano also runs alone or with an M0S Dock, then without Retro
    ```sh
    python3 g20k.py flash --download
    ```
-   This downloads the flash image of the latest release, checks it and writes it.
+   This downloads the flash image of the latest release, checks it and writes it. On Windows,
+   the Nano needs the WinUSB driver once, see [docs/windows-usb.md](docs/windows-usb.md).
 5. **Flash the Pico.**
    ```sh
    python3 g20k.py firmware --download

@@ -12,6 +12,9 @@ openfpgaloader):
 
   openFPGALoader -b tangnano20k -f --verify {name}.bin
 
+On Windows, the Nano needs the WinUSB driver once: docs/windows-usb.md of the
+repository.
+
 Gowin's programmer_cli works too, given the full path of the file:
 
   programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/{name}.bin" --spiaddr 0x000000
