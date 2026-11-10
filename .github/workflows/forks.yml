@@ -1,0 +1,220 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# The programs of game20k's forks (Apicula, nextpnr and Yosys, from the commits of tools.toml) for
+# the key of this commit, as python3 g20k.py tools fetch takes them: on the release forks-<key> of
+# the repository [prebuilt] in tools.toml names, one archive per kind of machine with its SHA-256
+# in a file beside it. The key (python3 g20k.py tools key) names what the archives are made of:
+# the commits of the forks, the version of the suite and the text of tools/engine/forks.py.
+#
+# Called by bitstreams.yml before it builds. When every archive of the key is there, this ends
+# after the check. Else it builds the forks with static linking on each kind of machine, each
+# archive with a build provenance attestation, and publishes them, once per key. The release
+# lives in its own repository, so that game20k's release page shows
+# only its versions. Publishing there needs the GitHub App of variable TOOLS_APP_CLIENT_ID and
+# secret TOOLS_APP_KEY, installed on that repository only.
+name: Forks
+
+on:
+  workflow_call:
+    outputs:
+      key:
+        description: the key of the forks of this commit
+        value: ${{ jobs.check.outputs.key }}
+
+permissions:
+  contents: read
+
+jobs:
+  # the key, and whether its archives are there for every kind of machine
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      key: ${{ steps.check.outputs.key }}
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # an archive counts once its .sha256 is there, the publish job uploads that last
+      - name: Archives of the key
+        id: check
+        run: |
+          key=$(python3 g20k.py tools key)
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+          build=false
+          for m in darwin-arm64 linux-x64 windows-x64; do
+            url=$(python3 -c 'import sys; from pathlib import Path; from tools.engine import config
+          print(config.load_toolset(Path("tools.toml")).prebuilt.url(sys.argv[1], sys.argv[2]))' "$key" "$m")
+            if curl --fail --silent --location --head --output /dev/null "$url.sha256"; then
+              echo "there: $url"
+            else
+              echo "missing: $url"; build=true
+            fi
+          done
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
+  pack:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    strategy:
+      # each machine to its end: a failed one can be run again alone
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04    # linux-x64, fully static
+            python: python3
+          - os: macos-15        # darwin-arm64, Boost static, runs on macOS 15 and later
+            python: python3
+          - os: windows-2025    # windows-x64, Boost and the C++ runtime static
+            python: python
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # what building nextpnr needs besides cmake and ninja of tools.toml, Boost with its static
+      # libraries and those of the compression libraries static Boost iostreams names, and Flex
+      # and Bison for Yosys
+      - name: Build dependencies (apt)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex bison libboost-program-options-dev \
+            libboost-iostreams-dev libboost-thread-dev libboost-filesystem-dev \
+            libbz2-dev liblzma-dev zlib1g-dev libzstd-dev
+
+      # LIBRARY_PATH: the linker finds the libraries static Boost names in Homebrew's folder
+      - name: Build dependencies (Homebrew)
+        if: runner.os == 'macOS'
+        run: |
+          brew install boost flex bison
+          echo "LIBRARY_PATH=$(brew --prefix)/lib" >> "$GITHUB_ENV"
+
+      # MSVC's environment (cl, dumpbin) for the steps after this one, and Boost
+      # built static by vcpkg, which cmake finds through CMAKE_PREFIX_PATH: vcpkg's toolchain
+      # file takes its triplet only from the cmake command line. nextpnr calls none of the
+      # compression libraries of Boost iostreams. Flex and Bison for Yosys as its own CI gets them
+      - name: Build dependencies (MSVC, vcpkg)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" > nul && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') { "$($Matches[1])=$($Matches[2])" >> $env:GITHUB_ENV }
+          }
+          choco install winflexbison3 --no-progress
+          "C:\ProgramData\chocolatey\lib\winflexbison3\tools" >> $env:GITHUB_PATH
+          vcpkg install --triplet x64-windows-static boost-program-options "boost-iostreams[core]" boost-thread boost-filesystem
+          "CMAKE_PREFIX_PATH=$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows-static" >> $env:GITHUB_ENV
+
+      # the suite's Python makes nextpnr's chip database, cmake and ninja build the forks
+      - name: Archives (g20k.py tools fetch)
+        run: ${{ matrix.python }} g20k.py tools fetch suite ghdl cmake ninja
+
+      - name: Forks (g20k.py tools pack)
+        run: ${{ matrix.python }} g20k.py tools pack --out dist
+
+      - name: Build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*.tar.gz
+
+      # each file as it is, not zipped again: the artifact takes its name
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.tar.gz
+          archive: false
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/*.tar.gz.sha256
+          archive: false
+          if-no-files-found: error
+
+  # the only job that writes to the repository of the archives, once every archive exists. One
+  # run per key at a time: a second run of the same key (a tag on a pushed commit, two branches)
+  # waits and then finds the archives there
+  publish:
+    needs: [check, pack]
+    if: needs.check.outputs.build == 'true'
+    concurrency:
+      group: forks-${{ needs.check.outputs.key }}
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: game20k-forks-*
+          merge-multiple: true
+          path: dist
+
+      - name: Repository of the archives
+        id: repo
+        run: |
+          url=$(python3 -c 'from pathlib import Path; from tools.engine import config
+          print(config.load_toolset(Path("tools.toml")).prebuilt.repository)')
+          name=${url#https://github.com/}
+          {
+            echo "name=$name"
+            echo "owner=${name%%/*}"
+            echo "repo=${name#*/}"
+          } >> "$GITHUB_OUTPUT"
+
+      # a token for that repository alone, valid for this job
+      - name: Token of the GitHub App
+        id: token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.TOOLS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.TOOLS_APP_KEY }}
+          owner: ${{ steps.repo.outputs.owner }}
+          repositories: ${{ steps.repo.outputs.repo }}
+
+      # game20k-forks-<key>-<machine>.tar.gz: the key of the check job for all, else a job built
+      # from another state. An archive with its .sha256 on the release is final and stays. Else
+      # both go up, the archive first, replacing what an earlier run left: two builds of the same
+      # key differ in their bytes (tar records times), so only a pair from one build fits.
+      - name: Release forks-<key>
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          KEY: ${{ needs.check.outputs.key }}
+          REPO: ${{ steps.repo.outputs.name }}
+        run: |
+          ls -l dist
+          keys=$(ls dist | sed -E 's/^game20k-forks-([0-9a-f]{12})-.*/\1/' | sort -u)
+          [ "$keys" = "$KEY" ] || { echo "the archives name $keys, the check job has $KEY"; exit 1; }
+          TAG="forks-$KEY"
+          # what the key names: the sources of tools.toml, the suite and the recipe
+          python3 -c 'import tomllib; t = tomllib.load(open("tools.toml", "rb"))
+          for n, s in t["source"].items(): print("-", n, s["repo"], s["commit"])
+          print("- suite", t["download"]["suite"]["version"])' > notes.md
+          echo "- recipe tools/engine/forks.py at $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" >> notes.md
+          gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1 ||
+            gh release create "$TAG" --repo "$REPO" --title "game20k forks $KEY" --notes-file notes.md ||
+            gh release view "$TAG" --repo "$REPO" > /dev/null
+          have=$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name')
+          for f in dist/*.tar.gz; do
+            n=$(basename "$f")
+            if grep -qxF "$n.sha256" <<< "$have"; then
+              echo "there: $n"
+            else
+              gh release upload "$TAG" "$f" --repo "$REPO" --clobber
+              gh release upload "$TAG" "$f.sha256" --repo "$REPO" --clobber
+            fi
+          done
+          echo "Forks $KEY: $GITHUB_SERVER_URL/$REPO/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
