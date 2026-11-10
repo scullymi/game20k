@@ -41,6 +41,7 @@ args = ["+dir={work}/img"]
 [audio]
 about = "audio_cdc.sv: the audio word into HDMI's sample packets at every core clock, against the former path"
 ci = true
+timescale = "1ns/1ps"
 run = "sim.py:audio"
 
 [mcu]

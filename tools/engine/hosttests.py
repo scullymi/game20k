@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 from tools.engine import host
@@ -45,13 +46,17 @@ class Result:
     code: int
     output: str
 
+    @cached_property
+    def summary(self) -> tuple[int, int, int] | None:
+        return summary(self.output)
+
     @property
     def counts(self) -> tuple[int, int, int]:
-        return summary(self.output) or (0, 0, 0)
+        return self.summary or (0, 0, 0)
 
     @property
     def passed(self) -> bool:
-        s = summary(self.output)
+        s = self.summary
         return self.code == 0 and s is not None and s[0] > 0 and s[1] == 0
 
     @property
@@ -59,7 +64,7 @@ class Result:
         """@brief Why it failed, empty when it passed."""
         if self.passed:
             return ""
-        s = summary(self.output)
+        s = self.summary
         if s is None:
             return f"no Unity summary, exit status {self.code}"
         if s[0] == 0:

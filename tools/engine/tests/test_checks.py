@@ -260,6 +260,16 @@ class PushTest(Base):
             "FINDING secrets: 1 lines hold a TOKEN value",
         )
 
+    def test_token_in_a_tag_on_a_tree(self) -> None:
+        # no commit behind it, still the push carries its message
+        tree = self.r.git("rev-parse", "HEAD^{tree}")
+        self.r.git("tag", "-a", "t", tree, "-m", f"tree {FAKE_TOKEN}")
+        oid = self.r.git("rev-parse", "t")
+        self.assertRed(
+            self.checks("push", stdin=f"refs/tags/t {oid} refs/tags/t {'0' * 40}\n"),
+            "FINDING secrets: 1 lines hold a TOKEN value",
+        )
+
     def test_crlf_lost_in_a_middle_commit(self) -> None:
         self.r.write("fpga/x.vhd", CRLF_TEXT.replace(b"\r\n", b"\n"))
         self.r.commit("lf")

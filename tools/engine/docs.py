@@ -35,7 +35,12 @@ def docs(root: Path, fork: Path | None) -> Path:
     warnings = out / "warnings.txt"
     # Doxygen writes its log only when it has something to say
     warnings.unlink(missing_ok=True)
-    host.run(["doxygen", root / "scripts" / "Doxyfile"], cwd=root, env={"FORK": str(fork), "OUT": str(out)})
+    host.run(
+        ["doxygen", root / "scripts" / "Doxyfile"],
+        cwd=root,
+        env={"FORK": str(fork), "OUT": str(out)},
+        capture=False,
+    )
     text = warnings.read_text(encoding="utf-8", errors="replace") if warnings.is_file() else ""
     if text.strip():
         print("Doxygen warnings:")

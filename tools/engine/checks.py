@@ -177,18 +177,19 @@ class Scan:
         """@brief The tips and commits of a push from the hook's lines, "<local ref> <local oid>
         <remote ref> <remote oid>" each, and the text they carry. False when nothing goes out."""
         tags = b""
-        has_tags = False
+        refs = 0
         for line in stdin.splitlines():
             lref, loid, _, roid = (line.split(maxsplit=3) + ["", "", "", ""])[:4]
             # a deletion carries nothing
             if not nonzero(loid):
                 continue
+            refs += 1
+            # a tag on a tree or a blob has no commit: rev-list below fails and reports it
             tip = self.git("rev-parse", f"{loid}^{{commit}}").stdout.decode().strip()
             if tip:
                 self.tips.append(tip)
             if self.git("cat-file", "-t", loid, quiet=True).stdout.strip() == b"tag":
                 tags += self.git("cat-file", "tag", loid).stdout
-                has_tags = True
             args = [loid, "--not", f"--remotes={self.remote}" if self.remote else "--remotes"]
             if nonzero(roid) and self.ok("cat-file", "-e", f"{roid}^{{commit}}"):
                 args.append(roid)
@@ -197,7 +198,7 @@ class Scan:
             if p.returncode != 0:
                 self.finding(f"push: cannot list the commits of {lref}")
         self.commits = sorted(set(self.commits))
-        if not self.tips:
+        if not refs:
             self.say("nothing outgoing")
             return False
         # everything the commits carry, messages included: as text for the long values, with
@@ -214,7 +215,7 @@ class Scan:
         self.sample = f"{len(self.commits)} commits, {lines} lines"
         # a ref whose commits are all on the remote already (a renamed branch, a second name): no
         # new text leaves, so an empty text is no blind scan
-        if not self.commits and not has_tags:
+        if not self.commits and not tags:
             self.sample = f"no new commits, all on {self.remote or 'the remote'} already"
         return True
 

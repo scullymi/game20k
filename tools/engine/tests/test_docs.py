@@ -29,7 +29,7 @@ class DocsTest(unittest.TestCase):
         """docs() with a Doxygen that writes warnings (none when empty) and the calls it got."""
         calls: list[tuple[list[object], dict[str, str]]] = []
 
-        def doxygen(cmd: list[object], *, cwd: Path, env: dict[str, str]) -> str:
+        def doxygen(cmd: list[object], *, cwd: Path, env: dict[str, str], capture: bool) -> str:
             calls.append((cmd, env))
             if warnings:
                 Path(env["OUT"], "warnings.txt").write_text(warnings)

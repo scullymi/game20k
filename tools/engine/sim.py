@@ -13,7 +13,7 @@ A sim.toml holds one table per simulation, named as g20k.py sim takes it:
     run = "sim.py:audio"          a function of a file next to it, which does the whole run
     core = ".."                   a core folder: its sources as the build reads them (g20k.py
                                   sources), in a bench's files where "{core}" stands
-    files = [...]                 nvc: the files every bench is analysed from
+    files = [...]                 nvc: the files every bench is analyzed from
     flags = [...]                 more options for Verilator
     timescale = "1ns/1ps"         Verilator's --timescale
     sets = ["1942", "vulgus"]     ROM sets, the first one by default: <core>/<set>.manifest
@@ -123,7 +123,14 @@ class Sheet:
 
 @dataclass
 class Sim:
-    """@brief One simulation of a sim.toml, the fields as the file describes them."""
+    """@brief One simulation of a sim.toml, the fields as the file describes them (see the top of
+    this file).
+
+    - name, folder: its table and the folder of its sim.toml
+    - about, ci, tool, run, core, files, flags, timescale, sets, variants, fetch: the keys
+    - rom_words, rom_bytes: rom.words and rom.bytes
+    - frames_dir, frames_reference: frames.dir and frames.reference
+    - sheets, sheet_script, benches: the keys sheets, sheet_script and the [[<name>.bench]]"""
 
     name: str
     folder: Path
@@ -288,12 +295,15 @@ class Context:
         cmd += ["--top-module", top, "-Mdir", mdir, *VERILATOR_FLAGS, *self.sim.flags, *flags]
         cmd += [f"+define+{d}" for d in self.defines]
         log = self.work / f"build_{mdir.name}.log"
-        try:
-            host.run([*cmd, *files], cwd=self.work, stdout=log, stderr=log)
-        except StepError:
+        # one file for both streams, in the order Verilator, make and the compiler write them
+        with open(log, "w", encoding="utf-8") as f:
+            code = subprocess.run(
+                [str(c) for c in [*cmd, *files]], cwd=self.work, stdout=f, stderr=subprocess.STDOUT
+            ).returncode
+        if code != 0:
             tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-60:]
             print("\n".join(tail))
-            raise StepError(f"Verilator could not build {top}, see {log}") from None
+            raise StepError(f"Verilator could not build {top}, see {log}")
         return mdir / f"V{top}"
 
     def run(self, cmd: Sequence[host.Arg], log: Path, show: bool = True) -> tuple[int, list[str]]:
@@ -480,10 +490,16 @@ def run(root: Path, s: Sim, variant: str = "", rom_set: str = "", defines: Seque
     # the folder the benches write their frames into
     if s.frames_dir:
         (work / s.frames_dir).mkdir(parents=True, exist_ok=True)
-    if s.tool == "nvc":
-        run_nvc(ctx)
-    else:
-        run_verilator(ctx)
+    try:
+        run_nvc(ctx) if s.tool == "nvc" else run_verilator(ctx)
+    except StepError:
+        # the sheets of the frames there, to look at what failed
+        if s.sheets:
+            try:
+                make_sheets(ctx)
+            except StepError:
+                pass
+        raise
     if s.frames_reference:
         check_frames(ctx)
     if s.sheets:
