@@ -20,6 +20,7 @@ from tools.engine import (
     published,
     release,
     sdcard,
+    sim,
     toolchain,
 )
 from tools.engine.flow import build
@@ -222,6 +223,23 @@ def main(argv: list[str]) -> int:
     k.add_argument("--fork", action="store_true", help="the fork checkout external/FPGA-Companion instead")
     k.add_argument("--base", default="", help="with --ci: compare the line ends with this commit")
     k.add_argument("remote", nargs="*", help="with --push: the remote and its URL, as the hook gets them")
+    m = sub.add_parser("sim", help="run a simulation of a sim.toml, without a name all that the CI runs")
+    m.add_argument(
+        "name", nargs="?", default="", help="a simulation, e.g. screen or 1942 (--list shows them)"
+    )
+    m.add_argument("variant", nargs="?", default="", help="its variant, e.g. path, default the first one")
+    m.add_argument(
+        "--set", dest="rom_set", default="", help="its ROM set, e.g. vulgus, default the first one"
+    )
+    m.add_argument(
+        "-D",
+        dest="defines",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="a Verilator define, e.g. HIGEDBG",
+    )
+    m.add_argument("--list", action="store_true", help="list the simulations")
     o = sub.add_parser("docs", help="build the Doxygen pages of game20k's sources in the fork")
     o.add_argument("--fork", type=Path, help="a checkout of the fork in place of external/FPGA-Companion")
     args = ap.parse_args(argv)
@@ -317,6 +335,8 @@ def main(argv: list[str]) -> int:
             sdcard.make(ROOT, args.target.resolve() if args.target else None)
         elif args.command == "test":
             hosttests.test(ROOT, sanitize=not args.no_san, verbose=args.verbose)
+        elif args.command == "sim":
+            sim.main(ROOT, args.name, args.variant, args.rom_set, args.defines, args.list)
         elif args.command == "docs":
             docs.docs(ROOT, args.fork)
         elif args.command == "cores":

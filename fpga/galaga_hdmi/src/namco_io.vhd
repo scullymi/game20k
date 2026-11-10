@@ -14,7 +14,7 @@
 --!
 --! Unlike MAME, the chip selects follow NMI by CS_DELAY clocks. With both at once, the MCUs
 --! read a byte about 5 to 15 us after the main CPU's NMI handler writes it, and a handler a
---! few us later than in MAME leaves them the old byte (measured with tb_namco54.vhd). Then
+--! few us later than in MAME leaves them the old byte (measured in simulation). Then
 --! the 54XX takes wrong explosion parameters, depending on the phase at reset.
 --!
 --! 51XX: an MB8843 (mb88 with 64 nibbles of RAM) on chip select 0. K is R/W and the low

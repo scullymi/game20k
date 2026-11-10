@@ -2,7 +2,7 @@
 // Copyright (C) 2026 scullymi
 // Testbench for ra_overlay.sv: draws one whole 1280x720 frame per banner position, with a
 // fixed text, the banner gold and new and a challenge on, and writes each frame as
-// $WORK/ra_<game>_<position>.ppm. run_screen_sim.sh compares the files with
+// $WORK/ra_<game>_<position>.ppm. g20k.py sim screen compares the files with
 // ref_screen.sha256. Two raster geometries, computed as game20k_top.sv computes them:
 // Galaga (288 x 224) and 1942 (256 x 224).
 //

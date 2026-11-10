@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# 1943 (game_core with jotego's jt1943) with Verilator, after ../../g1942_hdmi/sim/sim.toml:
+# python3 g20k.py sim 1943 [port|path|fb|diag] [--set 1943mii]. Ten seconds of the game, a
+# coin and a start, every 30th frame written out, late ROM data counted. Needs roms/<set>.zip.
+# tools/engine/sim.py describes the keys.
+#
+#   port   the ROM buses read through a model of rom_sdram's read stream
+#   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model
+#   fb     path, and the upright picture: sdram_share.sv puts the frame buffer next to the ROM
+#   diag   fb with the core's diagnostic counters
+
+[1943]
+about = "ten seconds of 1943 or 1943 Kai with a coin and a start, late ROM data counted"
+core = ".."
+sets = ["1943", "1943mii"]
+variants = { port = [], path = ["ROM_PATH"], fb = ["ROM_PATH", "FB_PATH"], diag = ["ROM_PATH", "FB_PATH", "DIAG"] }
+flags = ["-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD", "+define+TV80S"]
+frames = { dir = "frames" }
+sheet_script = "../../g1942_hdmi/sim/ppm2png.py"
+sheets = [
+  { png = "frames_{variant}.png", frames = ["frames/f0060.ppm", "frames/f0120.ppm", "frames/f0180.ppm", "frames/f0300.ppm", "frames/f0450.ppm", "frames/f0600.ppm"] },
+  { png = "upright_fb.png", variant = "fb", frames = ["frames/u0119.ppm", "frames/u0179.ppm", "frames/u0299.ppm", "frames/u0419.ppm", "frames/u0539.ppm"] },
+]
+
+# the PROM and palette sections
+[1943.rom]
+words = "rom32.hex"
+bytes."proms.hex" = { from = 0xD9000, to = 0xD9F00 }
+
+[[1943.fetch]]
+name = "T80s.v"
+url = "https://raw.githubusercontent.com/jotego/jtcores/548b87b32a1b528a16cb41f689accb179e85d1a8/modules/jtframe/hdl/cpu/t80/T80s.v"
+blob = "6baa20633ae0d8bf389290b7252b74490bba62bd"
+
+[[1943.bench]]
+top = "tb_1943"
+files = [
+  "{work}/T80s.v", "{work}/gen/iface_pkg.sv", "{core}",
+  "../../common/src/rom_slots.sv", "../../common/src/sdram_fb.v", "../../common/src/rom_sdram.sv",
+  "../../common/src/sdram_share.sv", "../../common/src/fb_pack.sv", "../../common/src/fb_read_rotated.sv",
+  "tb_1943.sv",
+]

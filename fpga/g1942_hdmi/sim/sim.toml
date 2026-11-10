@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# 1942, Vulgus and Higemaru (game_core with jotego's jt1942) with Verilator: python3 g20k.py sim
+# 1942 [port|path|fb] [--set vulgus|higemaru] [-D HIGEDBG]. Ten seconds of the game, attract
+# mode, a coin and a start, every 30th frame written out, one PNG sheet of the frames, turned
+# upright. tools/engine/sim.py describes the keys.
+#
+#   port   the ROM buses read through a model of rom_sdram's read port, latency as measured
+#   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model
+#   fb     path, and the upright picture as on the device: sdram_share.sv puts the frame
+#          buffer (fb_pack.sv, fb_read_rotated.sv) next to the ROM on the controller
+#
+# Needs roms/<set>.zip: the ROM image is built from it with make_rom.py, as for the SD card.
+# The Z80 in Verilog, jtframe's T80s.v, comes from jtcores at the commit our copy is from. It
+# is a machine translation of the T80 without its license header, so it is fetched, not kept
+# in this tree.
+
+[1942]
+about = "ten seconds of 1942, Vulgus or Higemaru with a coin and a start, a PNG sheet of the frames"
+core = ".."
+sets = ["1942", "vulgus", "higemaru"]
+variants = { port = [], path = ["ROM_PATH"], fb = ["ROM_PATH", "FB_PATH"] }
+flags = ["-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD", "+define+TV80S"]
+frames = { dir = "frames" }
+sheet_script = "ppm2png.py"
+sheets = [
+  { png = "frames_{variant}.png", frames = ["frames/f0060.ppm", "frames/f0120.ppm", "frames/f0180.ppm", "frames/f0300.ppm", "frames/f0450.ppm", "frames/f0600.ppm"] },
+  { png = "upright_fb.png", variant = "fb", frames = ["frames/u0119.ppm", "frames/u0179.ppm", "frames/u0299.ppm", "frames/u0419.ppm", "frames/u0539.ppm"] },
+]
+
+# the PROMs, and the id section of Vulgus and Higemaru (none for 1942)
+[1942.rom]
+words = "rom32.hex"
+bytes."proms.hex" = { from = 0x3A000, to = 0x3AA00 }
+bytes."id.hex" = { from = 0x3AA00, to = 0x3AB00, define = "ID_SECTION" }
+
+[[1942.fetch]]
+name = "T80s.v"
+url = "https://raw.githubusercontent.com/jotego/jtcores/548b87b32a1b528a16cb41f689accb179e85d1a8/modules/jtframe/hdl/cpu/t80/T80s.v"
+blob = "6baa20633ae0d8bf389290b7252b74490bba62bd"
+
+# the core's sources as the build reads them, the VHDL T80 replaced by T80s.v
+[[1942.bench]]
+top = "tb_1942"
+files = [
+  "{work}/T80s.v", "{work}/gen/iface_pkg.sv", "{core}",
+  "../../common/src/rom_slots.sv", "../../common/src/sdram_fb.v", "../../common/src/rom_sdram.sv",
+  "../../common/src/sdram_share.sv", "../../common/src/fb_pack.sv", "../../common/src/fb_read_rotated.sv",
+  "tb_1942.sv",
+]

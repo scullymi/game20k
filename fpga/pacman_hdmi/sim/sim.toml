@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# The Pac-Man RAM mirror with nvc (VHDL-2008), no ROM needed: python3 g20k.py sim mirror.
+# game_core.sv is not covered: nvc cannot elaborate a SystemVerilog parent over a VHDL entity,
+# the build checks the wrapper. tools/engine/sim.py describes the keys.
+
+[mirror]
+about = "the RAM mirror alone (Pac-Man's and Jr. Pac-Man's layout), the whole core with a Z80 program, the mirror tap"
+ci = true
+tool = "nvc"
+files = [
+  "../src/rtl_T80/T80_Pack.vhd", "../src/rtl_T80/T80_ALU.vhd", "../src/rtl_T80/T80_MCode.vhd",
+  "../src/rtl_T80/T80_Reg.vhd", "../src/rtl_T80/T80.vhd", "../src/rtl_T80/T80sed.vhd",
+  "../src/rtl_pacman/g20k_dpram.vhd", "../src/rtl_pacman/sn76489_top.vhd", "../src/rtl_pacman/ym2149.vhd",
+  "../src/rtl_pacman/pacman_vram_addr.vhd", "../src/rtl_pacman/pacman_video.vhd",
+  "../src/rtl_pacman/pacman_audio.vhd", "../src/rtl_pacman/pacman_rom_descrambler.vhd",
+  "../src/rtl_pacman/pacman.vhd", "../src/rtl_pacman/pacman_mirror.vhd",
+  "tb_mirror_unit.vhd", "tb_pacman.vhd", "tb_framego.vhd",
+]
+
+# the mirror against a core emulator and a platform model
+[[mirror.bench]]
+top = "tb_mirror_unit"
+
+[[mirror.bench]]
+top = "tb_mirror_unit"
+generics = { JR = "true" }
+
+# the whole core with the mirror and a hand-assembled Z80 program
+[[mirror.bench]]
+top = "tb_pacman"
+
+# where the core's mirror tap lies
+[[mirror.bench]]
+top = "tb_framego"
+
+[[mirror.bench]]
+top = "tb_framego"
+generics = { JR = "true" }

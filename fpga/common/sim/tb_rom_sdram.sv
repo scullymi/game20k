@@ -8,7 +8,7 @@
 // reads streamed with as many in flight as rd_ready allows. The data is generated, no
 // ROM is needed. The SDRAM model samples on the falling edge of clk_sdram (the board's
 // lagging clock phase) and counts every ACTIVATE on a bank that is still open or still
-// precharging. Ends with PASS or $fatal. Run by run_sim.sh.
+// precharging. Ends with PASS or $fatal. Run by g20k.py sim rom_sdram.
 `timescale 1ns/1ps
 module tb_rom_sdram;
     localparam int NBYTES = 32'h3A000;    // the sdram sections of 1942.manifest

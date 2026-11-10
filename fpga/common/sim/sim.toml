@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 scullymi
+#
+# The simulations of the shared platform, none needs a ROM: python3 g20k.py sim <name>, all of
+# them with python3 g20k.py sim, as the CI runs them. tools/engine/sim.py describes the keys.
+
+[rom_sdram]
+about = "rom_sdram.sv with the real sdram_fb.v and an SDRAM model"
+ci = true
+
+[[rom_sdram.bench]]
+top = "tb_rom_sdram"
+files = ["../src/sdram_fb.v", "../src/rom_sdram.sv", "tb_rom_sdram.sv"]
+
+# the banner and the OSD write whole 1280x720 frames, each one must match its SHA-256
+[screen]
+about = "screen layouts: screen_sel.sv, banner and OSD as frames, frame lock of scaler and HDMI"
+ci = true
+frames = { dir = "img", reference = "ref_screen.sha256" }
+
+[[screen.bench]]
+top = "tb_screen_sel"
+files = ["../src/screen_sel.sv", "tb_screen_sel.sv"]
+args = ["+dir={work}/img"]
+
+[[screen.bench]]
+top = "tb_ra_overlay"
+files = ["../src/ra_overlay.sv", "tb_ra_overlay.sv"]
+args = ["+dir={work}/img"]
+
+[[screen.bench]]
+top = "tb_osd_u8g2"
+files = ["../src/misc/osd_u8g2.v", "tb_osd_u8g2.sv"]
+args = ["+dir={work}/img"]
+
+[[screen.bench]]
+top = "tb_scaler_sync"
+files = ["../src/arcade_scaler.sv", "tb_scaler_sync.sv"]
+args = ["+dir={work}/img"]
+
+[audio]
+about = "audio_cdc.sv: the audio word into HDMI's sample packets at every core clock, against the former path"
+ci = true
+run = "sim.py:audio"
+
+[mcu]
+about = "what the upstream Companion firmware needs: rom_loader.sv, and each core's menu on READ_CFG"
+ci = true
+run = "sim.py:mcu"

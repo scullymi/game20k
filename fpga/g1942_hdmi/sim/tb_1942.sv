@@ -11,7 +11,7 @@
 // The character ROM, the PROMs and the id section of Vulgus and Higemaru come over the
 // loader's write port while the core is in reset. A coin and a start follow, so the frames
 // show the game itself. Every FRAME_EVERY-th frame is written as frames/fNNNN.ppm, the raw
-// raster (256 x 224, as the core sends it). Run by run_sim.sh, which writes rom32.hex,
+// raster (256 x 224, as the core sends it). Run by g20k.py sim 1942 (sim.toml), which writes rom32.hex,
 // proms.hex and id.hex into its work folder.
 `timescale 1ns/1ps
 module tb_1942;
