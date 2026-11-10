@@ -20,7 +20,7 @@ roms/*
 
 # --- RetroAchievements data and ROM names, never in the repository ---
 # Sets and code notes belong to RetroAchievements, the card files of the client carry the
-# account's state, the other names are ROM sets. scripts/checks.sh refuses a staged or pushed
+# account's state, the other names are ROM sets. g20k.py check refuses a staged or pushed
 # file that matches this list, git add -f included.
 gg1_*
 prom-*

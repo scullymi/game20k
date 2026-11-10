@@ -5,7 +5,7 @@
 // rotate/flip pair and HDMI frame height (768 Galaga, 786 1942, 816 a 57.44 Hz core), with
 // hs and vs formed from cx and cy as game20k_top.sv forms them. The picture behind the OSD
 // is a gradient, so the shadow and the darkened background show in the file. Each frame goes
-// to $WORK/osd_<frame height>_r<rotate>f<flip>.ppm, run_screen_sim.sh compares the files with
+// to $WORK/osd_<frame height>_r<rotate>f<flip>.ppm, g20k.py sim screen compares the files with
 // ref_screen.sha256. Prints where the box lies. Ends with PASS.
 `timescale 1ns/1ps
 `default_nettype none

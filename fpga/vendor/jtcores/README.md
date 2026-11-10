@@ -43,8 +43,8 @@ uses the standard BSD licence.
 
 For simulation with Verilator, which reads no VHDL, JTFRAME has a Verilog translation of the
 T80, `modules/jtframe/hdl/cpu/t80/T80s.v`. It carries no licence header, so it is not copied
-here: each core's `sim/run_sim.sh` fetches it from the same jtcores commit and checks its git
-blob hash.
+here: the simulations of 1942 and 1943 (`sim/sim.toml`) fetch it from the same jtcores commit
+and check its git blob hash.
 
 ## What changed, and why
 

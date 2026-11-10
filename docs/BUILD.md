@@ -134,6 +134,22 @@ off.
 come from GitHub Actions, and `gh attestation verify <zip> -R scullymi/game20k` confirms that a
 zip was built there.
 
+## 4. Checks, tests and simulations
+
+```sh
+python3 g20k.py check --staged   # before a commit: secrets, ignored files, line ends, host tests
+python3 g20k.py test             # the host tests of the firmware alone, see tests/README.md
+python3 g20k.py sim              # the simulations the CI runs
+python3 g20k.py sim --list       # every simulation with its variants and ROM sets
+python3 g20k.py sim 1942 path    # one of them, 1942 and 1943 need their ROM zips in roms/
+python3 g20k.py docs             # the Doxygen pages of game20k's sources in the fork
+```
+
+Each simulation folder describes its simulations in a `sim.toml`. They run on Linux and macOS,
+with Verilator from the suite. The Pac-Man simulation needs nvc and `docs` needs Doxygen, which
+the suite lacks: `brew install nvc doxygen` on macOS, on Ubuntu the release package of
+[nvc](https://github.com/nickg/nvc/releases) and `apt install doxygen`.
+
 ## Debugging
 
 The firmware logs on **GP0 (TX) at 921600 baud**, see

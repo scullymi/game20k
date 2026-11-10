@@ -9,7 +9,20 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, firmware, flash, forks, published, release, sdcard, toolchain
+from tools.engine import (
+    checks,
+    config,
+    docs,
+    firmware,
+    flash,
+    forks,
+    hosttests,
+    published,
+    release,
+    sdcard,
+    sim,
+    toolchain,
+)
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
@@ -187,7 +200,60 @@ def main(argv: list[str]) -> int:
     s.add_argument("core", type=Path, help="core folder, e.g. fpga/g1943_hdmi")
     s.add_argument("--out", type=Path, required=True, help="folder for the generated sources (in gen/)")
     s.add_argument("--include", action="store_true", help="print the include folders instead")
+    h = sub.add_parser("test", help="build and run the host tests of the firmware (tests/host)")
+    h.add_argument(
+        "-v", "--verbose", action="store_true", help="print the compiler lines and every test line"
+    )
+    h.add_argument(
+        "--no-san", action="store_true", help="without AddressSanitizer and UndefinedBehaviorSanitizer"
+    )
+    k = sub.add_parser(
+        "check", help="scan what leaves this machine: secrets, paths, RA conditions, line ends, host tests"
+    )
+    mode = k.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--staged", dest="mode", action="store_const", const="staged", help="the index")
+    mode.add_argument(
+        "--push",
+        dest="mode",
+        action="store_const",
+        const="push",
+        help="the outgoing commits, from the stdin lines of a pre-push hook",
+    )
+    mode.add_argument("--ci", dest="mode", action="store_const", const="ci", help="the tracked files")
+    k.add_argument("--fork", action="store_true", help="the fork checkout external/FPGA-Companion instead")
+    k.add_argument("--base", default="", help="with --ci: compare the line ends with this commit")
+    k.add_argument("remote", nargs="*", help="with --push: the remote and its URL, as the hook gets them")
+    m = sub.add_parser("sim", help="run a simulation of a sim.toml, without a name all that the CI runs")
+    m.add_argument(
+        "name", nargs="?", default="", help="a simulation, e.g. screen or 1942 (--list shows them)"
+    )
+    m.add_argument("variant", nargs="?", default="", help="its variant, e.g. path, default the first one")
+    m.add_argument(
+        "--set", dest="rom_set", default="", help="its ROM set, e.g. vulgus, default the first one"
+    )
+    m.add_argument(
+        "-D",
+        dest="defines",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="a Verilator define, e.g. HIGEDBG",
+    )
+    m.add_argument("--list", action="store_true", help="list the simulations")
+    o = sub.add_parser("docs", help="build the Doxygen pages of game20k's sources in the fork")
+    o.add_argument("--fork", type=Path, help="a checkout of the fork in place of external/FPGA-Companion")
     args = ap.parse_args(argv)
+    if args.command == "check" and args.remote and (args.mode != "push" or len(args.remote) > 2):
+        k.error("REMOTE [URL] go with --push")
+    if args.command == "check" and args.base and args.mode != "ci":
+        k.error("--base goes with --ci")
+    if args.command == "check":
+        stdin = sys.stdin.read() if args.mode == "push" else ""
+        remote = args.remote[0] if args.remote else ""
+        try:
+            return checks.check(ROOT, args.mode, args.fork, args.base, remote, stdin)
+        except KeyboardInterrupt:
+            return 2
     if args.command == "flash" and not (args.core or args.image or args.bl616 or args.download):
         f.error("give a core, --image, --download or --bl616")
     if args.command == "flash" and args.download and (args.core or args.image or args.sram):
@@ -267,6 +333,12 @@ def main(argv: list[str]) -> int:
                 print(p.as_posix())
         elif args.command == "sdcard":
             sdcard.make(ROOT, args.target.resolve() if args.target else None)
+        elif args.command == "test":
+            hosttests.test(ROOT, sanitize=not args.no_san, verbose=args.verbose)
+        elif args.command == "sim":
+            sim.main(ROOT, args.name, args.variant, args.rom_set, args.defines, args.list)
+        elif args.command == "docs":
+            docs.docs(ROOT, args.fork)
         elif args.command == "cores":
             for core in config.load_project(ROOT / "project.toml").slots:
                 print(core.relative_to(ROOT).as_posix())

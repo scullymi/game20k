@@ -86,8 +86,8 @@ diff -r /tmp/Arcade_Galaga/rtl_dar fpga/galaga_hdmi/src/rtl_dar
 - The chip selects follow the NMI by 192 clocks (10.4 us). In MAME both come at once, and the
   MCUs then read the byte the main CPU's NMI handler writes only 5 to 15 us after it is
   written. A handler a few us slower than MAME's leaves them the old byte, and the 54XX takes
-  wrong explosion parameters until the next reset (seen on the board, reproduced with
-  `sim/tb_namco54.vhd`).
+  wrong explosion parameters until the next reset (seen on the board, reproduced in
+  simulation).
 - The programs of the 51XX and the 54XX share one block RAM (`src/g20k_promram2.vhd`). The ROM
   manifest loads them as one section of 2048 bytes.
 

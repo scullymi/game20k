@@ -2,7 +2,7 @@
 // Copyright (C) 2026 scullymi
 // Testbench for READ_CFG (command 8) of sysctrl.v with a game's generated menu_rom.v: sends
 // the command as mcu_spi.v does, clocks out +bytes=N bytes and writes them, one hex byte per
-// line, to +out=FILE. run_mcu_sim.sh unpacks them and compares the result with the game's
+// line, to +out=FILE. g20k.py sim mcu (sim.py) unpacks them and compares the result with the game's
 // gen/menu_rom.xml. A second read must start at the first byte again. Ends with PASS or $fatal.
 `timescale 1ns/1ps
 `default_nettype none
