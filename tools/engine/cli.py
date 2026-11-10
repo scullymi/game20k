@@ -9,7 +9,18 @@ import argparse
 import sys
 from pathlib import Path
 
-from tools.engine import config, firmware, flash, forks, published, release, sdcard, toolchain
+from tools.engine import (
+    config,
+    docs,
+    firmware,
+    flash,
+    forks,
+    hosttests,
+    published,
+    release,
+    sdcard,
+    toolchain,
+)
 from tools.engine.flow import build
 from tools.engine.host import StepError
 
@@ -187,6 +198,15 @@ def main(argv: list[str]) -> int:
     s.add_argument("core", type=Path, help="core folder, e.g. fpga/g1943_hdmi")
     s.add_argument("--out", type=Path, required=True, help="folder for the generated sources (in gen/)")
     s.add_argument("--include", action="store_true", help="print the include folders instead")
+    h = sub.add_parser("test", help="build and run the host tests of the firmware (tests/host)")
+    h.add_argument(
+        "-v", "--verbose", action="store_true", help="print the compiler lines and every test line"
+    )
+    h.add_argument(
+        "--no-san", action="store_true", help="without AddressSanitizer and UndefinedBehaviorSanitizer"
+    )
+    o = sub.add_parser("docs", help="build the Doxygen pages of game20k's sources in the fork")
+    o.add_argument("--fork", type=Path, help="a checkout of the fork in place of external/FPGA-Companion")
     args = ap.parse_args(argv)
     if args.command == "flash" and not (args.core or args.image or args.bl616 or args.download):
         f.error("give a core, --image, --download or --bl616")
@@ -267,6 +287,10 @@ def main(argv: list[str]) -> int:
                 print(p.as_posix())
         elif args.command == "sdcard":
             sdcard.make(ROOT, args.target.resolve() if args.target else None)
+        elif args.command == "test":
+            hosttests.test(ROOT, sanitize=not args.no_san, verbose=args.verbose)
+        elif args.command == "docs":
+            docs.docs(ROOT, args.fork)
         elif args.command == "cores":
             for core in config.load_project(ROOT / "project.toml").slots:
                 print(core.relative_to(ROOT).as_posix())

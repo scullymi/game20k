@@ -1,5 +1,5 @@
 # Doxygen for our own sources in the FPGA-Companion fork (the RetroAchievements part).
-# Run it through scripts/doxygen_fork.sh, which sets FORK and OUT.
+# Run it through python3 g20k.py docs, which sets FORK and OUT.
 #
 # Only the settings that differ from Doxygen's defaults. The comment style of the fork's
 # RA sources: file heads with @file/@brief, @brief at the declarations

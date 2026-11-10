@@ -2,6 +2,7 @@
 # Copyright (C) 2026 scullymi
 #
 # Host tests of pieces of the firmware, with Unity from the submodule external/unity:
+#   python3 g20k.py test        the same as make -C tests/host, -v as V=1, --no-san as SAN=0
 #   make -C tests/host          build and run all, exit status 1 when one fails
 #   make -C tests/host SAN=0    without AddressSanitizer and UndefinedBehaviorSanitizer
 #   make -C tests/host V=1      print the compiler lines and every test line
@@ -68,8 +69,9 @@ MENUS   := $(FORK)/game20k/menus.c $(BUILD)/gen/menus_data.c
 EXAMPLE := $(FORK)/game20k/ra_games_example.c $(FORK)/game20k/menus_example.c
 
 .PHONY: all check build clean
+# the runner of g20k.py test adds up Unity's counts, a binary with no test fails
 all check: build
-	@V=$(V) sh ./run_tests.sh $(addprefix $(BUILD)/,$(TESTS))
+	@cd $(ROOT) && python3 -m tools.engine.hosttests $(if $(filter 1,$(V)),-v) $(abspath $(addprefix $(BUILD)/,$(TESTS)))
 build: $(addprefix $(BUILD)/,$(TESTS)) $(foreach s,$(EXAMPLE),$(call obj,$(s)))
 clean:
 	rm -rf build
