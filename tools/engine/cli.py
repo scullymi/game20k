@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from tools.engine import (
+    checks,
     config,
     docs,
     firmware,
@@ -205,9 +206,36 @@ def main(argv: list[str]) -> int:
     h.add_argument(
         "--no-san", action="store_true", help="without AddressSanitizer and UndefinedBehaviorSanitizer"
     )
+    k = sub.add_parser(
+        "check", help="scan what leaves this machine: secrets, paths, RA conditions, line ends, host tests"
+    )
+    mode = k.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--staged", dest="mode", action="store_const", const="staged", help="the index")
+    mode.add_argument(
+        "--push",
+        dest="mode",
+        action="store_const",
+        const="push",
+        help="the outgoing commits, from the stdin lines of a pre-push hook",
+    )
+    mode.add_argument("--ci", dest="mode", action="store_const", const="ci", help="the tracked files")
+    k.add_argument("--fork", action="store_true", help="the fork checkout external/FPGA-Companion instead")
+    k.add_argument("--base", default="", help="with --ci: compare the line ends with this commit")
+    k.add_argument("remote", nargs="*", help="with --push: the remote and its URL, as the hook gets them")
     o = sub.add_parser("docs", help="build the Doxygen pages of game20k's sources in the fork")
     o.add_argument("--fork", type=Path, help="a checkout of the fork in place of external/FPGA-Companion")
     args = ap.parse_args(argv)
+    if args.command == "check" and args.remote and (args.mode != "push" or len(args.remote) > 2):
+        k.error("REMOTE [URL] go with --push")
+    if args.command == "check" and args.base and args.mode != "ci":
+        k.error("--base goes with --ci")
+    if args.command == "check":
+        stdin = sys.stdin.read() if args.mode == "push" else ""
+        remote = args.remote[0] if args.remote else ""
+        try:
+            return checks.check(ROOT, args.mode, args.fork, args.base, remote, stdin)
+        except KeyboardInterrupt:
+            return 2
     if args.command == "flash" and not (args.core or args.image or args.bl616 or args.download):
         f.error("give a core, --image, --download or --bl616")
     if args.command == "flash" and args.download and (args.core or args.image or args.sram):

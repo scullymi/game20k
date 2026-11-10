@@ -13,6 +13,7 @@
     cores                                  prints the core folders in ring order
     sdcard [card]                          makes the ROM files and settings, copies them to the card
     sources <core folder> --out <folder>   prints a core's own sources, for a simulation
+    check --staged | --push | --ci [--fork] scans what leaves this machine, before a commit or push
     test [-v] [--no-san]                   builds and runs the host tests of the firmware
     docs [--fork <folder>]                 builds the Doxygen pages of the fork's game20k sources
     tools [fetch [names] | build-forks | key | pack --out <folder> | path <name>]

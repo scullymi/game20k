@@ -2,7 +2,7 @@
 # Copyright (C) 2026 scullymi
 #
 # Checks on every push and pull request, four jobs:
-#   checks          scripts/checks.sh --ci on this repository and on the fork's gitlink, which
+#   checks          g20k.py check --ci on this repository and on the fork's gitlink, which
 #                   also runs the host tests in tests/host, the contract of
 #                   scripts/check_contracts.py, and the tests, ruff and mypy of the build engine
 #   engine-windows  the tests of the build engine on Windows, where paths, line ends and the
@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      # full history: checks.sh --ci compares the line ends with the commit before the push
+      # full history: g20k.py check --ci compares the line ends with the commit before the push
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -42,13 +42,13 @@ jobs:
       - name: mmap bits for ASan
         run: sudo sysctl -w vm.mmap_rnd_bits=28
 
-      - name: Scans and host tests (scripts/checks.sh --ci, game20k and fork)
+      - name: Scans and host tests (g20k.py check --ci, game20k and fork)
         run: |
-          sh scripts/checks.sh --ci --base "$BASE"
-          sh scripts/checks.sh --ci --fork --base "$BASE"
+          python3 g20k.py check --ci --base "$BASE"
+          python3 g20k.py check --ci --fork --base "$BASE"
         env:
           # the commit before the push, or the target of a pull request. A new branch has
-          # none (all zeros), checks.sh then compares with the parent of HEAD
+          # none (all zeros), the check then compares with the parent of HEAD
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 
       - name: Contracts (scripts/check_contracts.py)
