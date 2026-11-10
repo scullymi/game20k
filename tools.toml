@@ -2,7 +2,7 @@
 # Copyright (C) 2026 scullymi
 # The programs the build runs, each in one version for every machine. python3 g20k.py tools fetch
 # downloads the archives into external/tools/ and checks each against its SHA-256, the one the
-# release page shows, and the programs of game20k's forks from the archive of [prebuilt].
+# release page shows, and the programs of game20k's forks from the release [prebuilt] names.
 # python3 g20k.py tools build-forks builds the forks from their sources instead. A path in
 # local.toml ([tools]) takes the place of a folder here, its version is then checked, not fetched.
 
@@ -234,21 +234,9 @@ commit = "bc3b39870ecb690a623a3f49149a358b95c5781d"
 repo = "https://github.com/scullymi/yosys.git"
 commit = "86935b9cf4fe50f18cc2fb7877a677f89cd3a44d"
 
-# The programs of the forks above, built from these commits by tools.yml, one archive per machine
-# with a build provenance attestation. After a change of a commit above, of the suite or of
-# tools/engine/forks.py, run tools.yml and copy the [prebuilt] table from the summary of its run
-# to here: the archive carries the key of all three, and tools fetch stops on another.
+# The programs of the forks above, built and published by the CI (bitstreams.yml) whenever their
+# key changes: the commits above, the suite and tools/engine/forks.py make it, and
+# python3 g20k.py tools key prints it. The release forks-<key> of this repository holds one
+# archive per machine, with a build provenance attestation and its SHA-256 in a file beside it.
 [prebuilt]
-release = "https://github.com/scullymi/game20k/releases/tag/tools-0ccad378bb56"
-
-[prebuilt.darwin-arm64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-0ccad378bb56/game20k-forks-0ccad378bb56-darwin-arm64.tar.gz"
-sha256 = "a678d70eb93c7c214c8956d1c22c73d129c7f080e0b2cbcc7a4a5554c5d78491"
-
-[prebuilt.linux-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-0ccad378bb56/game20k-forks-0ccad378bb56-linux-x64.tar.gz"
-sha256 = "c3cbc07140535a22e0c525580740eb3e31706286f5384c29876c01e304b59e96"
-
-[prebuilt.windows-x64]
-url = "https://github.com/scullymi/game20k/releases/download/tools-0ccad378bb56/game20k-forks-0ccad378bb56-windows-x64.tar.gz"
-sha256 = "0990c636f73b6d6396f142e90673bf8c68b6a93a404434668fb4f0b1cc09951a"
+repository = "https://github.com/scullymi/game20k-tools"

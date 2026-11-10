@@ -4,7 +4,7 @@
 @brief The programs of game20k's forks, Apicula, nextpnr and Yosys: building, packing, unpacking them.
 
 build makes them from the commits of tools.toml, or unpacks them from the archive that pack made
-for this kind of machine and tools.yml put on a release. Their folders and archives carry the key
+for this kind of machine and the CI (forks.yml) put on a release. Their folders and archives carry the key
 of toolchain.forks_key, which the text of this file is part of: a change here can build the forks
 differently, so it asks for a build of their own and for new archives."""
 
@@ -213,7 +213,7 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, M
         # nextpnr does not call: the linker finds them through LIBRARY_PATH and drops them
         link = "-Wl,-dead_strip_dylibs" if static and sys.platform == "darwin" else ""
         # Windows has no Boost of its own: it comes static from vcpkg (x64-windows-static, see
-        # tools.yml), so the C++ runtime is static in every build. STATIC_BUILD under MSVC sets
+        # forks.yml), so the C++ runtime is static in every build. STATIC_BUILD under MSVC sets
         # the release flags to /MT alone, without /O2 and /DNDEBUG: CMake sets the runtime instead
         if sys.platform == "win32":
             linking = ["-DSTATIC_BUILD=OFF", "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded"]
@@ -291,8 +291,8 @@ def make_forks(root: Path, toolset: config.Toolset, static: bool) -> dict[str, M
 
 def pack(root: Path, out: Path) -> Path:
     """@brief Builds the forks with static linking and packs their folders into one archive for
-    this kind of machine, game20k-forks-<key>-<machine>.tar.gz, then prints what tools.toml
-    takes for it."""
+    this kind of machine, with its SHA-256 in a file <archive>.sha256 beside it, as tools fetch
+    takes them from the release of [prebuilt]."""
     toolset = config.load_toolset(root / "tools.toml")
     made = {name: m.path for name, m in make_forks(root, toolset, static=True).items()}
     programs = [made["nextpnr"] / "bin" / ("nextpnr-himbaechel" + host.EXE)]
@@ -303,7 +303,7 @@ def pack(root: Path, out: Path) -> Path:
             raise StepError(f"{program} needs {', '.join(foreign)}, which another machine may not have")
     key = toolchain.forks_key(toolset)
     out.mkdir(parents=True, exist_ok=True)
-    archive = out / f"game20k-forks-{key}-{toolchain.machine()}.tar.gz"
+    archive = out / config.Prebuilt.archive(key, toolchain.machine())
 
     # the bytecode that building nextpnr's chip database left in Apicula stays out
     def clean(info: tarfile.TarInfo) -> tarfile.TarInfo | None:
@@ -316,9 +316,11 @@ def pack(root: Path, out: Path) -> Path:
     with tarfile.open(archive, "w:gz") as t:
         for name, path in made.items():
             t.add(path, arcname=name, filter=clean)
+    # in the format of sha256sum, which can check it too
+    sums = archive.with_name(archive.name + ".sha256")
+    sums.write_text(f"{toolchain.sha256(archive)}  {archive.name}\n", encoding="utf-8", newline="\n")
     print(toolchain.shown(root, archive))
-    print(f"[prebuilt.{toolchain.machine()}]")
-    print(f'sha256 = "{toolchain.sha256(archive)}"')
+    print(toolchain.shown(root, sums))
     return archive
 
 
@@ -358,34 +360,55 @@ def elf_interpreter(program: Path) -> bool:
     return any(struct.unpack_from("<I", table, i * phentsize)[0] == 3 for i in range(phnum))
 
 
+def published_sha256(root: Path, prebuilt: config.Prebuilt, key: str, url: str) -> str:
+    """@brief The SHA-256 of the archive at url, from the file the CI publishes beside it. curl
+    says above why it got none: 404 when the CI has not built the forks of key for this machine
+    yet, else a network error."""
+    sums = toolchain.tools_dir(root) / "downloads" / (url.rsplit("/", 1)[1] + ".sha256")
+    sums.parent.mkdir(parents=True, exist_ok=True)
+    sums.unlink(missing_ok=True)
+    try:
+        toolchain.download(url + ".sha256", sums)
+    except StepError:
+        raise StepError(
+            f"no SHA-256 of the prebuilt forks of key {key} for {toolchain.machine()}, see curl's message "
+            f"above. On a 404 there are none at {prebuilt.release(key)} yet: the CI builds them on the "
+            "next push of these changes, or build them here: python3 g20k.py tools build-forks"
+        ) from None
+    words = sums.read_text(encoding="utf-8", errors="replace").split()
+    if not words or len(words[0]) != 64 or not all(c in "0123456789abcdef" for c in words[0]):
+        raise StepError(f"{url}.sha256 holds no SHA-256")
+    return words[0]
+
+
 def unpack_forks(root: Path, toolset: config.Toolset) -> dict[str, Made]:
-    """@brief The forks from the archive of [prebuilt] for this machine, which must carry the key
-    of tools.toml and this file, and their folders by name with what happened to them. Their
-    markers keep the archive's URL and SHA-256."""
+    """@brief The forks of the key of tools.toml and this file from the release of [prebuilt],
+    checked against the SHA-256 beside their archive, and their folders by name with what
+    happened to them. Their markers keep the archive's URL and SHA-256."""
     here = toolchain.machine()
     prebuilt = toolset.prebuilt
-    archive = prebuilt.archives.get(here) if prebuilt else None
-    if prebuilt is None or archive is None:
-        raise StepError(f"tools.toml has no prebuilt forks for {here}, run python3 g20k.py tools build-forks")
+    if prebuilt is None:
+        raise StepError(
+            "tools.toml names no repository of prebuilt forks, run python3 g20k.py tools build-forks"
+        )
     key = toolchain.forks_key(toolset)
+    url = prebuilt.url(key, here)
     dests = {name: toolchain.folder(root, name, source(toolset, name).commit) for name in toolchain.BUILT}
-    # the folders of this archive, as long as it still carries the key
+    # the folders of this key's archive need no download
     if all(
-        toolchain.marker(d).get("archive") == archive.sha256 and toolchain.marker(d).get("key") == key
+        toolchain.marker(d).get("url") == url and toolchain.marker(d).get("key") == key
         for d in dests.values()
     ):
         return {name: Made(d, "is there") for name, d in dests.items()}
-    file = toolchain.fetched(root, archive, "prebuilt forks")
+    archive = config.Archive(url=url, sha256=published_sha256(root, prebuilt, key, url))
+    file = toolchain.fetched(root, archive, f"prebuilt forks {key}", f"{url}.sha256")
     staging = toolchain.tools_dir(root) / f".forks-{archive.sha256[:12]}"
     shutil.rmtree(staging, ignore_errors=True)
     toolchain.unpack(file, staging)
     try:
-        # another key means [prebuilt] was not renewed with the commits, the suite or this file
+        # the name carries the key, the folders inside must carry it too
         if any(toolchain.marker(staging / name).get("key") != key for name in toolchain.BUILT):
-            raise StepError(
-                f"{archive.url} holds other forks than tools.toml and forks.py make (key {key}), "
-                "renew [prebuilt] with tools.yml or run python3 g20k.py tools build-forks"
-            )
+            raise StepError(f"{archive.url} holds forks of another key than its name, {key}")
         for name, dest in dests.items():
             if dest.exists():
                 shutil.rmtree(dest)

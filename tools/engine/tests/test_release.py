@@ -44,7 +44,7 @@ class VersionTest(unittest.TestCase):
         self.git("tag", "-a", "-m", "v1.2.3", "v1.2.3")
         self.assertEqual(release.tree_version(self.root), "1.2.3")
         self.assertTrue(release.on_version_tag(self.root))
-        # tools.yml tags its releases in the same repository, nearer than the version
+        # a tag that names no version, nearer than the version
         self.commit()
         self.git("tag", "tools-0123456789ab")
         version, _, commit = release.tree_version(self.root).rpartition("-g")

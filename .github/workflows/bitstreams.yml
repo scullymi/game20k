@@ -4,14 +4,15 @@
 # Builds the bitstreams of every core with the free toolchain and packs the flash image with its
 # NOTICE, through python3 g20k.py release, on a clean Linux machine from the sources in this
 # repository. One job per board: the Nano with a Pico 2 W or an M0S Dock on its header, and the
-# Nano alone with the Companion on its own BL616. The programs of the forks come from the archive of [prebuilt] in tools.toml.
+# Nano alone with the Companion on its own BL616. The programs of the forks come from their release
+# for the key of this commit, which forks.yml builds and publishes first when it is not there.
 #
 # On a push that changes the FPGA sources or the build: a trial build, the zip kept as an
 # artifact of the run. Called by release.yml on a pushed tag v<version>: the release build, its
 # zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run
 # workflow", or gh workflow run bitstreams.yml): a trial build of the chosen branch.
-# The tool archives that g20k.py tools fetch takes are cached, keyed by tools.toml: the downloads
-# and the archive of the forks (made by tools.yml).
+# The tool archives that g20k.py tools fetch takes are cached, keyed by tools.toml and the key of
+# the forks: the downloads and the archive of the forks.
 name: Bitstreams
 
 on:
@@ -26,6 +27,7 @@ on:
       - 'project.toml'
       - 'tools.toml'
       - '.github/workflows/bitstreams.yml'
+      - '.github/workflows/forks.yml'
   workflow_call:
   workflow_dispatch:
 
@@ -35,7 +37,17 @@ permissions:
   attestations: write  # store it
 
 jobs:
+  # the forks of this commit, built and published when they are not there yet
+  forks:
+    uses: ./.github/workflows/forks.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write      # sign the provenance attestation of each archive
+      attestations: write  # store it
+
   bitstreams:
+    needs: forks
     strategy:
       fail-fast: false
       matrix:
@@ -58,7 +70,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: external/tools/downloads
-          key: tool-archives-forks-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}
+          key: tool-archives-forks-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.toml') }}-${{ needs.forks.outputs.key }}
 
       - name: Archives and forks (g20k.py tools fetch)
         run: python3 g20k.py tools fetch suite ghdl apicula nextpnr yosys

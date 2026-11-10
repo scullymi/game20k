@@ -453,10 +453,23 @@ class Source:
 
 @dataclass
 class Prebuilt:
-    """@brief The forks built by tools.yml: one archive per kind of machine, on one release."""
+    """@brief Where the CI publishes the forks it built: per key the release forks-<key> of
+    repository, with one archive per kind of machine and its SHA-256 in a file beside it."""
 
-    release: str
-    archives: dict[str, Archive]
+    repository: str
+
+    @staticmethod
+    def archive(key: str, machine: str) -> str:
+        """@brief The file name of the archive of the forks of key for one kind of machine."""
+        return f"game20k-forks-{key}-{machine}.tar.gz"
+
+    def release(self, key: str) -> str:
+        """@brief The page of the release of the forks of key."""
+        return f"{self.repository}/releases/tag/forks-{key}"
+
+    def url(self, key: str, machine: str) -> str:
+        """@brief Where the archive of the forks of key for one kind of machine is."""
+        return f"{self.repository}/releases/download/forks-{key}/{self.archive(key, machine)}"
 
 
 @dataclass
@@ -476,7 +489,7 @@ def load_toolset(path: Path) -> Toolset:
     d = root.table("download", required=False)
     for name in d.data:
         t = d.table(name)
-        downloads[name] = Download(name, t.get("version", str), t.get("release", str), _archives(t, True))
+        downloads[name] = Download(name, t.get("version", str), t.get("release", str), _archives(t))
     sources = {}
     s = root.table("source", required=False)
     for name in s.data:
@@ -487,18 +500,17 @@ def load_toolset(path: Path) -> Toolset:
         sources[name] = Source(name, t.get("repo", str), commit)
     prebuilt = None
     if "prebuilt" in root.data:
-        p = root.table("prebuilt")
-        prebuilt = Prebuilt(p.get("release", str), _archives(p))
+        p = root.table("prebuilt").allow("repository")
+        prebuilt = Prebuilt(p.get("repository", str).rstrip("/"))
     return Toolset(downloads, sources, prebuilt)
 
 
-def _archives(t: _Table, programs: bool = False) -> dict[str, Archive]:
+def _archives(t: _Table) -> dict[str, Archive]:
     """@brief The archives of a table, one subtable per kind of machine besides version and
     release."""
     archives = {}
     for k in [k for k in t.data if k not in ("version", "release")]:
-        # python and path describe the programs of a download, the prebuilt forks have none
-        a = t.table(k).allow("url", "sha256", *(("python", "path") if programs else ()))
+        a = t.table(k).allow("url", "sha256", "python", "path")
         sha = a.get("sha256", str)
         if len(sha) != 64 or not all(c in "0123456789abcdef" for c in sha):
             raise a.error(f"{a.prefix}.sha256 is no SHA-256 in lower-case hex")

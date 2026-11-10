@@ -300,15 +300,13 @@ def locate(root: Path) -> config.Tools:
     )
 
 
-def origin(toolset: config.Toolset, mark: dict[str, str]) -> str:
+def origin(mark: dict[str, str]) -> str:
     """@brief Where the folder of a program came from, by its marker: the URL of its download,
     of the prebuilt forks' archive, or the repository the fork was built from here."""
     if mark.get("url"):
         return mark["url"]
     if mark.get("archive"):
-        archives = toolset.prebuilt.archives.values() if toolset.prebuilt else []
-        urls = [a.url for a in archives if a.sha256 == mark["archive"]]
-        return urls[0] if urls else f"an archive of prebuilt forks, sha256 {mark['archive'][:12]}"
+        return f"an archive of prebuilt forks, sha256 {mark['archive'][:12]}"
     if mark.get("repo"):
         return f"built here from {mark['repo']} at {mark.get('commit', mark.get('version', ''))[:12]}"
     return "unknown"
@@ -322,9 +320,9 @@ def report_forks(root: Path, toolset: config.Toolset, made: Mapping[str, tuple[P
         mark = marker(path)
         print(f"{name} {mark.get('commit', '')[:12]} ({machine()}): {state}")
         if "archive" in mark:
-            print(f"  from    {origin(toolset, mark)}")
-            if toolset.prebuilt:
-                print(f"  release {toolset.prebuilt.release}")
+            print(f"  from    {origin(mark)}")
+            if toolset.prebuilt and "key" in mark:
+                print(f"  release {toolset.prebuilt.release(mark['key'])}")
             print(f"  sha256  {mark['archive']}")
         else:
             print(f"  from    {mark.get('repo', 'unknown')}")
@@ -364,7 +362,7 @@ def status(root: Path) -> None:
         if name in local.paths:
             source = "a path in local.toml"
         elif path.exists():
-            source = origin(toolset, mark)
+            source = origin(mark)
         else:
             source = "not there yet"
         print(f"{name} {version[:12]}: {state}")

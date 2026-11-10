@@ -22,8 +22,11 @@ jobs:
       id-token: write      # sign the provenance attestation
       attestations: write  # store it
 
+  # secrets: the forks of the tag's commit are published on its push already, this is for a tag
+  # on a commit that was never pushed to a branch
   bitstreams:
     uses: ./.github/workflows/bitstreams.yml
+    secrets: inherit
     permissions:
       contents: read
       id-token: write
