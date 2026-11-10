@@ -24,8 +24,10 @@ are and what the build does differently from Gowin's own tools.
 
 The same sources and tools give the same bitstream on macOS, Linux and Windows.
 `g20k.py tools fetch` fetches the forks as GitHub Actions built them
-(`.github/workflows/tools.yml`). `g20k.py tools build-forks` builds them from the commits in
-`tools.toml` instead, see [BUILD.md](BUILD.md#building-the-forks-yourself).
+(`.github/workflows/forks.yml`), from
+[game20k-tools](https://github.com/scullymi/game20k-tools/releases). `g20k.py tools build-forks`
+builds them from the commits in `tools.toml` instead, see
+[BUILD.md](BUILD.md#building-the-forks-yourself).
 
 ## What the free build does differently
 

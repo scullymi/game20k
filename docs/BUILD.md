@@ -18,7 +18,8 @@ without history (`git fetch --unshallow` brings it back). Without history, a bui
 last release tag names its version by the commit alone.
 
 `tools fetch` downloads every program the build needs into `external/tools/`, several GB in
-all, and checks each download against its SHA-256 in [tools.toml](../tools.toml).
+all, and checks each download against its SHA-256 in [tools.toml](../tools.toml), the forks
+against the one published beside their archive.
 `tools` then lists each program with its version, where it came from and its folder:
 
 | Name | Program | Needed for |
@@ -61,7 +62,7 @@ needs. Eigen is only needed for this build, so the table above does not list it.
 names its log file there and says how long it took. git, a C++ compiler, Boost, Flex and Bison
 have to be on the path. On Windows, run it in a Visual Studio developer shell, with Boost from
 vcpkg and `CMAKE_PREFIX_PATH` set to its `installed\x64-windows-static`, as
-`.github/workflows/tools.yml` does:
+`.github/workflows/forks.yml` does:
 
 ```powershell
 vcpkg install --triplet x64-windows-static boost-program-options "boost-iostreams[core]" boost-thread boost-filesystem
