@@ -71,13 +71,14 @@ VENDORED = [
      (), ()),
     ('Dig Dug', 'MiSTer-devel/Arcade-DigDug_MiSTer', '3022bcc', '3022bcc',
      'fpga/digdug_hdmi/src/rtl_digdug', 'rtl', (), ('LICENSE',)),
-    # README.upstream.md is the repository's README.md. dpram_dc.vhd and tp_lpf_sel.sv are ours,
-    # standing in for the Altera RAM and the three filters upstream
+    # README.upstream.md is the repository's README.md. spram.v, dpram_dc.v and tp_lpf_sel.sv are
+    # ours, standing in for upstream's two RAMs and its three filters
     ('Time Pilot', 'MiSTer-devel/Arcade-TimePilot_MiSTer', '5a148e2', '5a148e2',
      'fpga/timepilot_hdmi/src/rtl_timepilot', 'rtl',
-     ('README.upstream.md', 'dpram_dc.vhd', 'tp_lpf_sel.sv'),
-     ('README.md', 'rtl/ram_rom/dpram_dc.vhd', 'rtl/sound/Filters/tp_lpf_light.v',
-      'rtl/sound/Filters/tp_lpf_medium.v', 'rtl/sound/Filters/tp_lpf_heavy.v')),
+     ('README.upstream.md', 'spram.v', 'dpram_dc.v', 'tp_lpf_sel.sv'),
+     ('README.md', 'rtl/ram_rom/spram.vhd', 'rtl/ram_rom/dpram_dc.vhd',
+      'rtl/sound/Filters/tp_lpf_light.v', 'rtl/sound/Filters/tp_lpf_medium.v',
+      'rtl/sound/Filters/tp_lpf_heavy.v')),
     ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'c8e4601', 'fpga/common/src/misc',
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
      ('src/tang/nano20k/gowin_dpb/sector_dpram.v',)),

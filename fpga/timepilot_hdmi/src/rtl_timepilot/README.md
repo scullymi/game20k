@@ -16,19 +16,19 @@ JT49. The repository has no licence file.
 | `cpu/T80/*.vhd` | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-style, see the file heads | `T80.vhd`, `T80s.vhd` |
 | `sound/jt49/hdl/` | Jose Tejada Gomez (jotego), the volume scale changed by Ace according to `README.upstream.md` | GPL-3.0-or-later, in each head | no |
 | `jtframe_frac_cen.v` | not stated, the file has no head. An earlier version of a JTFRAME module by jotego, which jtcores carries under GPL-3.0-or-later | none stated | no |
-| `ram_rom/spram.vhd` | not stated, the file has no head | none stated | yes |
-| `ram_rom/dpram_dc.vhd`, `sound/tp_lpf_sel.sv` | game20k | GPL-3.0-only | ours |
+| `ram_rom/spram.v`, `ram_rom/dpram_dc.v`, `sound/tp_lpf_sel.sv` | game20k | GPL-3.0-only | ours |
 
 `custom/k526.sv` and `custom/k528.sv` describe the address decoding PLAs of the board (82S153)
 as logic, converted from dumps in the PLD Archive, as their heads say. Not copied: `hiscore.v`,
 `pause.v`, `pll.v` and `pll/` (Altera), `sound/Filters/` and the `LICENSE` and `README.md` of
-`sound/jt49/`.
+`sound/jt49/`. Upstream's `ram_rom/spram.vhd` and `ram_rom/dpram_dc.vhd`, the latter an Altera
+`altsyncram` wrapper, are replaced by our `spram.v` and `dpram_dc.v`.
 
 ## What changed, and why
 
-The changes in the Time Pilot files and in `spram.vhd` are marked `game20k` in the text, with
-one exception named below. The changes in `T80.vhd`, `T80s.vhd` and `rom_loader.sv` are not
-marked, they are listed here.
+The changes in the Time Pilot files are marked `game20k` in the text, with one exception named
+below. The changes in `T80.vhd`, `T80s.vhd` and `rom_loader.sv` are not marked but listed
+here.
 
 - **`TimePilot_CPU.sv`, `TimePilot.sv`:** the program ROM (tm1 to tm3) comes from SDRAM over
   the new ports `rom_addr`, `rom_cs`, `rom_din` and `rom_ok`. A read the SDRAM has not answered
@@ -47,12 +47,12 @@ marked, they are listed here.
   declared at the top (Gowin EX3638), and output ports of instances that upstream ties to a
   constant `Z` go to unused wires. In `TimePilot_SND.sv` `timer_val` is declared as `logic`
   instead of `wire`, without a mark.
-- **`ram_rom/spram.vhd`:** the memory is a signal instead of a shared variable, which Gowin
-  maps to block RAM.
-- **`ram_rom/dpram_dc.vhd`:** our own file with the entity of upstream's Altera `altsyncram`
-  wrapper, as an inferred block RAM.
+- **`ram_rom/spram.v`, `ram_rom/dpram_dc.v`:** our own Verilog modules with the ports of
+  upstream's `spram.vhd` and `dpram_dc.vhd`, as inferred block RAM. Verilog, because the core
+  instantiates them with several widths and GHDL elaborates a VHDL entity with one set of
+  generics only.
 - **`ram_rom/rom_loader.sv`:** in every RAM instance the load side uses port A and the game
-  side port B, the other way round from upstream, to fit `dpram_dc.vhd`, whose port B only
+  side port B, the other way round from upstream, to fit `dpram_dc.v`, whose port B only
   reads.
 - **`cpu/T80/T80.vhd`:** in the flag calculation of the block I/O instructions the literal
   `x"7"` is written as `"000000111"`, the width of `ioq`.
@@ -68,4 +68,4 @@ cmp README.upstream.md /tmp/Arcade-TimePilot_MiSTer/README.md
 for f in $(find . -type f ! -name 'README*'); do cmp -s "$f" "/tmp/Arcade-TimePilot_MiSTer/rtl/$f" || echo "differs: $f"; done
 ```
 
-It lists the seven changed files and our two.
+It lists exactly the files named under "What changed, and why".

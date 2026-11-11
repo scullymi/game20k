@@ -46,7 +46,7 @@ files is bound by the authors' terms, as with every other port of these cores.
 | [jotego/jteeprom](https://github.com/jotego/jteeprom) at `9c68ce8` | [`fpga/vendor/jteeprom/`](fpga/vendor/jteeprom/README.md) (93C46 EEPROM) | Jose Tejada Gomez | GPL-3.0-or-later, in every header |
 | [MiSTer-devel/Arcade-DigDug_MiSTer](https://github.com/MiSTer-devel/Arcade-DigDug_MiSTer), `rtl/` at `3022bcc` | [`fpga/digdug_hdmi/src/rtl_digdug/`](fpga/digdug_hdmi/src/rtl_digdug/README.md) | MiSTer-X | GPL-3.0 by the repository's `LICENSE`, copied into the folder, which says neither "only" nor "or later". The files carry only MiSTer-X's copyright line, `cpucore.v` no header at all |
 | same repository, `rtl/cpu/` | same folder, `cpu/` (TV80, a Z80 core) | Guy Hutchison | MIT, in every header. The headers say TV80 is based on Daniel Wallner's VHDL T80 |
-| [MiSTer-devel/Arcade-TimePilot_MiSTer](https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer), `rtl/` at `5a148e2` | [`fpga/timepilot_hdmi/src/rtl_timepilot/`](fpga/timepilot_hdmi/src/rtl_timepilot/README.md) | Ace, some files with Artemio Urbina, RTLEngineering or ElectronAsh, the ROM loader by Kitrinx | MIT, in every header. The upstream repository has no license file. `jtframe_frac_cen.v` and `ram_rom/spram.vhd` carry no header, the first is an earlier version of a JTFRAME module that jtcores carries under GPL-3.0-or-later. `ram_rom/dpram_dc.vhd` and `sound/tp_lpf_sel.sv` are ours, GPL-3.0-only |
+| [MiSTer-devel/Arcade-TimePilot_MiSTer](https://github.com/MiSTer-devel/Arcade-TimePilot_MiSTer), `rtl/` at `5a148e2` | [`fpga/timepilot_hdmi/src/rtl_timepilot/`](fpga/timepilot_hdmi/src/rtl_timepilot/README.md) | Ace, some files with Artemio Urbina, RTLEngineering or ElectronAsh, the ROM loader by Kitrinx | MIT, in every header. The upstream repository has no license file. `jtframe_frac_cen.v` carries no header, it is an earlier version of a JTFRAME module that jtcores carries under GPL-3.0-or-later. `ram_rom/spram.v`, `ram_rom/dpram_dc.v` and `sound/tp_lpf_sel.sv` are ours, GPL-3.0-only |
 | same repository, `rtl/cpu/T80/` | same folder, `cpu/T80/` (Z80 core, Ver 350) | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-like with three conditions, as above |
 | same repository, `rtl/sound/jt49/` | same folder, `sound/jt49/` (AY-3-8910) | Jose Tejada Gomez, the volume scale changed by Ace according to the upstream README | GPL-3.0-or-later, in every header |
 | [MiSTle-Dev/MiSTeryNano](https://github.com/MiSTle-Dev/MiSTeryNano), `src/misc/` at `c8e4601` | [`fpga/common/src/misc/`](fpga/common/src/misc/README.md): `hid.v`, `mcu_spi.v`, `osd_u8g2.v`, `sysctrl.v` | Till Harbaum | GPL-3.0-or-later. Upstream the files carry no license header, our copies carry the SPDX tag |
@@ -150,9 +150,8 @@ give the same files on Linux, macOS and Windows.
   terms and allows no further restrictions. MiSTer and MiST combine Dar's core only with GPL
   code of their own projects. The source repository is in the same position. The Pac-Man core
   itself (MikeJ, T80) is BSD-style, so the question does not arise there.
-- **An open point with Time Pilot.** Two of its files, `jtframe_frac_cen.v` and
-  `ram_rom/spram.vhd`, carry no license statement, and the upstream repository has no license
-  file. The NOTICE lists them as such.
+- **An open point with Time Pilot.** Its file `jtframe_frac_cen.v` carries no license
+  statement, and the upstream repository has no license file. The NOTICE lists it as such.
 - **Gowin's IP generator.** The design uses device primitives only, no Gowin IP core.
   `sector_dpram.v` and the rPLL instance in `pll_sdram.v` are output of the Gowin IP generator,
   see the table above.
