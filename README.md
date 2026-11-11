@@ -67,7 +67,8 @@ Without a Pico, the Nano also runs alone or with an M0S Dock, then without Retro
    creates `sdcard/config.ini`, without Wi-Fi and RetroAchievements. To use them, fill in that
    file, see [docs/retroachievements.md](docs/retroachievements.md#account), and run the same
    command again, which copies it onto the card.
-4. **Flash the Nano.** Connect it by USB, then:
+4. **Flash the Nano.** Connect it by USB. On Windows, it needs the WinUSB driver once, see
+   [docs/windows-usb.md](docs/windows-usb.md). Then:
    ```sh
    python3 g20k.py flash --download
    ```

@@ -20,11 +20,15 @@ src/bl616/flash_m0sdock_cfg.ini."""
 
 from __future__ import annotations
 
+import os
 import platform
 from pathlib import Path
 
 from tools.engine import config, firmware, host, toolchain
 from tools.engine.host import StepError
+
+## the page on the WinUSB driver the Nano needs on Windows
+WINDOWS_USB = "https://github.com/scullymi/game20k/blob/main/docs/windows-usb.md"
 
 ## Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
@@ -78,8 +82,17 @@ def flash(
     """@brief Runs the call of command(), or only prints it with dry_run."""
     cmd = command(root, core, sram, image, board)
     print(" ".join(str(a) for a in cmd), flush=True)
-    if not dry_run:
+    if dry_run:
+        return
+    try:
         host.run(cmd, cwd=root, capture=False)
+    except StepError as e:
+        # Windows binds the Nano's JTAG interface to FTDI's driver, which openFPGALoader cannot open
+        if os.name == "nt":
+            raise StepError(
+                f"{e}. On Windows, the board needs the WinUSB driver once: {WINDOWS_USB}"
+            ) from None
+        raise
 
 
 def bl616_command(root: Path, board: str, port: str, image: Path | None = None) -> list[host.Arg]:

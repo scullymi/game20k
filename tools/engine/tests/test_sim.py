@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from tools.engine import sim, toolchain
@@ -133,7 +134,7 @@ class HelpersTest(unittest.TestCase):
         self.assertIn("sets a, not b", str(e.exception))
 
     def test_not_on_windows(self) -> None:
-        with mock.patch("tools.engine.sim.os.name", "nt"), self.assertRaises(StepError):
+        with mock.patch.object(sim, "os", SimpleNamespace(name="nt")), self.assertRaises(StepError):
             sim.run(ROOT, sim.Sim("x", ROOT, "x"))
 
 

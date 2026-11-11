@@ -12,6 +12,9 @@ openfpgaloader):
 
   openFPGALoader -b tangnano20k -f --verify {name}.bin
 
+On Windows, openFPGALoader (and g20k.py) needs the WinUSB driver on the Nano once:
+https://github.com/scullymi/game20k/blob/v{version}/docs/windows-usb.md
+
 Gowin's programmer_cli works too, given the full path of the file:
 
   programmer_cli --device GW2AR-18C --run 32 --mcuFile "$PWD/{name}.bin" --spiaddr 0x000000
