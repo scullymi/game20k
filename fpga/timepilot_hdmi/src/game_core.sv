@@ -9,7 +9,7 @@
 //! MIT) and holds what the MiSTer top did around it: DIP switches, controls, ROM download.
 //! The program ROM (tm1-tm3) is read from SDRAM through one rom_slots slot, everything
 //! else comes over the loader's write port into the core's own ROMs. The RAM mirror for
-//! RetroAchievements is tp_mirror.sv (1942's, sized for the 2 KB work RAM).
+//! RetroAchievements is ram_mirror.sv (fpga/common), sized for the 2 KB work RAM.
 module game_core #(
     parameter bit ROMVIEW = 0,      //!< accepted for the top's sake, no effect here
     parameter bit RAMDIAG = 0       //!< accepted for the top's sake, no effect here
@@ -56,7 +56,7 @@ module game_core #(
     input  wire         start2,
     output logic [15:0] map_bits,       //!< the game signals, shown on the input test bar
 
-    //! ---- RAM mirror: the harvest delivers the mirror bytes, see tp_mirror.sv ----
+    //! ---- RAM mirror: the harvest delivers the mirror bytes, see ram_mirror.sv ----
     input  wire         snap_run,
     input  wire         snap_full,
     output logic        snap_push,
@@ -194,10 +194,10 @@ module game_core #(
     logic vblank_q = 1'b0;
     always_ff @(posedge clk) vblank_q <= vblank;
 
-    tp_mirror #(.N(2048)) u_mirror (
+    ram_mirror #(.N(rom_map_pkg::MIRROR_DATA)) u_mirror (
         .clk(clk), .reset(reset), .frame_go(vblank && !vblank_q),
-        .m_ev(mir_we && !mir_we_q), .m_flat(14'(mir_addr)), .m_data(mir_data),
-        .s_ev(1'b0), .s_flat(14'd0), .s_data(8'd0),
+        .m_ev(mir_we && !mir_we_q), .m_flat(15'(mir_addr)), .m_data(mir_data),
+        .s_ev(1'b0), .s_flat(15'd0), .s_data(8'd0),
         .snap_run(snap_run), .snap_full(snap_full),
         .snap_push(snap_push), .snap_byte(snap_byte), .snap_frame(snap_frame),
         .snap_harv(snap_harv),

@@ -14,7 +14,7 @@
 //! Four ROM buses read the ROM image in SDRAM through rom_slots (fpga/common). The
 //! character ROM and the PROMs come over the loader's write port into block RAM.
 //!
-//! The RAM mirror for RetroAchievements is g1942_mirror.sv, fed from CPU write taps.
+//! The RAM mirror for RetroAchievements is ram_mirror.sv (fpga/common), fed from CPU write taps.
 module game_core #(
     parameter bit ROMVIEW = 0,      //!< accepted for the top's sake, no effect here
     parameter bit RAMDIAG = 0       //!< accepted for the top's sake, no effect here
@@ -61,7 +61,7 @@ module game_core #(
     input  wire         start2,
     output logic [15:0] map_bits,       //!< the game signals, shown on the input test bar
 
-    //! ---- RAM mirror: the harvest delivers the mirror bytes, see g1942_mirror.sv ----
+    //! ---- RAM mirror: the harvest delivers the mirror bytes, see ram_mirror.sv ----
     input  wire         snap_run,
     input  wire         snap_full,
     output logic        snap_push,
@@ -397,11 +397,21 @@ module game_core #(
                  (au_y < -30'sd32768) ? -16'sd32768 : 16'(au_y);
 
     // ---------------- RAM mirror for RetroAchievements ----------------
+    // RetroAchievements reads FBNeo's "All Ram" block of 1942 (d_1942.cpp MemIndex), 9344 bytes
+    // at these flat addresses:
+    //   0x0000 main RAM 4 KiB (E000-EFFF)       0x1880 character RAM 2 KiB (D000-D7FF)
+    //   0x1000 sound RAM 2 KiB (sound CPU 4000)  0x2080 background RAM 1 KiB (D800-DBFF)
+    //   0x1800 sprite RAM 128 B (CC00-CC7F)
+    // jt1942 keeps these in five RAMs whose ports are all in use, so the mirror keeps a copy
+    // of its own. One difference to the board, kept on purpose: jt1942 takes a sprite RAM write
+    // only in the vertical blank, like the board, FBNeo's map and the mirror take it always. No
+    // condition of set 11960 reads the sprite RAM. Log bound: two Z80 at 3 MHz write at most
+    // once in 7 T states each (LD (HL),A), about 280 entries in a harvest of 252 us against
+    // the platform's 512.
     // Every CPU write into one of the five mirrored RAMs becomes one event: the rising edge
-    // of the RAM's write condition, with the address in FBNeo's "All Ram" order (see
-    // g1942_mirror.sv). The main CPU's writes come from its bus: main RAM E000-EFFF through
-    // jt1942_main's own strobe, sprite RAM CC00-CC7F, character RAM D000-D7FF and background
-    // RAM D800-DBFF through the chip selects and wr_n. A Z80 write holds wr_n low for at
+    // of the RAM's write condition, with its flat address. The main CPU's writes come from its
+    // bus: main RAM E000-EFFF through jt1942_main's own strobe, sprite RAM CC00-CC7F, character
+    // RAM D000-D7FF and background RAM D800-DBFF through the chip selects and wr_n. A Z80 write holds wr_n low for at
     // least one T state and raises it before the next, so each write gives exactly one edge.
     wire        mw_ram = mir_ram_we;
     wire        mw_obj = mir_obj_cs  && !mir_wr_n;
@@ -409,12 +419,12 @@ module game_core #(
     wire        mw_scr = mir_scr_cs  && !mir_wr_n;
     wire        mw_any = mw_ram || mw_obj || mw_chr || mw_scr;
     logic       mw_q = 1'b0, sw_q = 1'b0;
-    logic [13:0] m_flat;
+    logic [14:0] m_flat;
     always_comb
-        if      (mw_ram) m_flat = 14'h0000 + 14'(mir_ab[11:0]);
-        else if (mw_obj) m_flat = 14'h1800 + 14'(mir_ab[6:0]);
-        else if (mw_chr) m_flat = 14'h1880 + 14'(mir_ab[10:0]);
-        else             m_flat = 14'h2080 + 14'(mir_ab[9:0]);
+        if      (mw_ram) m_flat = 15'h0000 + 15'(mir_ab[11:0]);
+        else if (mw_obj) m_flat = 15'h1800 + 15'(mir_ab[6:0]);
+        else if (mw_chr) m_flat = 15'h1880 + 15'(mir_ab[10:0]);
+        else             m_flat = 15'h2080 + 15'(mir_ab[9:0]);
     always_ff @(posedge clk) begin
         mw_q <= mw_any;
         sw_q <= mir_snd_we;
@@ -423,10 +433,10 @@ module game_core #(
     logic lvbl_q = 1'b0;
     always_ff @(posedge clk) lvbl_q <= LVBL;
 
-    g1942_mirror #(.N(9344)) u_mirror (
+    ram_mirror #(.N(rom_map_pkg::MIRROR_DATA)) u_mirror (
         .clk(clk), .reset(rst), .frame_go(lvbl_q && !LVBL),
         .m_ev(mw_any && !mw_q), .m_flat(m_flat), .m_data(mir_dout),
-        .s_ev(mir_snd_we && !sw_q), .s_flat(14'h1000 + 14'(mir_snd_addr)), .s_data(mir_snd_dout),
+        .s_ev(mir_snd_we && !sw_q), .s_flat(15'h1000 + 15'(mir_snd_addr)), .s_data(mir_snd_dout),
         .snap_run(snap_run), .snap_full(snap_full),
         .snap_push(snap_push), .snap_byte(snap_byte), .snap_frame(snap_frame),
         .snap_harv(snap_harv),

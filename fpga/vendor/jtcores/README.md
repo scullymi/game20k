@@ -74,7 +74,7 @@ Every change is marked `game20k` in the text.
   a second, undriven net. Here both are one bit wide and the same net, so nothing changes in
   the logic.
 - **`cores/1942/hdl/jt1942_main.v`, `jt1942_sound.v`, `jt1942_game.v`:** taps for the RAM
-  mirror of RetroAchievements (`fpga/g1942_hdmi/src/g1942_mirror.sv`). jt1942_main brings out
+  mirror of RetroAchievements (`fpga/common/src/mcu/ram_mirror.sv`). jt1942_main brings out
   the write strobe of its main RAM, jt1942_sound the write strobe, address and data of its sound
   RAM, and jt1942_game passes these out together with the main CPU's bus and chip selects, which
   it already has as wires. The extra ports are in `fpga/g1942_hdmi/src/inc/mem_ports.inc`.
@@ -106,7 +106,7 @@ Every change is marked `game20k` in the text.
   `fpga/gng_hdmi/src/inc/mem_ports.inc`) instead of from `jtframe_cen48`, which expects a
   48 MHz clock. `jtframe_cen48` is left out.
 - **`cores/gng/hdl/jtgng_main.v`, `jtgng_game.v`:** taps for the RAM mirror of
-  RetroAchievements (`fpga/gng_hdmi/src/mirror_n.sv`). jtgng_main brings out the write strobe
+  RetroAchievements (`fpga/common/src/mcu/ram_mirror.sv`). jtgng_main brings out the write strobe
   of its work RAM (`mir_we`), jtgng_game passes it out together with the CPU's address and data
   bus. Outputs only, the logic of the game is unchanged.
 - **`cores/pang/hdl/jtpang_main.v`:** without `jtframe_kabuki`. `scripts/make_rom.py` decrypts

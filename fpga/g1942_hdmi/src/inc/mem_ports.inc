@@ -51,7 +51,7 @@
     input   [31:0]  scr_data,
     output  [15:2]  scr_addr,
     input           scr_ok,
-    // game20k: the CPU writes for the RetroAchievements mirror (g1942_mirror.sv), not
+    // game20k: the CPU writes for the RetroAchievements mirror (ram_mirror.sv), not
     // part of JTFRAME's port list. Main CPU: bus and the chip selects of its four RAMs.
     output          mir_ram_we,
     output          mir_char_cs,

@@ -4,7 +4,7 @@
 # see ../common/platform.toml. This folder holds the game: Ace's core in src/rtl_timepilot
 # (MiSTer-devel/Arcade-TimePilot_MiSTer 5a148e2, MIT, T80 by Daniel Wallner, BSD-style, jt49 by
 # jotego, GPL-3.0-or-later), the wrapper game_core, the package game_pkg, the menu and the ROM
-# manifest. The RAM mirror tp_mirror.sv is 1942's, sized for 2 KB.
+# manifest. The RAM mirror is ../common/src/mcu/ram_mirror.sv.
 
 [core]
 name = "timepilot_hdmi"
@@ -37,7 +37,7 @@ files = [
   "src/rtl_timepilot/TimePilot_CPU.sv",
   "src/rtl_timepilot/TimePilot_SND.sv",
   "src/rtl_timepilot/TimePilot.sv",
-  "src/tp_mirror.sv",
+  "../common/src/mcu/ram_mirror.sv",
   "src/game_pkg.sv",
   "src/game_core.sv",
   "{out}/rom_map_pkg.sv",

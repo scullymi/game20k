@@ -53,7 +53,7 @@ files = [
   "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_freqinfo.v",
   "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_gated_cen.v",
   "../vendor/jtcores/modules/jtframe/hdl/ram/jtframe_dual_ram16.v",
-  "src/g1942_mirror.sv",
+  "../common/src/mcu/ram_mirror.sv",
   "src/game_pkg.sv",
   "src/game_core.sv",
   "{out}/rom_map_pkg.sv",
