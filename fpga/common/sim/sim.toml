@@ -48,3 +48,12 @@ run = "sim.py:audio"
 about = "what the upstream Companion firmware needs: rom_loader.sv, and each core's menu on READ_CFG"
 ci = true
 run = "sim.py:mcu"
+
+# the select may rise right after the last SCK edge and stay high less than one core clock
+[mcu_spi]
+about = "mcu_spi.v as the Companion drives it: every byte once, whenever the select rises"
+ci = true
+
+[[mcu_spi.bench]]
+top = "tb_mcu_spi"
+files = ["../src/misc/mcu_spi.v", "tb_mcu_spi.sv"]

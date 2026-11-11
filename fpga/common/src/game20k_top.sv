@@ -152,7 +152,7 @@ module game20k_top #(
     logic [21:2] rom_rd_addr;    // the game's word reads from its ROM in SDRAM, a stream
     logic        rom_rd_push, rom_rd_ready, rom_rd_valid;
     logic [31:0] rom_rd_data;
-    logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start;
+    logic       mcu_sys_strobe, mcu_hid_strobe, mcu_osd_strobe, mcu_sdc_strobe, mcu_start, mcu_end;
     logic [15:0] ram_last_count, ram_last_us;
     logic [7:0]  ram_verdict;
     logic [7:0] mcu_data_out, sys_data_out, hid_data_out, osd_data_out;
@@ -363,7 +363,7 @@ module game20k_top #(
         .mcu_sys_strobe(mcu_sys_strobe), .mcu_hid_strobe(mcu_hid_strobe),
         .mcu_osd_strobe(mcu_osd_strobe), .mcu_sdc_strobe(mcu_sdc_strobe),
         .mcu_ram_strobe(mcu_ram_strobe),
-        .mcu_start(mcu_start),
+        .mcu_start(mcu_start), .mcu_end(mcu_end),
         .mcu_sys_din(sys_data_out), .mcu_hid_din(hid_data_out), .mcu_osd_din(osd_data_out), .mcu_sdc_din(sdc_data_out),
         .mcu_ram_din(ram_data_out),
         .mcu_dout(mcu_data_out)
@@ -1083,7 +1083,7 @@ module game20k_top #(
               .US_DIV((CORE_HZ + 500_000) / 1_000_000)) ram_spi_i (
         .clk(clk_core), .reset(!pll_lock),
         .spi_ss(spi_csn), .spi_clk(spi_sck),
-        .strobe(mcu_ram_strobe), .start(mcu_start), .data_in(mcu_data_out),
+        .strobe(mcu_ram_strobe), .start(mcu_start), .xfer_end(mcu_end), .data_in(mcu_data_out),
         .data_out(ram_data_out),
         .fifo_data(snap_fifo_q), .fifo_empty(snap_empty), .fifo_pop(snap_pop),
         .fifo_undr(snap_undr),   .body_sum(snap_sum),
