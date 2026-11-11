@@ -60,16 +60,20 @@ module snap_log #(
     logic [AW:0] wp = 0;                  // one bit wider so DEPTH itself is representable
     logic        harv_d = 0;
 
+    // A new harvest starts the window over, and a write in its first clock is the first entry:
+    // the mirror catches it up like any other write in the window.
+    wire         first = harv_busy && !harv_d;
+    wire  [AW:0] wpos  = first ? '0 : wp;
+
     always_ff @(posedge clk) begin
         harv_d <= harv_busy;
-        if (harv_busy && !harv_d) begin   // new harvest: window starts over
-            wp       <= '0;
-            overflow_r <= 1'b0;
-        end else if (harv_busy && ram_we) begin
-            if (wp[AW]) overflow_r <= 1'b1;
+        wp     <= wpos;
+        if (first) overflow_r <= 1'b0;
+        if (harv_busy && ram_we) begin
+            if (wpos[AW]) overflow_r <= 1'b1;
             else begin
-                mem[wp[AW-1:0]] <= {ram_data, ram_addr};
-                wp <= wp + 1'b1;
+                mem[wpos[AW-1:0]] <= {ram_data, ram_addr};
+                wp <= wpos + 1'b1;
             end
         end
     end

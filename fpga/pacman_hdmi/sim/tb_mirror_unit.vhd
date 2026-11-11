@@ -10,7 +10,7 @@
 --! address and data (the RAM written at both edges), and the frame_go tap as one ena_6 cycle.
 --! The platform is modelled after game20k_top.sv: an eight-slot FIFO with the reset one
 --! clock after the snap_run rise (priority over a push), pops in four patterns, a log
---! collector that skips the first window clock like snap_log, and the Pico's oracle rule.
+--! collector like snap_log, and the Pico's oracle rule.
 --!
 --! The testbench keeps its own picture of the RAM (exp_ram, exp_sxy, exp_flip), copies it at
 --! the end of every window (snap_*) and flattens it with a function written from FBNeo's
@@ -271,32 +271,34 @@ begin
     variable lh_d : std_logic := '0';
     variable idx  : natural;
     variable fa   : integer;
+    variable ln, en : natural;
   begin
     if rising_edge(clk) then
+      -- a new window starts both logs over, a write in its first clock is the first entry
+      ln := log_n; en := exp_n;
       if snap_harv = '1' and lh_d = '0' then
-        log_n <= 0;                     -- the first window clock is skipped, as snap_log does
-        exp_n <= 0;
-      else
-        if snap_harv = '1' and log_we = '1' then
-          log_a(log_n) <= to_integer(unsigned(log_addr));
-          log_d(log_n) <= log_data;
-          log_n <= log_n + 1;
+        ln := 0; en := 0;
+      end if;
+      if snap_harv = '1' and log_we = '1' then
+        log_a(ln) <= to_integer(unsigned(log_addr));
+        log_d(ln) <= log_data;
+        ln := ln + 1;
+      end if;
+      -- the emulator's own count: a write counts at its first strobe cycle when the
+      -- window is open, the address from the table
+      if ena_6 = '1' and emu_first = '1' and snap_harv = '1' then
+        idx := to_integer(unsigned(wr_addr));
+        if we_ram = '1' then fa := flat_addr(K_RAM, idx);
+        elsif we_sxy = '1' then fa := flat_addr(K_SXY, idx mod 16);
+        else fa := flat_addr(K_FLIP, 0);
         end if;
-        -- the emulator's own count: a write counts at its first strobe cycle when the
-        -- window is open, the address from the table
-        if ena_6 = '1' and emu_first = '1' and snap_harv = '1' then
-          idx := to_integer(unsigned(wr_addr));
-          if we_ram = '1' then fa := flat_addr(K_RAM, idx);
-          elsif we_sxy = '1' then fa := flat_addr(K_SXY, idx mod 16);
-          else fa := flat_addr(K_FLIP, 0);
-          end if;
-          if fa >= 0 then
-            exp_a(exp_n) <= fa;
-            if we_flip = '1' then exp_d(exp_n) <= "0000000" & wr_data(0); else exp_d(exp_n) <= wr_data; end if;
-            exp_n <= exp_n + 1;
-          end if;
+        if fa >= 0 then
+          exp_a(en) <= fa;
+          if we_flip = '1' then exp_d(en) <= "0000000" & wr_data(0); else exp_d(en) <= wr_data; end if;
+          en := en + 1;
         end if;
       end if;
+      log_n <= ln; exp_n <= en;
       lh_d := snap_harv;
     end if;
   end process;

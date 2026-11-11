@@ -59,10 +59,14 @@ top = "tb_mcu_spi"
 files = ["../src/misc/mcu_spi.v", "tb_mcu_spi.sv"]
 
 [ram_mirror]
-about = "ram_mirror.sv against a model, at the sizes of the games, with both sources and writes beyond N"
+about = "ram_mirror.sv against a model, at the sizes of the games, with both sources and writes beyond N, and snap_log.sv, the log of a harvest window"
 ci = true
 timescale = "1ns/1ps"
 
 [[ram_mirror.bench]]
 top = "tb_ram_mirror"
 files = ["../src/mcu/ram_mirror.sv", "tb_ram_mirror.sv"]
+
+[[ram_mirror.bench]]
+top = "tb_snap_log"
+files = ["../src/mcu/snap_log.sv", "tb_snap_log.sv"]

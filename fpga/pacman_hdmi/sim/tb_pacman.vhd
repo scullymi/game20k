@@ -239,10 +239,12 @@ begin
     variable a_first : std_logic_vector(15 downto 0);
     variable d_first : std_logic_vector(7 downto 0);
     variable harv_d  : std_logic := '0';
+    variable en      : natural;
   begin
     if rising_edge(clk) then
+      en := exp_n;
       if snap_harv = '1' and harv_d = '0' then
-        exp_n <= 0;
+        en := 0;
       end if;
       if ena_6 = '1' then
         wr := cpu_mreq_l = '0' and cpu_wr_l = '0' and cpu_rfsh_l = '1' and cpu_addr(14) = '1';
@@ -268,7 +270,7 @@ begin
             if flat >= 0 then
               exp(flat) <= d;
               if snap_harv = '1' then
-                exp_a(exp_n) <= flat; exp_d(exp_n) <= d; exp_n <= exp_n + 1;
+                exp_a(en) <= flat; exp_d(en) <= d; en := en + 1;
               end if;
             end if;
           end if;
@@ -290,6 +292,7 @@ begin
       if harv_d = '1' and snap_harv = '0' then
         exp_snap <= exp;
       end if;
+      exp_n <= en;
       harv_d := snap_harv;
     end if;
   end process;
@@ -340,15 +343,20 @@ begin
   -- ---------------- log collector, as snap_log ----------------
   p_log : process (clk)
     variable lh_d : std_logic := '0';
+    variable ln   : natural;
   begin
     if rising_edge(clk) then
+      -- a new window starts the log over, a write in its first clock is the first entry
+      ln := log_n;
       if snap_harv = '1' and lh_d = '0' then
-        log_n <= 0;
-      elsif snap_harv = '1' and log_we = '1' then
-        log_a(log_n) <= to_integer(unsigned(log_addr));
-        log_d(log_n) <= log_data;
-        log_n <= log_n + 1;
+        ln := 0;
       end if;
+      if snap_harv = '1' and log_we = '1' then
+        log_a(ln) <= to_integer(unsigned(log_addr));
+        log_d(ln) <= log_data;
+        ln := ln + 1;
+      end if;
+      log_n <= ln;
       lh_d := snap_harv;
     end if;
   end process;
