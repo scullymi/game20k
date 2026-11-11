@@ -89,7 +89,7 @@ Every change is marked `game20k` in the text.
   the falling edge the reset path into the T80 has only half a clock, which fails timing on the
   GW2AR-18C. A reset that comes half a clock later changes nothing in the game.
 - **`cores/1943/hdl/jt1943_main.v`, `jt1943_game.v`:** taps for the RAM mirror of
-  RetroAchievements (`fpga/g1943_hdmi/src/g1943_mirror.sv`). jt1943_main brings out the write
+  RetroAchievements (`fpga/common/src/mcu/ram_mirror.sv`). jt1943_main brings out the write
   strobe of its main RAM, jt1943_game passes it out together with the main CPU's address and
   data bus. The extra ports are in `fpga/g1943_hdmi/src/inc/mem_ports.inc`. Outputs only, the
   logic of the game is unchanged.
