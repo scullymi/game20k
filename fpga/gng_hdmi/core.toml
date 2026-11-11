@@ -6,7 +6,7 @@
 # BSD-style, the 6809 (mc6809i.v, Greg Miller) BSD, see README.md. Changed files carry "game20k"
 # in the text: jtframe_dual_ram (Gowin write mode), jt12_rst and jtgng_sound (reset on the rising
 # edge), jt12_top (SSG level table), jtgng_game (clock enables from outside, mirror tap),
-# jtgng_main (mirror tap). The RAM mirror is mirror_n.sv.
+# jtgng_main (mirror tap). The RAM mirror is ../common/src/mcu/ram_mirror.sv.
 
 [core]
 name = "gng_hdmi"
@@ -104,7 +104,7 @@ files = [
   "../vendor/jtcores/modules/jtframe/hdl/jtframe_bcd_cnt.v",
   "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_freqinfo.v",
   "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_gated_cen.v",
-  "src/mirror_n.sv",
+  "../common/src/mcu/ram_mirror.sv",
   "src/game_pkg.sv",
   "src/game_core.sv",
   "{out}/rom_map_pkg.sv",

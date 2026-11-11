@@ -3,9 +3,9 @@
 # Dig Dug with HDMI. The platform (HDMI, SDRAM, Companion, RAM mirror) comes from ../common, see
 # ../common/platform.toml. This folder holds the game: MiSTer-X's core in src/rtl_digdug
 # (MiSTer-devel/Arcade-DigDug_MiSTer 3022bcc, GPL-3.0, TV80 by Guy Hutchison, MIT-style), changed
-# to one clock with enables, the wrapper game_core, the package game_pkg, the RAM mirror
-# ram_mirror_n, the menu and the ROM manifest. The custom I/O chips are ../common/src/namco
-# (06XX, MB88 with the 51XX and 53XX programs from the ROM file).
+# to one clock with enables, the wrapper game_core, the package game_pkg, the menu and the ROM
+# manifest. The custom I/O chips are ../common/src/namco (06XX, MB88 with the 51XX and 53XX
+# programs from the ROM file).
 
 [core]
 name = "digdug_hdmi"
@@ -33,7 +33,7 @@ files = [
   "../common/src/namco/mb88_cpu.sv",
   "../common/src/namco/namco_prom2.sv",
   "../common/src/namco/namco_io.sv",
-  "src/ram_mirror_n.sv",
+  "../common/src/mcu/ram_mirror.sv",
   "src/game_pkg.sv",
   "src/game_core.sv",
   "{out}/rom_map_pkg.sv",

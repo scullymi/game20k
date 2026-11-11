@@ -6,7 +6,7 @@
 # with a README.md. Changed files carry "game20k" in the text: jtframe_dual_ram (Gowin write
 # mode, as for 1942), jt12_rst and jtgng_sound (reset on the rising edge), jt12_top (SSG level
 # table), jt1943_main, _game, _video, _colmix (mirror taps, palette index, sound ROM from SDRAM).
-# The RAM mirror g1943_mirror.sv is 1942's with a 1943 layout.
+# The RAM mirror is ../common/src/mcu/ram_mirror.sv.
 
 [core]
 name = "g1943_hdmi"
@@ -106,7 +106,7 @@ files = [
   "../vendor/jtcores/modules/jtframe/hdl/jtframe_bcd_cnt.v",
   "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_freqinfo.v",
   "../vendor/jtcores/modules/jtframe/hdl/clocking/jtframe_gated_cen.v",
-  "src/g1943_mirror.sv",
+  "../common/src/mcu/ram_mirror.sv",
   "src/tile_prefetch.sv",
   "src/map_prefetch.sv",
   "src/game_pkg.sv",

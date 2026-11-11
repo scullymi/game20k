@@ -41,7 +41,8 @@ class LoadTest(unittest.TestCase):
     def test_the_simulations_of_this_tree(self) -> None:
         sims = sim.load(ROOT)
         self.assertEqual(
-            [n for n, s in sims.items() if s.ci], ["rom_sdram", "screen", "audio", "mcu", "mcu_spi", "mirror"]
+            [n for n, s in sims.items() if s.ci],
+            ["rom_sdram", "screen", "audio", "mcu", "mcu_spi", "ram_mirror", "mirror"],
         )
         self.assertEqual(sims["1942"].sets, ["1942", "vulgus", "higemaru"])
         self.assertEqual(sims["1942"].variants["fb"], ["ROM_PATH", "FB_PATH"])

@@ -351,21 +351,21 @@ module game_core #(
 
     // ---------------- RAM mirror for RetroAchievements ----------------
     // FBNeo "All Ram" of 1943 (d_1943.cpp MemIndex): 0x0000 main RAM E000-EFFF, 0x1000 sound
-    // RAM, 0x1800 character video and colour, 0x2000 the "sprite" RAM F000-FFFF. Set 11961
+    // RAM, 0x1800 character video and color, 0x2000 the "sprite" RAM F000-FFFF. Set 11961
     // reads only E000-EFFF and F000-F23E, set 11962 (Mark II) also F286, the pause condition of
     // all its achievements. So the mirror is 8960 bytes (to 0x22FF) and gets only the main
-    // RAM's writes: E000-EFFF to 0x0000+, F000-F2FF to 0x2000+. Sound and video RAM stay zero.
+    // RAM's writes: E000-EFFF to 0x0000+, F000-FFFF to 0x2000+, of which the mirror ignores
+    // everything from F300 on, at or beyond N. Sound and video RAM stay zero.
     logic       mw_q = 1'b0;
     always_ff @(posedge clk) mw_q <= mir_ram_we;
-    wire [13:0] m_flat = mir_ab[12] ? 14'h2000 + 14'(mir_ab[11:0]) : 14'(mir_ab[11:0]);
-    wire        m_in   = !mir_ab[12] || mir_ab[11:0] < 12'h300;
+    wire [14:0] m_flat = mir_ab[12] ? 15'h2000 + 15'(mir_ab[11:0]) : 15'(mir_ab[11:0]);
     logic lvbl_q = 1'b0;
     always_ff @(posedge clk) lvbl_q <= LVBL;
 
-    g1943_mirror #(.N(rom_map_pkg::MIRROR_DATA)) u_mirror (
+    ram_mirror #(.N(rom_map_pkg::MIRROR_DATA)) u_mirror (
         .clk(clk), .reset(rst), .frame_go(lvbl_q && !LVBL),
-        .m_ev(mir_ram_we && !mw_q && m_in), .m_flat(m_flat), .m_data(mir_dout),
-        .s_ev(1'b0), .s_flat(14'd0), .s_data(8'd0),
+        .m_ev(mir_ram_we && !mw_q), .m_flat(m_flat), .m_data(mir_dout),
+        .s_ev(1'b0), .s_flat(15'd0), .s_data(8'd0),
         .snap_run(snap_run), .snap_full(snap_full),
         .snap_push(snap_push), .snap_byte(snap_byte), .snap_frame(snap_frame),
         .snap_harv(snap_harv),

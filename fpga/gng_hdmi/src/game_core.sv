@@ -272,11 +272,10 @@ module game_core #(
     // 0x1605, so the mirror is 5760 bytes (0x1680, 45 pages of 128) and gets only the 6809's
     // RAM writes. The sound, video and palette RAMs behind it are not part of it. The strobe
     // is one clock per write.
-    localparam int MIRROR_N = 5760;
     logic lvbl_q = 1'b0;
     always_ff @(posedge clk) lvbl_q <= LVBL;
 
-    mirror_n #(.N(MIRROR_N)) u_mirror (
+    ram_mirror #(.N(rom_map_pkg::MIRROR_DATA)) u_mirror (
         .clk(clk), .reset(rst), .frame_go(lvbl_q && !LVBL),
         .m_ev(mir_ram_we), .m_flat({2'b00, mir_ab}), .m_data(mir_dout),
         .s_ev(1'b0), .s_flat(15'd0), .s_data(8'd0),

@@ -34,7 +34,7 @@
 //! Bound: one Z80 at 8 MHz, PUSH writes two bytes in 11 T states, so at most about 450 writes
 //! in 300 us, against the platform's 512; the game's loops write far less.
 //!
-//! Delivery, against the platform contract of game20k_top.sv, as in g1942_mirror.sv: the first
+//! Delivery, against the platform contract of game20k_top.sv, as in ram_mirror.sv: the first
 //! read in the third snap_run cycle, the first push in the fourth, one byte per clock while the
 //! FIFO has room. No harvest starts while snap_run is high, no delivery while a harvest runs.
 module gpang_mirror #(
