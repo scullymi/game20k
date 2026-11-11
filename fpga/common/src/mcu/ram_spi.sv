@@ -51,6 +51,7 @@ module ram_spi #(
     //! Interface to mcu_spi.v
     input  wire         strobe,           //!< one byte has gone over the line
     input  wire         start,            //!< first byte after the target id
+    input  wire         xfer_end,         //!< the transaction is over, after its last strobe
     input  wire  [7:0]  data_in,          //!< what the Pico sends
     output logic [7:0]  data_out,         //!< what the FPGA returns
 
@@ -101,11 +102,10 @@ module ram_spi #(
     localparam int UW = $clog2(US_DIV);
     logic [UW-1:0] us_div;                // US_DIV clocks = 1 us (approximately)
     logic        busy;
-    // The end of a transfer is told by chip select, not by a guessed idle time.
-    // An idle time is no good here: the Pico is interrupted during the block (USB polling,
-    // interrupts), and every pause would cut the measurement into pieces. What would be
-    // shown is then the last piece, sometimes longer, sometimes shorter.
-    logic [2:0]  ss_s;
+    // The end of a transfer is told by chip select (xfer_end of mcu_spi.v), not by a guessed
+    // idle time. An idle time is no good here: the Pico is interrupted during the block (USB
+    // polling, interrupts), and every pause would cut the measurement into pieces. What would
+    // be shown is then the last piece, sometimes longer, sometimes shorter.
     logic        harv_at_start;
     logic [7:0]  ra_flags_prev;           // header byte 5 of the previous transfer
 
@@ -223,7 +223,7 @@ module ram_spi #(
         if (reset) begin
             cnt <= 16'd0; busy <= 1'b0; us_cnt <= 16'd0; us_div <= '0;
             last_count <= 16'd0; last_us <= 16'd0; transfers <= 16'd0;
-            pico_verdict <= 8'd0; ss_s <= 3'b111; underrun <= 1'b0; harv_at_start <= 1'b0;
+            pico_verdict <= 8'd0; underrun <= 1'b0; harv_at_start <= 1'b0;
             pico_rc <= 16'd0; pico_us <= 16'd0; pico_last <= 8'd0;
             txt_we <= 1'b0; txt_addr <= 5'd0; txt_data <= 8'd0;
             banner_on <= 1'b0; banner_gold <= 1'b0; banner_new <= 1'b0;
@@ -236,7 +236,6 @@ module ram_spi #(
             end else
                 us_div <= us_div + 1'b1;
 
-            ss_s <= {ss_s[1:0], spi_ss};
             txt_we <= 1'b0;   // the write pulse is exactly one clock wide
 
             if (strobe) begin
@@ -289,13 +288,13 @@ module ram_spi #(
                 end
             end
 
-            // rising edge of chip select: the transfer is over.
+            // the transfer is over, its last byte is counted.
             // Only what got past the header is measured. The Pico first reads the header
             // bytes alone and aborts if byte 7 reports that a harvest is running right now
             // (the shadow would then be half new, half old). Those probes are intended
             // operation and not measurements: if they were counted, the display would
             // constantly show the header length instead of the block length.
-            if (busy && ss_s[2] == 1'b0 && ss_s[1] == 1'b1) begin
+            if (busy && xfer_end) begin
                 busy     <= 1'b0;
                 // The underrun report comes ready-made from the FIFO and is only taken
                 // over here: a single sample at the end instead of a hundred thousand
