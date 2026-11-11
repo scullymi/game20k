@@ -15,6 +15,7 @@ banner upright as well.
 
 Changed copies say so in their head and mark each change with `game20k`:
 `jtframe_dual_ram.v` (Gowin write mode), `jt12_rst.v` and `jtgng_sound.v` (reset on the rising
-edge), `jt12_top.v` (SSG level table), `jtgng_game.v` (clock enables from outside, mirror tap)
-and `jtgng_main.v` (mirror tap).
+edge), `jt12_top.v` (SSG level table), `jtgng_game.v` (clock enables from outside, mirror tap),
+`jtgng_main.v` (mirror tap, active-high CPU reset), `jtframe_sys6809.v` and `mc6809i.v`
+(active-high reset, `mc6809i.v` also jotego's fix `bd9fefa`).
 The files directly in `src/`, `sim/`, the manifest and the menu are GPL-3.0-only.
