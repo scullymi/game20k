@@ -14,15 +14,16 @@ JT49. The repository has no licence file.
 | `custom/k083.sv` | Ace and ElectronAsh | MIT, in the head | no |
 | `ram_rom/rom_loader.sv` | Kitrinx | MIT, in the head | yes |
 | `cpu/T80/*.vhd` | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-style, see the file heads | `T80.vhd`, `T80s.vhd` |
-| `sound/jt49/hdl/` | Jose Tejada Gomez (jotego), the volume scale changed by Ace according to `README.upstream.md` | GPL-3.0-or-later, in each head | no |
+| `sound/jt49/hdl/` | Jose Tejada Gomez (jotego), the volume scale changed by Ace according to `README.upstream.md` | GPL-3.0-or-later, in each head | no, three filters left out |
 | `jtframe_frac_cen.v` | not stated, the file has no head. An earlier version of a JTFRAME module by jotego, which jtcores carries under GPL-3.0-or-later | none stated | no |
 | `ram_rom/spram.v`, `ram_rom/dpram_dc.v`, `sound/tp_lpf_sel.sv` | game20k | GPL-3.0-only | ours |
 
 `custom/k526.sv` and `custom/k528.sv` describe the address decoding PLAs of the board (82S153)
 as logic, converted from dumps in the PLD Archive, as their heads say. Not copied: `hiscore.v`,
-`pause.v`, `pll.v` and `pll/` (Altera), `sound/Filters/` and the `LICENSE` and `README.md` of
-`sound/jt49/`. Upstream's `ram_rom/spram.vhd` and `ram_rom/dpram_dc.vhd`, the latter an Altera
-`altsyncram` wrapper, are replaced by our `spram.v` and `dpram_dc.v`.
+`pause.v`, `pll.v` and `pll/` (Altera), `sound/Filters/`, the `LICENSE` and `README.md` of
+`sound/jt49/`, and its filters `jt49_dcrm.v`, `jt49_mave.v` and `jt49_dly.v`, which the core
+does not use (it takes `jt49_dcrm2.v`). Upstream's `ram_rom/spram.vhd` and `ram_rom/dpram_dc.vhd`,
+the latter an Altera `altsyncram` wrapper, are replaced by our `spram.v` and `dpram_dc.v`.
 
 ## What changed, and why
 

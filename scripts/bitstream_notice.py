@@ -289,11 +289,11 @@ COMPONENTS = [
         "name": "JTOPL by Jose Tejada Gomez (jotego)",
         "short": "GPL-3.0-or-later",
         "url": "https://github.com/jotego/jtopl at 7ac0c81, folder hdl",
-        "match": r"^fpga/vendor/jtopl/hdl/(jt2413|jtopl_acc|jtopl_csr|jtopl_div|jtopl_eg|"
+        "match": r"^fpga/vendor/jtopl/hdl/(jt2413|jtopl_acc|jtopl_div|jtopl_eg|"
                  r"jtopl_eg_cnt|jtopl_eg_comb|jtopl_eg_ctrl|jtopl_eg_final|jtopl_eg_pure|"
                  r"jtopl_eg_step|jtopl_exprom|jtopl_lfo|jtopl_logsin|jtopl_noise|jtopl_op|jtopl_pg|"
                  r"jtopl_pg_comb|jtopl_pg_inc|jtopl_pg_rhy|jtopl_pg_sum|jtopl_pm|jtopl_sh|"
-                 r"jtopl_sh_rst|jtopl_single_acc|jtopl_slot_cnt|jtopl_timers|jtopll_mmr|jtopll_reg|"
+                 r"jtopl_sh_rst|jtopl_single_acc|jtopl_slot_cnt|jtopll_mmr|jtopll_reg|"
                  r"jtopll_reg_ch)\.v$",
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "Unchanged.",
