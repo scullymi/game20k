@@ -293,6 +293,7 @@ module tb_1943;
         end
         repeat (300) @(posedge clk);
         reset <= 1'b0;
+        $display("reset released at %0t, frame %0d", $time, nframe);
     end
 
     // ---------------- RAM mirror: a Pico model and the truth ----------------
@@ -434,21 +435,28 @@ module tb_1943;
     // counted only once the core runs: under reset (while the image loads) the video timing
     // runs on, but the slots read nothing on purpose
     wire  visible = dut.u_game.LVBL && dut.u_game.LHBL && !reset;
-    // the map checker counts from the first vertical blank after the reset, as game_core's
-    // probe does: the slots start empty, the first line's map words are always late
+    // characters, scroll layers, sprites and the map checker count from the first vertical
+    // blank after the reset, as game_core's probe does: the slots start empty, so the rest of
+    // the frame in which the reset ends is always late
     wire  mvisible = visible && dut.dm_on;
     always @(posedge clk) begin
         if (dut.u_game.u_video.u_char.Hfix[2:0] > 3'd2 && dut.u_game.u_video.u_char.rom_ok)
             chr_seen <= 1'b1;
         if (dut.cen6 && dut.u_game.u_video.u_char.Hfix[2:0] == 3'd2) begin
             chr_seen <= 1'b0;
-            if (!chr_seen && visible) char_late <= char_late + 1;
+            if (!chr_seen && mvisible) begin
+                char_late <= char_late + 1;
+                if (char_late < 20) $display("late char: frame %0d V %0d pixel %0d", nframe, dut.u_game.V, hpix);
+            end
         end
         // scroll 1 and 2: counted by scr_probe below, each with its own HS (the scroll
         // position is part of it)
-        if (dut.u_game.u_video.u_obj.u_cnt.HINIT_draw && dut.u_game.u_video.u_obj.draw_cen && dut.u_game.LVBL && !reset) begin
+        if (dut.u_game.u_video.u_obj.u_cnt.HINIT_draw && dut.u_game.u_video.u_obj.draw_cen && dut.u_game.LVBL && !reset && dut.dm_on) begin
             obj_lines <= obj_lines + 1;
-            if (!dut.u_game.u_video.u_obj.u_cnt.draw_over) obj_short <= obj_short + 1;
+            if (!dut.u_game.u_video.u_obj.u_cnt.draw_over) begin
+                obj_short <= obj_short + 1;
+                if (obj_short < 20) $display("unfinished sprite line: frame %0d V %0d", nframe, dut.u_game.V);
+            end
         end
     end
 
@@ -605,7 +613,7 @@ bind jt1943_map_cache map_probe u_probe (.clk(clk), .LHBL(LHBL), .busy(busy));
 // path into scroll 2's parameter-dependent generate branch, hence the bind.
 module scr_probe (input wire clk, input wire cen6, input wire [1:0] hs, input wire as8mask);
     always @(posedge clk)
-        if (cen6 && hs == 2'd1 && tb_1943.visible) begin
+        if (cen6 && hs == 2'd1 && tb_1943.mvisible) begin
             if (as8mask  && !tb_1943.dut.scr1_ok) begin
                 tb_1943.scr1_late++;
                 $display("late scroll1: frame %0d V %0d pixel %0d", tb_1943.nframe, tb_1943.dut.u_game.V, tb_1943.hpix);
