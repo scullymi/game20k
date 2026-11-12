@@ -2,12 +2,11 @@
 # Copyright (C) 2026 scullymi
 #
 # 1942, Vulgus and Higemaru (game_core with jotego's jt1942) with Verilator: python3 g20k.py sim
-# 1942 [port|path|fb] [--set vulgus|higemaru] [-D HIGEDBG]. Ten seconds of the game, attract
+# 1942 [path|fb] [--set vulgus|higemaru] [-D HIGEDBG]. Ten seconds of the game, attract
 # mode, a coin and a start, every 30th frame written out, one PNG sheet of the frames, turned
 # upright. tools/engine/sim.py describes the keys.
 #
-#   port   the ROM buses read through a model of rom_sdram's read port, latency as measured
-#   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model
+#   path   the ROM buses read through the real rom_sdram.sv, sdram_fb.v and an SDRAM model
 #   fb     path, and the upright picture as on the device: sdram_share.sv puts the frame
 #          buffer (fb_pack.sv, fb_read_rotated.sv) next to the ROM on the controller
 #
@@ -20,7 +19,7 @@
 about = "ten seconds of 1942, Vulgus or Higemaru with a coin and a start, a PNG sheet of the frames"
 core = ".."
 sets = ["1942", "vulgus", "higemaru"]
-variants = { port = [], path = ["ROM_PATH"], fb = ["ROM_PATH", "FB_PATH"] }
+variants = { path = [], fb = ["FB_PATH"] }
 flags = ["-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD", "+define+TV80S"]
 frames = { dir = "frames" }
 sheet_script = "ppm2png.py"

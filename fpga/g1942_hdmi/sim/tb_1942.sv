@@ -2,12 +2,9 @@
 // Copyright (C) 2026 scullymi
 // game20k, 1942, Vulgus and Higemaru: simulation of game_core (jotego's jt1942 behind our
 // wrapper) with the ROM file of one of them.
-// Two ways to serve the five ROM buses, chosen at build time:
-//   default   a model of rom_sdram's read port with the latency measured in path mode:
-//             mostly 10 to 13 core clocks, one read in 40 meets a refresh and takes 14 to 20
-//   ROM_PATH  the real path: rom_sdram.sv, sdram_fb.v at 64.8 MHz unrelated to the core
-//             clock, and an SDR SDRAM model; the image is first written through rom_sdram's
-//             write side, as rom_loader does on the device
+// The five ROM buses read through the real path: rom_sdram.sv, sdram_fb.v at 64.8 MHz
+// unrelated to the core clock, and an SDR SDRAM model; the image is first written through
+// rom_sdram's write side, as rom_loader does on the device (FB_PATH: with the frame buffer).
 // The character ROM, the PROMs and the id section of Vulgus and Higemaru come over the
 // loader's write port while the core is in reset. A coin and a start follow, so the frames
 // show the game itself. Every FRAME_EVERY-th frame is written as frames/fNNNN.ppm, the raw
@@ -37,13 +34,8 @@ module tb_1942;
     logic [15:0] rom_wr_en   = '0;
     logic [21:2] rom_rd_addr;
     logic        rom_rd_push;
-`ifdef ROM_PATH
     logic        rom_rd_ready, rom_rd_valid;
     logic [31:0] rom_rd_data;
-`else
-    logic        rom_rd_ready = 1'b1, rom_rd_valid = 1'b0;
-    logic [31:0] rom_rd_data  = '0;
-`endif
     logic [3:0]  r, g, b;
     logic        ce, blankn, vs, hs;
     logic signed [15:0] audio;
@@ -91,39 +83,6 @@ module tb_1942;
         return {prom[i][3:0], prom[256 + i][3:0], prom[512 + i][3:0]};
     endfunction
 
-`ifndef ROM_PATH
-    // ---------------- read stream model ----------------
-    // Up to four reads in flight, words in order. Each read is due 9..12 clocks after its
-    // push (one in 40 meets a refresh: 13..19), the latency measured on the single-read port
-    // before the stream; a word never comes before the one ahead of it, and the ring takes
-    // a read only every 3.4 core clocks at most (one per round of six SDRAM cycles), so a
-    // read is never due earlier than 4 clocks after the one before.
-    logic [21:2] m_addr [$];
-    longint      m_due  [$];
-    longint      now = 0, last_due = 0;
-    int          reads = 0;
-    always @(posedge clk) begin
-        now++;
-        rom_rd_valid <= 1'b0;
-        if (rom_rd_push && rom_rd_ready) begin
-            longint d;   // assigned, not initialised: in an always block an initialiser runs once
-            d = now + (($urandom % 40 == 0) ? 13 + ($urandom % 7) : 9 + ($urandom % 4));
-            if (d < last_due + 4) d = last_due + 4;
-            last_due = d;
-            m_addr.push_back(rom_rd_addr);
-            m_due.push_back(d);
-        end
-        if (m_due.size() > 0 && m_due[0] <= now) begin
-            rom_rd_data  <= rom[m_addr[0][17:2]];
-            rom_rd_valid <= 1'b1;
-            void'(m_addr.pop_front());
-            void'(m_due.pop_front());
-            reads <= reads + 1;
-        end
-        rom_rd_ready <= m_due.size() < 3;      // registered: four in flight at most
-    end
-
-`else
     // ---------------- the real ROM path ----------------
     logic clk_sdram = 0;
     always #7.716 clk_sdram = ~clk_sdram;
@@ -268,12 +227,10 @@ module tb_1942;
         endcase
     end
 
-`endif
 
     // ---------------- loading the PROMs, then out of reset ----------------
     initial begin
         repeat (20) @(posedge clk);
-`ifdef ROM_PATH
         sd_resetn <= 1'b1;
         for (int o = 0; o < 32'h3A000; o++) begin
             if (o >= 32'h18000 && o < 32'h1A000) continue;   // the characters go to block RAM
@@ -285,7 +242,6 @@ module tb_1942;
         end
         while (!wr_idle) @(posedge clk);
         $display("image written at %0t", $time);
-`endif
         // the characters, section 2, over the write port into game_core's block RAM
         for (int i = 0; i < 8192; i++) begin
             rom_wr_addr <= 16'(i);
@@ -392,7 +348,8 @@ module tb_1942;
 
     // ---------------- read latency of the ROM port, as the game sees it ----------------
     // clocks from a push to its word, mean and maximum, how many reads took more than 19
-    // clocks (the upper end of the model), and the most reads in flight at once
+    // clocks (about the longest a lone read takes when it meets an SDRAM refresh), and the
+    // most reads in flight at once
     int lat_n = 0, lat_max = 0, lat_over = 0, fly_max = 0;
     longint lat_sum = 0, lat_clk = 0;
     longint lat_t0 [$];
