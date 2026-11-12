@@ -12,17 +12,17 @@ the Z80 in `../rtl_T80`.
 |---|---|---|
 | `pacman.vhd` | MikeJ, later changes by Alexey Melnikov (Sorgelig), Alan Steremberg and Rodimus Prime | yes, see below |
 | `pacman_video.vhd` | MikeJ, later changes by the same three | yes, RAM primitives and the sprite x/y shadow |
-| `pacman_audio.vhd` | MikeJ, later changes by the same three | yes, RAM primitives and the centred output |
+| `pacman_audio.vhd` | MikeJ, later changes by the same three | yes, RAM primitives and the centered output |
 | `pacman_rom_descrambler.vhd` | d18c7db, later changes by Sorgelig | yes, RAM primitives and the second bank |
 | `pacman_vram_addr.vhd` | MikeJ and CarlW, later changes by Sorgelig | no |
 | `g20k_dpram.vhd` | game20k | new: the dual-port RAM the core uses, in a form Gowin places |
 | `pacman_mirror.vhd` | game20k | new: the RAM mirror for RetroAchievements |
 | `sn76489_top.vhd`, `ym2149.vhd` | game20k | new: stubs for two sound chips the build never uses |
 
-The upstream files keep their headers: a BSD-style licence with three conditions (source and
+The upstream files keep their headers: a BSD-style license with three conditions (source and
 synthesized form, the notice in the documentation, no endorsement), see
 [THIRD-PARTY.md](../../../../THIRD-PARTY.md). Rodimus Prime's additions carry no copyright line
-of their own. The upstream repository has no licence file of its own at its root. The files of
+of their own. The upstream repository has no license file of its own at its root. The files of
 ours carry `SPDX-License-Identifier: GPL-3.0-only`.
 
 Every change in the upstream files is marked `game20k` in the text. The complete record is the
@@ -82,9 +82,9 @@ done
 
 **Sound output**
 
-- `pacman_audio.vhd` centres every voice on 120: the output register takes
-  `vol * (sample - 8) + 120` instead of `vol * sample`, as MAME centres the 4-bit sample on 8.
-  Uncentred, a voice's baseline moves with its volume, and a short note sits on a pulse that the
+- `pacman_audio.vhd` centers every voice on 120: the output register takes
+  `vol * (sample - 8) + 120` instead of `vol * sample`, as MAME centers the 4-bit sample on 8.
+  Uncentered, a voice's baseline moves with its volume, and a short note sits on a pulse that the
   monitor's AC coupling turns into a thump. `game_core.sv` takes the constant off again, so
   silence stays 0.
 

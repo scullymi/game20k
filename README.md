@@ -16,7 +16,7 @@ and shows each unlock as a banner on the screen.
 ![Galaga with an unlock banner, 1943 and Super Pang, below them twelve more games](docs/images/games-overview.png)
 
 Seventeen games and five regional or speedup sets on eight cores: [docs/games.md](docs/games.md)
-lists them with their controls, [docs/images](docs/images/README.md) shows them all.
+lists them with their controls, [docs/images](docs/images/README.md) has screenshots.
 
 > **ROMs are not included and never will be.** You need your own, legally obtained ROM sets.
 
@@ -33,21 +33,16 @@ from the SD card, and every chip is checked against MAME's checksums when the ca
 
 ![The FPGA sends the game RAM to the Pico every frame, rcheevos on the Pico checks the achievements and sends unlocks to retroachievements.org, the banner appears on the screen](docs/images/ra-hardware.svg)
 
-- **Every frame,** the core mirrors the game's RAM to the Pico, and
-  [rcheevos](https://github.com/RetroAchievements/rcheevos) checks the conditions there.
-- **Unlocks** go to retroachievements.org over HTTPS, wait on the SD card while offline, and
-  appear as a banner in the game.
-- **Hardcore** by default, with Rich Presence, leaderboards and an achievement list with
-  progress in the menu.
-
-You do not need an account to play. Setting one up: [docs/retroachievements.md](docs/retroachievements.md).
+Achievements count in hardcore by default, with Rich Presence, leaderboards and an achievement
+list in the menu. You do not need an account to play. How it works and how to set up an account:
+[docs/retroachievements.md](docs/retroachievements.md).
 
 ## Quick start
 
 **You need** a Tang Nano 20K, a Raspberry Pi Pico 2 W, a microSD card, a micro USB OTG adapter,
 a USB arcade stick, an HDMI monitor and seven wires, see [docs/hardware.md](docs/hardware.md).
-Without a Pico, the Nano also runs alone or with an M0S Dock, then without RetroAchievements:
-[docs/bl616.md](docs/bl616.md).
+Without a Pico, the Nano also runs alone or with a Sipeed M0S Dock (a small BL616 board), then
+without RetroAchievements: [docs/bl616.md](docs/bl616.md).
 
 1. **Wire the boards** as shown in [docs/wiring.md](docs/wiring.md). The 5 V supply goes to
    pin 40 (VBUS) of the Pico.
@@ -92,7 +87,7 @@ Building everything yourself, with free tools: [docs/BUILD.md](docs/BUILD.md).
 | [Hardware and monitor](docs/hardware.md) | [Wiring](docs/wiring.md) |
 | [Building from source](docs/BUILD.md) | [Known issues and plans](docs/status.md) |
 | [Screenshots and photos](docs/images/README.md) | [Third-party code and credits](THIRD-PARTY.md) |
-| [Without a Pico: the BL616](docs/bl616.md) | |
+| [Without a Pico: the BL616](docs/bl616.md) | [When something does not work](docs/troubleshooting.md) |
 
 ## Credits
 

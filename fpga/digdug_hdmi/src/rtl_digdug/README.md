@@ -3,12 +3,12 @@
 The files under this folder are copied from
 [MiSTer-devel/Arcade-DigDug_MiSTer](https://github.com/MiSTer-devel/Arcade-DigDug_MiSTer) at
 commit `3022bcc3e18b0284b9473f1e0d45c136e676e5c9` (1 July 2026), folder `rtl/`, with the folder
-layout kept. `LICENSE` is the licence file at the root of that repository. The original
+layout kept. `LICENSE` is the license file at the root of that repository. The original
 author's repository is [MrX-8B/MiSTer-Arcade-DigDug](https://github.com/MrX-8B/MiSTer-Arcade-DigDug).
 
-| File | Author | Licence | Changed here |
+| File | Author | License | Changed here |
 |---|---|---|---|
-| `FPGA_DIGDUG.v`, `DIGDUG_CORES.v`, `DIGDUG_IODEV.v`, `DIGDUG_VIDEO.v`, `DIGDUG_SPRITE.v`, `HVGEN.v`, `dprams.v`, `wsg.v` | MiSTer-X, "Copyright (c) 2017 MiSTer-X" in the head | GPL-3.0 by the repository's `LICENSE`, the files carry no licence text | yes, see below |
+| `FPGA_DIGDUG.v`, `DIGDUG_CORES.v`, `DIGDUG_IODEV.v`, `DIGDUG_VIDEO.v`, `DIGDUG_SPRITE.v`, `HVGEN.v`, `dprams.v`, `wsg.v` | MiSTer-X, "Copyright (c) 2017 MiSTer-X" in the head | GPL-3.0 by the repository's `LICENSE`, the files carry no license text | yes, see below |
 | `cpucore.v` | not stated, the file has no head | GPL-3.0 by the repository's `LICENSE` | yes |
 | `cpu/tv80_alu.v`, `cpu/tv80_mcode.v`, `cpu/tv80_reg.v` | Guy Hutchison, based on the VHDL T80 by Daniel Wallner | MIT, in each head | no |
 | `cpu/tv80_core.v` | Guy Hutchison, based on the VHDL T80 by Daniel Wallner | MIT, in the head | yes, a synchronous reset |

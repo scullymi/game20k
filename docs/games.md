@@ -84,10 +84,9 @@ a few seconds later. Wi-Fi and the RetroAchievements login stay connected throug
 under `Settings` still picks a file by name. The choice lasts until power-off. `Save settings`
 makes the running game the one that starts at power-on, otherwise Galaga starts.
 
-Only files that `python3 g20k.py sdcard` built appear on the list. Each carries a footer with
-the game's name and a checksum, which the Pico checks while it loads the game. A file built by
-an older release shows `Old ROM file`, so rebuild the card. A file whose content no longer
-matches its checksum shows `ROM file damaged` and does not start, so copy it to the card again.
+Only files that `python3 g20k.py sdcard` built appear on the list. The Pico checks each one
+while it loads the game. What `Old ROM file` and `ROM file damaged` mean:
+[troubleshooting.md](troubleshooting.md#messages-about-the-rom-file).
 
 ![Main menu, Games page, core switch and game switch](images/menu-and-game-switch.png)
 

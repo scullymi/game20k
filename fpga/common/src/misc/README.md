@@ -2,19 +2,19 @@
 
 Seven files from two repositories of Till Harbaum (MiSTle-Dev), from the folder `src/misc/` of
 each. Till's five files (`hid.v`, `mcu_spi.v`, `osd_u8g2.v`, `sd_card.v`, `sysctrl.v`) are
-GPL-3.0-or-later. Upstream they carry no licence header, here they carry the SPDX tag, and the
-game20k changes in them are under the same licence, see
+GPL-3.0-or-later. Upstream they carry no license header, here they carry the SPDX tag, and the
+game20k changes in them are under the same license, see
 [THIRD-PARTY.md](../../../../THIRD-PARTY.md). `sd_rw.v` and `sdcmd_ctrl.v` go back to
 [WangXuan95/FPGA-SDcard-Reader](https://github.com/WangXuan95/FPGA-SDcard-Reader), GPL-3.0.
 
 | File | From | Changed here |
 |---|---|---|
-| `hid.v` | MiSTeryNano `c8e4601fbf7264e13f4b18ac2d452444de6b51c5` | yes: an extra joystick byte for the shoulder, select, start and trigger buttons, the analogue axes for the input test, and the Atari ST `keymap` instance removed with `kbd_row` and `kbd_column` tied to 0, since `atarist_keymap.v` is not copied |
+| `hid.v` | MiSTeryNano `c8e4601fbf7264e13f4b18ac2d452444de6b51c5` | yes: an extra joystick byte for the shoulder, select, start and trigger buttons, the analog axes for the input test, and the Atari ST `keymap` instance removed with `kbd_row` and `kbd_column` tied to 0, since `atarist_keymap.v` is not copied |
 | `mcu_spi.v` | MiSTeryNano, same commit | yes: SPI target 5 passed through, the RAM mirror. The bytes of a transaction are numbered on the SPI side, and the core clock resets nothing with the select, which lost the last byte when the select rose before it was through the synchronizer. An output `mcu_end` one clock after the last byte of a transaction, from the select through one more stage than the bytes. `mcu_start` from the byte's number, `spi_target` declared before its first use |
 | `osd_u8g2.v` | MiSTeryNano, same commit | yes: input `rotate`, the menu rotated by 90 degrees in landscape mode, `SCALE 4` for 720p, an output `visible` for the top level, the box geometry and the area flags registered and computed one pixel ahead for timing |
 | `sysctrl.v` | derived from MiSTeryNano `sysctrl.v`, same commit | our file: the SPI command state machine and its constants are Till's, about 60 lines taken verbatim from the 333-line `sysctrl.v`. The menu ROM, the generic settings and the value strobe for the game are ours. The menu read (CMD 8) sends the game's menu for the upstream Companion firmware |
 | `sd_card.v` | Nanomig `d9132399fda88f63d3eac1a5b230dd09b2bf539d`, which contains the pull request [MiSTle-Dev/NanoMig#168](https://github.com/MiSTle-Dev/NanoMig/pull/168) by Manger74 | yes: a failed read of the Companion answers 0x02 instead of leaving it waiting, and command 9 lets the Companion wait for its sector without a new request, so it can free the SPI bus in between. A sector the Companion has not clocked out completely stays ready for its next poll. While the Companion waits, the answer is 0x03 instead of 0x01, which tells it that the core has both. The ROM image FIFO's read register holds only the FIFO output, the byte written straight through has its own register, so that the FIFO fits into block RAM with the free toolchain. Only Nanomig's version has command 8, the ROM image upload. The pull request reports a failed write to the Companion in bit 0 of the status byte |
-| `sd_rw.v` | Nanomig, same commit | yes: a read gets three attempts instead of retrying without end, the CRC of the read data is checked, and a read that still fails ends like a failed write, with `rd_err` and a new init of the card. The pull request ends a failed write with an error instead of leaving the controller stuck in `CMD24` or sending `CMD24` again at once, and initialises the card again afterwards |
+| `sd_rw.v` | Nanomig, same commit | yes: a read gets three attempts instead of retrying without end, the CRC of the read data is checked, and a read that still fails ends like a failed write, with `rd_err` and a new init of the card. The pull request ends a failed write with an error instead of leaving the controller stuck in `CMD24` or sending `CMD24` again at once, and initializes the card again afterwards |
 | `sdcmd_ctrl.v` | Nanomig, same commit | no |
 
 Some changes are marked `game20k` in the text, not all. The complete record is the diff against

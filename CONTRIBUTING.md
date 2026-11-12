@@ -15,13 +15,47 @@ approach before you put work into it.
 
 - Build and test as described in [docs/BUILD.md](docs/BUILD.md), and test on the device if your
   change affects it.
-- Run `python3 g20k.py check --staged` before you commit. It runs the host tests and checks for
-  files that must never be committed.
+- Run the checks below before you commit and before you push.
 - Keep a pull request to one topic, with a short commit message in English.
 - Code, comments and documentation are in English. Comments describe the code as it is, not its
   history.
+- A new core or board: [docs/cores.md](docs/cores.md).
 - Firmware changes belong in [scullymi/FPGA-Companion](https://github.com/scullymi/FPGA-Companion)
   (branch `game20k`), which this repository includes as a submodule.
+
+## Checks before a commit and a push
+
+`g20k.py check` scans what leaves your machine: secrets, ignored files and build output,
+RetroAchievements conditions, changed line ends, and the host tests. Before a commit it checks
+the index, with `--fork` that of the fork checkout:
+
+```sh
+python3 g20k.py check --staged
+python3 g20k.py check --staged --fork
+```
+
+Before a push, run what the checks job of the CI runs:
+
+```sh
+python3 g20k.py check --ci
+python3 g20k.py check --ci --fork
+python3 scripts/check_contracts.py
+python3 -m unittest discover -s tools/engine/tests -t .
+```
+
+and `ruff check`, `ruff format --check`, `mypy` and
+`clang-format --dry-run -Werror external/FPGA-Companion/src/game20k/*.[ch]` in the versions of
+the `dev` group in [pyproject.toml](pyproject.toml). The CI also runs the simulations
+(`python3 g20k.py sim`) and builds the firmware and the bitstreams, see [docs/BUILD.md](docs/BUILD.md).
+
+The secrets scan looks for the values in `sdcard/config.ini`. If your real file lives elsewhere,
+point `G20K_CONFIG_INI` to it. A pre-push hook runs the scan on the outgoing commits. Save this
+as `.git/hooks/pre-push` and make it executable:
+
+```sh
+#!/bin/sh
+exec python3 g20k.py check --push "$@"
+```
 
 ## Never commit
 

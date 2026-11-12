@@ -1,17 +1,15 @@
 # Ghosts'n Goblins
 
-jotego's jtgng on the game20k platform: `python3 g20k.py build fpga/gng_hdmi`. Landscape only: the core raster stands upright (`screen upright` in
-the manifest) and goes through the scaler as it is, with the menu and the RetroAchievements
-banner upright as well.
+jotego's jtgng on the game20k platform: `python3 g20k.py build fpga/gng_hdmi`. Landscape only:
+the core raster stands upright (`screen upright` in the manifest) and goes through the scaler as
+it is, with the menu and the RetroAchievements banner upright as well.
 
-## Sources and licences
+## Sources and licenses
 
-| Folder | Upstream | Author | Licence |
-|---|---|---|---|
-| [`../vendor/jtcores/`](../vendor/jtcores/README.md) | [jotego/jtcores](https://github.com/jotego/jtcores) at `548b87b`, `cores/gng/hdl` and `modules/jtframe/hdl` | Jose Tejada Gomez | GPL-3.0-or-later, in every header |
-| `../vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i.v` | the same, jotego's changed copy of [cavnex/mc6809](https://github.com/cavnex/mc6809) (`17e94a6`) | Greg Miller, changes by Jose Tejada Gomez | BSD, three clauses: [`mc6809i_LICENSE.md`](../vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md) is the author's licence file. The author offers a standard BSD licence and a binary-only variant, this copy uses the standard BSD licence. jotego's copy carries only the copyright line |
-| `../vendor/jtcores/modules/jtframe/hdl/cpu/t80/` | the same, the T80 | Daniel Wallner and others | BSD-like with three conditions, in every header |
-| [`../vendor/jt12/`](../vendor/jt12/README.md), [`../vendor/jt49/`](../vendor/jt49/README.md) | [jotego/jt12](https://github.com/jotego/jt12) at `efa4068`, [jotego/jt49](https://github.com/jotego/jt49) at `6f1247f` | Jose Tejada Gomez | GPL-3.0-or-later, `LICENSE` in each folder |
+The game comes from [`../vendor/jtcores/`](../vendor/jtcores/README.md) (`cores/gng/hdl` and
+JTFRAME with the T80 and the 6809), the sound chips from [`../vendor/jt12/`](../vendor/jt12/README.md)
+and [`../vendor/jt49/`](../vendor/jt49/README.md). [THIRD-PARTY.md](../../THIRD-PARTY.md) lists
+their authors, commits and licenses.
 
 Changed copies say so in their head and mark each change with `game20k`:
 `jtframe_dual_ram.v` (Gowin write mode), `jt12_rst.v` and `jtgng_sound.v` (reset on the rising

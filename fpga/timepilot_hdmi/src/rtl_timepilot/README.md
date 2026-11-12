@@ -5,9 +5,9 @@ The files under this folder are copied from
 at commit `5a148e2b2a94ddfbcaef4348f4416a4ed15cec7c` (9 December 2025), folder `rtl/`, with the
 folder layout kept. `README.upstream.md` is the repository's `README.md`, unchanged: it credits
 Ace for the core design and the Konami custom chips, Kitrinx for the ROM loader and jotego for
-JT49. The repository has no licence file.
+JT49. The repository has no license file.
 
-| File | Author | Licence | Changed here |
+| File | Author | License | Changed here |
 |---|---|---|---|
 | `TimePilot.sv`, `TimePilot_SND.sv`, `custom/k082.sv`, `custom/k501.sv`, `custom/k502.sv`, `custom/k503.sv`, `custom/k526.sv`, `custom/k528.sv` | Ace | MIT, in each head | `TimePilot.sv`, `TimePilot_SND.sv` |
 | `TimePilot_CPU.sv` | Ace, Artemio Urbina and RTLEngineering | MIT, in the head | yes |

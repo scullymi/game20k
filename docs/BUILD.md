@@ -114,6 +114,16 @@ build stops when a clock misses its frequency or the cells differ from the core'
 (`--update-cells` after a wanted change). Without `--dev`, `release` only builds a clean tree on
 a release tag.
 
+More options:
+
+- `cores` prints the core folders of `project.toml` in slot order.
+- `--board boards/tangnano20k-singleboard` on `build`, `flash` and `release` takes another board
+  folder than the one `project.toml` names, here the Nano without a Pico, see
+  [bl616.md](bl616.md).
+- `flash --dry-run` prints the command without running it.
+- `sources <core> --out <folder>` prints a core's own source files for a simulation and
+  generates those it needs into `<folder>`. With `--include` it prints the include folders.
+
 ## 3. Firmware
 
 ```sh
@@ -122,7 +132,7 @@ python3 g20k.py firmware --usb pio    # stick on a USB A socket at GP2/GP3
 ```
 
 The command prints the path of `fpga_companion.uf2`. Copy it to the Pico in BOOTSEL mode, or
-flash it with a debug probe, see [wiring.md](wiring.md#flashing-through-the-probe). For the
+flash it with a debug probe, see [debugging.md](debugging.md#flashing-through-the-probe). For the
 BL616 see [bl616.md](bl616.md#from-source).
 
 The firmware is built from the fork in `external/FPGA-Companion`, as checked out. Commit changes
@@ -132,6 +142,9 @@ from this repository: the ROM manifests and each core's `menu_core.xml` with
 the firmware, a change to labels in `base.xml` only the firmware. When the menus of firmware
 and core do not match, the firmware shows a basic menu without DIP switches, and hardcore stays
 off.
+
+`--without-ra` builds without RetroAchievements, for a trial. `--upstream PICO` builds a board
+of FPGA Companion without game20k's code, `--bl616 nano20k` the firmware of the onboard BL616.
 
 `firmware --release` (or `--release bl616`) packs a release under `dist/`. The release files
 come from GitHub Actions, and `gh attestation verify <zip> -R scullymi/game20k` confirms that a
@@ -155,23 +168,9 @@ the suite lacks: `brew install nvc doxygen` on macOS, on Ubuntu the release pack
 
 ## Debugging
 
-The firmware logs on **GP0 (TX) at 921600 baud**, see
-[wiring.md](wiring.md#reading-the-serial-output). The Nano's LEDs in normal operation:
-
-| LED | Lit when | Off means |
-|---|---|---|
-| 1 | blinks once a second, faster while the ROM loads | |
-| 2 | the Companion has sent a packet | no connection to the Companion |
-| 3 | a direction or button is held | |
-| 4 | the core has produced a vsync | the core runs but makes no picture |
-| 5 | the ROM is loaded | the ROM did not arrive, the core stays in reset |
-| 6 | the HDMI PLL is locked | no picture at all |
-
-`-G` builds a diagnostic picture instead of the game, into a folder of its own, for example
-`python3 g20k.py build fpga/galaga_hdmi -G RAMDIAG=1`. The parameters are those of
-`fpga/common/src/game20k_top.sv`, where the LEDs' meaning in these builds is described too.
-
-Host tests of the firmware: [tests/README.md](../tests/README.md). Updating dependencies:
+Serial log, debug probe and diagnostic builds: [debugging.md](debugging.md). How cores and
+boards are described: [cores.md](cores.md). Host tests of the
+firmware: [tests/README.md](../tests/README.md). Updating dependencies:
 [dependencies.md](dependencies.md). Licenses: [THIRD-PARTY.md](../THIRD-PARTY.md).
 
 ## Repository layout
@@ -182,7 +181,7 @@ project.toml        the cores in the flash and the board
 tools.toml          the programs of the build
 boards/             pins, flash layout and FLASHING.txt of each board
 fpga/common/        the platform: top level, HDMI, scaler, SDRAM, SPI, RAM mirror, menu
-fpga/<core>/        one core each, with its menu, ROM manifests and simulation
+fpga/<core>/        one core each, with its menu, ROM manifests and any simulation
 external/           the firmware's submodules
 scripts/            ROM files, checks, NOTICE files
 roms/, sdcard/      your ROMs, the files for the SD card

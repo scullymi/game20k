@@ -11,11 +11,10 @@ which is what the Pac-Man core's sync bus expects. The core instantiates `T80sed
 
 This is not the same T80 as `fpga/galaga_hdmi/src/rtl_T80` (Wallner's 0242 to 0247 with
 `T80se`): `T80.vhd`, `T80_ALU`, `T80_MCode` and `T80_Pack` differ, only `T80_Reg` is the same
-file. Both sets declare the same entity names, so one build must never add both; each
-game's `build.tcl` adds only its own folder, and a shared file list would have to keep it that
-way.
+file. Both sets declare the same entity names, so one build must never add both. Each game's
+`core.toml` lists only its own folder, and a shared file list would have to keep it that way.
 
-The licence is in the header of every file, BSD-style with three conditions. One of them
+The license is in the header of every file, BSD-style with three conditions. One of them
 concerns bitstreams: "Redistributions in synthesized form must reproduce the above copyright
 notice, this list of conditions and the following disclaimer in the documentation and/or other
 materials provided with the distribution." A published bitstream needs this notice next to it.
