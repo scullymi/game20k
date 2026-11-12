@@ -80,8 +80,9 @@ The files on the SD card are plain text.
 
 The debug log is not stored. It goes to the Pico's serial port and to telnet port 23. It shows
 your account name, the Wi-Fi name, network and time settings, your game progress, and the
-connected USB devices. The token and the Wi-Fi key appear only as their length, with one
-exception under "Local risks".
+connected USB devices. The token and the Wi-Fi key appear only as their length. The one
+exception is a line in `config.ini` of more than 125 characters: the device skips it and
+logs its beginning.
 
 To remove your data from the SD card, delete `config.ini`, the `.ini` files of the cores, all
 `ra_*` files and the folder `ra`. Deleted files can be recovered until they are overwritten, so

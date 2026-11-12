@@ -5,8 +5,8 @@ cropping. The game graphics belong to their publishers.
 
 ## All games
 
-The fifteen games, by core. The regional and speedup sets look like their main game, see
-[games.md](../games.md).
+Fifteen of the games, by core. The regional and speedup sets look like their main game.
+[games.md](../games.md) lists all games.
 
 ![Galaga, Pac-Man, Puck Man, Ms. Pac-Man, Jr. Pac-Man, 1942, Vulgus, Pirate Ship Higemaru, 1943, 1943 Mark II, Time Pilot, Ghosts'n Goblins, Dig Dug, Pang and Super Pang](gallery.png)
 

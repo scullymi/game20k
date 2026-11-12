@@ -17,14 +17,9 @@ at the next power-up, even without a network. **Without an account**, the device
 contact the server and downloads nothing. A set that is already on the card still runs, but
 its unlocks are neither sent nor kept.
 
-**With an account:**
-
-```sh
-cp sdcard/config.ini.example sdcard/config.ini && chmod 600 sdcard/config.ini
-```
-
-`sdcard/config.ini` is the only place for credentials. It is the same file that goes onto the SD
-card and that the device reads, and `.gitignore` keeps it out of the repository. Enter your Wi-Fi
+**With an account:** The first `g20k.py sdcard` creates `sdcard/config.ini`, readable only by
+you. It is the only place for credentials. It is the same file that goes onto the SD card and
+that the device reads, and `.gitignore` keeps it out of the repository. Enter your Wi-Fi
 details under `[WIFI]`. Under `[RA]`, enter your account name and your connect token, and remove
 the `;` in front of those two lines.
 
@@ -81,6 +76,7 @@ table.
 
 ## Hardcore
 
-RetroAchievements approves each new client manually. Everything on the device side is ready.
-Until then, the server records unlocks as softcore and stores no leaderboard entries, see
-[status.md](status.md).
+RetroAchievements approves each new client manually. Everything on the device side is ready:
+Rich Presence, the achievement list, the hardcore setting that only takes effect after a reset,
+and the chain of proof (device key, ROM digest, set tag, DIP switches applied only on reset).
+Until the approval, the server records unlocks as softcore and stores no leaderboard entries.

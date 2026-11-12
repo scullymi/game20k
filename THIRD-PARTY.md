@@ -1,8 +1,7 @@
 # Third-party code
 
 This file lists what in this project is not ours, under which license it comes, and what is
-pulled in as a git submodule instead of being kept in the repository. The published repository
-starts from a fresh initial commit, so its history carries nothing from before publication.
+pulled in as a git submodule instead of being kept in the repository.
 
 ## Why GPL-3.0-only
 

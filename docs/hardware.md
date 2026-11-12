@@ -37,8 +37,8 @@ specification.
 What makes it fit: HDMI straight from the FPGA pins without extra chips, the SDRAM for the
 rotated picture, and a large set of existing cores for this exact board (MiSTeryNano, NanoMig,
 NESTang), which the HDMI path, SPI, menu and SD card access come from. The limit is block RAM,
-not logic: arcade cores of this generation keep their ROMs in block RAM, and the design uses
-almost all 46 blocks.
+not logic: arcade cores of this generation keep their ROMs in block RAM, and the larger cores
+use nearly all of it.
 
 | Board | Block RAM | For this project |
 |---|---|---|
@@ -99,8 +99,8 @@ stepping section below only concerns that socket.
 **A carrier board instead of hand wiring.** The
 [MiSTeryShield20k RPiPico](https://github.com/MiSTle-Dev/Boards/tree/main/misteryshield20k_rpipico)
 connects the Pico to the same GPIOs as our wiring, with the firmware built by
-`python3 g20k.py firmware --usb pio`. It was designed for the Pico W, and with a Pico 2 W fitted
-it has not been tested yet. Its USB A sockets run over PIO USB, so check them for the pull-downs
+`python3 g20k.py firmware --usb pio`. It was designed for the Pico W and is untested with a
+Pico 2 W. Its USB A sockets run over PIO USB, so check them for the pull-downs
 of the next section.
 
 ### BL616
