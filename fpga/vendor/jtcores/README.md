@@ -7,7 +7,7 @@ repository kept, so `cores/1942/hdl/jt1942_game.v` here is `cores/1942/hdl/jt194
 Only the files the four games need are copied: the games themselves (`cores/1942/hdl`,
 `cores/1943/hdl`, `cores/gng/hdl`, `cores/pang/hdl`) and the parts of JTFRAME they instantiate
 (`modules/jtframe/hdl`), among them the T80 and the 6809 CPU. 1942 and 1943 share modules with
-Ghosts'n Goblins from `cores/gng/hdl`. Each core's `build.tcl` lists the files it uses:
+Ghosts'n Goblins from `cores/gng/hdl`. Each core's `core.toml` lists the files it uses:
 `fpga/g1942_hdmi`, `fpga/g1943_hdmi`, `fpga/gng_hdmi` and `fpga/pang_hdmi`.
 
 Not copied: `cores/pang/hdl/jtpang_game.v`, whose part `fpga/pang_hdmi/src/game_core.sv` takes,
@@ -20,7 +20,7 @@ place, and each core's `src/game_core.sv` connects the two.
 The sound chips and the EEPROM come from jotego's jt12, jt49, jtopl, jt6295 and jteeprom, see
 the README.md in `../jt12`, `../jt49`, `../jtopl`, `../jt6295` and `../jteeprom`.
 
-| Folder | Author | Licence | Changed here |
+| Folder | Author | License | Changed here |
 |---|---|---|---|
 | `cores/1942/hdl` | Jose Tejada Gomez (jotego) | GPL-3.0-or-later | `jt1942_obj.v`, `jt1942_main.v`, `jt1942_sound.v`, `jt1942_game.v`, `jt1942_colmix.v`, `jt1942_video.v`, see below |
 | `cores/1943/hdl` | Jose Tejada Gomez | GPL-3.0-or-later | `jt1943_main.v`, `jt1943_game.v`, `jt1943_colmix.v`, `jt1943_video.v`, see below |
@@ -31,18 +31,18 @@ the README.md in `../jt12`, `../jt49`, `../jtopl`, `../jt6295` and `../jteeprom`
 | `modules/jtframe/hdl/cpu/mc6809i.v` | Greg Miller, changes by Jose Tejada Gomez | BSD-style, see below | upstream fix `bd9fefa`, see below |
 
 The upstream files keep their headers, except the two port lists in `modules/jtframe/hdl/inc`,
-which have none upstream. The T80 licence asks for the copyright notice in the documentation of a
+which have none upstream. The T80 license asks for the copyright notice in the documentation of a
 synthesized form, which [THIRD-PARTY.md](../../../THIRD-PARTY.md) gives.
 
 `modules/jtframe/hdl/cpu/mc6809i.v` is jotego's changed copy of `mc6809i.v` from
 [cavnex/mc6809](https://github.com/cavnex/mc6809). It carries only the line "Copyright (c)
-2016, Greg Miller". `mc6809i_LICENSE.md` beside it is the author's licence file,
+2016, Greg Miller". `mc6809i_LICENSE.md` beside it is the author's license file,
 `documentation/LICENSE.md` of cavnex/mc6809 at `17e94a6`, not part of jtcores. It offers a
-standard BSD licence and a binary-only variant that forbids passing on the source. This copy
-uses the standard BSD licence.
+standard BSD license and a binary-only variant that forbids passing on the source. This copy
+uses the standard BSD license.
 
 For simulation with Verilator, which reads no VHDL, JTFRAME has a Verilog translation of the
-T80, `modules/jtframe/hdl/cpu/t80/T80s.v`. It carries no licence header, so it is not copied
+T80, `modules/jtframe/hdl/cpu/t80/T80s.v`. It carries no license header, so it is not copied
 here: the simulations of 1942 and 1943 (`sim/sim.toml`) fetch it from the same jtcores commit
 and check its git blob hash.
 
@@ -80,10 +80,10 @@ Every change is marked `game20k` in the text.
   it already has as wires. The extra ports are in `fpga/g1942_hdmi/src/inc/mem_ports.inc`.
   Outputs only, the logic of the game is unchanged.
 - **`cores/1942/hdl/jt1942_colmix.v`, `jt1942_video.v`, `jt1942_game.v`:** the palette index
-  of each pixel as an extra output, `pal_idx`. jt1942_colmix delays it like the colour (a
+  of each pixel as an extra output, `pal_idx`. jt1942_colmix delays it like the color (a
   register like the PROM output, then a second `jtframe_blank`), jt1942_video and jt1942_game
-  pass it out. `game_core.sv` sends the index instead of the colour, and the platform applies
-  the colour PROMs after its frame buffer, which keeps 8 bits a pixel. Outputs only.
+  pass it out. `game_core.sv` sends the index instead of the color, and the platform applies
+  the color PROMs after its frame buffer, which keeps 8 bits a pixel. Outputs only.
 - **`cores/gng/hdl/jtgng_sound.v`** (1943, Ghosts'n Goblins): the local reset of the sound board
   (sound CPU and both YM2203) is registered on the rising instead of the falling clock edge. On
   the falling edge the reset path into the T80 has only half a clock, which fails timing on the
@@ -95,8 +95,8 @@ Every change is marked `game20k` in the text.
   logic of the game is unchanged.
 - **`cores/1943/hdl/jt1943_colmix.v`, `jt1943_video.v`, `jt1943_game.v`:** the palette index
   of each pixel as an extra output, `pal_idx`. jt1943_colmix registers it with the same enable
-  and blanking as the colour, jt1943_video and jt1943_game pass it out. `game_core.sv` sends
-  the index instead of the colour, and the platform applies the colour PROMs after its frame
+  and blanking as the color, jt1943_video and jt1943_game pass it out. `game_core.sv` sends
+  the index instead of the color, and the platform applies the color PROMs after its frame
   buffer, which keeps 8 bits a pixel. Outputs only.
 - **`cores/1943/hdl/jt1943_game.v`:** the sound ROM is read from SDRAM. Upstream it sits in
   block RAM, so `rom_cs` of the sound CPU is left open and `rom_ok` is tied to 1. Here both go

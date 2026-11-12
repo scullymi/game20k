@@ -5,9 +5,9 @@ The files under `hdl/` are copied from [jotego/jt12](https://github.com/jotego/j
 subfolder `adpcm/`. jtcores `548b87b` still pulls in the older `dc9be7c` as its submodule
 `modules/jt12`. 1943 and Ghosts'n Goblins each have two YM2203 on their sound board, which
 `jtgng_sound.v` instantiates as `jt03`. Only the files `jt03` needs are copied. `LICENSE` is the
-licence file of the repository. The SSG part of each YM2203 is jt49, see `../jt49/README.md`.
+license file of the repository. The SSG part of each YM2203 is jt49, see `../jt49/README.md`.
 
-Author: Jose Tejada Gomez (jotego). Licence: GPL-3.0-or-later, see the file heads.
+Author: Jose Tejada Gomez (jotego). License: GPL-3.0-or-later, see the file heads.
 
 ## What changed, and why
 

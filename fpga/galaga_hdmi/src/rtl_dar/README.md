@@ -15,7 +15,7 @@ Dar's condition:
 -- Use at your own risk
 ```
 
-There is no licence beyond that condition, see [THIRD-PARTY.md](../../../../THIRD-PARTY.md).
+There is no license beyond that condition, see [THIRD-PARTY.md](../../../../THIRD-PARTY.md).
 The bitstream built from these files holds no ROM data, the ROMs come from the SD card at run
 time. Dar has allowed us to publish this bitstream without ROMs.
 
