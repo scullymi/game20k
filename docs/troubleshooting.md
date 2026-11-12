@@ -43,23 +43,26 @@ checksum, which the Pico checks while it loads the game.
 - The firmware connects only to WPA2 networks on 2.4 GHz. Open networks, WPA3-only networks and
   5 GHz do not work.
 - Check `SSID=` and `PASS=` under `[WIFI]` in `config.ini` on the card. Keep every line within
-  125 characters, the firmware skips a longer one.
+  126 characters, `g20k.py sdcard` refuses to copy a file with a longer one.
 - The firmware gives up after its attempts at power-on. Power off and on after a change.
 - `Status` in the menu shows the network. The serial log names the network and says whether the
   attempt failed, see [debugging.md](debugging.md#reading-the-serial-output).
 
 ## Updating to a new release
 
-Cores, firmware and the files on the SD card must come from the same release. In the folder of
-the repository:
+Cores, firmware and the files on the SD card must come from the same release. Build the card
+from the release's tag, here `v0.9.2`, in the folder of the repository:
 
 ```sh
-git pull
+git fetch --depth 1 origin tag v0.9.2
+git checkout v0.9.2
 python3 g20k.py tools fetch suite
 python3 g20k.py sdcard /Volumes/YOUR_CARD
-python3 g20k.py flash --download
-python3 g20k.py firmware --download
+python3 g20k.py flash --download v0.9.2
+python3 g20k.py firmware --download v0.9.2
 ```
 
-`sdcard` keeps your `config.ini`. Copy the firmware onto the Pico as in
-[wiring.md](wiring.md#firmware-onto-the-pico). Without a Pico, see [bl616.md](bl616.md).
+`sdcard` copies your `sdcard/config.ini` onto the card again and replaces the one there, so make
+changes in `sdcard/config.ini`. The settings files of the cores on the card stay. Copy the
+firmware onto the Pico as in [wiring.md](wiring.md#firmware-onto-the-pico). Without a Pico, see
+[bl616.md](bl616.md).

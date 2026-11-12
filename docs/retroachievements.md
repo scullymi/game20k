@@ -17,8 +17,8 @@ at the next power-up, even without a network. **Without an account**, the device
 contact the server and downloads nothing. A set that is already on the card still runs, but
 its unlocks are neither sent nor kept.
 
-**With an account:** The first `g20k.py sdcard` creates `sdcard/config.ini`, readable only by
-you. It is the only place for credentials. It is the same file that goes onto the SD card and
+**With an account:** The first `g20k.py sdcard` creates `sdcard/config.ini`, on macOS and Linux
+readable only by you. It is the only place for credentials. It is the same file that goes onto the SD card and
 that the device reads, and `.gitignore` keeps it out of the repository. Enter your Wi-Fi
 details under `[WIFI]`. Under `[RA]`, enter your account name and your connect token, and remove
 the `;` in front of those two lines.

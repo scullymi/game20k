@@ -41,7 +41,7 @@ body:
     attributes:
       label: Serial log
       description: |
-        Optional, from UART0 at 921600 baud, see docs/wiring.md.
+        Optional, from UART0 at 921600 baud, see docs/debugging.md.
         Remove your WiFi name and password and your RetroAchievements token before you paste it. The log can contain them.
       render: text
   - type: checkboxes

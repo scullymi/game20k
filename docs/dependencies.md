@@ -1,6 +1,6 @@
 # Updating a dependency
 
-`scripts/deps_status.py` lists each pinned dependency against its newest upstream release, and for the fork how many commits their upstream has that they lack. Run it by hand about once a month and before a release. "Watch > Custom > Releases" on the upstream repositories on GitHub sends a mail as well.
+`scripts/deps_status.py` lists each pinned dependency against its newest upstream release, and for the FPGA-Companion fork how many upstream commits it lacks. Run it by hand about once a month and before a release. "Watch > Custom > Releases" on the upstream repositories on GitHub sends a mail as well.
 
 It also checks the HDL copied into `fpga/`. For each source its list `VENDORED` holds the commit the copy was taken from and the newest upstream commit already looked at. The report shows what changed in our files after that reviewed commit, and under "Known" what changed between the copy and the reviewed commit, looked at and mostly not taken over. A single change that was taken over is named in the README of the folder it went into. The workflow `upstream.yml` runs this part every Saturday. It fails only on something new, and GitHub mails the failed run. In a fork the weekly run is skipped, because the list holds this repository's review state. "Run workflow" on the Actions tab still starts it by hand.
 
@@ -34,8 +34,8 @@ build what uses it. A new suite also changes the key of the forks, see below.
 Apicula, and Eigen, which nextpnr's placer needs. To update a fork, merge its upstream into its
 branch `game20k`, never rebase, push it and set the new commit here.
 
-The forks come prebuilt. Their key (`python3 g20k.py tools key`) is made of the fork commits,
-the suite version and the text of `tools/engine/forks.py`. When the bitstream workflow first
+The forks come prebuilt. Their key (`python3 g20k.py tools key`) is made of the commits of every
+`[source.<name>]`, the suite version and the text of `tools/engine/forks.py`. When the bitstream workflow first
 runs with a new key, `.github/workflows/forks.yml` builds the forks on each kind of machine and
 publishes them as the release `forks-<key>` of the repository that `[prebuilt]` names. Until that release exists,
 `python3 g20k.py tools build-forks` builds them on your machine, see

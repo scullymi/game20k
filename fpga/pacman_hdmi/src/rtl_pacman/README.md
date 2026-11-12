@@ -82,8 +82,8 @@ done
 
 **Sound output**
 
-- `pacman_audio.vhd` centres every voice on 120: the output register takes
-  `vol * (sample - 8) + 120` instead of `vol * sample`, as MAME centres the 4-bit sample on 8.
+- `pacman_audio.vhd` centers every voice on 120: the output register takes
+  `vol * (sample - 8) + 120` instead of `vol * sample`, as MAME centers the 4-bit sample on 8.
   Uncentered, a voice's baseline moves with its volume, and a short note sits on a pulse that the
   monitor's AC coupling turns into a thump. `game_core.sv` takes the constant off again, so
   silence stays 0.

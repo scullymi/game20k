@@ -33,7 +33,7 @@ on the Nano to open the menu.
 
 - Do not put a config.xml on the card. It replaces the menu built into the firmware, and the
   machine then only plays in softcore.
-- Keep every line of config.ini within 125 characters. The firmware drops a longer line, and only
+- Keep every line of config.ini within 126 characters. The firmware drops a longer line, and only
   its debug log says so.
 - Wi-Fi works with WPA2 on 2.4 GHz only. Open networks, WPA3-only networks and 5 GHz do not work.
 - The Wi-Fi password and the RetroAchievements token are stored in config.ini in plain text, and

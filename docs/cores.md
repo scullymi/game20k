@@ -21,9 +21,8 @@ and the key.
 
 - **The bitstream.** `g20k.py build fpga/<core>` reads `core.toml`, the platform and the board,
   runs the `[[generate]]` steps into the build folder, and builds. It stops when a clock misses
-  its frequency or the cells differ from `cells.toml`: LUT, DFF and ALU may move by 5 percent,
-  every other cell type must match. After a wanted change, `--update-cells` writes the new
-  counts.
+  its frequency or the cells differ from `cells.toml`, whose head names the tolerance. After a
+  wanted change, `--update-cells` writes the new counts.
 - **The ROM file and its loader.** `scripts/make_rom.py` builds `sdcard/<set>.rom` from the
   manifest and checks every chip, and writes `rom_map_pkg.sv`, the section table the core's
   ROM loader uses.
@@ -46,8 +45,8 @@ the input test. The comments at the top of
    code goes into its own folder with its original headers and an entry in
    [THIRD-PARTY.md](../THIRD-PARTY.md).
 2. `python3 g20k.py build fpga/<core>` until it meets its clock, then `--update-cells` once.
-3. A slot in `project.toml`. All slots of the board are taken, so the core replaces one or the
-   board needs a larger flash.
+3. A slot in `project.toml`. When every slot of the board's flash is taken, the core replaces
+   one.
 4. The games on the card: `python3 g20k.py sdcard` builds every set that has a manifest and a
    zip in `roms/`. List the files in [roms/README.md](../roms/README.md) and the game in
    [games.md](games.md).

@@ -121,8 +121,8 @@ More options:
   folder than the one `project.toml` names, here the Nano without a Pico, see
   [bl616.md](bl616.md).
 - `flash --dry-run` prints the command without running it.
-- `sources <core> --out <folder>` writes a core's own source files for a simulation, with
-  `--include` it prints the include folders instead.
+- `sources <core> --out <folder>` prints a core's own source files for a simulation and
+  generates those it needs into `<folder>`. With `--include` it prints the include folders.
 
 ## 3. Firmware
 
