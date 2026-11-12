@@ -9,11 +9,18 @@ python3 g20k.py test --no-san             # without sanitizers, -v prints every 
 HOST_LOG=1 python3 g20k.py test           # with the firmware's debugf() lines
 ```
 
-Unity is the submodule `external/unity`, tag v2.7.0 (commit `b6763fbd`), MIT license, used by the tests only.
+Unity is the submodule `external/unity`, used by the tests only, see [THIRD-PARTY.md](../THIRD-PARTY.md).
+
+The build engine `tools/engine` has tests of its own in `tools/engine/tests`, Python's
+`unittest` only. The CI runs them on Linux and Windows:
+
+```sh
+python3 -m unittest discover -s tools/engine/tests -t .
+```
 
 ## What the tests cover
 
-- `test_ftp_guard.c`: the FTP write protection in hardcore (`ftpd.c`: `protected_path()`, `resolve()` and every writing command). The fork's real FatFs is the oracle: every argument that FatFs resolves to a protected file must be refused, in the root and below the folder `ra`. It covers the known bypasses (backslash, trailing dot or space, control byte), and an earlier `protected_path()` without them fails it.
+- `test_ftp_guard.c`: the FTP write protection in hardcore (`ftpd.c`: `protected_path()`, `resolve()` and every writing command). The fork's real FatFs is the oracle: every argument that FatFs resolves to a protected file must be refused, in the root and below the folder `ra`. It covers the known bypasses (backslash, trailing dot or space, control byte).
 - `test_queue_lines.c`: `parse()` in `ra_queue.c`, the lines of `ra_pending.txt`: every line carries its game's hash, a line without one is malformed, and a tag over another hash or a changed tag does not verify. Then `ra_queue_open()` and `ra_queue_head()` on a file on the RAM card: a malformed line is marked done and skipped, another account's line parked, a blank line left alone, and `ra_queue_own()` by hash and by the resolved game id. The tags come from a fake `ra_mac_tag()` in the stand-ins, deterministic over label and data.
 - `test_games.c`: `ra_games_by_file()` in `ra_games.c`, the file name that starts a core switch under "ROM set", case ignored, and near misses that name no game. Then `ra_games_select()`, the game a boot plays and whether hardcore may count it: a known digest, the file name of a table game, any other name and no ROM, each on the game's board and on another one. Both run on every row of the game table that `scripts/make_fw_tables.py` generates from the ROM manifests, as for the firmware.
 - `test_games_file.c`: the footer of a ROM file (`games_file.c`) against a footer that `scripts/make_rom.py` wrote: valid, bad magic or version, every one-bit change caught by the CRC-32, a size that does not match, a file shorter than a footer, and `games_footer_read()` on the RAM card, which leaves the file position as it was. Then the order of the Games page, by title without case and by file name on a tie.

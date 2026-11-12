@@ -11,15 +11,14 @@ are and what the build does differently from Gowin's own tools.
 
 - YosysHQ's [oss-cad-suite](https://github.com/YosysHQ/oss-cad-suite-build/releases) with Yosys,
   its slang frontend and openFPGALoader, and GHDL from its own release.
-- nextpnr and Apicula from game20k's forks, which carry fixes that are not upstream yet
-  (timing of LUT1 to LUT3 and of long-wire segments, clock inversion of memories, the
-  flip-flop input from SEL, the sign of multipliers, a plan of BUFGs and clock spines before
-  the clocks are routed, so that no clock detours through another BUFG's gate, and PLL input
-  routes that no clock reaches). The Apicula fork carries its own chip databases for that last
-  fix.
-- Yosys for the synthesis from game20k's fork: the suite's commit plus fixes that are not
-  upstream yet (generated names without the directory of the source file, and a build with
-  MSVC). The suite's Yosys still reads the sources.
+- nextpnr and Apicula from game20k's forks, which carry fixes of their own (timing of LUT1 to
+  LUT3 and of long-wire segments, clock inversion of memories, the flip-flop input from SEL, the
+  sign of multipliers, a plan of BUFGs and clock spines before the clocks are routed, so that no
+  clock detours through another BUFG's gate, and PLL input routes that no clock reaches). The
+  Apicula fork carries its own chip databases for that last fix.
+- Yosys for the synthesis from game20k's fork: the suite's commit plus fixes of its own
+  (generated names without the directory of the source file, and a build with MSVC). The
+  suite's Yosys still reads the sources.
 - Eigen, which nextpnr's placer uses, pinned to one commit as well.
 
 The same sources and tools give the same bitstream on macOS, Linux and Windows.
@@ -27,7 +26,9 @@ The same sources and tools give the same bitstream on macOS, Linux and Windows.
 (`.github/workflows/forks.yml`), from
 [game20k-tools](https://github.com/scullymi/game20k-tools/releases). `g20k.py tools build-forks`
 builds them from the commits in `tools.toml` instead, see
-[BUILD.md](BUILD.md#building-the-forks-yourself).
+[BUILD.md](BUILD.md#building-the-forks-yourself). `g20k.py tools key` prints the key that names the prebuilt
+archive, `tools pack` builds the forks with static linking into one archive as the CI does, and
+`tools path <name>` prints the folder a program is taken from.
 
 ## What the free build does differently
 
