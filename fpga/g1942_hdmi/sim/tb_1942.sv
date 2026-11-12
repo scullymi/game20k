@@ -307,6 +307,10 @@ module tb_1942;
             if (lg_n > lg_max) lg_max = lg_n;
             for (int i = 0; i < 4096; i++) ref_ram[i]        = dut.u_game.u_main.RAM.mem[i];
             for (int i = 0; i < 2048; i++) ref_ram[4096 + i] = dut.u_game.u_sound.u_cpu.u_sysz80_nvram.u_ram.u_dual.u_ram.mem[i];
+            // a write begun before the close and still in progress counts. The mirror takes a
+            // write when it begins, but the main RAM stores it only at its next clock enable.
+            if (dut.mw_ram && dut.mw_q)     ref_ram[dut.m_flat]                 = dut.mir_dout;
+            if (dut.mir_snd_we && dut.sw_q) ref_ram[4096 + dut.mir_snd_addr[10:0]] = dut.mir_snd_dout;
         end
         if (snap_run && snap_push) begin                  // snap_full is 0: every push counts
             if (got_n < 9344) got[got_n] = snap_byte;

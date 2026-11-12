@@ -259,7 +259,8 @@ module tb_1943;
     //     snapshot holds the last logged value
     //   - truth: the main RAM of jt1943 itself (E000-FFFF in one 8 KiB RAM), read
     //     hierarchically at the end of the harvest: E000-EFFF equals 0x0000-0x0FFF of the
-    //     snapshot, F000-F2FF equals 0x2000-0x22FF, and 0x1000-0x1FFF stays zero Also counted: the most log entries in one window (the platform has 512).
+    //     snapshot, F000-F2FF equals 0x2000-0x22FF, and 0x1000-0x1FFF stays zero.
+    // Also counted: the most log entries in one window (the platform has 512).
     logic        snap_run = 1'b0, snap_push, snap_harv, log_we;
     logic [7:0]  snap_byte, log_data;
     logic [15:0] snap_frame, log_addr;
@@ -286,6 +287,9 @@ module tb_1943;
             for (int i = 0; i < MD; i++) ref_ram[i] = 8'h00;
             for (int i = 0; i < 4096; i++) ref_ram[i]          = dut.u_game.u_main.RAM.mem[i];
             for (int i = 0; i < MD - 8192; i++) ref_ram[8192 + i]   = dut.u_game.u_main.RAM.mem[4096 + i];
+            // a write begun before the close and still in progress counts. The mirror takes a
+            // write when it begins, but the main RAM stores it only at its next clock enable.
+            if (dut.mir_ram_we && dut.mw_q && dut.m_flat < MD) ref_ram[dut.m_flat] = dut.mir_dout;
         end
         if (snap_run && snap_push) begin                  // snap_full is 0: every push counts
             if (got_n < MD) got[got_n] = snap_byte;
