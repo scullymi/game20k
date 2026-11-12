@@ -8,9 +8,10 @@
 # for the key of this commit, which forks.yml builds and publishes first when it is not there.
 #
 # On a push that changes the FPGA sources or the build: a trial build, the zip kept as an
-# artifact of the run. Called by release.yml on a pushed tag v<version>: the release build, its
-# zip kept for the draft release, plus a build provenance attestation. By hand (Actions tab, "Run
-# workflow", or gh workflow run bitstreams.yml): a trial build of the chosen branch.
+# artifact of the run, cancelled by a newer push to the same branch (concurrency below). Called
+# by release.yml on a pushed tag v<version>: the release build, its zip kept for the draft
+# release, plus a build provenance attestation. By hand (Actions tab, "Run workflow", or gh
+# workflow run bitstreams.yml): a trial build of the chosen branch.
 # The tool archives that g20k.py tools fetch takes are cached, keyed by tools.toml and the key of
 # the forks: the downloads and the archive of the forks.
 name: Bitstreams
@@ -35,6 +36,12 @@ permissions:
   contents: read
   id-token: write      # sign the provenance attestation
   attestations: write  # store it
+
+# A newer push to the same branch cancels a run that is still going. Not on main, not on a
+# tag and not by hand: there the group is the run itself, so every run goes to the end.
+concurrency:
+  group: bitstreams-${{ github.event_name == 'push' && github.ref_type == 'branch' && github.ref != 'refs/heads/main' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   # the forks of this commit, built and published when they are not there yet
