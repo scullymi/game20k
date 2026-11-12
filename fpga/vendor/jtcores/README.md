@@ -26,9 +26,9 @@ the README.md in `../jt12`, `../jt49`, `../jtopl`, `../jt6295` and `../jteeprom`
 | `cores/1943/hdl` | Jose Tejada Gomez | GPL-3.0-or-later | `jt1943_main.v`, `jt1943_game.v`, `jt1943_colmix.v`, `jt1943_video.v`, see below |
 | `cores/gng/hdl` | Jose Tejada Gomez | GPL-3.0-or-later | `jtgng_game.v`, `jtgng_main.v`, `jtgng_sound.v`, see below |
 | `cores/pang/hdl` | Jose Tejada Gomez | GPL-3.0-or-later | `jtpang_main.v`, see below |
-| `modules/jtframe/hdl` (without `cpu/t80` and `cpu/mc6809i.v`) | Jose Tejada Gomez | GPL-3.0-or-later | `ram/jtframe_dual_ram.v`, `cpu/jtframe_z80wait.v`, see below |
+| `modules/jtframe/hdl` (without `cpu/t80` and `cpu/mc6809i.v`) | Jose Tejada Gomez | GPL-3.0-or-later | `ram/jtframe_dual_ram.v`, `cpu/jtframe_z80wait.v`, `cpu/jtframe_sys6809.v`, see below |
 | `modules/jtframe/hdl/cpu/t80` | Daniel Wallner, later changes by MikeJ, Sorgelig and others | BSD-style, see the file heads | no |
-| `modules/jtframe/hdl/cpu/mc6809i.v` | Greg Miller, changes by Jose Tejada Gomez | BSD-style, see below | upstream fix `bd9fefa`, see below |
+| `modules/jtframe/hdl/cpu/mc6809i.v` | Greg Miller, changes by Jose Tejada Gomez | BSD-style, see below | upstream fix `bd9fefa`, active-high reset, see below |
 
 The upstream files keep their headers, except the two port lists in `modules/jtframe/hdl/inc`,
 which have none upstream. The T80 license asks for the copyright notice in the documentation of a
@@ -69,6 +69,12 @@ Every change is marked `game20k` in the text.
   `548b87b`. SYNC and CWAI wait the measured number of cycles, PSHS and PSHU with an empty
   register mask make no stack access, SWI goes to the stack without a spare cycle, and SWI3 keeps
   its interrupt type, where a missing `else` turned it into SWI.
+- **`modules/jtframe/hdl/cpu/mc6809i.v`, `cpu/jtframe_sys6809.v`, `cores/gng/hdl/jtgng_main.v`**
+  (Ghosts'n Goblins): the CPU's reset is active high (`RESET`, `rst`) and comes straight from a
+  register in jtgng_main, in reset from power-on until two clocks after `rst` falls, as
+  `jt12_rst` does. The 6809 resets asynchronously and Gowin's asynchronous clear is active high:
+  an active-low reset needs a LUT between the register and every clear, on a timed path through
+  the clear and the CPU's logic. `jtframe_sys6809` keeps `rstn` and passes it on inverted.
 - **`cores/1942/hdl/jt1942_obj.v`:** `wire LHBL_eff` moved above its first use. Upstream uses
   the net before declaring it, which Gowin's tools warn about (EX3638) because it usually means
   a second, undriven net. Here both are one bit wide and the same net, so nothing changes in

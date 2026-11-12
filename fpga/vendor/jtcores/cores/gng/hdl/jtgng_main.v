@@ -3,8 +3,9 @@
  * Date: 27-10-2017 */
 
 // Ghosts'n Goblins: Main CPU
-// game20k: copy of jtcores 548b87b cores/gng/hdl/jtgng_main.v. Only change, marked: the
-// output mir_we, the write strobe of the work RAM, for the RetroAchievements mirror.
+// game20k: copy of jtcores 548b87b cores/gng/hdl/jtgng_main.v. Changes, marked: the output
+// mir_we, the write strobe of the work RAM, for the RetroAchievements mirror, and the CPU's reset
+// as an active-high register.
 
 module jtgng_main(
     input              clk,
@@ -60,7 +61,8 @@ module jtgng_main(
 `ifndef NOMAIN
 wire [15:0] A;
 wire [ 7:0] ram_dout;
-wire        nRESET, bus_busy, cpu_cen;
+wire        bus_busy, cpu_cen;
+reg         cpu_rst = 1'b1, cpu_rst0 = 1'b1;  // game20k: in reset from power-on
 reg         sound_cs, scrpos_cs, in_cs, flip_cs, ram_cs, bank_cs, ok_dly;
 reg  [ 7:0] cpu_din, cabinet_input;
 reg  [ 2:0] bank;
@@ -83,7 +85,7 @@ always @(*) begin
     char_cs     = 0;
     bank_cs     = 0;
     rom_cs      = 0;
-    if( nRESET ) case(A[15:13])
+    if( !cpu_rst ) case(A[15:13])   // game20k
         3'b000: ram_cs = 1;
         3'b001: case( A[12:11])
                 2'd0: char_cs = 1;
@@ -105,11 +107,12 @@ always @(*) begin
 end
 
 // CPU reset
-jt12_rst u_rst(
-    .rst    ( rst       ),
-    .clk    ( clk       ),
-    .rst_n  ( nRESET    )
-);
+// game20k: active high and straight from a register, in reset from power-on until two clocks
+// after rst falls, as jt12_rst does. The 6809 resets asynchronously and Gowin's clear is active
+// high, so the register drives the clears without a LUT in between.
+always @(posedge clk)
+    if( rst ) { cpu_rst, cpu_rst0 } <= 2'b11;
+    else      { cpu_rst, cpu_rst0 } <= { cpu_rst0, 1'b0 };
 
 always @(posedge clk, posedge rst) begin
     if( rst ) begin
@@ -184,7 +187,7 @@ jtframe_sys6809_dma #(
     .RAM_AW     ( 13        ),
     .IRQFF      (  1        )
 ) u_sys6809(
-    .rstn       ( nRESET    ),
+    .rst        ( cpu_rst   ),   // game20k
     .clk        ( clk       ),
     .cen        ( cen6      ),   // This is normally the input clock to the CPU
     .cpu_cen    ( cpu_cen   ),   // 1/4th of cen

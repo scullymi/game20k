@@ -3,8 +3,9 @@
 // Engineer: Greg Miller
 // Copyright (c) 2016, Greg Miller
 // game20k: changed copy of jotego/jtcores 548b87b32a1b528a16cb41f689accb179e85d1a8
-// modules/jtframe/hdl/cpu/mc6809i.v. Only change: the upstream fix bd9fefa "correct interrupt
-// and stack timing", marked at each place, see fpga/vendor/jtcores/README.md.
+// modules/jtframe/hdl/cpu/mc6809i.v. Changes: the upstream fix bd9fefa "correct interrupt
+// and stack timing", marked at each place, and the reset RESET active high in place of nRESET,
+// see fpga/vendor/jtcores/README.md.
 //
 // Create Date:    14:26:59 08/13/2016
 // Design Name:
@@ -67,7 +68,7 @@ module mc6809i
     output  BUSY,
     output  LIC,
     input   nHALT,
-    input   nRESET,
+    input   RESET,      // game20k: active high, Gowin's asynchronous clear needs no inverter
     input   nDMABREQ,
     output reg OP,  // high when accessing an OP code
     output  [111:0] RegData
@@ -422,8 +423,8 @@ begin
 end
 endgenerate
 
-always @(posedge clk, negedge nRESET) begin
-    if( !nRESET ) begin
+always @(posedge clk, posedge RESET) begin  // game20k: RESET active high
+    if( RESET ) begin
         OP <= 0;
     end else if(cen_E) begin
         OP <= CpuState_nxt==CPUSTATE_FETCH_I1 ||
@@ -571,8 +572,8 @@ endgenerate
 //always @(negedge NMISample2 or posedge wNMIClear)
 reg last_NMISample2, last_wNMIClear;
 
-always @(posedge clk, negedge nRESET) begin
-    if( !nRESET ) begin
+always @(posedge clk, posedge RESET) begin  // game20k: RESET active high
+    if( RESET ) begin
         last_NMISample2 <= 1;
         last_wNMIClear  <= 1;
         NMILatched      <= 1;
@@ -610,8 +611,8 @@ end
 // analyzer on the 6809 to determine how many cycles before a new instruction an interrupt (or /HALT & /DMABREQ)
 // had to be asserted to be noted instead of the next instruction running start to finish.
 //
-always @(posedge clk, negedge nRESET) begin
-    if(!nRESET) begin
+always @(posedge clk, posedge RESET) begin  // game20k: RESET active high
+    if( RESET ) begin
         NMISample     <= 1;
         IRQSample     <= 1;
         FIRQSample    <= 1;
@@ -627,8 +628,8 @@ always @(posedge clk, negedge nRESET) begin
 end
 
 
-always @(posedge clk, negedge nRESET) begin
-    if (!nRESET) begin
+always @(posedge clk, posedge RESET) begin  // game20k: RESET active high
+    if( RESET ) begin
         CpuState <= CPUSTATE_RESET;
         NMIMask <= 1'b1; // Mask NMI until S is loaded.
         NMIClear <= 1'b0; // Mark us as not having serviced NMI

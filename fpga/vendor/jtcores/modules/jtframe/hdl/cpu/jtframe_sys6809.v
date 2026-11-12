@@ -2,6 +2,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Date: 4-1-2020 */
 
+// game20k: changed copy of jotego/jtcores 548b87b modules/jtframe/hdl/cpu/jtframe_sys6809.v.
+// Only change, marked: jtframe_sys6809_dma takes the reset active high (rst), see
+// fpga/vendor/jtcores/README.md.
+
 module jtframe_6809wait(
     input           rstn,
     input           clk,
@@ -115,7 +119,7 @@ module jtframe_sys6809 #( parameter
         .CENDIV     ( CENDIV    ),
         .IRQFF      ( IRQFF     )
     ) u_sys6809(
-        .rstn       ( rstn      ),
+        .rst        ( ~rstn     ),   // game20k: jtframe_sys6809_dma takes rst
         .clk        ( clk       ),
         .cen        ( cen       ),   // This is normally the input clock to the CPU
         .cpu_cen    ( cpu_cen   ),   // 1/4th of cen
@@ -161,7 +165,7 @@ module jtframe_sys6809_dma #( parameter
     CENDIV   = 1         // set to zero to not divide by four the input cen, implies RECOVERY=0
 )
 (
-    input           rstn,
+    input           rst,       // game20k: active high, in place of rstn
     input           clk,
     input           cen,       // This is normally the input clock to the CPU
     output          cpu_cen,   // 1/4th of cen
@@ -204,7 +208,7 @@ module jtframe_sys6809_dma #( parameter
     assign bg      = {BA,BS}==2'b11; // this will toggle once every 16 cycles when granted
 
     always @(posedge clk) begin
-        if( !rstn )
+        if( rst )
             VMA <= 1;
         else
             if( cen_E ) VMA <= AVMA;
@@ -214,7 +218,7 @@ module jtframe_sys6809_dma #( parameter
         if( IRQFF ) begin
             jtframe_ff u_ff_irq(
                 .clk      ( clk         ),
-                .rst      ( ~rstn       ),
+                .rst      ( rst         ),
                 .cen      ( 1'b1        ),
                 .din      ( 1'b1        ),
                 .q        (             ),
@@ -226,7 +230,7 @@ module jtframe_sys6809_dma #( parameter
 
             jtframe_ff u_ff_firq(
                 .clk      ( clk         ),
-                .rst      ( ~rstn       ),
+                .rst      ( rst         ),
                 .cen      ( 1'b1        ),
                 .din      ( 1'b1        ),
                 .q        (             ),
@@ -238,7 +242,7 @@ module jtframe_sys6809_dma #( parameter
 
             jtframe_ff u_ff_nmi(
                 .clk      ( clk         ),
-                .rst      ( ~rstn       ),
+                .rst      ( rst         ),
                 .cen      ( 1'b1        ),
                 .din      ( 1'b1        ),
                 .q        (             ),
@@ -257,7 +261,7 @@ module jtframe_sys6809_dma #( parameter
     generate
         if( CENDIV==1 ) begin
             jtframe_6809wait #(.RECOVERY(RECOVERY)) u_wait(
-                .rstn       ( rstn      ),
+                .rstn       ( ~rst      ),
                 .clk        ( clk       ),
                 .cen        ( cen       ),
                 .cpu_cen    ( cpu_cen   ),
@@ -323,7 +327,7 @@ module jtframe_sys6809_dma #( parameter
         .LIC     (         ),
         .nDMABREQ( breq_n  ),
         .nHALT   ( 1'b1    ),
-        .nRESET  ( rstn    ),
+        .RESET   ( rst     ),
         .OP      ( OP      ),
         .RegData ( RegData )
     );

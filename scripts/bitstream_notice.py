@@ -170,8 +170,8 @@ COMPONENTS = [
         "note": "The file carries only the author's copyright line. His LICENSE.md (cavnex/mc6809 "
                 "at 17e94a6, documentation/LICENSE.md, copied beside the file as "
                 "mc6809i_LICENSE.md) offers the standard BSD licence or a binary-only variant. "
-                "game20k distributes the source and so uses the standard BSD licence. Unchanged "
-                "from jotego's copy.",
+                "game20k distributes the source and so uses the standard BSD licence. Changed "
+                "from jotego's copy: his later fix bd9fefa and an active-high reset, marked game20k.",
         "show": [("lines", "fpga/vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md",
                   "Copyright (c) 2016, Greg Miller", "SOFTWARE, EVEN IF ADVISED")],
         "copyrights": True,
@@ -223,8 +223,9 @@ COMPONENTS = [
         "licence": "GPL-3.0-or-later, see the GPL text at the end",
         "note": "jtframe_dual_ram.v writes in Gowin's normal mode, jtgng_sound.v takes its reset on "
                 "the rising clock edge, jtgng_game.v takes its clock enables from outside, "
-                "jtgng_main.v and jtgng_game.v bring out the CPU writes for the RAM mirror, all "
-                "marked game20k. The ROMs of Ghosts'n Goblins come from the SD card at run time. "
+                "jtgng_main.v and jtgng_game.v bring out the CPU writes for the RAM mirror, "
+                "jtgng_main.v and jtframe_sys6809.v give the CPU an active-high reset, all marked "
+                "game20k. The ROMs of Ghosts'n Goblins come from the SD card at run time. "
                 "The RAM modules read data files only in simulation or through a SYN* parameter, "
                 "which no instance sets.",
         "show": [],
