@@ -17,7 +17,7 @@ A sim.toml holds one table per simulation, named as g20k.py sim takes it:
     flags = [...]                 more options for Verilator
     timescale = "1ns/1ps"         Verilator's --timescale
     sets = ["1942", "vulgus"]     ROM sets, the first one by default: <core>/<set>.manifest
-    variants = { port = [], path = ["ROM_PATH"] }   defines per variant, the first by default
+    variants = { path = [], fb = ["FB_PATH"] }   defines per variant, the first by default
     fetch = [{ name, url, blob }] files from the net, checked by their git blob hash
     rom = { words = "rom32.hex", bytes = { "proms.hex" = { from, to, define } } }
                                   the ROM image as 32-bit words and byte slices for the

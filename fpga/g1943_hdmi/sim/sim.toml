@@ -2,12 +2,11 @@
 # Copyright (C) 2026 scullymi
 #
 # 1943 (game_core with jotego's jt1943) with Verilator, after ../../g1942_hdmi/sim/sim.toml:
-# python3 g20k.py sim 1943 [port|path|fb|diag] [--set 1943mii]. Ten seconds of the game, a
+# python3 g20k.py sim 1943 [path|fb|diag] [--set 1943mii]. Ten seconds of the game, a
 # coin and a start, every 30th frame written out, late ROM data counted. Needs roms/<set>.zip.
 # tools/engine/sim.py describes the keys.
 #
-#   port   the ROM buses read through a model of rom_sdram's read stream
-#   path   through the real rom_sdram.sv, sdram_fb.v and an SDRAM model
+#   path   the ROM buses read through the real rom_sdram.sv, sdram_fb.v and an SDRAM model
 #   fb     path, and the upright picture: sdram_share.sv puts the frame buffer next to the ROM
 #   diag   fb with the core's diagnostic counters
 
@@ -15,7 +14,7 @@
 about = "ten seconds of 1943 or 1943 Kai with a coin and a start, late ROM data counted"
 core = ".."
 sets = ["1943", "1943mii"]
-variants = { port = [], path = ["ROM_PATH"], fb = ["ROM_PATH", "FB_PATH"], diag = ["ROM_PATH", "FB_PATH", "DIAG"] }
+variants = { path = [], fb = ["FB_PATH"], diag = ["FB_PATH", "DIAG"] }
 flags = ["-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD", "+define+TV80S"]
 frames = { dir = "frames" }
 sheet_script = "../../g1942_hdmi/sim/ppm2png.py"

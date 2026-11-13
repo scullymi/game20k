@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
-// game20k, 1943: simulation of game_core (jotego's jt1943 behind our wrapper) with its ROM,
-// Derived from fpga/g1942_hdmi/sim/tb_1942.sv. Two ways to serve the eight ROM
-// buses, chosen at build time:
-//   default   a model of rom_sdram's read stream: up to four reads in flight, latency as
-//             measured for 1942, the ring rate as the upper bound
-//   ROM_PATH  the real path: rom_sdram.sv, sdram_fb.v at 64.8 MHz unrelated to the core
-//             clock, and an SDR SDRAM model; the image is first written through rom_sdram's
-//             write side, as rom_loader does on the device (FB_PATH: with the frame buffer)
+// game20k, 1943: simulation of game_core (jotego's jt1943 behind our wrapper) with its ROM.
+// Derived from fpga/g1942_hdmi/sim/tb_1942.sv. The eight ROM buses read through the real
+// path: rom_sdram.sv, sdram_fb.v at 64.8 MHz unrelated to the core clock, and an SDR SDRAM
+// model; the image is first written through rom_sdram's write side, as rom_loader does on
+// the device (FB_PATH: with the frame buffer).
 // The PROMs come over the loader's write port while the core is in reset. A coin and a
 // start follow. Counted as late in the picture: characters without data in their window,
 // scroll tiles sampled before their word arrived (the layers have no ok), map caches not
@@ -32,13 +29,8 @@ module tb_1943;
     logic [15:0] rom_wr_en   = '0;
     logic [21:2] rom_rd_addr;
     logic        rom_rd_push;
-`ifdef ROM_PATH
     logic        rom_rd_ready, rom_rd_valid;
     logic [31:0] rom_rd_data;
-`else
-    logic        rom_rd_ready = 1'b1, rom_rd_valid = 1'b0;
-    logic [31:0] rom_rd_data  = '0;
-`endif
     logic [3:0]  r, g, b;
     logic        ce, blankn, vs, hs;
     logic signed [15:0] audio;
@@ -80,39 +72,6 @@ module tb_1943;
         return {prom[3072 + i][3:0], prom[3328 + i][3:0], prom[3584 + i][3:0]};
     endfunction
 
-`ifndef ROM_PATH
-    // ---------------- read stream model ----------------
-    // Up to four reads in flight, words in order. Each read is due 9..12 clocks after its
-    // push (one in 40 meets a refresh: 13..19), the latency measured on the single-read port
-    // before the stream; a word never comes before the one ahead of it, and the ring takes
-    // a read only every 3.4 core clocks at most (one per round of six SDRAM cycles), so a
-    // read is never due earlier than 4 clocks after the one before.
-    logic [21:2] m_addr [$];
-    longint      m_due  [$];
-    longint      now = 0, last_due = 0;
-    int          reads = 0;
-    always @(posedge clk) begin
-        now++;
-        rom_rd_valid <= 1'b0;
-        if (rom_rd_push && rom_rd_ready) begin
-            longint d;   // assigned, not initialised: in an always block an initialiser runs once
-            d = now + (($urandom % 40 == 0) ? 13 + ($urandom % 7) : 9 + ($urandom % 4));
-            if (d < last_due + 4) d = last_due + 4;
-            last_due = d;
-            m_addr.push_back(rom_rd_addr);
-            m_due.push_back(d);
-        end
-        if (m_due.size() > 0 && m_due[0] <= now) begin
-            rom_rd_data  <= rom[m_addr[0][19:2]];
-            rom_rd_valid <= 1'b1;
-            void'(m_addr.pop_front());
-            void'(m_due.pop_front());
-            reads <= reads + 1;
-        end
-        rom_rd_ready <= m_due.size() < 3;      // registered: four in flight at most
-    end
-
-`else
     // ---------------- the real ROM path ----------------
     logic clk_sdram = 0;
     always #7.716 clk_sdram = ~clk_sdram;
@@ -266,12 +225,10 @@ module tb_1943;
         endcase
     end
 
-`endif
 
     // ---------------- loading the PROMs, then out of reset ----------------
     initial begin
         repeat (20) @(posedge clk);
-`ifdef ROM_PATH
         sd_resetn <= 1'b1;
         for (int o = 0; o < 32'hD8000; o++) begin           // all sdram sections
             while (!wr_ready) @(posedge clk);
@@ -282,7 +239,6 @@ module tb_1943;
         end
         while (!wr_idle) @(posedge clk);
         $display("image written at %0t", $time);
-`endif
         for (int i = 0; i < 3072; i++) begin
             rom_wr_addr <= 16'(i);
             rom_wr_data <= prom[i];
@@ -293,6 +249,7 @@ module tb_1943;
         end
         repeat (300) @(posedge clk);
         reset <= 1'b0;
+        $display("reset released at %0t, frame %0d", $time, nframe);
     end
 
     // ---------------- RAM mirror: a Pico model and the truth ----------------
@@ -302,7 +259,8 @@ module tb_1943;
     //     snapshot holds the last logged value
     //   - truth: the main RAM of jt1943 itself (E000-FFFF in one 8 KiB RAM), read
     //     hierarchically at the end of the harvest: E000-EFFF equals 0x0000-0x0FFF of the
-    //     snapshot, F000-F2FF equals 0x2000-0x22FF, and 0x1000-0x1FFF stays zero Also counted: the most log entries in one window (the platform has 512).
+    //     snapshot, F000-F2FF equals 0x2000-0x22FF, and 0x1000-0x1FFF stays zero.
+    // Also counted: the most log entries in one window (the platform has 512).
     logic        snap_run = 1'b0, snap_push, snap_harv, log_we;
     logic [7:0]  snap_byte, log_data;
     logic [15:0] snap_frame, log_addr;
@@ -329,6 +287,9 @@ module tb_1943;
             for (int i = 0; i < MD; i++) ref_ram[i] = 8'h00;
             for (int i = 0; i < 4096; i++) ref_ram[i]          = dut.u_game.u_main.RAM.mem[i];
             for (int i = 0; i < MD - 8192; i++) ref_ram[8192 + i]   = dut.u_game.u_main.RAM.mem[4096 + i];
+            // a write begun before the close and still in progress counts. The mirror takes a
+            // write when it begins, but the main RAM stores it only at its next clock enable.
+            if (dut.mir_ram_we && dut.mw_q && dut.m_flat < MD) ref_ram[dut.m_flat] = dut.mir_dout;
         end
         if (snap_run && snap_push) begin                  // snap_full is 0: every push counts
             if (got_n < MD) got[got_n] = snap_byte;
@@ -365,7 +326,8 @@ module tb_1943;
 
     // ---------------- read latency of the ROM port, as the game sees it ----------------
     // clocks from a push to its word, mean and maximum, how many reads took more than 19
-    // clocks (the upper end of the model), and the most reads in flight at once
+    // clocks (about the longest a lone read takes when it meets an SDRAM refresh), and the
+    // most reads in flight at once
     int lat_n = 0, lat_max = 0, lat_over = 0, fly_max = 0;
     longint lat_sum = 0, lat_clk = 0;
     longint lat_t0 [$];
@@ -404,13 +366,11 @@ module tb_1943;
     // board probe in game_core missed, and probe events with the entry written in time
     int mp_late[2] = '{0, 0}, mp_late_miss[2] = '{0, 0}, mp_probe_extra[2] = '{0, 0};
     int mp_bad_intime[2] = '{0, 0};
-`ifdef ROM_PATH
     // of the late scroll samples, those whose held word differs from the word the address
     // asks for: only these show as a wrong pattern (the ROM image is in rom[] here)
     int scr1_wrong = 0, scr2_wrong = 0;
     // samples the slot calls ok whose word is not the word at the layer's address
     int scr1_okbad = 0, scr2_okbad = 0;
-`endif
     // pixel in the line, counted from the start of the visible part (LHBL rising)
     int hpix = 0;
     logic hp_lhbl_q = 0;
@@ -434,21 +394,28 @@ module tb_1943;
     // counted only once the core runs: under reset (while the image loads) the video timing
     // runs on, but the slots read nothing on purpose
     wire  visible = dut.u_game.LVBL && dut.u_game.LHBL && !reset;
-    // the map checker counts from the first vertical blank after the reset, as game_core's
-    // probe does: the slots start empty, the first line's map words are always late
+    // characters, scroll layers, sprites and the map checker count from the first vertical
+    // blank after the reset, as game_core's probe does: the slots start empty, so the rest of
+    // the frame in which the reset ends is always late
     wire  mvisible = visible && dut.dm_on;
     always @(posedge clk) begin
         if (dut.u_game.u_video.u_char.Hfix[2:0] > 3'd2 && dut.u_game.u_video.u_char.rom_ok)
             chr_seen <= 1'b1;
         if (dut.cen6 && dut.u_game.u_video.u_char.Hfix[2:0] == 3'd2) begin
             chr_seen <= 1'b0;
-            if (!chr_seen && visible) char_late <= char_late + 1;
+            if (!chr_seen && mvisible) begin
+                char_late <= char_late + 1;
+                if (char_late < 20) $display("late char: frame %0d V %0d pixel %0d", nframe, dut.u_game.V, hpix);
+            end
         end
         // scroll 1 and 2: counted by scr_probe below, each with its own HS (the scroll
         // position is part of it)
-        if (dut.u_game.u_video.u_obj.u_cnt.HINIT_draw && dut.u_game.u_video.u_obj.draw_cen && dut.u_game.LVBL && !reset) begin
+        if (dut.u_game.u_video.u_obj.u_cnt.HINIT_draw && dut.u_game.u_video.u_obj.draw_cen && dut.u_game.LVBL && !reset && dut.dm_on) begin
             obj_lines <= obj_lines + 1;
-            if (!dut.u_game.u_video.u_obj.u_cnt.draw_over) obj_short <= obj_short + 1;
+            if (!dut.u_game.u_video.u_obj.u_cnt.draw_over) begin
+                obj_short <= obj_short + 1;
+                if (obj_short < 20) $display("unfinished sprite line: frame %0d V %0d", nframe, dut.u_game.V);
+            end
         end
     end
 
@@ -530,11 +497,9 @@ module tb_1943;
                 $display("map words in the picture not the next column: %0d / %0d", mp_jump[0], mp_jump[1]);
                 $display("map words late, board probe (game_core): scroll1 %0d, scroll2 %0d",
                          dut.d_mlate1, dut.d_mlate2);
-`ifdef ROM_PATH
                 $display("late scroll samples with a different word held: scroll1 %0d, scroll2 %0d", scr1_wrong, scr2_wrong);
                 $display("scroll samples ok but with a wrong word: scroll1 %0d, scroll2 %0d", scr1_okbad, scr2_okbad);
                 $display("late scroll-2 samples a cache of the last 4 / 8 words would hold: %0d / %0d", c2_hit4, c2_hit8);
-`endif
                 $display("ROM port: %0d reads, latency mean %0.1f, max %0d clocks, %0d over 19, at most %0d in flight",
                          lat_n, real'(lat_sum) / lat_n, lat_max, lat_over, fly_max);
                 $display("mirror: %0d snapshots, %0d bytes differ from the core, %0d against the oracle; most log entries in a window %0d",
@@ -605,13 +570,11 @@ bind jt1943_map_cache map_probe u_probe (.clk(clk), .LHBL(LHBL), .busy(busy));
 // path into scroll 2's parameter-dependent generate branch, hence the bind.
 module scr_probe (input wire clk, input wire cen6, input wire [1:0] hs, input wire as8mask);
     always @(posedge clk)
-        if (cen6 && hs == 2'd1 && tb_1943.visible) begin
+        if (cen6 && hs == 2'd1 && tb_1943.mvisible) begin
             if (as8mask  && !tb_1943.dut.scr1_ok) begin
                 tb_1943.scr1_late++;
                 $display("late scroll1: frame %0d V %0d pixel %0d", tb_1943.nframe, tb_1943.dut.u_game.V, tb_1943.hpix);
-`ifdef ROM_PATH
                 if (tb_1943.dut.scr1_word != tb_1943.rom[tb_1943.dut.off_scr1[19:2]]) tb_1943.scr1_wrong++;
-`endif
             end
             if (!as8mask && !tb_1943.dut.scr2_ok) begin
                 tb_1943.scr2_late++;
@@ -622,11 +585,8 @@ module scr_probe (input wire clk, input wire cen6, input wire [1:0] hs, input wi
                         tb_1943.c2_hit8++;
                         break;
                     end
-`ifdef ROM_PATH
                 if (tb_1943.dut.scr2_word != tb_1943.rom[tb_1943.dut.off_scr2[19:2]]) tb_1943.scr2_wrong++;
-`endif
             end
-`ifdef ROM_PATH
             if (as8mask && tb_1943.dut.scr1_ok && tb_1943.dut.scr1_word != tb_1943.rom[tb_1943.dut.off_scr1[19:2]]) begin
                 tb_1943.scr1_okbad++;
                 if (tb_1943.scr1_okbad + tb_1943.scr2_okbad <= 30)
@@ -641,7 +601,6 @@ module scr_probe (input wire clk, input wire cen6, input wire [1:0] hs, input wi
                              tb_1943.nframe, tb_1943.dut.u_game.V, tb_1943.dut.off_scr2[21:2], tb_1943.dut.scr2_word,
                              tb_1943.rom[tb_1943.dut.off_scr2[19:2]], tb_1943.dut.s2_cur, tb_1943.dut.slot_ok, tb_1943.dut.u_slots.fly);
             end
-`endif
         end
 endmodule
 bind jt1943_scroll scr_probe u_sprobe (.clk(clk), .cen6(cen6), .hs(u_tile4.HS[1:0]), .as8mask(AS8MASK));

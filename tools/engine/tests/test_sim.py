@@ -45,7 +45,7 @@ class LoadTest(unittest.TestCase):
             ["rom_sdram", "screen", "audio", "mcu", "mcu_spi", "ram_mirror", "mirror"],
         )
         self.assertEqual(sims["1942"].sets, ["1942", "vulgus", "higemaru"])
-        self.assertEqual(sims["1942"].variants["fb"], ["ROM_PATH", "FB_PATH"])
+        self.assertEqual(sims["1942"].variants["fb"], ["FB_PATH"])
         self.assertEqual(sims["1942"].rom_bytes[1], sim.Slice("id.hex", 0x3AA00, 0x3AB00, "ID_SECTION"))
         self.assertEqual(sims["mirror"].benches[1].generics, {"JR": "true"})
         # every file a bench names is there, but those of the work folder and the core's
