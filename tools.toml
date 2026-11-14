@@ -119,24 +119,24 @@ sha256 = "93128c0da22cbbcf8473fae8c38b63232ebcd8d51969a14dc8491e77721b63a5"
 url = "https://github.com/bouffalolab/toolchain/releases/download/default/gcc-riscv-14.3.0-linux-x86_64.tar.xz"
 sha256 = "93128c0da22cbbcf8473fae8c38b63232ebcd8d51969a14dc8491e77721b63a5"
 
-# The Bouffalo SDK of the BL616 firmware, game20k's fork with a fix for ninja 1.13 (a CR in a
-# COMMENT of its CMake files) and its Python tools called through Python3_EXECUTABLE, as Windows
-# has no python3.
+# The Bouffalo SDK of the BL616 firmware, game20k's fork with these changes: a fix for ninja 1.13
+# (a CR in a COMMENT of its CMake files), Python tools run through Python3_EXECUTABLE because
+# Windows has no python3, and the check of urb->hcpriv in usbh_kill_urb from CherryUSB 6c40a283.
 [download.bouffalo_sdk]
-version = "c52acff73d2d6b66283d564b4d9f83b90271abfe"
+version = "a4ffd1471daa5e263979d3e81f24dfe033047574"
 release = "https://github.com/scullymi/bouffalo_sdk/tree/game20k"
 
 [download.bouffalo_sdk.darwin-arm64]
-url = "https://github.com/scullymi/bouffalo_sdk/archive/c52acff73d2d6b66283d564b4d9f83b90271abfe.tar.gz"
-sha256 = "e1eddc44d1cb11b39f7db7eb9c12786067bd9ad2974e7da1baf53028395ac2a0"
+url = "https://github.com/scullymi/bouffalo_sdk/archive/a4ffd1471daa5e263979d3e81f24dfe033047574.tar.gz"
+sha256 = "ac573da89cbeefa574c7b91fb2e8f35b431a190a498958619e00c932d3442d95"
 
 [download.bouffalo_sdk.linux-x64]
-url = "https://github.com/scullymi/bouffalo_sdk/archive/c52acff73d2d6b66283d564b4d9f83b90271abfe.tar.gz"
-sha256 = "e1eddc44d1cb11b39f7db7eb9c12786067bd9ad2974e7da1baf53028395ac2a0"
+url = "https://github.com/scullymi/bouffalo_sdk/archive/a4ffd1471daa5e263979d3e81f24dfe033047574.tar.gz"
+sha256 = "ac573da89cbeefa574c7b91fb2e8f35b431a190a498958619e00c932d3442d95"
 
 [download.bouffalo_sdk.windows-x64]
-url = "https://github.com/scullymi/bouffalo_sdk/archive/c52acff73d2d6b66283d564b4d9f83b90271abfe.tar.gz"
-sha256 = "e1eddc44d1cb11b39f7db7eb9c12786067bd9ad2974e7da1baf53028395ac2a0"
+url = "https://github.com/scullymi/bouffalo_sdk/archive/a4ffd1471daa5e263979d3e81f24dfe033047574.tar.gz"
+sha256 = "ac573da89cbeefa574c7b91fb2e8f35b431a190a498958619e00c932d3442d95"
 
 # pioasm and picotool for the Pico SDK, in the versions of external/pico-sdk. With them the
 # firmware needs no compiler for the machine it is built on.
