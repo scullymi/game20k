@@ -54,7 +54,7 @@ VENDORED = [
      'fpga/pacman_hdmi/src/rtl_pacman', 'rtl',
      ('g20k_dpram.vhd', 'pacman_mirror.vhd', 'sn76489_top.vhd', 'ym2149.vhd'), ()),
     # one copy for 1942, 1943, Ghosts'n Goblins and Pang
-    ('jtcores', 'jotego/jtcores', '548b87b', '7ed31e1',
+    ('jtcores', 'jotego/jtcores', '548b87b', 'df5876e',
      'fpga/vendor/jtcores', '', ('mc6809i_LICENSE.md',),
      ('modules/jt12', 'modules/jtopl', 'modules/jt6295', 'modules/jteeprom',
       'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
@@ -62,9 +62,9 @@ VENDORED = [
      'fpga/vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md',
      'documentation/LICENSE.md', (), ()),
     # jt49: the submodule commit, the copy in fpga/vendor/jt49
-    ('jt12', 'jotego/jt12', 'efa4068', 'efa4068', 'fpga/vendor/jt12/hdl', 'hdl', (),
+    ('jt12', 'jotego/jt12', 'efa4068', 'eebba1d', 'fpga/vendor/jt12/hdl', 'hdl', (),
      ('jt49',)),
-    ('jt49', 'jotego/jt49', '6f1247f', '6f1247f', 'fpga/vendor/jt49/hdl', 'hdl', (), ()),
+    ('jt49', 'jotego/jt49', '6f1247f', '947e2e1', 'fpga/vendor/jt49/hdl', 'hdl', (), ()),
     ('jtopl', 'jotego/jtopl', '7ac0c81', '7ac0c81', 'fpga/vendor/jtopl/hdl', 'hdl', (), ()),
     ('jt6295', 'jotego/jt6295', '7d76b0b', '7d76b0b', 'fpga/vendor/jt6295/hdl', 'hdl', (), ()),
     ('jteeprom', 'jotego/jteeprom', '9c68ce8', '9c68ce8', 'fpga/vendor/jteeprom/hdl', 'hdl',
@@ -79,13 +79,13 @@ VENDORED = [
      ('README.md', 'rtl/ram_rom/spram.vhd', 'rtl/ram_rom/dpram_dc.vhd',
       'rtl/sound/Filters/tp_lpf_light.v', 'rtl/sound/Filters/tp_lpf_medium.v',
       'rtl/sound/Filters/tp_lpf_heavy.v')),
-    ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'c8e4601', 'fpga/common/src/misc',
+    ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'bd5043c', 'fpga/common/src/misc',
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
      ('src/tang/nano20k/gowin_dpb/sector_dpram.v',)),
     # d913239 contains MiSTle-Dev/NanoMig#168, which brought sd_card.v and sd_rw.v
-    ('Nanomig', 'MiSTle-Dev/Nanomig', 'd913239', 'd913239', 'fpga/common/src/misc', 'src/misc',
+    ('Nanomig', 'MiSTle-Dev/Nanomig', 'd913239', 'd37dffc', 'fpga/common/src/misc', 'src/misc',
      ('hid.v', 'mcu_spi.v', 'osd_u8g2.v', 'sysctrl.v'), ()),
-    ('hdmi', 'hdl-util/hdmi', '08936f6', '83b1c95', 'fpga/common/src/hdmi', 'src', (), ()),
+    ('hdmi', 'hdl-util/hdmi', '08936f6', '517e214', 'fpga/common/src/hdmi', 'src', (), ()),
     ('NESTang', 'nand2mario/nestang', '1c00dc5', '5b24a71',
      'fpga/common/src/sdram_fb.v', 'src/sdram_nes.v', (), ()),
 ]
