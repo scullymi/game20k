@@ -92,10 +92,15 @@ VENDORED = [
 RELEASE = re.compile(r'^v?(\d+)\.(\d+)(?:\.(\d+))?$')
 
 
+def git_run(*args):
+    """A read-only git command, its exit code and output."""
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
+    return subprocess.run(['git', *args], capture_output=True, text=True, env=env)
+
+
 def git(*args):
     """Output of a read-only git command, '' when it fails."""
-    env = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
-    r = subprocess.run(['git', *args], capture_output=True, text=True, env=env)
+    r = git_run(*args)
     return r.stdout.strip() if r.returncode == 0 else ''
 
 
@@ -147,9 +152,14 @@ def clone(repo, into):
 
 def touched(repo_clone, base, head, ours):
     """Upstream changes to our files from base to head: (commits upstream, report lines)."""
-    # a base that is not on the default branch would make every commit look new
-    if not git('-C', str(repo_clone), 'rev-parse', '--verify', '--quiet', f'{base}^{{commit}}'):
-        raise Unanswered(f'{base} is not in the upstream history')
+    # A base that is not on the default branch would make every commit look new. The bare
+    # clone holds every branch, so a base that exists is not enough. It has to be an ancestor
+    # of head.
+    r = git_run('-C', str(repo_clone), 'merge-base', '--is-ancestor', base, head)
+    if r.returncode == 1:
+        raise Unanswered(f'{base} is not an ancestor of {head}')
+    if r.returncode:
+        raise Unanswered(f'{base}: ' + (r.stderr.strip().splitlines() or ['git failed'])[-1])
     ahead = int(git('-C', str(repo_clone), 'rev-list', '--count', f'{base}..{head}') or 0)
     lines = []
     for fn in sorted(ours):
@@ -178,7 +188,11 @@ def vendored():
             repo_clone = clone(repo, Path(tmp.name))
             ahead, hit = touched(repo_clone, reviewed, 'HEAD', ours)
             if pinned != reviewed:
-                _, old = touched(repo_clone, pinned, reviewed, ours)
+                # an error here only concerns the known part, the new changes above stand
+                try:
+                    _, old = touched(repo_clone, pinned, reviewed, ours)
+                except Unanswered as e:
+                    old = [f'  {e}']
                 if old:
                     known += [f'{name} ({pinned}..{reviewed}):'] + old
         except Unanswered as e:
