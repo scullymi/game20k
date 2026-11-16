@@ -164,9 +164,10 @@ def menu_table(menus):
     out = [MENU_HEAD]
     for core, _, _, xml in menus:
         out.append("\n/* fpga/%s/menu_core.xml */\nstatic const char menu_%s[] =\n%s;\n" % (core, core, c_text(xml)))
-    out.append("\n/* the board's menu (set NULL), its IFACE_TAG, the menu */\nconst menus_entry_t menus_rows[] = {\n")
+    out.append("\n/* the board's menu (set NULL), its IFACE_TAG, the menu, the core's folder */\n"
+               "const menus_entry_t menus_rows[] = {\n")
     for core, board, tag, _ in menus:
-        out.append("  { %d, NULL, 0x%04xu, menu_%s },\n" % (board, tag, core))
+        out.append("  { %d, NULL, 0x%04xu, menu_%s, \"%s\" },\n" % (board, tag, core, core))
     out.append("};\nconst unsigned menus_rows_n = sizeof(menus_rows) / sizeof(menus_rows[0]);\n")
     basic = make_menu.compose("(basic menu)", make_menu.BASIC)
     make_menu.check("(basic menu)", basic)
