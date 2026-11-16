@@ -54,7 +54,7 @@ VENDORED = [
      'fpga/pacman_hdmi/src/rtl_pacman', 'rtl',
      ('g20k_dpram.vhd', 'pacman_mirror.vhd', 'sn76489_top.vhd', 'ym2149.vhd'), ()),
     # one copy for 1942, 1943, Ghosts'n Goblins and Pang
-    ('jtcores', 'jotego/jtcores', '548b87b', '7ed31e1',
+    ('jtcores', 'jotego/jtcores', '548b87b', 'df5876e',
      'fpga/vendor/jtcores', '', ('mc6809i_LICENSE.md',),
      ('modules/jt12', 'modules/jtopl', 'modules/jt6295', 'modules/jteeprom',
       'modules/jtframe/hdl/cpu/t80/T80s.v')),   # T80s.v: fetched for the simulation
@@ -62,9 +62,9 @@ VENDORED = [
      'fpga/vendor/jtcores/modules/jtframe/hdl/cpu/mc6809i_LICENSE.md',
      'documentation/LICENSE.md', (), ()),
     # jt49: the submodule commit, the copy in fpga/vendor/jt49
-    ('jt12', 'jotego/jt12', 'efa4068', 'efa4068', 'fpga/vendor/jt12/hdl', 'hdl', (),
+    ('jt12', 'jotego/jt12', 'efa4068', 'eebba1d', 'fpga/vendor/jt12/hdl', 'hdl', (),
      ('jt49',)),
-    ('jt49', 'jotego/jt49', '6f1247f', '6f1247f', 'fpga/vendor/jt49/hdl', 'hdl', (), ()),
+    ('jt49', 'jotego/jt49', '6f1247f', '947e2e1', 'fpga/vendor/jt49/hdl', 'hdl', (), ()),
     ('jtopl', 'jotego/jtopl', '7ac0c81', '7ac0c81', 'fpga/vendor/jtopl/hdl', 'hdl', (), ()),
     ('jt6295', 'jotego/jt6295', '7d76b0b', '7d76b0b', 'fpga/vendor/jt6295/hdl', 'hdl', (), ()),
     ('jteeprom', 'jotego/jteeprom', '9c68ce8', '9c68ce8', 'fpga/vendor/jteeprom/hdl', 'hdl',
@@ -79,23 +79,28 @@ VENDORED = [
      ('README.md', 'rtl/ram_rom/spram.vhd', 'rtl/ram_rom/dpram_dc.vhd',
       'rtl/sound/Filters/tp_lpf_light.v', 'rtl/sound/Filters/tp_lpf_medium.v',
       'rtl/sound/Filters/tp_lpf_heavy.v')),
-    ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'c8e4601', 'fpga/common/src/misc',
+    ('MiSTeryNano', 'MiSTle-Dev/MiSTeryNano', 'c8e4601', 'bd5043c', 'fpga/common/src/misc',
      'src/misc', ('sd_card.v', 'sd_rw.v', 'sdcmd_ctrl.v'),
      ('src/tang/nano20k/gowin_dpb/sector_dpram.v',)),
     # d913239 contains MiSTle-Dev/NanoMig#168, which brought sd_card.v and sd_rw.v
-    ('Nanomig', 'MiSTle-Dev/Nanomig', 'd913239', 'd913239', 'fpga/common/src/misc', 'src/misc',
+    ('Nanomig', 'MiSTle-Dev/Nanomig', 'd913239', 'd37dffc', 'fpga/common/src/misc', 'src/misc',
      ('hid.v', 'mcu_spi.v', 'osd_u8g2.v', 'sysctrl.v'), ()),
-    ('hdmi', 'hdl-util/hdmi', '08936f6', '83b1c95', 'fpga/common/src/hdmi', 'src', (), ()),
+    ('hdmi', 'hdl-util/hdmi', '08936f6', '517e214', 'fpga/common/src/hdmi', 'src', (), ()),
     ('NESTang', 'nand2mario/nestang', '1c00dc5', '5b24a71',
      'fpga/common/src/sdram_fb.v', 'src/sdram_nes.v', (), ()),
 ]
 RELEASE = re.compile(r'^v?(\d+)\.(\d+)(?:\.(\d+))?$')
 
 
+def git_run(*args):
+    """A read-only git command, its exit code and output."""
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
+    return subprocess.run(['git', *args], capture_output=True, text=True, env=env)
+
+
 def git(*args):
     """Output of a read-only git command, '' when it fails."""
-    env = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
-    r = subprocess.run(['git', *args], capture_output=True, text=True, env=env)
+    r = git_run(*args)
     return r.stdout.strip() if r.returncode == 0 else ''
 
 
@@ -147,9 +152,14 @@ def clone(repo, into):
 
 def touched(repo_clone, base, head, ours):
     """Upstream changes to our files from base to head: (commits upstream, report lines)."""
-    # a base that is not on the default branch would make every commit look new
-    if not git('-C', str(repo_clone), 'rev-parse', '--verify', '--quiet', f'{base}^{{commit}}'):
-        raise Unanswered(f'{base} is not in the upstream history')
+    # A base that is not on the default branch would make every commit look new. The bare
+    # clone holds every branch, so a base that exists is not enough. It has to be an ancestor
+    # of head.
+    r = git_run('-C', str(repo_clone), 'merge-base', '--is-ancestor', base, head)
+    if r.returncode == 1:
+        raise Unanswered(f'{base} is not an ancestor of {head}')
+    if r.returncode:
+        raise Unanswered(f'{base}: ' + (r.stderr.strip().splitlines() or ['git failed'])[-1])
     ahead = int(git('-C', str(repo_clone), 'rev-list', '--count', f'{base}..{head}') or 0)
     lines = []
     for fn in sorted(ours):
@@ -178,7 +188,11 @@ def vendored():
             repo_clone = clone(repo, Path(tmp.name))
             ahead, hit = touched(repo_clone, reviewed, 'HEAD', ours)
             if pinned != reviewed:
-                _, old = touched(repo_clone, pinned, reviewed, ours)
+                # an error here only concerns the known part, the new changes above stand
+                try:
+                    _, old = touched(repo_clone, pinned, reviewed, ours)
+                except Unanswered as e:
+                    old = [f'  {e}']
                 if old:
                     known += [f'{name} ({pinned}..{reviewed}):'] + old
         except Unanswered as e:
