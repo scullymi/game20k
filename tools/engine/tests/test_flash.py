@@ -12,7 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from tools.engine import config, firmware, flash, host, toolchain
+from tools.engine import config, firmware, flash, host, slots, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import BOARD, CORE, PROJECT, write
 from tools.engine.tests.test_toolchain import COMMIT, fake_tools
@@ -33,13 +33,23 @@ class FlashTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def built(self, name: str) -> Path:
-        return write(self.root, f"build/{name}/{name}.fs", "")
+    def built(self, name: str, folder: str = "") -> Path:
+        # the .bin beside the .fs and a manifest with the core's board, which the slot's tag names
+        write(self.root, f"fpga/{name}/{name}.manifest", "board   7\n")
+        (self.root / "build" / folder / name).mkdir(parents=True, exist_ok=True)
+        (self.root / "build" / folder / name / f"{name}.bin").write_bytes(b"\xa5\xc3bitstream")
+        return write(self.root, f"build/{folder}/{name}/{name}.fs" if folder else f"build/{name}/{name}.fs", "")
 
     def test_core_into_its_slot(self) -> None:
-        fs = self.built("two")
+        self.built("two")
         cmd = flash.command(self.root, self.root / "fpga/two")
-        self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", "-f", "-o", "0x100000", "--verify", fs])
+        slot = self.root / "build" / "two" / "two-slot.bin"
+        self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", "-f", "-o", "0x100000", "--verify", slot])
+        # the whole slot: the bitstream, 0xFF, the tag of board 7 at its end
+        data = slot.read_bytes()
+        self.assertEqual(len(data), 0x100000)
+        self.assertTrue(data.startswith(b"\xa5\xc3bitstream\xff"))
+        self.assertEqual(data[-slots.TAG_BYTES :], slots.tag(7))
 
     def test_core_into_sram(self) -> None:
         fs = self.built("one")
@@ -91,9 +101,9 @@ class FlashTest(unittest.TestCase):
             flash.command(self.root, self.root / "fpga/two", board=outside)
         self.assertIn(f"--board {outside.as_posix()}", str(err.exception))
         # the build of the other board, not that of project.toml's
-        self.built("two")
-        fs = write(self.root, "build/c/two/two.fs", "")
-        self.assertEqual(flash.command(self.root, self.root / "fpga/two", board=board)[-2:], ["--verify", fs])
+        self.built("two", "c")
+        slot = self.root / "build" / "c" / "two" / "two-slot.bin"
+        self.assertEqual(flash.command(self.root, self.root / "fpga/two", board=board)[-2:], ["--verify", slot])
 
     def test_failure_names_the_driver_on_windows(self) -> None:
         self.built("one")

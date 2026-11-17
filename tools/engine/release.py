@@ -25,7 +25,7 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from tools.engine import config, host
+from tools.engine import config, host, slots
 from tools.engine.host import StepError
 
 
@@ -178,16 +178,10 @@ def release(root: Path, dev: bool, board: Path | None = None) -> Path:
         end="",
     )
     # The image is the flash from 0 as project.toml lays it out: every core's .bin at its slot,
-    # 0xFF in between as in an erased flash. One write puts every core in place, and the cores
-    # of a release always go on together, they must match the firmware of the same version.
-    image = bytearray()
-    for core in project.slots:
-        address = project.address(core)
-        data = (project.build_folder(core.name) / f"{core.name}.bin").read_bytes()
-        if len(data) > project.board.flash.slot_size:
-            raise StepError(f"{core.name}.bin is larger than its slot")
-        image += b"\xff" * (address - len(image)) + data
-    (dist / f"{name}.bin").write_bytes(image)
+    # its tag at the slot's end, 0xFF in between as in an erased flash. One write puts every
+    # core in place, and the cores of a release always go on together, they must match the
+    # firmware of the same version.
+    (dist / f"{name}.bin").write_bytes(slots.flash_image(project))
     # how to flash the image on this board, the board's text with the names of this release
     flashing = project.board.folder / "FLASHING.txt"
     (dist / "FLASHING.txt").write_text(
