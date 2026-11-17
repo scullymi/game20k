@@ -72,6 +72,8 @@ BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words
                        UBaseType_t prio, TaskHandle_t *handle);
 void vTaskDelete(TaskHandle_t t);
 void vTaskDelay(TickType_t ticks);
+void *pvPortMalloc(size_t size);             /* FreeRTOS' heap, here malloc() */
+void vPortFree(void *p);
 
 /* ---- mbedTLS: the ROM digest of game.c, only test_game_switch streams a ROM ------------------- */
 
@@ -116,5 +118,9 @@ bool host_card_new(void);                   /**< a new, empty 4 MB FAT16 card mo
 bool host_card_put(const char *path, const void *data, size_t len);   /**< a whole file */
 long host_card_get(const char *path, char *buf, size_t cap);          /**< length or -1 */
 bool host_card_exists(const char *path);
+bool host_usb_new(void);                    /**< a new, empty 4 MB FAT16 USB drive mounted at /usb */
+void host_usb_remove(void);                 /**< the USB drive is pulled: /usb is gone */
+bool host_usb_put(const char *path, const void *data, size_t len);    /**< a whole file on the read-only drive */
+bool host_usb_mkdir(const char *path);      /**< a folder on the read-only drive */
 
 #endif /* HOST_STUBS_H */
