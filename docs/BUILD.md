@@ -108,7 +108,9 @@ On Windows, `flash` needs the WinUSB driver on the Nano once, see
 [windows-usb.md](windows-usb.md).
 
 [project.toml](../project.toml) lists the cores in the order of their slots in the flash. The
-FPGA loads the first one at power-on. To flash fewer cores, remove the others there and build
+FPGA loads the first one at power-on. `flash` and `release` end each slot with a short tag that
+names the core's board: the running core reads the tags at its start and tells the firmware which
+cores the flash holds. To flash fewer cores, remove the others there and build
 everything again, firmware included. After writing the flash, power the board off and on. A
 build stops when a clock misses its frequency or the cells differ from the core's `cells.toml`
 (`--update-cells` after a wanted change). Without `--dev`, `release` only builds a clean tree on
