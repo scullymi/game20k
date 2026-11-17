@@ -11,6 +11,8 @@ top = "game20k_top"
 core_clock = "clk_core"
 # the top's parameter that takes the core's rate (core.toml hz)
 core_hz_parameter = "CORE_HZ"
+flash_slots_parameter = "FLASH_SLOTS"
+flash_slot_bytes_parameter = "FLASH_SLOT_BYTES"
 primitives = ["rPLL", "OSER10", "ELVDS_OBUF", "CLKDIV", "DPB", "BUFG"]
 
 [sources]
@@ -42,6 +44,7 @@ files = [
   "src/arcade_scaler.sv",
   "src/misc/mcu_spi.v",
   "src/mcu/ram_spi.sv",
+  "src/flash_scan.sv",
   "src/mcu/snap_fifo.sv",
   "src/mcu/snap_log.sv",
   "src/misc/hid.v",

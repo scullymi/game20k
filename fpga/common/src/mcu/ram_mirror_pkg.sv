@@ -15,16 +15,18 @@
 //! RAM_MIRROR_PAGE and the complement) and its board id in bytes 12/13 (BOARD_ID and the
 //! complement), so the firmware sizes its read from the header instead of from a constant.
 //! Bytes 16 to 19 carry IFACE_TAG of gen/iface_pkg.sv and its complement, see make_menu.py.
+//! Bytes 20 to 29 carry what flash_scan.sv found in the slots of the configuration flash.
 package ram_mirror_pkg;
-    //! Header byte 4. Layout 5 has a header of 24 bytes with board id and data size in
-    //! bytes 12 to 15 and the interface tag in bytes 16 to 19. The firmware checks it and
-    //! refuses a core of another layout with a message.
-    localparam logic [7:0] RAM_MIRROR_LAYOUT = 8'h05;
+    //! Header byte 4. Layout 6 has a header of 32 bytes with board id and data size in
+    //! bytes 12 to 15, the interface tag in bytes 16 to 19 and the flash's slots in bytes 20
+    //! to 29. The firmware checks it and refuses a core of another layout with a message.
+    localparam logic [7:0] RAM_MIRROR_LAYOUT = 8'h06;
     //! 'R' 'A' 'C' 'H', layout, frame no (2), harvest flag, reset count, build flags,
     //! their complements, board id and its complement, data size in 128-byte pages and its
-    //! complement, interface tag (2) and its complement (2), four bytes 0. A multiple of 8,
-    //! like RAM_MIRROR_PAGE and RAM_MIRROR_LOG, so the footer decode of ram_spi.sv holds.
-    localparam int RAM_MIRROR_HEAD = 24;
+    //! complement, interface tag (2) and its complement (2), the board of each of 8 flash
+    //! slots, the scan flag and its complement, two bytes 0. A multiple of 8, like
+    //! RAM_MIRROR_PAGE and RAM_MIRROR_LOG, so the footer decode of ram_spi.sv holds.
+    localparam int RAM_MIRROR_HEAD = 32;
     //! The unit of header byte 14: a game's data size goes out in pages of this many bytes.
     //! A multiple of 8, so the footer decode of ram_spi.sv holds for every game.
     localparam int RAM_MIRROR_PAGE = 128;

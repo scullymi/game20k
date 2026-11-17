@@ -166,6 +166,8 @@ PLATFORM = """
     top = "game20k_top"
     core_clock = "clk_core"
     core_hz_parameter = "CORE_HZ"
+    flash_slots_parameter = "FLASH_SLOTS"
+    flash_slot_bytes_parameter = "FLASH_SLOT_BYTES"
 
     [sources]
     files = ["src/top.sv"]

@@ -207,13 +207,17 @@ class Platform:
     """@brief What every core of a project shares: the top level and its sources and clocks.
 
     core_clock is the clock net that runs at the core's rate, core_hz_parameter the parameter
-    of the top that the build sets to it. primitives are the vendor cells the sources
-    instantiate, which the elaboration needs as empty modules with their parameters."""
+    of the top that the build sets to it. flash_slots_parameter and flash_slot_bytes_parameter
+    name the parameters that get the slot count and size of the board's flash. primitives are
+    the vendor cells the sources instantiate, which the elaboration needs as empty modules
+    with their parameters."""
 
     folder: Path
     top: str
     core_clock: str
     core_hz_parameter: str
+    flash_slots_parameter: str
+    flash_slot_bytes_parameter: str
     primitives: list[str]
     sources: list[str]
     include: list[str]
@@ -224,7 +228,9 @@ class Platform:
 def load_platform(path: Path) -> Platform:
     """@brief Reads a platform.toml."""
     root = _read(path).allow("platform", "sources", "generate", "clock")
-    p = root.table("platform").allow("top", "core_clock", "core_hz_parameter", "primitives")
+    p = root.table("platform").allow(
+        "top", "core_clock", "core_hz_parameter", "flash_slots_parameter", "flash_slot_bytes_parameter", "primitives"
+    )
     s = root.table("sources").allow("files", "include")
     core_clock = p.get("core_clock", str)
     return Platform(
@@ -232,6 +238,8 @@ def load_platform(path: Path) -> Platform:
         top=p.get("top", str),
         core_clock=core_clock,
         core_hz_parameter=p.get("core_hz_parameter", str),
+        flash_slots_parameter=p.get("flash_slots_parameter", str),
+        flash_slot_bytes_parameter=p.get("flash_slot_bytes_parameter", str),
         primitives=p.strings("primitives"),
         sources=s.strings("files", required=True),
         include=s.strings("include"),

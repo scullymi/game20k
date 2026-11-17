@@ -31,10 +31,13 @@
 //! SPI. The game's ROM file reaches the core's ROM memories the same way.
 //!
 //! CORE_HZ is the rate of the game's core clock, the build passes the hz of the core's
-//! core.toml, the one place that names it. The other parameters are DIAGNOSTIC builds only
-//! and are all 0 in the normal build. The production branch is g_fb_live.
+//! core.toml, the one place that names it. FLASH_SLOTS and FLASH_SLOT_BYTES come from the
+//! board.toml the same way. The other parameters are DIAGNOSTIC builds only and are all 0 in
+//! the normal build. The production branch is g_fb_live.
 module game20k_top #(
     parameter int CORE_HZ   = 0,   //!< rate of clk_core in Hz, from core.toml; 0 stops the build
+    parameter int FLASH_SLOTS      = 0,  //!< cores in the configuration flash, from board.toml; 0 stops the build
+    parameter int FLASH_SLOT_BYTES = 0,  //!< bytes per core in it, from board.toml
     parameter bit TESTBAR   = 1,   //!< synthesise the input test bar (1 BSRAM)
     parameter bit ROMVIEW   = 0,   //!< 1: a diagnostic view of the game's own (Galaga: the character ROM)
     parameter bit SDRAMTEST = 0,   //!< 1: SDRAM controller plus phase self test
@@ -87,7 +90,12 @@ module game20k_top #(
 `endif
     //! RECONFIG_N (pin 9), high in operation. A low pulse loads the next core, see
     //! "Core switch" below.
-    output logic       reconfig_n
+    output logic       reconfig_n,
+    //! The configuration flash, read once after the start by flash_scan and released then
+    output wire        flash_cs_n,
+    output wire        flash_clk,
+    output wire        flash_mosi,
+    input  wire        flash_miso
 );
     import ram_mirror_pkg::*;   // block sizes of the RAM mirror, see ram_mirror_pkg.sv
     import game_pkg::*;         // raster, name and test bar labels of the game
@@ -130,6 +138,10 @@ module game20k_top #(
     // PLL divider, timers and the timing analysis follow the core's rate
     if (CORE_HZ <= 0)
         $error("game20k_top: CORE_HZ is not set, the build passes the hz of the core's core.toml");
+    // the RAM mirror's header has room for the boards of 8 slots
+    if (FLASH_SLOTS <= 0 || FLASH_SLOTS > 8 || FLASH_SLOT_BYTES <= 0)
+        $error("game20k_top: FLASH_SLOTS %0d or FLASH_SLOT_BYTES %0d, the build passes them from board.toml",
+               FLASH_SLOTS, FLASH_SLOT_BYTES);
     // The scanline counter counts HDMI lines modulo 3 from cy 0, the 3x picture keeps its
     // pattern only when the frame has a multiple of 3 lines (768, 786, 816)
     if (FRAME_H % 3 != 0)
@@ -1076,6 +1088,25 @@ module game20k_top #(
             snap_sum <= {snap_sum[14:0], snap_sum[15]} ^ {8'h00, fifo_wdat};
     end
 
+    // ---------------- Configuration flash ----------------
+    // Which core each slot holds, read once after the start, so the firmware knows the cores
+    // it can switch to without trying the ring. The pins are driven only during the scan.
+    logic [7:0] fl_board [FLASH_SLOTS];
+    logic [7:0] fl_header [8];
+    logic       fl_oe, fl_cs_n, fl_clk, fl_mosi, fl_done;
+    flash_scan #(.SLOTS(FLASH_SLOTS), .SLOT_BYTES(FLASH_SLOT_BYTES)) flash_scan_i (
+        .clk(clk_core), .reset(!pll_lock),
+        .oe(fl_oe), .cs_n(fl_cs_n), .sck(fl_clk), .mosi(fl_mosi), .miso(flash_miso),
+        .board(fl_board), .done(fl_done)
+    );
+    assign flash_cs_n = fl_oe ? fl_cs_n : 1'bz;
+    assign flash_clk  = fl_oe ? fl_clk  : 1'bz;
+    assign flash_mosi = fl_oe ? fl_mosi : 1'bz;
+    for (genvar i = 0; i < 8; i++) begin : g_fl_header
+        if (i < FLASH_SLOTS) assign fl_header[i] = fl_board[i];
+        else                 assign fl_header[i] = 8'h00;
+    end
+
     // The game's RAM size and board id go out in the header, both from the manifest through
     // rom_map_pkg, so the firmware reads the length of the block and which core it talks to.
     // Its interface tag too, so the firmware knows whether its menu for the board fits.
@@ -1092,6 +1123,7 @@ module game20k_top #(
         .txt_we(ram_txt_we), .txt_addr(ram_txt_addr), .txt_data(ram_txt_data),
         .banner_on(ram_banner), .banner_gold(ram_bgold), .banner_new(ram_bnew),
         .ra_flags(ram_flags), .rst_no(snap_rst_no), .build_flags(BUILD_FLAGS),
+        .flash_board(fl_header), .flash_done(fl_done),
         .undr_pos(),   // not shown: row 2 of ram_diag carries the fill level of the
                        // catch-up queue and the achievement number instead
         .frame_no(snap_frame), .harv_busy(snap_harv), .run(snap_run), .underrun(),

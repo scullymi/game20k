@@ -66,3 +66,15 @@ IO_PORT "sd_dat[3]" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
 // drives it all the same, the low pulse reloads the FPGA.
 IO_LOC "reconfig_n" 9;
 IO_PORT "reconfig_n" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+
+// The configuration flash, read once after the start (flash_scan.sv) and released then.
+// mspi_as_gpio in board.toml frees the pins after the configuration. CS has R3 to 3V3 and
+// CLK R4 to GND on the board, so the flash stays deselected while the pins float.
+IO_LOC "flash_cs_n" 60;
+IO_PORT "flash_cs_n" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "flash_clk" 59;
+IO_PORT "flash_clk" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "flash_mosi" 61;
+IO_PORT "flash_mosi" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "flash_miso" 62;
+IO_PORT "flash_miso" IO_TYPE=LVCMOS33 PULL_MODE=NONE BANK_VCCIO=3.3;
