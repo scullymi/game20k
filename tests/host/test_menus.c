@@ -3,6 +3,8 @@
 /** @file test_menus.c
  *  @brief menus.c: menus_pick(), the menu a boot takes, on the table make_fw_tables.py
  *         generates. Known board with its tag, board 0, a board the table lacks, another tag. */
+#include <string.h>
+
 #include "unity.h"
 #include "menus.h"
 
@@ -19,6 +21,9 @@ static void test_pick_rows(void) {
     TEST_ASSERT_EQUAL_PTR(e, m);
     TEST_ASSERT_EQUAL_INT(MENUS_MISMATCH, menus_pick(e->board, (uint16_t)(e->tag ^ 1), NULL, &m));
     TEST_ASSERT_NULL(m);
+    // the core's folder names its bitstream in a cores folder
+    TEST_ASSERT_NOT_NULL(e->core);
+    TEST_ASSERT_GREATER_THAN_UINT(0, strlen(e->core));
   }
   TEST_ASSERT_GREATER_THAN_UINT(0, menus_rows_n);
 }
