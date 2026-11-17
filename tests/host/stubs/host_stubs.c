@@ -87,6 +87,8 @@ TaskHandle_t xTaskCreateStatic(TaskFunction_t fn, const char *name, uint32_t sta
 }
 // the clock stands still: what a test compares was made in the same tick
 __attribute__((weak)) TickType_t xTaskGetTickCount(void) { return 1000; }
+void *pvPortMalloc(size_t size) { return malloc(size); }
+void vPortFree(void *p) { free(p); }
 // task.h: xTaskCreate() may fail for want of memory. Here it always does, so a caller that
 // starts a task takes its error path
 BaseType_t xTaskCreate(TaskFunction_t fn, const char *name, uint32_t stack_words, void *arg,
@@ -197,5 +199,5 @@ __attribute__((weak)) int  mbedtls_sha256_starts(mbedtls_sha256_context *ctx, in
 __attribute__((weak)) int  mbedtls_sha256_update(mbedtls_sha256_context *ctx, const unsigned char *data, size_t len) { host_fail("mbedtls_sha256_update(): a ROM streams"); return -1; }
 __attribute__((weak)) int  mbedtls_sha256_finish(mbedtls_sha256_context *ctx, unsigned char out[32]) { host_fail("mbedtls_sha256_finish(): a ROM streams"); return -1; }
 __attribute__((weak)) void mbedtls_sha256_free(mbedtls_sha256_context *ctx) { host_fail("mbedtls_sha256_free(): a ROM streams"); }
-// games.c: ftpd.c tells it of a changed ROM file, nothing here lists games
-void games_changed(const char *name) { (void)name; }
+// games.c: ftpd.c tells it of a changed ROM file. Weak, test_games_list includes the real one
+__attribute__((weak)) void games_changed(const char *name) { (void)name; }

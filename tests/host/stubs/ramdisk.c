@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 scullymi
 /** @file ramdisk.c
- *  @brief A 4 MB card in RAM under the fork's real FatFs, in place of the SD card behind the FPGA.
+ *  @brief Two 4 MB disks in RAM under the fork's real FatFs: drive 0 in place of the SD card
+ *  behind the FPGA at /sd, drive 1 in place of a USB drive at /usb (ffconf.h, FF_VOLUME_STRS).
  *
- *  FatFs is the real one, built with the firmware's ffconf.h, only the disk below it is a
- *  stand-in. The firmware's ffconf.h leaves f_mkfs() out, so host_card_new() writes an empty
- *  FAT16 volume by hand. What this cannot show: timing, a card that loses a write it
- *  acknowledged, and anything in sdc.c itself. */
+ *  FatFs is the real one, built with the firmware's ffconf.h, only the disks below it are
+ *  stand-ins. The firmware's ffconf.h leaves f_mkfs() out, so host_card_new() and
+ *  host_usb_new() write an empty FAT16 volume by hand. The USB drive refuses writes as
+ *  sdc.c's disk_write() does, only host_usb_put() and host_usb_mkdir() fill it. What this
+ *  cannot show: timing, a card that loses a write it acknowledged, and anything in sdc.c
+ *  itself. */
 #include <string.h>
 
 #include "ff.h"
@@ -18,17 +21,21 @@
 #define FAT_SECTORS  32u     /* 8095 clusters of one sector, two bytes each, fit */
 #define ROOT_SECTORS 32u     /* 512 root entries of 32 bytes */
 
-static unsigned char disk[SECTORS][SECTOR];
-static FATFS         volume;
+#define DRIVES       2u      /* 0 the card, 1 the USB drive */
+
+static unsigned char disk[DRIVES][SECTORS][SECTOR];
+static FATFS         volume[DRIVES];
+static bool          usb_in;    /* the USB drive is plugged in */
+static bool          usb_fill;  /* a test fills the drive, its writes go through */
 
 static void put16(unsigned char *p, unsigned v) { p[0] = (unsigned char)v; p[1] = (unsigned char)(v >> 8); }
 
 /* An empty FAT16 volume without a partition table, laid out as Microsoft's FAT specification
    (fatgen103) describes it: boot sector, two FATs with their two reserved entries, an empty
    root directory. */
-static void format_fat16(void) {
-  unsigned char *b = disk[0];
-  memset(disk, 0, sizeof(disk));
+static void format_fat16(unsigned drive) {
+  unsigned char *b = disk[drive][0];
+  memset(disk[drive], 0, sizeof(disk[drive]));
   b[0] = 0xeb; b[1] = 0x3c; b[2] = 0x90;
   memcpy(b + 3, "MSDOS5.0", 8);
   put16(b + 11, SECTOR);                       // bytes per sector
@@ -47,15 +54,27 @@ static void format_fat16(void) {
   b[510] = 0x55; b[511] = 0xaa;
   // both FATs: entry 0 carries the media byte, entry 1 the end-of-chain mark
   for(unsigned f = 0; f < 2; f++) {
-    unsigned char *fat = disk[RESERVED + f * FAT_SECTORS];
+    unsigned char *fat = disk[drive][RESERVED + f * FAT_SECTORS];
     fat[0] = 0xf8; fat[1] = 0xff; fat[2] = 0xff; fat[3] = 0xff;
   }
 }
 
 bool host_card_new(void) {
   f_mount(NULL, "/sd", 0);   // forget the previous card
-  format_fat16();
-  return f_mount(&volume, "/sd", 1) == FR_OK;
+  format_fat16(0);
+  return f_mount(&volume[0], "/sd", 1) == FR_OK;
+}
+
+bool host_usb_new(void) {
+  f_mount(NULL, "/usb", 0);
+  format_fat16(1);
+  usb_in = true;
+  return f_mount(&volume[1], "/usb", 1) == FR_OK;
+}
+
+void host_usb_remove(void) {
+  f_mount(NULL, "/usb", 0);
+  usb_in = false;
 }
 
 bool host_card_put(const char *path, const void *data, size_t len) {
@@ -64,6 +83,20 @@ bool host_card_put(const char *path, const void *data, size_t len) {
   FRESULT r = f_write(&f, data, (UINT)len, &put);
   FRESULT c = f_close(&f);
   return r == FR_OK && c == FR_OK && put == len;
+}
+
+bool host_usb_put(const char *path, const void *data, size_t len) {
+  usb_fill = true;
+  bool ok  = host_card_put(path, data, len);
+  usb_fill = false;
+  return ok;
+}
+
+bool host_usb_mkdir(const char *path) {
+  usb_fill = true;
+  bool ok  = f_mkdir(path) == FR_OK;
+  usb_fill = false;
+  return ok;
 }
 
 long host_card_get(const char *path, char *buf, size_t cap) {
@@ -80,27 +113,30 @@ bool host_card_exists(const char *path) {
   return f_stat(path, &fi) == FR_OK;
 }
 
-/* ---- FatFs' disk interface (diskio.h), drive 0 is the card ------------------------------------ */
+/* ---- FatFs' disk interface (diskio.h), drive 0 is the card, drive 1 the USB drive ------------ */
 
-DSTATUS disk_status(BYTE pdrv) { return pdrv == 0 ? 0 : STA_NOINIT; }
+static bool ready(BYTE pdrv) { return pdrv == 0 || (pdrv == 1 && usb_in); }
+
+DSTATUS disk_status(BYTE pdrv) { return ready(pdrv) ? 0 : STA_NOINIT; }
 DSTATUS disk_initialize(BYTE pdrv) { return disk_status(pdrv); }
 
 DRESULT disk_read(BYTE pdrv, BYTE *buff, LBA_t sector, UINT count) {
-  if(pdrv || sector >= SECTORS || count > SECTORS - sector) return RES_PARERR;
-  memcpy(buff, disk[sector], (size_t)count * SECTOR);
+  if(!ready(pdrv) || sector >= SECTORS || count > SECTORS - sector) return RES_PARERR;
+  memcpy(buff, disk[pdrv][sector], (size_t)count * SECTOR);
   return RES_OK;
 }
 
 DRESULT disk_write(BYTE pdrv, const BYTE *buff, LBA_t sector, UINT count) {
-  if(pdrv || sector >= SECTORS || count > SECTORS - sector) return RES_PARERR;
-  memcpy(disk[sector], buff, (size_t)count * SECTOR);
+  if(pdrv == 1 && !usb_fill) return RES_WRPRT;   // sdc.c: the USB drive is read only
+  if(!ready(pdrv) || sector >= SECTORS || count > SECTORS - sector) return RES_PARERR;
+  memcpy(disk[pdrv][sector], buff, (size_t)count * SECTOR);
   return RES_OK;
 }
 
 // sdc.c, sdc_ioctl(): CTRL_SYNC and GET_SECTOR_SIZE succeed, every other request fails
 DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff) {
-  if(pdrv == 0 && cmd == CTRL_SYNC) return RES_OK;
-  if(pdrv == 0 && cmd == GET_SECTOR_SIZE) { *(WORD *)buff = SECTOR; return RES_OK; }
+  if(ready(pdrv) && cmd == CTRL_SYNC) return RES_OK;
+  if(ready(pdrv) && cmd == GET_SECTOR_SIZE) { *(WORD *)buff = SECTOR; return RES_OK; }
   return RES_ERROR;
 }
 
