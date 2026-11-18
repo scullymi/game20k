@@ -90,6 +90,12 @@ jobs:
           path: external/tools/downloads
           key: ${{ steps.tools.outputs.cache-primary-key }}
 
+      # the BL616's stepping stone is checked in (fpga/stone/stone.bin), the firmware takes it
+      # without the FPGA tools: a new build must give the same bytes
+      - name: Stepping stone (g20k.py stone --check)
+        if: matrix.board == 'tangnano20k-singleboard'
+        run: python3 g20k.py stone --check
+
       # a tag builds a release, anything else a trial build (--dev: no tag needed)
       - name: Build and pack
         run: |

@@ -45,6 +45,8 @@ impl/
 *.bin
 *.bit
 *.log
+# the BL616's stepping stone, checked in so the firmware builds without the FPGA tools
+!fpga/stone/stone.bin
 
 # --- build output: Pico firmware, cores (g20k.py) ---
 build/
