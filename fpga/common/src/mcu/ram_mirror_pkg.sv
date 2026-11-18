@@ -3,7 +3,7 @@
 //! @file ram_mirror_pkg.sv
 //! @brief Layout of the RAM mirror block on SPI target 5 (game20k)
 //!
-//! The one place for what is the same for every game: seven constants, identical in the
+//! The one place for what is the same for every game: constants identical in the
 //! firmware under the same names (RAM_MIRROR_* in src/game20k/ram_mirror.c of the FPGA-Companion fork,
 //! branch game20k), scripts/check_contracts.py compares them. ram_spi.sv slices the byte
 //! stream with them, the top counts the FIFO with them, ram_diag.sv checks the received
@@ -23,10 +23,13 @@ package ram_mirror_pkg;
     localparam logic [7:0] RAM_MIRROR_LAYOUT = 8'h06;
     //! 'R' 'A' 'C' 'H', layout, frame no (2), harvest flag, reset count, build flags,
     //! their complements, board id and its complement, data size in 128-byte pages and its
-    //! complement, interface tag (2) and its complement (2), the board of each of 8 flash
-    //! slots, the scan flag and its complement, two bytes 0. A multiple of 8, like
-    //! RAM_MIRROR_PAGE and RAM_MIRROR_LOG, so the footer decode of ram_spi.sv holds.
+    //! complement, interface tag (2) and its complement (2), the scan flag and its
+    //! complement, the board of each of RAM_MIRROR_SLOTS flash slots, two bytes 0. A
+    //! multiple of 8, like RAM_MIRROR_PAGE and RAM_MIRROR_LOG, so the footer decode of
+    //! ram_spi.sv holds.
     localparam int RAM_MIRROR_HEAD = 32;
+    //! The flash slots the header has room for, bytes 22 to 29.
+    localparam int RAM_MIRROR_SLOTS = 8;
     //! The unit of header byte 14: a game's data size goes out in pages of this many bytes.
     //! A multiple of 8, so the footer decode of ram_spi.sv holds for every game.
     localparam int RAM_MIRROR_PAGE = 128;

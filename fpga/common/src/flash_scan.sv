@@ -10,8 +10,9 @@
 //! board[n] is then 0 for no bitstream, the tag's board id, or 255 for a bitstream without a
 //! valid tag. done rises when all slots are read. The pins are driven only during the scan
 //! and released afterwards, so a programmer that writes the flash over JTAG finds them as
-//! before. SCK runs at half the clock, at most 23.2 MHz at the fastest core clock, well
-//! within the flash's limit for 0x03.
+//! before. SCK runs at half the clock, within the flash's limit for 0x03 at every core
+//! clock. done rises clocks after the last board is final, the RAM mirror's header sends
+//! it ahead of the boards for that reason (ram_spi.sv).
 
 module flash_scan #(
     parameter int SLOTS      = 8,

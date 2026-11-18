@@ -80,8 +80,8 @@ module ram_spi #(
     output logic [7:0]  ra_flags,
     input  wire  [7:0]  rst_no,           //!< header byte 8: resets of the core, as of the snapshot
     input  wire  [7:0]  build_flags,      //!< header byte 9: diagnostic parameters, 0 in a release build
-    input  wire  [7:0]  flash_board [8],  //!< header bytes 20 to 27: the board in each flash slot, see flash_scan.sv
-    input  wire         flash_done,       //!< header byte 28: flash_board holds the scan's result
+    input  wire  [7:0]  flash_board [ram_mirror_pkg::RAM_MIRROR_SLOTS], //!< header bytes 22 to 29: the board in each flash slot, see flash_scan.sv
+    input  wire         flash_done,       //!< header byte 20: flash_board holds the scan's result
     output logic [15:0] undr_pos,         //!< diagnostic: payload byte number at first underrun
     output logic        fifo_pop,
     input  wire  [15:0] frame_no,        //!< frame number of the snapshot
@@ -176,13 +176,15 @@ module ram_spi #(
             5'd17: hdr = IFACE[15:8];
             5'd18: hdr = ~IFACE[7:0];
             5'd19: hdr = ~IFACE[15:8];
-            // Bytes 20 to 27: the board in each slot of the configuration flash, 0 for an
-            // empty slot, 255 for a bitstream without a tag. Byte 28 is 1 once the scan is
-            // done, 29 its complement: until then the firmware does not take 20 to 27.
-            5'd20, 5'd21, 5'd22, 5'd23,
-            5'd24, 5'd25, 5'd26, 5'd27: hdr = flash_board[3'(k[4:0] - 5'd20)];
-            5'd28: hdr = {7'd0, flash_done};
-            5'd29: hdr = ~{7'd0, flash_done};
+            // Byte 20 is 1 once the scan of the configuration flash is done, 21 its
+            // complement. Bytes 22 to 29: the board in each of its slots, 0 for an empty
+            // slot, 255 for a bitstream without a tag. The flag goes out before the boards:
+            // flash_scan.sv raises it clocks after the last board is final, so a header
+            // whose byte 20 says done carries final boards in the bytes that follow.
+            5'd20: hdr = {7'd0, flash_done};
+            5'd21: hdr = ~{7'd0, flash_done};
+            5'd22, 5'd23, 5'd24, 5'd25,
+            5'd26, 5'd27, 5'd28, 5'd29: hdr = flash_board[3'(k[4:0] - 5'd22)];
             default: hdr = 8'h00;         // 30 and 31
         endcase
     end

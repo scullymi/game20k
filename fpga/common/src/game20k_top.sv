@@ -138,8 +138,8 @@ module game20k_top #(
     // PLL divider, timers and the timing analysis follow the core's rate
     if (CORE_HZ <= 0)
         $error("game20k_top: CORE_HZ is not set, the build passes the hz of the core's core.toml");
-    // the RAM mirror's header has room for the boards of 8 slots
-    if (FLASH_SLOTS <= 0 || FLASH_SLOTS > 8 || FLASH_SLOT_BYTES <= 0)
+    // the RAM mirror's header has room for the boards of RAM_MIRROR_SLOTS slots
+    if (FLASH_SLOTS <= 0 || FLASH_SLOTS > RAM_MIRROR_SLOTS || FLASH_SLOT_BYTES <= 0)
         $error("game20k_top: FLASH_SLOTS %0d or FLASH_SLOT_BYTES %0d, the build passes them from board.toml",
                FLASH_SLOTS, FLASH_SLOT_BYTES);
     // The scanline counter counts HDMI lines modulo 3 from cy 0, the 3x picture keeps its
@@ -1092,7 +1092,7 @@ module game20k_top #(
     // Which core each slot holds, read once after the start, so the firmware knows the cores
     // it can switch to without trying the ring. The pins are driven only during the scan.
     logic [7:0] fl_board [FLASH_SLOTS];
-    logic [7:0] fl_header [8];
+    logic [7:0] fl_header [RAM_MIRROR_SLOTS];
     logic       fl_oe, fl_cs_n, fl_clk, fl_mosi, fl_done;
     flash_scan #(.SLOTS(FLASH_SLOTS), .SLOT_BYTES(FLASH_SLOT_BYTES)) flash_scan_i (
         .clk(clk_core), .reset(!pll_lock),
@@ -1102,7 +1102,7 @@ module game20k_top #(
     assign flash_cs_n = fl_oe ? fl_cs_n : 1'bz;
     assign flash_clk  = fl_oe ? fl_clk  : 1'bz;
     assign flash_mosi = fl_oe ? fl_mosi : 1'bz;
-    for (genvar i = 0; i < 8; i++) begin : g_fl_header
+    for (genvar i = 0; i < RAM_MIRROR_SLOTS; i++) begin : g_fl_header
         if (i < FLASH_SLOTS) assign fl_header[i] = fl_board[i];
         else                 assign fl_header[i] = 8'h00;
     end

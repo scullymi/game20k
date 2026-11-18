@@ -11,8 +11,8 @@
 //!     in the last two head bytes,
 //!   - a bitstream without a tag, with one wrong magic byte, a wrong complement, or board 0
 //!     or 255 in the tag (255).
-//! The model checks the command byte and the mode 0 timing it relies on, the bench checks
-//! that the pins are released after the scan. Ends with PASS or $fatal, after a minimum
+//! The model answers in mode 0 and checks the command byte, the bench checks that the pins
+//! are released after the scan. Ends with PASS or $fatal, after a minimum
 //! count of each case.
 
 module tb_flash_scan;

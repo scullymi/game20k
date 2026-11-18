@@ -7,17 +7,17 @@
 [tangnano20k]
 "$print" = 20
 "$scopeinfo" = 14
-"ALU" = 1473
+"ALU" = 1471
 "BUFG" = 1
 "CLKDIV" = 1
-"DFF" = 5548
+"DFF" = 5544
 "DPB" = 21
 "DPX9B" = 10
 "ELVDS_OBUF" = 4
 "GND" = 1
 "IBUF" = 7
 "IOBUF" = 37
-"LUT" = 11606
+"LUT" = 11563
 "MULT18X18" = 1
 "OBUF" = 42
 "OSER10" = 3

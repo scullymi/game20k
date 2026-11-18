@@ -10,14 +10,14 @@
 "ALU" = 1019
 "BUFG" = 1
 "CLKDIV" = 1
-"DFF" = 4662
+"DFF" = 4661
 "DPB" = 29
 "DPX9B" = 13
 "ELVDS_OBUF" = 4
 "GND" = 1
 "IBUF" = 7
 "IOBUF" = 37
-"LUT" = 11701
+"LUT" = 11671
 "MULT9X9" = 2
 "OBUF" = 42
 "OSER10" = 3
