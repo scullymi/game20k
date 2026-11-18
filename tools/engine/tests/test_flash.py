@@ -38,7 +38,8 @@ class FlashTest(unittest.TestCase):
         write(self.root, f"fpga/{name}/{name}.manifest", "board   7\n")
         (self.root / "build" / folder / name).mkdir(parents=True, exist_ok=True)
         (self.root / "build" / folder / name / f"{name}.bin").write_bytes(b"\xa5\xc3bitstream")
-        return write(self.root, f"build/{folder}/{name}/{name}.fs" if folder else f"build/{name}/{name}.fs", "")
+        fs = f"build/{folder}/{name}/{name}.fs" if folder else f"build/{name}/{name}.fs"
+        return write(self.root, fs, "")
 
     def test_core_into_its_slot(self) -> None:
         self.built("two")
@@ -66,6 +67,15 @@ class FlashTest(unittest.TestCase):
         with self.assertRaises(StepError) as err:
             flash.command(self.root, self.root / "fpga/one")
         self.assertIn("g20k.py build fpga/one", str(err.exception))
+
+    def test_slot_without_bin(self) -> None:
+        # the .fs alone does for the SRAM, a slot needs the .bin
+        fs = self.built("one")
+        fs.with_suffix(".bin").unlink()
+        self.assertEqual(flash.command(self.root, self.root / "fpga/one", sram=True)[-1], fs)
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, self.root / "fpga/one")
+        self.assertIn("one.bin is missing", str(err.exception))
 
     def test_core_outside_the_ring(self) -> None:
         # a core of no slot has no flash address, only SRAM takes it
@@ -103,7 +113,8 @@ class FlashTest(unittest.TestCase):
         # the build of the other board, not that of project.toml's
         self.built("two", "c")
         slot = self.root / "build" / "c" / "two" / "two-slot.bin"
-        self.assertEqual(flash.command(self.root, self.root / "fpga/two", board=board)[-2:], ["--verify", slot])
+        cmd = flash.command(self.root, self.root / "fpga/two", board=board)
+        self.assertEqual(cmd[-2:], ["--verify", slot])
 
     def test_failure_names_the_driver_on_windows(self) -> None:
         self.built("one")

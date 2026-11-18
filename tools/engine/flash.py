@@ -59,20 +59,24 @@ def command(
         return [loader, *loader_board, "-f", "-o", "0x000000", "--verify", image]
     assert core is not None
     name = config.load_core(core / "core.toml").name
+    # the SRAM takes the .fs, a slot the .bin with the tag
     fs = project.build_folder(name) / f"{name}.fs"
-    if not fs.is_file():
+    bitstream = project.build_folder(name) / f"{name}.bin"
+    needed = fs if sram else bitstream
+    if not needed.is_file():
         folder = core.relative_to(root).as_posix()
         board_folder = project.board.folder
         if board_folder.is_relative_to(root):
             board_folder = board_folder.relative_to(root)
         option = f" --board {board_folder.as_posix()}" if project.other_board else ""
-        raise StepError(f"{fs.relative_to(root)} is missing, build it first: g20k.py build {folder}{option}")
+        missing = needed.relative_to(root)
+        raise StepError(f"{missing} is missing, build it first: g20k.py build {folder}{option}")
     if sram:
         return [loader, *loader_board, fs]
     # the whole slot, so its tag is written anew with the core
-    bitstream = (project.build_folder(name) / f"{name}.bin").read_bytes()
     slot = project.build_folder(name) / f"{name}-slot.bin"
-    slot.write_bytes(slots.slot_data(bitstream, slots.core_board(core), project.board.flash.slot_size))
+    board_id = slots.core_board(core)
+    slot.write_bytes(slots.slot_data(name, bitstream.read_bytes(), board_id, project.board.flash.slot_size))
     return [loader, *loader_board, "-f", "-o", f"0x{project.address(core):06x}", "--verify", slot]
 
 

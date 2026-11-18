@@ -29,22 +29,22 @@ class SlotsTest(unittest.TestCase):
                 slots.tag(board)
 
     def test_slot_data(self) -> None:
-        data = slots.slot_data(b"\xa5\xc3abc", 3, 0x1000)
+        data = slots.slot_data("a", b"\xa5\xc3abc", 3, 0x1000)
         self.assertEqual(len(data), 0x1000)
         self.assertEqual(data[:5], b"\xa5\xc3abc")
         self.assertEqual(data[5 : 0x1000 - slots.TAG_BYTES], b"\xff" * (0x1000 - slots.TAG_BYTES - 5))
         self.assertEqual(data[-slots.TAG_BYTES :], slots.tag(3))
 
     def test_bitstream_that_reaches_the_tag(self) -> None:
-        slots.slot_data(b"\x00" * (0x1000 - slots.TAG_BYTES), 3, 0x1000)
-        with self.assertRaises(StepError):
-            slots.slot_data(b"\x00" * (0x1000 - slots.TAG_BYTES + 1), 3, 0x1000)
+        slots.slot_data("a", b"\x00" * (0x1000 - slots.TAG_BYTES), 3, 0x1000)
+        with self.assertRaisesRegex(StepError, "a.bin"):
+            slots.slot_data("a", b"\x00" * (0x1000 - slots.TAG_BYTES + 1), 3, 0x1000)
 
     def test_core_board(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             core = Path(tmp)
             write(core, "a.manifest", "name a\nboard   9\n")
-            write(core, "b.manifest", "board 9\n")
+            write(core, "b.manifest", "board 0x09\n")  # make_rom.py takes it as 9 too
             self.assertEqual(slots.core_board(core), 9)
             write(core, "c.manifest", "board 8\n")
             with self.assertRaises(StepError):
@@ -70,7 +70,7 @@ class SlotsTest(unittest.TestCase):
         self.assertEqual(len(image), 0x200000)
         self.assertEqual(image[:5], b"\xa5\xc3one")
         self.assertEqual(image[0x100000 - slots.TAG_BYTES : 0x100000], slots.tag(3))
-        self.assertEqual(image[0x100000 : 0x100005], b"\xa5\xc3two")
+        self.assertEqual(image[0x100000:0x100005], b"\xa5\xc3two")
         self.assertEqual(image[-slots.TAG_BYTES :], slots.tag(9))
 
 

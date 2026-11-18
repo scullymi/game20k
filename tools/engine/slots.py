@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.engine import config
+from tools.engine import config, sdcard
 from tools.engine.host import StepError
 
 ## bytes of the tag at the end of each slot, TAG_BYTES of flash_scan.sv
@@ -30,24 +30,25 @@ def tag(board: int) -> bytes:
 
 
 def core_board(core: Path) -> int:
-    """@brief The board id of a core folder, the board line its manifests share."""
+    """@brief The board id of a core folder, the board line its manifests share, read as
+    make_rom.py reads it."""
     boards = set()
     for manifest in sorted(core.glob("*.manifest")):
-        for line in manifest.read_text(encoding="utf-8").splitlines():
-            parts = line.split()
-            if len(parts) > 1 and parts[0] == "board":
-                boards.add(int(parts[1]))
-                break
+        value = sdcard.manifest_value(manifest, "board")
+        try:
+            boards.add(int(value, 0))
+        except ValueError:
+            raise StepError(f"{manifest}: board {value} is no number") from None
     if len(boards) != 1:
         raise StepError(f"{core}: its manifests name {len(boards)} boards, a core has one")
     return boards.pop()
 
 
-def slot_data(bitstream: bytes, board: int, slot_size: int) -> bytes:
-    """@brief One slot as it goes into the flash: the bitstream, 0xFF, the tag."""
+def slot_data(name: str, bitstream: bytes, board: int, slot_size: int) -> bytes:
+    """@brief One slot as it goes into the flash: the bitstream of core name, 0xFF, the tag."""
     room = slot_size - TAG_BYTES
     if len(bitstream) > room:
-        raise StepError(f"the bitstream of board {board} has {len(bitstream)} bytes, its slot room for {room}")
+        raise StepError(f"{name}.bin has {len(bitstream)} bytes, its slot room for {room}")
     return bitstream + b"\xff" * (room - len(bitstream)) + tag(board)
 
 
@@ -58,5 +59,5 @@ def flash_image(project: config.Project) -> bytes:
     for core in project.slots:
         bitstream = (project.build_folder(core.name) / f"{core.name}.bin").read_bytes()
         image += b"\xff" * (project.address(core) - len(image))
-        image += slot_data(bitstream, core_board(core), project.board.flash.slot_size)
+        image += slot_data(core.name, bitstream, core_board(core), project.board.flash.slot_size)
     return bytes(image)

@@ -229,7 +229,12 @@ def load_platform(path: Path) -> Platform:
     """@brief Reads a platform.toml."""
     root = _read(path).allow("platform", "sources", "generate", "clock")
     p = root.table("platform").allow(
-        "top", "core_clock", "core_hz_parameter", "flash_slots_parameter", "flash_slot_bytes_parameter", "primitives"
+        "top",
+        "core_clock",
+        "core_hz_parameter",
+        "flash_slots_parameter",
+        "flash_slot_bytes_parameter",
+        "primitives",
     )
     s = root.table("sources").allow("files", "include")
     core_clock = p.get("core_clock", str)
