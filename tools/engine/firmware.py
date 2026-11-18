@@ -27,7 +27,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from tools.engine import config, host, release, toolchain
+from tools.engine import config, host, release, stone, toolchain
 from tools.engine.host import StepError
 
 ## the checkout of the fork
@@ -252,6 +252,7 @@ def build_bl616(root: Path, board: str, version: str | None = None) -> Path:
         "-DCCACHE_PROGRAM=OFF",
         f"-DTANG_BOARD={board}",
         *game20k_args(version, tables, ra=False),
+        f"-DGAME20K_STONE:FILEPATH={stone.make_source(root, tables[0].parent).as_posix()}",
     ]
     step(cmake, root, out / "cmake.log", env)
     step(["ninja", "-C", out], root, out / "ninja.log", env)

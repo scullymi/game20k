@@ -55,7 +55,7 @@ RC_API  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_runtime.c api/rc_api_use
 RA_SRC  := $(addprefix $(FORK)/game20k/,game.c ra_patch.c ra_queue.c ra_text.c ra_games.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/game20k/ra_slim.c
 TESTS   := test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
-           test_game_switch test_ram_mirror test_banner test_games_list
+           test_game_switch test_ram_mirror test_banner test_games_list test_stone
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
 # test_games ra_games.c, test_games_file games_file.c, test_game_switch ra_task.c and
@@ -69,6 +69,8 @@ MENUS   := $(FORK)/game20k/menus.c $(BUILD)/gen/menus_data.c
 EXAMPLE := $(FORK)/game20k/ra_games_example.c $(FORK)/game20k/menus_example.c
 # the footer of a ROM file, linked into test_games_list
 GAMES_FILE := $(FORK)/game20k/games_file.c
+# the stepping stone's slot of a board, linked into test_games_list
+STONE      := $(FORK)/game20k/stone.c
 
 .PHONY: all check build clean
 # the runner of g20k.py test adds up Unity's counts, a binary with no test fails
@@ -91,7 +93,7 @@ $(call obj,$(1)): $(1) $(STAMP)
 	$(Q)$$(CC) $(2) -MMD -MP -c $$< -o $$@
 endef
 $(foreach s,$(LIB_SRC) $(RC_SRC) $(RC_API),$(eval $(call object,$(s),$$(LIB_CFLAGS))))
-$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE) $(RA_SRC) $(GAMES_FILE),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
+$(foreach s,$(OWN_SRC) $(addsuffix .c,$(TESTS)) $(GEN) $(MENUS) $(EXAMPLE) $(RA_SRC) $(GAMES_FILE) $(STONE),$(eval $(call object,$(s),$$(OWN_CFLAGS))))
 
 # the generator runs every time and rewrites the table only when it changes
 .PHONY: FORCE
@@ -100,7 +102,7 @@ $(GEN): FORCE
 $(BUILD)/gen/menus_data.c: $(GEN)
 $(BUILD)/test_games: $(call obj,$(GEN))
 $(BUILD)/test_menus: $(foreach s,$(MENUS),$(call obj,$(s)))
-$(BUILD)/test_games_list: $(foreach s,$(MENUS) $(GAMES_FILE),$(call obj,$(s)))
+$(BUILD)/test_games_list: $(foreach s,$(MENUS) $(GAMES_FILE) $(STONE),$(call obj,$(s)))
 $(BUILD)/test_text: $(foreach s,$(FORK)/game20k/ra_text.c $(RC_SRC),$(call obj,$(s)))
 $(BUILD)/test_game_switch: $(foreach s,$(RA_SRC) $(GEN) $(RC_SRC) $(RC_API),$(call obj,$(s)))
 
