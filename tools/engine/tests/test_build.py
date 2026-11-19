@@ -36,6 +36,8 @@ def make_build(root: Path) -> build.Build:
         "top",
         "clk_core",
         "CORE_HZ",
+        "FLASH_SLOTS",
+        "FLASH_SLOT_BYTES",
         [],
         [],
         [],

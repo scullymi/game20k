@@ -5,8 +5,9 @@
 a BL616 with Bouffalo's flash tool.
 
 Three ways: a core into the FPGA's SRAM (gone at the next power cut, the FPGA then boots the
-core at slot 0), a core into the configuration flash at the address of its slot (the other
-slots stay, openFPGALoader erases only the sectors it writes), or a whole flash image from 0.
+core at slot 0), a core into the configuration flash at the address of its slot with the tag at
+the slot's end (slots.py, the other slots stay, openFPGALoader erases only the sectors it
+writes), or a whole flash image from 0.
 
 After writing the flash, power the board off and on. openFPGALoader reloads the FPGA after
 writing, but that is no power-on: it once brought up the core at 0x100000, and the firmware
@@ -24,7 +25,7 @@ import os
 import platform
 from pathlib import Path
 
-from tools.engine import config, firmware, host, toolchain
+from tools.engine import config, firmware, host, slots, toolchain
 from tools.engine.host import StepError
 
 ## the page on the WinUSB driver the Nano needs on Windows
@@ -58,17 +59,25 @@ def command(
         return [loader, *loader_board, "-f", "-o", "0x000000", "--verify", image]
     assert core is not None
     name = config.load_core(core / "core.toml").name
+    # the SRAM takes the .fs, a slot the .bin with the tag
     fs = project.build_folder(name) / f"{name}.fs"
-    if not fs.is_file():
+    bitstream = project.build_folder(name) / f"{name}.bin"
+    needed = fs if sram else bitstream
+    if not needed.is_file():
         folder = core.relative_to(root).as_posix()
         board_folder = project.board.folder
         if board_folder.is_relative_to(root):
             board_folder = board_folder.relative_to(root)
         option = f" --board {board_folder.as_posix()}" if project.other_board else ""
-        raise StepError(f"{fs.relative_to(root)} is missing, build it first: g20k.py build {folder}{option}")
+        missing = needed.relative_to(root)
+        raise StepError(f"{missing} is missing, build it first: g20k.py build {folder}{option}")
     if sram:
         return [loader, *loader_board, fs]
-    return [loader, *loader_board, "-f", "-o", f"0x{project.address(core):06x}", "--verify", fs]
+    # the whole slot, so its tag is written anew with the core
+    slot = project.build_folder(name) / f"{name}-slot.bin"
+    board_id = slots.core_board(core)
+    slot.write_bytes(slots.slot_data(name, bitstream.read_bytes(), board_id, project.board.flash.slot_size))
+    return [loader, *loader_board, "-f", "-o", f"0x{project.address(core):06x}", "--verify", slot]
 
 
 def flash(

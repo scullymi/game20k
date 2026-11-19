@@ -70,3 +70,12 @@ files = ["../src/mcu/ram_mirror.sv", "tb_ram_mirror.sv"]
 [[ram_mirror.bench]]
 top = "tb_snap_log"
 files = ["../src/mcu/snap_log.sv", "tb_snap_log.sv"]
+
+[flash_scan]
+about = "flash_scan.sv against a model of the configuration flash: empty slots, tagged and untagged bitstreams"
+ci = true
+timescale = "1ns/1ps"
+
+[[flash_scan.bench]]
+top = "tb_flash_scan"
+files = ["../src/flash_scan.sv", "tb_flash_scan.sv"]

@@ -80,6 +80,8 @@ module ram_spi #(
     output logic [7:0]  ra_flags,
     input  wire  [7:0]  rst_no,           //!< header byte 8: resets of the core, as of the snapshot
     input  wire  [7:0]  build_flags,      //!< header byte 9: diagnostic parameters, 0 in a release build
+    input  wire  [7:0]  flash_board [ram_mirror_pkg::RAM_MIRROR_SLOTS], //!< header bytes 22 to 29: the board in each flash slot, see flash_scan.sv
+    input  wire         flash_done,       //!< header byte 20: flash_board holds the scan's result
     output logic [15:0] undr_pos,         //!< diagnostic: payload byte number at first underrun
     output logic        fifo_pop,
     input  wire  [15:0] frame_no,        //!< frame number of the snapshot
@@ -139,9 +141,9 @@ module ram_spi #(
             5'd1: hdr = 8'h41;            // 'A'
             5'd2: hdr = 8'h43;            // 'C'
             5'd3: hdr = 8'h48;            // 'H'
-            // Layout 5: header of 24 bytes with board id and payload size in bytes 12 to
-            // 15 and the interface tag in 16 to 19, DATA payload bytes, 1536 bytes of
-            // oracle log
+            // Layout 6: header of 32 bytes with board id and payload size in bytes 12 to
+            // 15, the interface tag in 16 to 19 and the flash's slots in 20 to 29, DATA
+            // payload bytes, 1536 bytes of oracle log
             5'd4: hdr = RAM_MIRROR_LAYOUT;
             5'd5: hdr = frame_no[7:0];
             5'd6: hdr = frame_no[15:8];
@@ -169,12 +171,21 @@ module ram_spi #(
             5'd14: hdr = 8'(DATA / RAM_MIRROR_PAGE);
             5'd15: hdr = ~8'(DATA / RAM_MIRROR_PAGE);
             // Bytes 16 to 19: the interface tag, low byte first, and its complement, taken
-            // like 12 to 15. Bytes 20 to 23 stay 0, room for a later tag.
+            // like 12 to 15.
             5'd16: hdr = IFACE[7:0];
             5'd17: hdr = IFACE[15:8];
             5'd18: hdr = ~IFACE[7:0];
             5'd19: hdr = ~IFACE[15:8];
-            default: hdr = 8'h00;         // 20 to 23
+            // Byte 20 is 1 once the scan of the configuration flash is done, 21 its
+            // complement. Bytes 22 to 29: the board in each of its slots, 0 for an empty
+            // slot, 255 for a bitstream without a tag. The flag goes out before the boards:
+            // flash_scan.sv raises it clocks after the last board is final, so a header
+            // whose byte 20 says done carries final boards in the bytes that follow.
+            5'd20: hdr = {7'd0, flash_done};
+            5'd21: hdr = ~{7'd0, flash_done};
+            5'd22, 5'd23, 5'd24, 5'd25,
+            5'd26, 5'd27, 5'd28, 5'd29: hdr = flash_board[3'(k[4:0] - 5'd22)];
+            default: hdr = 8'h00;         // 30 and 31
         endcase
     end
     logic [7:0] ftr;

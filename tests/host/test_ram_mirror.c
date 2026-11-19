@@ -276,6 +276,49 @@ static void test_reset_count(void) {
   TEST_ASSERT_EQUAL_UINT(4, frames);
 }
 
+/* The scan of the flash: done or not yet in byte 20, its complement in 21, the slots in 22 to 29. */
+static const unsigned char SLOTS[RAM_MIRROR_SLOTS] = {1, 2, 3, 6, 7, 0, 9, 255};
+static void slots(bool done) {
+  dev[20] = done;
+  dev[21] = (unsigned char)~dev[20];
+  memcpy(dev + 22, SLOTS, sizeof(SLOTS));
+}
+
+static void test_slots_taken_once_the_scan_is_done(void) {
+  header(BOARD, PAGES, TAG);
+  slots(false);
+  TEST_ASSERT_EQUAL_UINT8(0, ram_mirror_probe());
+  TEST_ASSERT_FALSE(ram_mirror_slots_known);
+  // the scan ends after the probe, the poll's header brings it
+  slots(true);
+  footer(1);
+  ram_mirror_poll();
+  TEST_ASSERT_TRUE(ram_mirror_slots_known);
+  TEST_ASSERT_EQUAL_UINT8_ARRAY(SLOTS, ram_mirror_slots, RAM_MIRROR_SLOTS);
+}
+
+static void test_slots_need_the_complement(void) {
+  header(BOARD, PAGES, TAG);
+  slots(true);
+  dev[21] = 0xFF;
+  TEST_ASSERT_EQUAL_UINT8(0, ram_mirror_probe());
+  TEST_ASSERT_FALSE(ram_mirror_slots_known);
+  dev[20] = 0xFF; // all 1, a stuck line
+  dev[21] = 0x00;
+  footer(1);
+  ram_mirror_poll();
+  TEST_ASSERT_FALSE(ram_mirror_slots_known);
+}
+
+static void test_slots_forgotten_with_the_core(void) {
+  header(BOARD, PAGES, TAG);
+  slots(true);
+  TEST_ASSERT_EQUAL_UINT8(0, ram_mirror_probe());
+  TEST_ASSERT_TRUE(ram_mirror_slots_known);
+  ram_mirror_forget();
+  TEST_ASSERT_FALSE(ram_mirror_slots_known);
+}
+
 /* Another core: everything of the old one goes, the board is unknown until a header comes. */
 static void test_forget(void) {
   running();
@@ -303,6 +346,9 @@ int main(void) {
   RUN_TEST(test_underrun_keeps_the_snapshot);
   RUN_TEST(test_oracle_catches_a_torn_snapshot);
   RUN_TEST(test_reset_count);
+  RUN_TEST(test_slots_taken_once_the_scan_is_done);
+  RUN_TEST(test_slots_need_the_complement);
+  RUN_TEST(test_slots_forgotten_with_the_core);
   RUN_TEST(test_forget);
   return UNITY_END();
 }

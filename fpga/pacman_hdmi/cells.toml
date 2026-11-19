@@ -7,17 +7,17 @@
 [tangnano20k]
 "$print" = 20
 "$scopeinfo" = 40
-"ALU" = 959
+"ALU" = 965
 "BUFG" = 1
 "CLKDIV" = 1
-"DFF" = 3944
+"DFF" = 4089
 "DPB" = 33
 "DPX9B" = 8
 "ELVDS_OBUF" = 4
 "GND" = 1
-"IBUF" = 6
+"IBUF" = 7
 "IOBUF" = 37
-"LUT" = 7189
+"LUT" = 7536
 "MULT18X18" = 1
 "MULT9X9" = 1
 "OBUF" = 42
@@ -25,23 +25,24 @@
 "RAM16SDP4" = 53
 "SDPX9B" = 1
 "SPX9" = 2
+"TBUF" = 3
 "VCC" = 1
 "rPLL" = 2
 
 [tangnano20k-singleboard]
 "$print" = 20
 "$scopeinfo" = 40
-"ALU" = 959
+"ALU" = 965
 "BUFG" = 1
 "CLKDIV" = 1
-"DFF" = 3944
+"DFF" = 4089
 "DPB" = 33
 "DPX9B" = 8
 "ELVDS_OBUF" = 4
 "GND" = 1
-"IBUF" = 7
+"IBUF" = 8
 "IOBUF" = 37
-"LUT" = 7200
+"LUT" = 7428
 "MULT18X18" = 1
 "MULT9X9" = 1
 "OBUF" = 43
@@ -49,5 +50,6 @@
 "RAM16SDP4" = 53
 "SDPX9B" = 1
 "SPX9" = 2
+"TBUF" = 3
 "VCC" = 1
 "rPLL" = 2

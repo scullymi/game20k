@@ -213,8 +213,15 @@ def elaborate(b: Build, verilog: list[Path]) -> None:
 def slang_args(b: Build, verilog: list[Path], prims: Path) -> list[str]:
     """@brief The options and files for slang, the same for the elaboration and its check."""
     include = [a for d in config.include_dirs(b.core, b.platform) for a in ("-I", b.rel(d))]
-    # the core's rate, named once in its core.toml, then a diagnostic build's parameters
-    params = {b.platform.core_hz_parameter: b.core.hz, **b.params}
+    # the core's rate, named once in its core.toml, the slots of the board's flash, then a
+    # diagnostic build's parameters
+    flash = b.project.board.flash
+    params = {
+        b.platform.core_hz_parameter: b.core.hz,
+        b.platform.flash_slots_parameter: flash.size // flash.slot_size,
+        b.platform.flash_slot_bytes_parameter: flash.slot_size,
+        **b.params,
+    }
     # SYNTHESIS as Yosys' slang frontend defines it, so that the check of the parameters sees the
     # same branches. YOSYS, as Yosys' own reader sets it, hides a $error in a process of
     # sd_card.v, which the slang frontend cannot synthesize (povik/sv-elab#180). A time scale for
@@ -586,6 +593,9 @@ def build(
         raise config.ConfigError("--update-cells takes the normal build, not one with -G")
     if platform.core_hz_parameter in params:
         raise config.ConfigError(f"{platform.core_hz_parameter} comes from {core_toml}, not from -G")
+    for name in (platform.flash_slots_parameter, platform.flash_slot_bytes_parameter):
+        if name in params:
+            raise config.ConfigError(f"{name} comes from board.toml, not from -G")
     name = core.name + "".join(f"-{k}.{v}" for k, v in sorted(params.items()))
     b = Build(root, project, platform, core, tools, (out or project.build_folder(name)).resolve(), params)
     # the scripts name every file relative to the root, a space is the one thing they cannot

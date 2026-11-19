@@ -42,7 +42,7 @@ class LoadTest(unittest.TestCase):
         sims = sim.load(ROOT)
         self.assertEqual(
             [n for n, s in sims.items() if s.ci],
-            ["rom_sdram", "screen", "audio", "mcu", "mcu_spi", "ram_mirror", "mirror"],
+            ["rom_sdram", "screen", "audio", "mcu", "mcu_spi", "ram_mirror", "flash_scan", "mirror"],
         )
         self.assertEqual(sims["1942"].sets, ["1942", "vulgus", "higemaru"])
         self.assertEqual(sims["1942"].variants["fb"], ["FB_PATH"])
