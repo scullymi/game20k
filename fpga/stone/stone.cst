@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 scullymi
+// The one pin of the stepping stone, RECONFIG_N as in boards/tangnano20k/board.cst.
+IO_LOC "reconfig_n" 9;
+IO_PORT "reconfig_n" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;

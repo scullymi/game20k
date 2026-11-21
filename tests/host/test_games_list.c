@@ -20,6 +20,10 @@ static unsigned notified;                              // MENU_EVENT_GAMES_CHANG
 bool mcu_hw_usb_msc_present(void) { asked++; return usb_present; }
 void menu_notify(unsigned long msg) { if(msg == MENU_EVENT_GAMES_CHANGED) notified++; }
 
+// the running core's scan of the flash, as ram_mirror.c holds it
+unsigned char ram_mirror_slots[RAM_MIRROR_SLOTS];
+bool ram_mirror_slots_known;
+
 static unsigned char board_a, board_b;                 // two boards of the menu table
 static const char *core_a;                             // the core folder of board_a
 
@@ -28,6 +32,8 @@ void setUp(void) {
   TEST_ASSERT_TRUE(host_usb_new());
   usb_present = true;
   notified    = 0;
+  memset(ram_mirror_slots, 0, sizeof(ram_mirror_slots));
+  ram_mirror_slots_known = false;
   board_a     = menus_rows[0].board;
   core_a      = menus_rows[0].core;
   for(unsigned i = 1; i < menus_rows_n && !board_b; i++)
@@ -168,6 +174,30 @@ static void test_drive_is_read_only(void) {
   TEST_ASSERT_NOT_EQUAL(FR_OK, f_mkdir("/usb/cores"));
 }
 
+/** A board the scan of the flash does not hold and no drive has: no core. On the drive or in
+    the flash it has one. */
+static void test_no_core(void) {
+  rom("/sd/a.rom", board_a, "Alpha");
+  rom("/sd/b.rom", board_b, "Beta");
+  ram_mirror_slots[0]    = board_a;
+  ram_mirror_slots_known = true;
+  games_read();
+  TEST_ASSERT_EQUAL_INT(GAMES_CORE_FLASH, line("Alpha").core);
+  TEST_ASSERT_EQUAL_INT(GAMES_CORE_NONE, line("Beta").core);
+  ram_mirror_slots[0] = board_b;
+  core_file(); // board_a's core on the drive
+  TEST_ASSERT_EQUAL_INT(GAMES_CORE_USB, games_core_of(board_a));
+  TEST_ASSERT_EQUAL_INT(GAMES_CORE_FLASH, games_core_of(board_b));
+}
+
+/** Without a scan of the flash every core counts as there, as before the scan. */
+static void test_no_scan_is_flash(void) {
+  rom("/sd/b.rom", board_b, "Beta");
+  games_read();
+  TEST_ASSERT_EQUAL_INT(GAMES_CORE_FLASH, line("Beta").core);
+  TEST_ASSERT_EQUAL_INT(GAMES_CORE_FLASH, games_core_of(board_b));
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_core_on_drive_is_usb);
@@ -178,5 +208,7 @@ int main(void) {
   RUN_TEST(test_usb_core_path);
   RUN_TEST(test_drive_change_rereads);
   RUN_TEST(test_drive_is_read_only);
+  RUN_TEST(test_no_core);
+  RUN_TEST(test_no_scan_is_flash);
   return UNITY_END();
 }

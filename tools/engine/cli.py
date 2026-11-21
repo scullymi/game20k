@@ -21,6 +21,7 @@ from tools.engine import (
     release,
     sdcard,
     sim,
+    stone,
     toolchain,
 )
 from tools.engine.flow import build
@@ -170,6 +171,8 @@ def main(argv: list[str]) -> int:
     f.add_argument("--board", type=Path, help=BOARD_HELP)
     f.add_argument("--dry-run", action="store_true", help="print the command only")
     sub.add_parser("cores", help="print the core folders of project.toml in ring order")
+    st = sub.add_parser("stone", help="build the BL616's stepping stone into fpga/stone/stone.bin")
+    st.add_argument("--check", action="store_true", help="only compare a new build with fpga/stone/stone.bin")
     d = sub.add_parser(
         "sdcard", help="make the ROM files and settings for the SD card in sdcard/ and copy them"
     )
@@ -339,6 +342,8 @@ def main(argv: list[str]) -> int:
             sim.main(ROOT, args.name, args.variant, args.rom_set, args.defines, args.list)
         elif args.command == "docs":
             docs.docs(ROOT, args.fork)
+        elif args.command == "stone":
+            stone.make(ROOT, args.check)
         elif args.command == "cores":
             for core in config.load_project(ROOT / "project.toml").slots:
                 print(core.relative_to(ROOT).as_posix())
