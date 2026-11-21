@@ -84,7 +84,7 @@ a few seconds later. A game whose core is not in the flash shows `no core` and d
 With the BL616, a core on the stick counts as well. Wi-Fi and the RetroAchievements login stay
 connected throughout. `ROM set` under `Settings` still picks a file by name. The choice lasts until
 power-off. `Save settings` makes the running game the one that starts at power-on, otherwise
-Galaga starts.
+the first core in the flash starts with its usual game, Galaga with the release's image.
 
 Only files that `python3 g20k.py sdcard` built appear on the list. The Pico checks each one
 while it loads the game. What `Old ROM file` and `ROM file damaged` mean:

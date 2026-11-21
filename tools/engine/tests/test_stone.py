@@ -9,13 +9,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.engine import config, stone
+from tools.engine import config, slots, stone
 from tools.engine.host import StepError
 
 ROOT = Path(__file__).resolve().parents[3]
 
 ## the head of a bitstream as gowin_pack writes it, the 0xD2 command at 52 with the address 0
-HEAD = b"\xff" * 22 + bytes.fromhex("a5c3060000000000081b1000000000d420005100ffffff090b0d0b000000") + stone.D2
+HEAD = (
+    b"\xff" * 22
+    + bytes.fromhex("a5c3060000000000081b1000000000d420005100ffffff090b0d0b000000")
+    + slots.NEXT_COMMAND
+)
 
 
 def bits(address: bytes = b"\x00" * 4, tail: bytes = b"\x12\x00\x00\x00") -> bytes:
@@ -26,10 +30,13 @@ class StoneTest(unittest.TestCase):
     def test_d2_offset(self) -> None:
         self.assertEqual(stone.d2_offset(bits()), 52)
 
-    def test_no_or_two_d2_commands(self) -> None:
-        for b in (HEAD[:52] + b"\x00" * 12, bits() + stone.D2 + b"\x00" * 4):
-            with self.assertRaises(StepError):
-                stone.d2_offset(b)
+    def test_no_d2_command(self) -> None:
+        with self.assertRaises(StepError):
+            stone.d2_offset(HEAD[:52] + b"\x00" * 12)
+
+    def test_d2_pattern_in_the_data(self) -> None:
+        # the header holds the command, the same bytes further on are data
+        self.assertEqual(stone.d2_offset(bits() + slots.NEXT_COMMAND + b"\x00" * 4), 52)
 
     def test_d2_command_cut_short(self) -> None:
         with self.assertRaises(StepError):

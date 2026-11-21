@@ -8,7 +8,7 @@ and the key.
 
 | File | Says |
 |---|---|
-| [project.toml](../project.toml) | the board and the cores in the configuration flash, in slot order. The FPGA loads the first one at power-on, each core's bitstream names the next one for the core switch. |
+| [project.toml](../project.toml) | the board and the cores in the configuration flash, in slot order. The FPGA loads the first one at power-on. `g20k.py flash` and `release` write the next slot into each core's header for the core switch. |
 | [boards/\<board\>/board.toml](../boards/tangnano20k/board.toml) | the FPGA, its pin files (`.cst`), its block RAMs, the flash size and slot size, and the clock from outside. `FLASHING.txt` in the same folder goes into the release zip. |
 | [fpga/common/platform.toml](../fpga/common/platform.toml) | the platform every core shares: the top level `game20k_top` with HDMI, SDRAM, SPI, OSD, SD card and RAM mirror, and its sources. |
 | `fpga/<core>/core.toml` ([GnG](../fpga/gng_hdmi/core.toml)) | the core: its name, the platform, the core clock (`hz`), the sources, VHDL entities for GHDL (`[vhdl]`), synthesis options (`[synth]`), and generated files (`[[generate]]`). |

@@ -15,6 +15,7 @@ from unittest import mock
 from tools.engine import config, firmware, flash, host, slots, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import BOARD, CORE, PROJECT, write
+from tools.engine.tests.test_slots import bits
 from tools.engine.tests.test_toolchain import COMMIT, fake_tools
 
 
@@ -37,7 +38,7 @@ class FlashTest(unittest.TestCase):
         # the .bin beside the .fs and a manifest with the core's board, which the slot's tag names
         write(self.root, f"fpga/{name}/{name}.manifest", "board   7\n")
         (self.root / "build" / folder / name).mkdir(parents=True, exist_ok=True)
-        (self.root / "build" / folder / name / f"{name}.bin").write_bytes(b"\xa5\xc3bitstream")
+        (self.root / "build" / folder / name / f"{name}.bin").write_bytes(bits(data=b"bitstream"))
         fs = f"build/{folder}/{name}/{name}.fs" if folder else f"build/{name}/{name}.fs"
         return write(self.root, fs, "")
 
@@ -46,11 +47,70 @@ class FlashTest(unittest.TestCase):
         cmd = flash.command(self.root, self.root / "fpga/two")
         slot = self.root / "build" / "two" / "two-slot.bin"
         self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", "-f", "-o", "0x100000", "--verify", slot])
-        # the whole slot: the bitstream, 0xFF, the tag of board 7 at its end
+        # the whole slot: the bitstream with the next address of the ring (back to 0 from the
+        # last slot), 0xFF, the tag of board 7 at its end
         data = slot.read_bytes()
         self.assertEqual(len(data), 0x100000)
-        self.assertTrue(data.startswith(b"\xa5\xc3bitstream\xff"))
+        self.assertTrue(data.startswith(bits(0, b"bitstream") + b"\xff"))
         self.assertEqual(data[-slots.TAG_BYTES :], slots.tag(7))
+        self.built("one")
+        flash.command(self.root, self.root / "fpga/one")
+        data = (self.root / "build" / "one" / "one-slot.bin").read_bytes()
+        self.assertTrue(data.startswith(bits(0x100000, b"bitstream")))
+
+    def test_cores_into_an_image(self) -> None:
+        # project.toml's cores in any order as an image from 0
+        self.built("two")
+        self.built("one")
+        cmd = flash.command(self.root, cores=[self.root / "fpga/two", self.root / "fpga/one"])
+        image = self.root / "build" / "flash-image.bin"
+        self.assertEqual(cmd, [self.loader, "-b", "tangnano20k", "-f", "-o", "0x000000", "--verify", image])
+        data = image.read_bytes()
+        self.assertEqual(len(data), 0x200000)
+        self.assertTrue(data.startswith(bits(0x100000, b"bitstream")))
+        self.assertTrue(data[0x100000:].startswith(bits(0, b"bitstream")))
+
+    def test_cores_from_a_folder(self) -> None:
+        # the bitstreams of a release's zip, the manifests of the core folders
+        write(self.root, "fpga/two/two.manifest", "board 9\n")
+        (self.root / "zip").mkdir()
+        (self.root / "zip" / "two.bin").write_bytes(bits(data=b"zip"))
+        flash.command(self.root, cores=[self.root / "fpga/two"], source=self.root / "zip")
+        data = (self.root / "build" / "flash-image.bin").read_bytes()
+        self.assertTrue(data.startswith(bits(0, b"zip")))
+        self.assertEqual(data[0x100000 - slots.TAG_BYTES : 0x100000], slots.tag(9))
+
+    def test_cores_of_project_toml_only(self) -> None:
+        self.built("three")
+        with self.assertRaisesRegex(StepError, "no menu"):
+            flash.command(self.root, cores=[self.root / "fpga/three"])
+
+    def test_core_missing_from_the_picked(self) -> None:
+        with self.assertRaises(StepError) as err:
+            flash.command(self.root, cores=[self.root / "fpga/one"])
+        self.assertIn("g20k.py build fpga/one", str(err.exception))
+
+    def test_cores_as_written(self) -> None:
+        # callers of the Python interface may pass paths with ".." in them
+        self.built("two")
+        odd = self.root / "fpga" / ".." / "fpga" / "two"
+        flash.command(self.root, cores=[odd])
+        with self.assertRaisesRegex(StepError, "twice"):
+            flash.command(self.root, cores=[odd, self.root / "fpga/two"])
+
+    def test_slot_note(self) -> None:
+        # one slot fits project.toml's order only: the note points to the docs, SRAM and images
+        # need none
+        self.built("one")
+        for core, sram, cores, note in (
+            (self.root / "fpga/one", False, None, True),
+            (self.root / "fpga/one", True, None, False),
+            (None, False, [self.root / "fpga/one"], False),
+        ):
+            out = io.StringIO()
+            with redirect_stdout(out):
+                flash.flash(self.root, core, sram, None, True, cores=cores)
+            self.assertEqual("docs/BUILD.md" in out.getvalue(), note)
 
     def test_core_into_sram(self) -> None:
         fs = self.built("one")

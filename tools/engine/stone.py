@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.engine import config, host, toolchain
+from tools.engine import config, host, slots, toolchain
 from tools.engine.flow.build import APICULA_QUIET, YOSYS_ENV, step
 from tools.engine.host import StepError
 
@@ -21,8 +21,6 @@ from tools.engine.host import StepError
 FOLDER = Path("fpga") / "stone"
 ## the board of the BL616, whose FPGA and flash slots the stepping stone serves
 BOARD = Path("boards") / "tangnano20k-singleboard" / "board.toml"
-## the head of the 0xD2 command, the four bytes of the address follow, most significant first
-D2 = bytes([0xD2, 0x00, 0xFF, 0xFF])
 
 
 def build(root: Path, out: Path) -> bytes:
@@ -51,7 +49,7 @@ def build(root: Path, out: Path) -> bytes:
     host.run([*cmd, "-l", out / "nextpnr.log", "-q"], cwd=out)
     step("gowin_pack")
     pack: list[host.Arg] = [tools.python, *APICULA_QUIET, root / "scripts" / "oss" / "gowin_pack_g20k.py"]
-    pack += ["-d", board.family, "-c", "--multiboot_address", "0x000000"]
+    pack += ["-d", board.family, "-c"]
     if board.sspi_as_gpio:
         pack.append("--sspi_as_gpio")
     if board.mspi_as_gpio:
@@ -62,7 +60,7 @@ def build(root: Path, out: Path) -> bytes:
         host.python(root / "scripts" / "oss" / "fs2bin.py", out / "stone.fs", out / "stone.bin"), cwd=out
     )
     bits = (out / "stone.bin").read_bytes()
-    d2_offset(bits)  # a bitstream without one 0xD2 command is of no use to the firmware
+    d2_offset(bits)  # a bitstream without the 0xD2 command is of no use to the firmware
     return bits
 
 
@@ -83,13 +81,8 @@ def make(root: Path, check: bool) -> None:
 
 
 def d2_offset(bits: bytes) -> int:
-    """@brief Where the one 0xD2 command of a bitstream starts."""
-    at = bits.find(D2)
-    if at < 0 or bits.find(D2, at + 1) >= 0:
-        raise StepError(f"the stepping stone needs one 0xD2 command, it has {bits.count(D2)}")
-    if at + len(D2) + 4 > len(bits):
-        raise StepError("the stepping stone ends within its 0xD2 command")
-    return at
+    """@brief Where the 0xD2 command in the header of a bitstream starts."""
+    return slots.next_offset(bits) - len(slots.NEXT_COMMAND)
 
 
 def c_source(bits: bytes, slot_size: int) -> str:

@@ -4,10 +4,11 @@
 @brief Loads bitstreams into the board with the suite's openFPGALoader, and the Companion into
 a BL616 with Bouffalo's flash tool.
 
-Three ways: a core into the FPGA's SRAM (gone at the next power cut, the FPGA then boots the
-core at slot 0), a core into the configuration flash at the address of its slot with the tag at
-the slot's end (slots.py, the other slots stay, openFPGALoader erases only the sectors it
-writes), or a whole flash image from 0.
+Four ways: a core into the FPGA's SRAM (gone at the next power cut, the FPGA then boots the
+core at slot 0, and its core switch goes to slot 0 too), a core into the configuration flash at
+the address of its slot with the tag at the slot's end (slots.py, the other slots stay,
+openFPGALoader erases only the sectors it writes), cores picked in any order as a whole flash
+image, or a flash image from 0 as it is.
 
 After writing the flash, power the board off and on. openFPGALoader reloads the FPGA after
 writing, but that is no power-on: it once brought up the core at 0x100000, and the firmware
@@ -31,6 +32,12 @@ from tools.engine.host import StepError
 ## the page on the WinUSB driver the Nano needs on Windows
 WINDOWS_USB = "https://github.com/scullymi/game20k/blob/main/docs/windows-usb.md"
 
+## printed when one core goes into its slot: that slot and its next address fit project.toml's order only
+SLOT_NOTE = (
+    "Only this core's slot of project.toml is written, pointing to the next core there. "
+    "After flash --cores this can break the ring, see docs/BUILD.md, section 2."
+)
+
 ## Bouffalo's flash tool in the SDK, one program per system
 BL616_TOOLS = {
     "Darwin": "BLFlashCommand-macos",
@@ -39,18 +46,45 @@ BL616_TOOLS = {
 }
 
 
+def missing_build(root: Path, project: config.Project, core: Path, needed: Path) -> StepError:
+    """@brief The error for a core whose build lacks needed, with the command that builds it."""
+    folder = core.relative_to(root).as_posix()
+    board_folder = project.board.folder
+    if board_folder.is_relative_to(root):
+        board_folder = board_folder.relative_to(root)
+    option = f" --board {board_folder.as_posix()}" if project.other_board else ""
+    return StepError(f"{needed.relative_to(root)} is missing, build it first: g20k.py build {folder}{option}")
+
+
 def command(
     root: Path,
     core: Path | None = None,
     sram: bool = False,
     image: Path | None = None,
     board: Path | None = None,
+    cores: list[Path] | None = None,
+    source: Path | None = None,
 ) -> list[host.Arg]:
-    """@brief The openFPGALoader call for a core (into SRAM or its slot) or for an image. board is
-    a board folder in place of the one project.toml names, whose build of the core it loads."""
+    """@brief The openFPGALoader call for a core (into SRAM or its slot), for cores in ring order
+    (an image of their builds, or of the <core>.bin files in source) or for an image. board is a
+    board folder in place of the one project.toml names, whose builds it loads."""
     project = config.load_project(root / "project.toml", board)
     loader = toolchain.find(root, "suite") / "bin" / ("openFPGALoader" + host.EXE)
     loader_board = ["-b", project.board.loader]
+    if cores is not None:
+        for c in cores:
+            # the firmware has the menus of project.toml's cores only
+            if c.resolve() not in project.slots:
+                raise StepError(f"{c} is not in project.toml, the firmware has no menu for it")
+            name = config.load_core(c / "core.toml").name
+            bitstream = (source or project.build_folder(name)) / f"{name}.bin"
+            if not bitstream.is_file():
+                if source:
+                    raise StepError(f"{bitstream} is missing, the release has no core {name}")
+                raise missing_build(root, project, c, bitstream)
+        image = project.build_folder("") / "flash-image.bin"
+        image.parent.mkdir(parents=True, exist_ok=True)
+        image.write_bytes(slots.flash_image(project, cores, source))
     if image is not None:
         if not image.is_file():
             raise StepError(f"{image}: no such file")
@@ -64,19 +98,17 @@ def command(
     bitstream = project.build_folder(name) / f"{name}.bin"
     needed = fs if sram else bitstream
     if not needed.is_file():
-        folder = core.relative_to(root).as_posix()
-        board_folder = project.board.folder
-        if board_folder.is_relative_to(root):
-            board_folder = board_folder.relative_to(root)
-        option = f" --board {board_folder.as_posix()}" if project.other_board else ""
-        missing = needed.relative_to(root)
-        raise StepError(f"{missing} is missing, build it first: g20k.py build {folder}{option}")
+        raise missing_build(root, project, core, needed)
     if sram:
         return [loader, *loader_board, fs]
-    # the whole slot, so its tag is written anew with the core
+    # the whole slot, so its tag is written anew with the core, and the next slot of
+    # project.toml's ring in its header
     slot = project.build_folder(name) / f"{name}-slot.bin"
     board_id = slots.core_board(core)
-    slot.write_bytes(slots.slot_data(name, bitstream.read_bytes(), board_id, project.board.flash.slot_size))
+    data = slots.slot_data(
+        name, bitstream.read_bytes(), board_id, project.board.flash.slot_size, project.next_address(core)
+    )
+    slot.write_bytes(data)
     return [loader, *loader_board, "-f", "-o", f"0x{project.address(core):06x}", "--verify", slot]
 
 
@@ -87,10 +119,14 @@ def flash(
     image: Path | None,
     dry_run: bool,
     board: Path | None = None,
+    cores: list[Path] | None = None,
+    source: Path | None = None,
 ) -> None:
     """@brief Runs the call of command(), or only prints it with dry_run."""
-    cmd = command(root, core, sram, image, board)
+    cmd = command(root, core, sram, image, board, cores, source)
     print(" ".join(str(a) for a in cmd), flush=True)
+    if core is not None and not sram:
+        print(SLOT_NOTE, flush=True)
     if dry_run:
         return
     try:

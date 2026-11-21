@@ -100,6 +100,7 @@ write the file anew, which drops its comments.
 python3 g20k.py build fpga/pang_hdmi                # into build/pang_hdmi/
 python3 g20k.py flash fpga/pang_hdmi --sram         # into the FPGA only, gone at power-off
 python3 g20k.py flash fpga/pang_hdmi                # into its slot in the flash
+python3 g20k.py flash --cores fpga/pang_hdmi fpga/galaga_hdmi   # only these, in this order
 python3 g20k.py release --dev                       # every core as one flash image under dist/
 python3 g20k.py flash --image dist/<name>/<name>.bin
 ```
@@ -108,13 +109,22 @@ On Windows, `flash` needs the WinUSB driver on the Nano once, see
 [windows-usb.md](windows-usb.md).
 
 [project.toml](../project.toml) lists the cores in the order of their slots in the flash. The
-FPGA loads the first one at power-on. `flash` and `release` end each slot with a short tag that
-names the core's board: the running core reads the tags at its start and tells the firmware which
-cores the flash holds. To flash fewer cores, remove the others there and build
-everything again, firmware included. After writing the flash, power the board off and on. A
+FPGA loads the first one at power-on. `flash --cores` writes a whole flash image of some of these
+cores in another order and erases the other slots, with `--download` from the cores of a release
+instead of the builds. `flash` and `release` end each slot with a short tag that names the
+core's board: the running core reads the tags at its start and tells the firmware which cores the
+flash holds. They also write the next slot into each core's header for the core switch, so one
+build fits every slot. After writing the flash, power the board off and on. A
 build stops when a clock misses its frequency or the cells differ from the core's `cells.toml`
 (`--update-cells` after a wanted change). Without `--dev`, `release` only builds a clean tree on
 a release tag.
+
+`flash <core>` writes only that core's slot of `project.toml`, with the next core of
+`project.toml` in its header. That fits a flash that holds the cores of `project.toml` in their
+order, as `release` and `flash` without `--cores` write it. After `flash --cores`, write a new
+build with `flash --cores` again, naming all the cores you want. Otherwise a core can point to
+an empty slot, and with the Pico a core switch can end without a core until the board is
+powered off and on.
 
 More options:
 

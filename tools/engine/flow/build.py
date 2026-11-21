@@ -512,19 +512,14 @@ def pack(b: Build) -> None:
     board, name, out = b.project.board, b.core.name, b.out
     step("gowin_pack")
     # gowin_pack_g20k.py is Apicula's gowin_pack with bank 4 at 3.3 V and ELVDS on the HDMI
-    # pins, see its head. The header names the next core of the ring for the core switch.
+    # pins, see its head. The next core of the ring in the header stays 0, the flash image sets it
+    # for the slot the core goes into (slots.py), so one build fits every slot.
     args: list[host.Arg] = ["-d", board.family]
     if board.sspi_as_gpio:
         args.append("--sspi_as_gpio")
     if board.mspi_as_gpio:
         args.append("--mspi_as_gpio")
-    args += [
-        "--multiboot_address",
-        f"0x{b.project.next_address(b.core.folder):06X}",
-        "-o",
-        out / f"{name}.fs",
-        out / f"{name}_pnr.json",
-    ]
+    args += ["-o", out / f"{name}.fs", out / f"{name}_pnr.json"]
     apicula(b, b.script("gowin_pack_g20k.py"), *args)
     host.run(host.python(b.script("fs2bin.py"), out / f"{name}.fs", out / f"{name}.bin"), cwd=out)
 
