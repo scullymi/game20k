@@ -55,7 +55,7 @@ RC_API  := $(addprefix $(FORK)/rcheevos/src/,api/rc_api_runtime.c api/rc_api_use
 RA_SRC  := $(addprefix $(FORK)/game20k/,game.c ra_patch.c ra_queue.c ra_text.c ra_games.c)
 OWN_SRC := stubs/host_stubs.c stubs/ramdisk.c $(FORK)/game20k/ra_slim.c
 TESTS   := test_slim test_ftp_guard test_queue_lines test_games test_games_file test_menus test_text \
-           test_game_switch test_ram_mirror test_banner test_games_list test_stone
+           test_game_switch test_ram_mirror test_banner test_games_list test_stone test_xml
 obj      = $(BUILD)/obj/$(notdir $(1:.c=.o))
 # every test links all of these, test_ftp_guard includes ftpd.c, test_queue_lines ra_queue.c,
 # test_games ra_games.c, test_games_file games_file.c, test_game_switch ra_task.c and
