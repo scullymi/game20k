@@ -12,7 +12,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from tools.engine import cli, config, host, published, toolchain
+from tools.engine import cli, config, flash, host, published, toolchain
 from tools.engine.host import StepError
 from tools.engine.tests.test_config import BOARD, PROJECT, write
 
@@ -103,6 +103,8 @@ class FetchTest(unittest.TestCase):
         shutil.rmtree(toolchain.tools_dir(self.root) / "downloads")
         with mock.patch.object(published, "release", return_value=info):
             self.assertEqual(published.cores_image(self.root, "1.2.0"), image)
+            # the single cores lie in the same folder
+            self.assertEqual(published.cores_folder(self.root, "1.2.0"), image.parent)
 
     def test_wrong_digest_stops(self) -> None:
         with mock.patch.object(published, "release", return_value=self.info("sha256:" + "0" * 64)):
@@ -151,6 +153,8 @@ class CommandLineTest(unittest.TestCase):
         for argv in (
             ["flash", "fpga/x", "--download"],
             ["flash", "--download", "--sram"],
+            ["flash", "--cores", "fpga/x", "--sram"],
+            ["flash", "--cores", "fpga/x", "--image", "x.bin"],
             ["firmware", "--download", "--bl616", "nano20k"],
         ):
             with (
@@ -159,6 +163,17 @@ class CommandLineTest(unittest.TestCase):
                 self.assertRaises(SystemExit),
             ):
                 cli.main(argv)
+
+    def test_download_of_picked_cores(self) -> None:
+        # the bitstreams of the release's zip, the image of the cores as they are picked
+        with (
+            mock.patch.object(published, "cores_folder", return_value=Path("/z")) as get,
+            mock.patch.object(flash, "flash") as run,
+        ):
+            self.assertEqual(cli.main(["flash", "--cores", "fpga/a", "fpga/b", "--download", "1.2.0"]), 0)
+        get.assert_called_once_with(cli.ROOT, "1.2.0", None)
+        cores = [(cli.ROOT / "fpga" / n).resolve() for n in ("a", "b")]
+        run.assert_called_once_with(cli.ROOT, None, False, None, False, None, cores, Path("/z"))
 
     def test_firmware_download_shows_the_steps(self) -> None:
         with (

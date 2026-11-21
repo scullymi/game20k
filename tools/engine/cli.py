@@ -150,6 +150,14 @@ def main(argv: list[str]) -> int:
     what.add_argument(
         "core", type=Path, nargs="?", help="core folder: its build into the slot of project.toml"
     )
+    what.add_argument(
+        "--cores",
+        type=Path,
+        nargs="+",
+        metavar="CORE",
+        help="core folders of project.toml, any of them in any order: an image of their builds from "
+        "slot 0, the other slots erased",
+    )
     what.add_argument("--image", type=Path, help="a flash image from 0, as a release packs it")
     what.add_argument(
         "--bl616",
@@ -162,7 +170,8 @@ def main(argv: list[str]) -> int:
         nargs="?",
         const="latest",
         metavar="VERSION",
-        help="the flash image (with --bl616 its image) of a published release, default: the latest",
+        help="the flash image (with --bl616 its image, with --cores its cores) of a published release, "
+        "default: the latest",
     )
     f.add_argument("--port", help="with --bl616: the BL616's serial port, e.g. /dev/cu.usbmodem1101 or COM3")
     f.add_argument(
@@ -257,8 +266,8 @@ def main(argv: list[str]) -> int:
             return checks.check(ROOT, args.mode, args.fork, args.base, remote, stdin)
         except KeyboardInterrupt:
             return 2
-    if args.command == "flash" and not (args.core or args.image or args.bl616 or args.download):
-        f.error("give a core, --image, --download or --bl616")
+    if args.command == "flash" and not (args.core or args.cores or args.image or args.bl616 or args.download):
+        f.error("give a core, --cores, --image, --download or --bl616")
     if args.command == "flash" and args.download and (args.core or args.image or args.sram):
         f.error("--download takes no core, --image or --sram")
     if (
@@ -267,8 +276,8 @@ def main(argv: list[str]) -> int:
         and (args.release or args.upstream or args.bl616 or args.without_ra or args.usb != "native")
     ):
         w.error("--download takes no other option")
-    if args.command == "flash" and args.sram and args.image:
-        f.error("--sram takes a core, not an image")
+    if args.command == "flash" and args.sram and (args.image or args.cores):
+        f.error("--sram takes a core, not an image or --cores")
     if args.command == "flash" and bool(args.bl616) != bool(args.port):
         f.error("--bl616 and --port go together")
     if args.command == "flash" and args.bl616 and (args.sram or args.board):
@@ -314,9 +323,13 @@ def main(argv: list[str]) -> int:
         elif args.command == "flash":
             core = args.core.resolve() if args.core else None
             image = args.image.resolve() if args.image else None
-            if args.download:
+            cores = [c.resolve() for c in args.cores] if args.cores else None
+            source = None
+            if args.download and cores:
+                source = published.cores_folder(ROOT, args.download, args.board)
+            elif args.download:
                 image = published.cores_image(ROOT, args.download, args.board)
-            flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board)
+            flash.flash(ROOT, core, args.sram, image, args.dry_run, args.board, cores, source)
         elif args.command == "tools":
             if args.tools_command == "fetch":
                 fetch_tools(ROOT, args.names)

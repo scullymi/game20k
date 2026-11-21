@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -182,6 +183,10 @@ def release(root: Path, dev: bool, board: Path | None = None) -> Path:
     # core in place, and the cores of a release always go on together, they must match the
     # firmware of the same version.
     (dist / f"{name}.bin").write_bytes(slots.flash_image(project))
+    # each core's .bin as built, for an image of other cores (g20k.py flash --cores --download)
+    # and as /usb/cores/<core>.bin on the USB drive of the BL616
+    for core in project.slots:
+        shutil.copyfile(project.build_folder(core.name) / f"{core.name}.bin", dist / f"{core.name}.bin")
     # how to flash the image on this board, the board's text with the names of this release
     flashing = project.board.folder / "FLASHING.txt"
     (dist / "FLASHING.txt").write_text(

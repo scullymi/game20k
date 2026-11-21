@@ -77,12 +77,19 @@ def fetch(root: Path, info: dict[str, Any], name: str) -> Path:
     return dest
 
 
-def cores_image(root: Path, version: str, board: Path | None = None) -> Path:
-    """@brief The flash image of a release for the board of project.toml, or board instead."""
+def cores_folder(root: Path, version: str, board: Path | None = None) -> Path:
+    """@brief The unpacked cores zip of a release for the board of project.toml, or board instead:
+    the flash image and each core's .bin."""
     project = config.load_project(root / "project.toml", board)
     info = release(root, project, version)
     stem = f"{project.name}-{str(info['tag_name']).removeprefix('v')}-cores-{project.board.folder.name}"
-    return fetch(root, info, f"{stem}.zip") / f"{stem}.bin"
+    return fetch(root, info, f"{stem}.zip")
+
+
+def cores_image(root: Path, version: str, board: Path | None = None) -> Path:
+    """@brief The flash image of a release for the board of project.toml, or board instead."""
+    folder = cores_folder(root, version, board)
+    return folder / f"{folder.name}.bin"
 
 
 def pico_firmware(root: Path, version: str) -> Path:
