@@ -31,6 +31,7 @@ python3 -m unittest discover -s tools/engine/tests -t .
 
 - `test_ram_mirror.c`: `ram_mirror.c`, which header is taken, which snapshot reaches rcheevos and the verdict the core gets, against a stand-in of the core.
 - `test_banner.c`: `banner.c`, how a text fits, the queue, what goes to the core, and which mode and which reason the player is told.
+- `test_stone.c`: `stone.c`, the slot a core switch jumps to from the scan of the flash (the first of two, none without a scan), the hops of the ring between two boards, and the jump address written into the stepping stone's 0xD2 command while it streams in blocks of any size.
 
 Only these, because each guards real bugs in code that parses input from outside or decides about hardcore, and all run in seconds.
 

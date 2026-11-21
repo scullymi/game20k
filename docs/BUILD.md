@@ -147,6 +147,9 @@ off.
 
 `--without-ra` builds without RetroAchievements, for a trial. `--upstream PICO` builds a board
 of FPGA Companion without game20k's code, `--bl616 nano20k` the firmware of the onboard BL616.
+The BL616 firmware carries the stepping stone, an empty bitstream that jumps to a core in the
+flash, from `fpga/stone/stone.bin`. After a change to `fpga/stone/` or to the tools,
+`python3 g20k.py stone` builds it anew. The CI checks that the file matches a new build.
 
 `firmware --release` (or `--release bl616`) packs a release under `dist/`. The release files
 come from GitHub Actions, and `gh attestation verify <zip> -R scullymi/game20k` confirms that a
