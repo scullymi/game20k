@@ -2,9 +2,10 @@
 # Copyright (C) 2026 scullymi
 # game20k: the board and the cores in the configuration flash, in ring order. The FPGA loads the
 # first one at power-on. Each core takes one slot of the board's slot size, its address follows
-# from its place here. The header of each core's bitstream carries the address of the next
-# core, the last one points back to the first: the core switch (a low pulse on RECONFIG_N, see
-# game20k_top.sv) loads that one.
+# from its place here. g20k.py flash and release write the address of the next core into each
+# core's header, the last one points back to the first: the core switch (a low pulse on
+# RECONFIG_N, see game20k_top.sv) loads that one. flash --cores writes other cores and orders,
+# see docs/BUILD.md.
 
 [project]
 name = "game20k"

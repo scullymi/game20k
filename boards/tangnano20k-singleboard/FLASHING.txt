@@ -7,6 +7,11 @@ downloads, checks and writes it, see docs/bl616.md there:
 
   python3 g20k.py flash --download {version} --board boards/tangnano20k-singleboard
 
+The zip also holds each core's .bin. To write only some of the cores, in any
+order, name their folders:
+
+  python3 g20k.py flash --download {version} --cores fpga/galaga_hdmi fpga/pang_hdmi --board boards/tangnano20k-singleboard
+
 By hand, write it with openFPGALoader (brew install openfpgaloader, apt install
 openfpgaloader):
 

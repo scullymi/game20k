@@ -6,6 +6,11 @@ and writes it, see its README:
 
   python3 g20k.py flash --download {version}
 
+The zip also holds each core's .bin. To write only some of the cores, in any
+order, name their folders:
+
+  python3 g20k.py flash --download {version} --cores fpga/galaga_hdmi fpga/pang_hdmi
+
 By hand, write it with openFPGALoader (brew install openfpgaloader, apt install
 openfpgaloader):
 
