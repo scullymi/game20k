@@ -47,6 +47,7 @@ typedef void (*TaskFunction_t)(void *);
 #define pdPASS  pdTRUE
 #define pdMS_TO_TICKS(ms)    ((TickType_t)(ms))   /* configTICK_RATE_HZ 1000 */
 #define configTICK_RATE_HZ   1000
+#define portTICK_PERIOD_MS   1
 #define configMAX_PRIORITIES 32
 #define portMAX_DELAY        ((TickType_t)0xffffffffu)
 #define taskENTER_CRITICAL() do { } while(0)       /* one thread, nothing to keep out */
