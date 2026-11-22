@@ -145,9 +145,10 @@ void sdc_lock(void) { if(sdc_depth++) host_fail("sdc_lock() while it is held: on
 void sdc_unlock(void) { if(!sdc_depth--) host_fail("sdc_unlock() without sdc_lock()"); }
 unsigned host_sdc_depth(void) { return sdc_depth; }
 
-// sdc.c: the file name of a drive's mounted image and its directory. No test mounts one
-char *sdc_get_image_name(int drive) { (void)drive; return NULL; }
-char *sdc_get_cwd(int drive) { (void)drive; return NULL; }
+// sdc.c: the file name of a drive's mounted image and its directory. None here, weak for a
+// test that sets them
+__attribute__((weak)) char *sdc_get_image_name(int drive) { (void)drive; return NULL; }
+__attribute__((weak)) char *sdc_get_cwd(int drive) { (void)drive; return NULL; }
 
 // ra_task.c: the mode the FTP guard asks for. Weak, test_game_switch includes the real one
 bool host_hardcore;
