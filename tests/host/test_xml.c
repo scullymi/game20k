@@ -54,16 +54,20 @@ static void test_white_space(void) {
 }
 
 static void test_entities(void) {
-  // in values only, any case, also next to each other. The end is checked after each character,
-  // so "&amp;amp;" ends as "&"
+  // in values only, case-insensitive, also next to each other. A decoded char never starts
+  // another entity, so "&amp;amp;" ends as "&amp;"
   parse("<a v=\"x &amp; y &lt;&GT; &Amp;amp;\"/>");
-  TEST_ASSERT_EQUAL_STRING("<a>[v=x & y <> &]</>", seen);
+  TEST_ASSERT_EQUAL_STRING("<a>[v=x & y <> &amp;]</>", seen);
+  // the next value decodes from its first char again
+  parse("<a v=\"&amp;\" w=\"&lt;\"/>");
+  TEST_ASSERT_EQUAL_STRING("<a>[v=&][w=<]</>", seen);
 }
 
 static void test_empty_value(void) {
-  // an empty value reaches the callback as NULL
-  parse("<a v=\"\" w=''/>");
-  TEST_ASSERT_EQUAL_STRING("<a>[v=(null)][w=(null)]</>", seen);
+  // an empty value reaches the callback as "", and so does a value of only NUL chars
+  static const char text[] = "<a v=\"\" w='' x=\"\0\"/>";
+  parse_n(text, sizeof(text) - 1);
+  TEST_ASSERT_EQUAL_STRING("<a>[v=][w=][x=]</>", seen);
 }
 
 static void test_skipped_element(void) {
@@ -97,6 +101,17 @@ static void test_parse_again(void) {
   parse("<a x=\"abc");
   parse("<b y=\"2\"/>");
   TEST_ASSERT_EQUAL_STRING("<b>[y=2]</>", seen);
+  // also after a value that broke off behind an entity
+  parse("<a x=\"&amp;x");
+  parse("<b y=\"&lt;\"/>");
+  TEST_ASSERT_EQUAL_STRING("<b>[y=<]</>", seen);
+}
+
+static void test_parse_after_broken_skip(void) {
+  // the same after a menu that broke off inside a skipped element
+  parse("<skip><a x=\"1\"");
+  parse("<b y=\"2\"/>");
+  TEST_ASSERT_EQUAL_STRING("<b>[y=2]</>", seen);
 }
 
 int main(void) {
@@ -109,5 +124,6 @@ int main(void) {
   RUN_TEST(test_long_name_and_value);
   RUN_TEST(test_nul_chars);
   RUN_TEST(test_parse_again);
+  RUN_TEST(test_parse_after_broken_skip);
   return UNITY_END();
 }
